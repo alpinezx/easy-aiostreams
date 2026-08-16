@@ -77,7 +77,7 @@ ubuntu@vm1:~$ dig +short mystreams.xyz
 ubuntu@vm1:~$ curl -4 ifconfig.me
 192.0.2.15
 ```
-Different IPs ? — the domain isn't pointing at this server yet. Don't run the installer until these two lines match.
+Different IPs — the domain isn't pointing at this server yet. Don't run the installer until these two lines match.
 
 ### Run the installer
 
