@@ -48,12 +48,12 @@ Whichever you pick, add an **A record** pointing at your VPS's IP before running
 
 ### Confirm your DNS is actually pointing at your server first
 
-The install fails the HTTPS step if your **A record** hasn't propagated yet. Run this — but swap `aio.example.com` for your own real domain first, it's just a placeholder:
+The install fails the HTTPS step if your **A record** hasn't propagated yet. Run this — but swap `mystreams.xyz` for your own real domain first, it's just a placeholder:
 
 Bare name only — no `https://`, no trailing `/`, no backslash. e.g. `dig +short mystreams.xyz`, or `dig +short aio.mystreams.xyz` for a subdomain. It should print a single IP — compare it to your server's:
 
 ```bash
-dig +short aio.example.com
+dig +short mystreams.xyz
 ```
 
 ```bash
