@@ -13,7 +13,7 @@ A one-command installer for a self-hosted [AIOStreams](https://github.com/Viren0
 - [Notes](#notes)
 - [Bypassing addon & ISP blocking](#bypassing-addon--isp-blocking)
 - [Optional add-ons](#optional-add-ons)
-- [Migrating to a new server](#migrating-to-a-new-server-optional)
+- [Backup & Restore — Migrating to a new server](#backup--restore--migrating-to-a-new-server-optional)
 - [Troubleshooting](#troubleshooting)
 
 ## What this gives you
@@ -169,7 +169,7 @@ curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads
 sudo bash setup-watchdog.sh
 ```
 
-## Migrating to a new server (optional)
+## Backup & Restore — Migrating to a new server (optional)
 
 - Backup & Restore — back up your whole stack to one tarball and restore it on a new VPS, same domain/login/`SECRET_KEY` and all, so every existing user config and installed Stremio manifest keeps working. Covers the DNS update you'll need to make afterward. → [Basic](./docs/basic/backup-restore.md) · [Advanced](./docs/advanced/backup-restore.md)
 
