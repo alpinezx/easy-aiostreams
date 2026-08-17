@@ -116,8 +116,6 @@ Run it again any time from the same directory (`~/aiostreams`) and it'll detect 
 10) Exit
 ```
 
-Moving to a new server? → see [Migrating to a new server](#migrating-to-a-new-server-optional) below.
-
 **Stable vs nightly:** on a fresh install (or Reconfigure), you're asked whether to run the `latest` (stable) or `nightly` build. You can switch channels later at any time from the **Update** option — it'll show your current channel and offer to switch before pulling. Any time you actually change channel (not just re-confirm the one you're on), the script stops for an explicit y/N confirmation — with an extra note to back up first if you're going nightly → stable, since that's a downgrade and could hit a config/database format nightly has moved past.
 
 ## Notes
