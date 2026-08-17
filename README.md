@@ -83,17 +83,32 @@ Different IPs — the domain isn't pointing at this server yet. Don't run the in
 
 ### Run the installer
 
+Create the install directory and move into it:
+
 ```bash
-mkdir -p ~/aiostreams && \
-curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-aiostreams.sh -o ~/aiostreams/setup-aiostreams.sh && \
-cd ~/aiostreams && sudo bash setup-aiostreams.sh
+mkdir -p ~/aiostreams && cd ~/aiostreams
+```
+
+Download the script:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-aiostreams.sh -o setup-aiostreams.sh
+```
+
+(Optional — take a look before running it: `less setup-aiostreams.sh`)
+
+Run it:
+
+```bash
+sudo bash setup-aiostreams.sh
 ```
 
 The script will ask you for:
 1. Your domain/subdomain
 2. A username and password for logging into the instance
+3. Which build to run — stable (recommended) or nightly
 
-Passwords are limited to letters, numbers, and `@ % ^ * _ + = . ! ? -` — other symbols would break the `user:pass` environment format.
+Passwords need at least 8 characters, and are limited to letters, numbers, and `@ % ^ * _ + = . ! ? -` — other symbols would break the `user:pass` environment format.
 
 Everything else — Docker install, HTTPS certificate, secret key generation — is handled automatically.
 
@@ -112,7 +127,7 @@ Run it again any time from the same directory (`~/aiostreams`) and it'll detect 
  6) Reconfigure (change domain/login — backs up your current config first)
  7) Uninstall (clean removal)
  8) Backup (one tarball with everything needed for migration or safekeeping)
- 9) Restore from backup (also runs on a fresh server: ./setup-aiostreams.sh restore <file>)
+ 9) Restore from backup (also runs on a fresh server: sudo bash setup-aiostreams.sh restore <file>)
 10) Exit
 ```
 
@@ -127,8 +142,8 @@ Run it again any time from the same directory (`~/aiostreams`) and it'll detect 
 
 Not required for the core install — config-only, no separate script to run.
 
-- 🚫 **A specific scraper/addon getting blocked or rate-limited?** → [Addon Proxy Setup](./docs/basic/addon-proxy-setup.md) ([advanced](./docs/advanced/addon-proxy-setup.md))
-- 🔌 **Streams fail to load, but a VPN on your device "fixes" it?** → [Proxy Setup](./docs/basic/proxy-setup.md) ([advanced](./docs/advanced/proxy-setup.md))
+- **A specific scraper/addon getting blocked or rate-limited?** → [Addon Proxy Setup](./docs/basic/addon-proxy-setup.md) ([advanced](./docs/advanced/addon-proxy-setup.md))
+- **Streams fail to load, but a VPN on your device "fixes" it?** → [Proxy Setup](./docs/basic/proxy-setup.md) ([advanced](./docs/advanced/proxy-setup.md))
 
 ## Optional add-ons
 
@@ -136,23 +151,23 @@ Not required for the core install — pick these up any time.
 
 ### VPN Setup
 
-🛡️ **Want your debrid provider to never see your VPS's IP at all, or want to use a VPN for addon unblocking instead of a proxy?** Adds a WireGuard VPN via [gluetun](https://github.com/qdm12/gluetun), Docker-isolated, doesn't touch SSH or the host. → [Basic](./docs/basic/vpn-setup.md) · [Advanced](./docs/advanced/vpn-setup.md)
+- **Want to use a VPN for addon/scraper unblocking system-wide, instead of managing proxy rules per addon?** Adds a WireGuard VPN via [gluetun](https://github.com/qdm12/gluetun), Docker-isolated, doesn't touch SSH or the host. *(This isn't an anonymity setup on its own — see the guide if that's your actual goal.)* → [Basic](./docs/basic/vpn-setup.md) · [Advanced](./docs/advanced/vpn-setup.md)
 
 ```bash
-cd ~/aiostreams && \
-curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-vpn-gluetun.sh -o setup-vpn-gluetun.sh && sudo bash setup-vpn-gluetun.sh
+cd ~/aiostreams
+curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-vpn-gluetun.sh -o setup-vpn-gluetun.sh
+sudo bash setup-vpn-gluetun.sh
 ```
 
 ### Watchdog Alerts
 
-🔔 **Want a phone alert if the VPN tunnel drops?** Requires the VPN layer above first. → [Basic](./docs/basic/watchdog.md) · [Advanced](./docs/advanced/watchdog.md)
+- **Want a phone alert if the VPN tunnel drops?** Requires the VPN layer above first. → [Basic](./docs/basic/watchdog.md) · [Advanced](./docs/advanced/watchdog.md)
 
 ```bash
-cd ~/aiostreams && \
-curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-watchdog.sh -o setup-watchdog.sh && sudo bash setup-watchdog.sh
+cd ~/aiostreams
+curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-watchdog.sh -o setup-watchdog.sh
+sudo bash setup-watchdog.sh
 ```
-
-These aren't mutually exclusive — running more than one at once is fine, and each guide links to the others where they interact.
 
 ## Migrating to a new server (optional)
 
@@ -160,9 +175,8 @@ These aren't mutually exclusive — running more than one at once is fine, and e
 
 ## Troubleshooting
 
-- For setup questions or issues not covered here, see the [Reddit discussion thread](https://www.reddit.com/r/StremioAddons/comments/1vo6a5q/self_hosted_aiostreams_easy_install_script/) — several real-world VPS/proxy scenarios get covered there.
-- "Couldn't confirm certificate issuance" during a fresh install, even though HTTPS actually works fine — fixed (2026-07). The check used to grep Caddy's logs for wording current Caddy versions no longer produce; it now verifies the TLS certificate directly instead.
-- Anything else — VPN, restore, watchdog alerts — has its own **Troubleshooting** section at the bottom of that guide's advanced doc.
+- The provided basic and advanced documents cover most of the issues you will run into. For any bugs you encounter in the script, open an issue.
+- For setup questions or issues not covered here, see the [Reddit discussion thread](https://www.reddit.com/r/StremioAddons/comments/1vo6a5q/self_hosted_aiostreams_easy_install_script/)
 
 ## License
 

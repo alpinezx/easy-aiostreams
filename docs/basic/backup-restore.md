@@ -13,6 +13,7 @@ For moving AIOStreams to a new server.
 > 💾 The backup tars up the entire `~/aiostreams` folder, not just the app data — so `setup-vpn-gluetun.sh`, `setup-watchdog.sh`, and any other install scripts sitting in that folder come along automatically too. Nothing to move by hand.
 
 ```bash
+cd ~/aiostreams
 sudo bash setup-aiostreams.sh backup
 ```
 This prints a file name like `aiostreams-backup-YYYYMMDD-HHMMSS.tar.gz` and a ready-to-use `scp` command to copy it off the server — **use the exact command it prints**, don't copy the one below blind. It differs depending on how you're logged in:
@@ -26,7 +27,7 @@ This prints a file name like `aiostreams-backup-YYYYMMDD-HHMMSS.tar.gz` and a re
   ```
   This matters because root SSH login may not work at all on your box.
 
-Run the printed command **now**, from your own computer.
+Run the printed command **now**, from your own computer — or, if you'd rather not use a terminal, open an SFTP app (FileZilla, WinSCP, Termius) and download the same file from your home directory on the server.
 
 ---
 
@@ -55,6 +56,8 @@ scp setup-aiostreams.sh aiostreams-backup-YYYYMMDD-HHMMSS.tar.gz root@your-new-s
 ```
 (Not using root over SSH? Send them to your own home directory instead — `scp setup-aiostreams.sh aiostreams-backup-....tar.gz your_user@your-new-server-ip:~` — the restore step below will still find the tarball automatically either way.)
 
+Prefer not to use a terminal for this? An SFTP app (FileZilla, WinSCP, Termius) works just as well — upload both files to the same location (your home directory, or `/root` if you're logging in as root).
+
 ---
 
 ## 4. Restore on the new server
@@ -63,9 +66,9 @@ scp setup-aiostreams.sh aiostreams-backup-YYYYMMDD-HHMMSS.tar.gz root@your-new-s
 
 Before running this, double check `dig +short yourdomain.com` (from step 2) is showing your **new** server's IP. If it's not there yet, wait a bit longer — restoring before DNS has caught up is the most common cause of a stuck HTTPS certificate.
 
+Run this from wherever step 3 uploaded the files (your home directory, or `/root` if you're logging in as root — `~/aiostreams` doesn't exist yet on a fresh server, so this is the one script command in these docs that *isn't* run from there):
 ```bash
-chmod +x setup-aiostreams.sh
-sudo ./setup-aiostreams.sh
+sudo bash setup-aiostreams.sh
 ```
 - **Brand-new server, nothing installed yet:** pick **2) Restore from a backup** on the first-run screen.
 - **Server already has an install on it** (e.g. you ran a fresh install here earlier): pick **9) Restore from backup** from the management menu instead.
@@ -97,8 +100,6 @@ That's it — no other setup needed.
 - Log in with your existing username/password.
 - Play a stream from a device that already had the addon installed — if it plays, the move worked.
 - **Keep the old server running** until you've confirmed this. It's your safety net if something looks wrong.
-
----
 
 ---
 

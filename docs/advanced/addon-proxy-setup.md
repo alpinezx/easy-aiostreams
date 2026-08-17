@@ -144,17 +144,16 @@ first thing to reach for:
 
 - **Just want to unblock a specific scraper?** Addon Proxy. Free, surgical,
   five minutes, no bandwidth cost, nothing else about your setup changes.
-- **Want your debrid provider (TorBox, Real-Debrid, etc.) to never see
-  your VPS's real IP at all** — for privacy, not because anything's
-  blocked — the VPN layer is still the right tool. Addon Proxy only
-  routes addon/scraper *search* traffic; it doesn't touch your debrid
-  provider's own API calls (account checks, library, resolving links)
-  unless you deliberately add a rule for that provider's hostname too —
-  and doing that is a different, higher-stakes decision than routing a
-  public scraper, since it's tied to your actual paid account rather than
-  an anonymous search request. See
+- **Multiple things blocked at once, or you'd rather route everything
+  through a VPN by default instead of managing proxy rules per addon?**
+  The VPN layer is the broader tool — it wraps AIOStreams' entire outbound
+  traffic, including your debrid provider's own API calls (account checks,
+  library, resolving links), not just scraper search requests. See
   [VPN Setup](./vpn-setup.md#relationship-to-the-proxy-setting) for the
-  full picture of what the VPN layer covers that this doesn't.
+  full picture of what it covers that Addon Proxy doesn't. *(If your
+  actual goal is your debrid provider never seeing your real IP at all,
+  that's a stricter goal than either of these — see
+  [Anonymity, if that's actually your goal](./vpn-setup.md#anonymity-if-thats-actually-your-goal).)*
 - **Both blocked traffic and privacy matter to you?** Nothing stops you
   running both — they don't conflict. Addon Proxy can even point at your
   existing `gluetun` container as one of its proxy entries

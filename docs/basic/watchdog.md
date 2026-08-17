@@ -22,7 +22,8 @@ Install [ntfy](https://ntfy.sh) from the Play Store or App Store, or just keep `
 
 ```bash
 cd ~/aiostreams
-curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-watchdog.sh -o setup-watchdog.sh && sudo bash setup-watchdog.sh
+curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-watchdog.sh -o setup-watchdog.sh
+sudo bash setup-watchdog.sh
 ```
 
 Choose **2) Start**. It'll suggest a random topic name (or let you type your own — pick something long and hard to guess, since anyone who knows it can see your alerts), then pause so you can subscribe before it sends a test alert.
@@ -59,7 +60,8 @@ If nothing shows up within a few seconds, don't move on yet — see the [advance
 
 Run the script again any time for a menu:
 ```bash
-sudo ./setup-watchdog.sh
+cd ~/aiostreams
+sudo bash setup-watchdog.sh
 ```
 - **Status** — is it running, when did it last check, and the current tunnel state.
 - **Start / Stop** — turn checking on or off. Config is kept either way.

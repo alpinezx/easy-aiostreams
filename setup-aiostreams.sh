@@ -13,7 +13,7 @@
 # active, 'Restart' does a safe full recreate, and 'Uninstall' offers to
 # remove the vpn-state dir (holds the WireGuard key).
 #
-# Backup/Restore (menu options 10/11) for server migration: one tarball
+# Backup/Restore (menu options 8/9) for server migration: one tarball
 #   holds everything needed to move to a new VPS with all user configs
 #   intact (SECRET_KEY included). Restore also works on a fresh server
 #   BEFORE any install exists: sudo bash setup-aiostreams.sh restore <file>
@@ -21,10 +21,9 @@
 # Run as root (or with sudo) on a fresh Ubuntu/Debian VPS.
 #
 # Usage:
-#   chmod +x setup-aiostreams.sh
-#   ./setup-aiostreams.sh                      # install, or management menu
-#   ./setup-aiostreams.sh backup               # straight to backup
-#   ./setup-aiostreams.sh restore <tarball>    # straight to restore (works pre-install)
+#   sudo bash setup-aiostreams.sh                      # install, or management menu
+#   sudo bash setup-aiostreams.sh backup               # straight to backup
+#   sudo bash setup-aiostreams.sh restore <tarball>    # straight to restore (works pre-install)
 
 set -euo pipefail
 

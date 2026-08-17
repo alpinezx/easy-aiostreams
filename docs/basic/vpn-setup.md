@@ -7,20 +7,11 @@ For adding a WireGuard VPN layer to AIOStreams.
 This layer, [Addon Proxy Setup](./addon-proxy-setup.md), and [Proxy Setup](./proxy-setup.md) solve three different problems — check which one matches what you're seeing:
 
 - **Streams fail to load or time out, and turning on a VPN on your phone/TV "fixes" it** → that's your ISP blocking your debrid traffic, not your VPS's IP. You need the [Proxy Setup](./proxy-setup.md) instead — you don't need this guide.
-- **A scraper inside AIOStreams or Comet (Torrentio, MediaFusion, etc.) is rate-limited, blacklisted, or quietly returning zero results** → that's your VPS's own IP getting blocked by that specific service. Try [Addon Proxy Setup](./addon-proxy-setup.md) first — it's free, takes a few minutes, and fixes just that addon without touching anything else. This VPN layer also fixes it (it's broader — covers every scraper and API call at once), but it's the heavier option: more setup, and it changes how *everything* AIOStreams does exits your VPS, not just the one blocked service.
-- **You want your debrid provider to never see your VPS's IP at all** — not just for unblocking, but so they can't see it for anything, searches or playback — this is what the VPN layer is actually for. Addon Proxy only routes what you explicitly add rules for; it won't cover this by default. Add the [Proxy Setup](./proxy-setup.md) too if you also want the video-data hop covered.
-
-  > [!WARNING]
-  > **The rest of this box only matters if your goal is anonymity — skip it if you're just here for unblocking.** If you don't care whether your debrid provider has ever seen your real IP, and just want a broader fix than Addon Proxy covers (bullet above), the VPN works fine for that with no extra conditions — turn it on and it does the job.
-  >
-  > If you *do* want the "never sees my real IP" goal, it only protects a fresh account, and only if you stay behind it — every time. It hides your VPS's IP going forward; it can't erase history the provider already has, and it stops protecting you the moment any connection to that account happens outside it.
-  >
-  > - The account needs to be created *and always used* from behind a VPN, from the very first login — ideally paid for in a way that doesn't tie back to you (e.g. Monero).
-  > - Opening the debrid provider's own app/website directly on any device, or logging into the account from anywhere not behind a VPN, exposes your real IP to them — even once, permanently.
-  >
-  > This VPS-side VPN can't protect you from either of those — they happen outside this setup entirely. → [Full explanation](../advanced/vpn-setup.md#anonymity-requires-constant-vigilance)
-
+- **A scraper inside AIOStreams or Comet (Torrentio, MediaFusion, etc.) is rate-limited, blacklisted, or quietly returning zero results** → that's your VPS's own IP getting blocked by that specific service. Try [Addon Proxy Setup](./addon-proxy-setup.md) first — it's free, takes a few minutes, and fixes just that addon without touching anything else. This VPN layer also fixes it, and covers every scraper and API call at once instead of one at a time — use it if multiple things are blocked, or you'd rather route everything through a VPN by default instead of managing proxy rules per addon.
 - **None of the above, everything's working fine** → you probably don't need any of these guides yet.
+
+> [!NOTE]
+> This is an unblocking tool, not an anonymity tool. It's a different, stricter goal to make your debrid account itself untraceable to you — this VPN alone doesn't do that, and it's easy to undo by accident (e.g. opening the debrid app on a device that isn't behind it). → [Advanced guide](../advanced/vpn-setup.md#anonymity-if-thats-actually-your-goal) if that's what you're after.
 
 Still not sure, or want the full technical breakdown of what each layer actually covers? → [Advanced guide](../advanced/vpn-setup.md#relationship-to-the-proxy-setting)
 
@@ -75,7 +66,8 @@ Either way the script auto-detects it — remember the path in case you need it,
 
 ```bash
 cd ~/aiostreams
-curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-vpn-gluetun.sh -o setup-vpn-gluetun.sh && sudo bash setup-vpn-gluetun.sh
+curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-vpn-gluetun.sh -o setup-vpn-gluetun.sh
+sudo bash setup-vpn-gluetun.sh
 ```
 
 It'll ask for the path to your `.conf` file from step 3, then set everything up and switch you into VPN mode automatically.
@@ -86,6 +78,13 @@ It'll ask for the path to your `.conf` file from step 3, then set everything up 
 
 **This does:** proves your traffic is actually going through the VPN now.
 
+Run the script and choose **1) Status** — it prints gluetun's exit IP directly, no typing required:
+```bash
+cd ~/aiostreams
+sudo bash setup-vpn-gluetun.sh
+```
+
+Want to see it side-by-side with your VPS's own real IP, for extra proof? Run both of these:
 ```bash
 curl ifconfig.me
 echo
@@ -111,7 +110,8 @@ Try loading `https://yourdomain` or playing a stream — it should fail (a Caddy
 
 Then bring it back properly — don't just `docker start gluetun`:
 ```bash
-sudo ./setup-vpn-gluetun.sh
+cd ~/aiostreams
+sudo bash setup-vpn-gluetun.sh
 ```
 Choose **2) Turn VPN ON**.
 
@@ -121,7 +121,8 @@ Choose **2) Turn VPN ON**.
 
 Run the script again any time for a menu:
 ```bash
-sudo ./setup-vpn-gluetun.sh
+cd ~/aiostreams
+sudo bash setup-vpn-gluetun.sh
 ```
 - **Turn VPN ON / OFF** — switches modes, a few seconds of downtime.
 - **Status** — shows whether it's on and healthy.

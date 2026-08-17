@@ -14,8 +14,7 @@
 # check this ships with needs gluetun to exist.
 #
 # Usage:
-#   chmod +x setup-watchdog.sh
-#   sudo ./setup-watchdog.sh
+#   sudo bash setup-watchdog.sh
 #
 # (--run-check is used internally by the systemd timer — no need to run
 # it directly yourself. install-timer is used internally by
@@ -261,7 +260,7 @@ if [[ "${1:-}" == "--run-check" ]]; then
     exit 0
 fi
 
-[[ $EUID -eq 0 ]] || error "Run as root: sudo ./setup-watchdog.sh"
+[[ $EUID -eq 0 ]] || error "Run as root: sudo bash setup-watchdog.sh"
 command -v docker    >/dev/null || error "Docker not found — run this on the same server as setup-aiostreams.sh."
 command -v curl      >/dev/null || error "curl not found — install it first (apt install curl)."
 command -v systemctl >/dev/null || error "systemd not found — this script relies on systemd timers."

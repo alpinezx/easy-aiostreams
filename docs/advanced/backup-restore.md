@@ -50,6 +50,7 @@ From the management menu (existing install detected):
 Or non-interactively, without going through the menu at all:
 
 ```bash
+cd ~/aiostreams
 sudo bash setup-aiostreams.sh backup
 ```
 
@@ -73,7 +74,9 @@ on how you're logged in:
   once you're done, not just the one you copied off.
 
 Do this now, before you decommission the old server — the tarball on disk
-is not itself an off-site backup.
+is not itself an off-site backup. Any SFTP client (FileZilla, WinSCP,
+Termius) works just as well as `scp` if you'd rather not use a terminal for
+the transfer — the file lives in the same place either way.
 
 ### Backing up as part of an update
 
@@ -148,7 +151,8 @@ already-running install; there's nothing to reconfigure right after a
 restore, since nothing about your setup has changed.
 
 1. **Get the script and the tarball onto the new server.** Any transfer
-   method works (SFTP, `scp`, etc.) — drop both into `/root` if you're
+   method works — `scp`, or an SFTP app (FileZilla, WinSCP, Termius) if
+   you'd rather not use a terminal — drop both into `/root` if you're
    logging in as root, or your own home directory if you're using `sudo`
    (wherever you'll run the script from either way):
    ```bash
@@ -169,8 +173,7 @@ restore, since nothing about your setup has changed.
    - **Brand-new server, nothing installed yet** — you'll land on the
      first-run screen:
      ```bash
-     chmod +x setup-aiostreams.sh
-     sudo ./setup-aiostreams.sh
+     sudo bash setup-aiostreams.sh
      ```
      Choose **2) Restore from a backup**.
 

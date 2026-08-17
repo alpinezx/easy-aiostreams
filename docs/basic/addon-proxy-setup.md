@@ -66,8 +66,6 @@ Search for something that previously failed on the blocked addon. If results com
 
 ⚠️ **One thing to know:** this is an admin-level setting — it applies instance-wide, not per-config like the video Proxy setting. For a typical single-user setup that's exactly what you want.
 
-Free proxies can themselves already be flagged by some services (they're shared across many users). If it doesn't work, try a different one from your Webshare list before assuming something's misconfigured.
-
 ---
 
 Need more detail, or want to route multiple addons through different proxies? → [Advanced guide](../advanced/addon-proxy-setup.md)

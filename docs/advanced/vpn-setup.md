@@ -6,9 +6,8 @@
 
 The [Proxy Setup](./proxy-setup.md) guide covers routing debrid traffic
 through your VPS to dodge ISP blocking. This guide covers a different
-layer: what to do if your **VPS's own IP** ever gets blocked — by a
-scraper, by a debrid provider, or you'd simply rather your debrid provider
-never see it at all.
+layer: what to do if your **VPS's own IP** gets blocked — by a scraper,
+by a debrid provider, or by several things at once.
 
 If it's specifically **one scraper or addon** that's blocked (Torrentio
 returning nothing, a 403 in the logs, etc.), try
@@ -18,9 +17,9 @@ your setup. This VPN layer is the broader tool: instead of routing one
 addon's traffic, it puts *everything* AIOStreams does behind a VPN tunnel
 at once — every scraper, every debrid API call, all of it, unconditionally.
 That's more than most single-blocked-scraper situations actually need, but
-it's the right call if you want your debrid provider to never see your
-VPS's real IP at all (a privacy goal, not just an unblocking one), or if
-multiple things are getting blocked at once rather than just one addon.
+it's the right call if multiple things are getting blocked at once, or
+you'd rather route everything through a VPN by default instead of managing
+proxy rules addon-by-addon.
 
 `setup-vpn-gluetun.sh` adds this optional VPN tunnel that only the
 AIOStreams container uses. Flip it on, and AIOStreams' outbound traffic (to
@@ -28,7 +27,7 @@ TorBox, scrapers, etc.) exits through a WireGuard VPN server instead of
 your VPS's own IP. Flip it off, and it goes back to exiting through your
 VPS directly.
 
-> ⚠️ **Three things worth knowing before you set this up:**
+> ⚠️ **Two things worth knowing before you set this up:**
 >
 > 1. **The proxy and the VPN protect different traffic.** AIOStreams'
 >    own outbound calls — scraper searches, debrid API calls, metadata
@@ -43,30 +42,12 @@ VPS directly.
 >    cap data (many don't, but check). This was already true with the
 >    proxy alone; adding the VPN tunnel doesn't change the *amount* of data,
 >    just where it counts against.
->
-> 3. **This hides your
->    VPS's IP going forward — it doesn't retroactively hide an account that
->    already used a different IP.** If your debrid account has ever
->    connected from your VPS's real IP, or from your own home IP, that
->    connection history is already on file with the provider. Turning this
->    VPN on today doesn't unlink it. For the "my debrid provider never sees
->    my real IP" goal to actually hold, the account itself needs to have
->    been created — and used from the very first login — from behind a VPN,
->    ideally paid for through a method that doesn't tie back to you (e.g.
->    Monero or another privacy-focused payment). This VPN layer is the
->    mechanism; it's not a substitute for a clean account history.
 
-> [!WARNING]
-> <a id="anonymity-requires-constant-vigilance"></a>**This whole box only applies if your goal is anonymity from your debrid provider — skip it if you're only here for unblocking.** If you don't care whether the provider has ever seen your real IP, and just want broader coverage than [Addon Proxy Setup](./addon-proxy-setup.md) gives you, this VPN layer works fine for that with no extra conditions attached.
->
-> If you *do* want the "my debrid provider never sees my real IP" goal, understand that **it isn't a one-time setup — it requires constant vigilance.** This VPN layer protects one path: AIOStreams' own traffic from this VPS. It cannot protect you from:
->
-> - **Opening the debrid provider's own app or website directly** on your phone, laptop, or any device that isn't going through this VPS — that connection uses your real residential IP.
-> - **Logging into the account from anywhere not behind a VPN** — checking it on mobile data, at a friend's house, from a work laptop, etc.
->
-> Either one, even once, puts your real IP on that provider's logs against that account, permanently. There's no setting here that undoes it afterward.
->
-> The one leak path this setup *does* structurally close is the VPS itself ever connecting unprotected: AIOStreams shares gluetun's network namespace entirely, so if the tunnel is down, AIOStreams has no network path at all rather than silently falling back to the VPS's real IP — see [Proving the kill switch actually blocks traffic](#proving-the-kill-switch-actually-blocks-traffic). But that only covers the VPS side. The account itself stays only as anonymous as every connection ever made to it, forever, on every device.
+> [!NOTE]
+> This is an unblocking layer, not an anonymity layer — see
+> [Anonymity, if that's actually your goal](#anonymity-if-thats-actually-your-goal)
+> below if you're after the stricter goal of your debrid provider never
+> seeing your real IP at all.
 
 **Read this before anything else:** this cannot lock you out of your
 server. SSH, Caddy, and everything else stay on your VPS's normal network
@@ -165,8 +146,7 @@ From the same directory as your AIOStreams install (`~/aiostreams`):
 ```bash
 cd ~/aiostreams
 curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-vpn-gluetun.sh -o setup-vpn-gluetun.sh
-chmod +x setup-vpn-gluetun.sh
-sudo ./setup-vpn-gluetun.sh
+sudo bash setup-vpn-gluetun.sh
 ```
 
 ## First-time setup
@@ -190,6 +170,11 @@ exactly which log command to check and which commands would roll you back.
 Run the script again any time and you'll get a menu instead of the setup
 flow:
 
+```bash
+cd ~/aiostreams
+sudo bash setup-vpn-gluetun.sh
+```
+
 ```
 1) Status
 2) Turn VPN ON
@@ -197,7 +182,8 @@ flow:
 4) Reconfigure VPN (change WireGuard server/config)
 5) Update gluetun (pull latest image; safe restart if VPN is on)
 6) Force cleanup (remove stray containers if a toggle got wedged)
-7) Exit
+7) Uninstall VPN layer (clean removal, back to plain AIOStreams + Caddy)
+8) Exit
 ```
 
 - **Status** — shows current mode, container health, and (in VPN mode)
@@ -223,6 +209,14 @@ flow:
   reboot mid-switch) and containers look stuck or mismatched. It removes
   any stray containers by name so a normal toggle can bring things back
   cleanly. If everything is behaving, you should never need it.
+- **Uninstall VPN layer** — removes gluetun and its saved state entirely,
+  switching back to a plain AIOStreams + Caddy stack first if VPN mode is
+  currently on. Along the way it offers to also remove the gluetun Docker
+  image and to delete your original `.conf` file (both are optional —
+  the `.conf` file contains your private key in plain text, so deleting it
+  once you're done is worth doing). AIOStreams and Caddy themselves are
+  untouched; running the script again afterward starts first-time VPN
+  setup from scratch.
 
 ---
 
@@ -260,6 +254,10 @@ VPN layer's saved configs.
 ---
 
 ## Verifying it's actually working
+
+The quickest check: run the script and choose **Status** — it prints
+gluetun's exit IP directly. For the full side-by-side comparison against
+your VPS's own IP:
 
 From the VPS terminal:
 
@@ -325,7 +323,8 @@ nothing.
 
 Restore properly afterward — **not** a plain `docker start gluetun`:
 ```bash
-sudo ./setup-vpn-gluetun.sh
+cd ~/aiostreams
+sudo bash setup-vpn-gluetun.sh
 ```
 Choose **2) Turn VPN ON**. This does a full teardown/recreate and verifies
 all three containers actually come back running, rather than trusting a
@@ -346,6 +345,22 @@ IP" — the test above already answers it.
 health every couple of minutes and pushes a phone notification if it ever
 goes down for real, so you find out immediately rather than the next time
 you happen to test it.
+
+---
+
+## Anonymity, if that's actually your goal
+<a id="anonymity-if-thats-actually-your-goal"></a>
+
+Everything above is about **unblocking** — getting your VPS's own IP off scrapers' and debrid providers' block lists. If what you actually want is for your debrid provider to never see your real IP at all, that's a stricter, different goal, and this VPN layer alone doesn't achieve it.
+
+It hides your VPS's IP going forward. It does not retroactively hide an account that's ever connected from somewhere else, and it isn't a one-time setup — it needs to hold on *every* connection to that account, forever:
+
+- **Opening the debrid provider's app or website directly** on your phone, laptop, or any device that isn't going through this VPS uses your real residential IP.
+- **Logging into the account from anywhere not behind a VPN** — mobile data, a friend's house, a work laptop — does the same.
+
+Either one, even once, puts your real IP on that provider's logs against that account, permanently — nothing here can undo it afterward. For the goal to actually hold, the account itself would need to be created and always used from behind a VPN from the very first login, ideally paid for in a way that doesn't tie back to you (e.g. Monero).
+
+This VPN layer only closes one piece of that: it guarantees the VPS side never connects unprotected (see [the kill switch proof](#proving-the-kill-switch-actually-blocks-traffic) above). It's an ingredient, not the whole recipe — treat true anonymity as its own research topic, separate from this script.
 
 ---
 
@@ -437,6 +452,8 @@ two compare directly.
 ---
 
 ## Troubleshooting
+
+*(Run these from `~/aiostreams` — `cd ~/aiostreams` first if you're not already there.)*
 
 **"Couldn't confirm the tunnel came up" / status shows unhealthy**
 Check the raw logs: `docker compose logs gluetun`. Look for connection

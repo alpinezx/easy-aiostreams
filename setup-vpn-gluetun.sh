@@ -16,10 +16,9 @@
 # "direct" mode from the menu.
 #
 # Usage:
-#   chmod +x setup-vpn-gluetun.sh
-#   sudo ./setup-vpn-gluetun.sh
+#   sudo bash setup-vpn-gluetun.sh
 #
-#   sudo ./setup-vpn-gluetun.sh install-boot-hook
+#   sudo bash setup-vpn-gluetun.sh install-boot-hook
 #     Non-interactive: (re)install the systemd boot-safety hook only. Used by
 #     setup-aiostreams.sh's restore path; idempotent.
 
