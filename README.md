@@ -1,5 +1,7 @@
 # Easy AIOStreams
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
 A one-command installer for a self-hosted [AIOStreams](https://github.com/Viren070/AIOStreams) instance — Docker, Caddy (automatic HTTPS via Let's Encrypt), and AIOStreams' built-in login locking config creation to you alone, all in one script.
 
 ## Contents
@@ -163,3 +165,7 @@ These aren't mutually exclusive — running more than one at once is fine, and e
 - For setup questions or issues not covered here, see the [Reddit discussion thread](https://www.reddit.com/r/StremioAddons/comments/1vo6a5q/self_hosted_aiostreams_easy_install_script/) — several real-world VPS/proxy scenarios get covered there.
 - "Couldn't confirm certificate issuance" during a fresh install, even though HTTPS actually works fine — fixed (2026-07). The check used to grep Caddy's logs for wording current Caddy versions no longer produce; it now verifies the TLS certificate directly instead.
 - Anything else — VPN, restore, watchdog alerts — has its own **Troubleshooting** section at the bottom of that guide's advanced doc.
+
+## License
+
+MIT — see [LICENSE](./LICENSE). Provided as-is, no warranty; you're responsible for your own server, keys, and data.
