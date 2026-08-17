@@ -50,12 +50,12 @@ Whichever you pick, add an **A record** pointing at your VPS's IP before running
 
 ### Confirm your DNS is actually pointing at your server first
 
-The install fails the HTTPS step if your **A record** hasn't propagated yet. Run this — but swap `mystreams.xyz` for your own real domain first, it's just a placeholder:
+The install fails the HTTPS step if your **A record** hasn't propagated yet. Run this — but swap `yourdomain.xyz` for your own real domain first, it's just a placeholder:
 
-Bare name only — no `https://`, no trailing `/`, no backslash. e.g. `dig +short mystreams.xyz`, or `dig +short aio.mystreams.xyz` for a subdomain. It should print a single IP — compare it to your server's:
+Bare name only — no `https://`, no trailing `/`, no backslash. e.g. `dig +short yourdomain.xyz`, or `dig +short aio.yourdomain.xyz` for a subdomain. It should print a single IP — compare it to your server's:
 
 ```bash
-dig +short mystreams.xyz
+dig +short yourdomain.xyz
 ```
 
 ```bash
@@ -66,17 +66,17 @@ If they don't match, DNS hasn't propagated yet — wait a bit and retry (generic
 
 **✅ Example: Matches — good to go:**
 ```
-ubuntu@vm1:~$ dig +short mystreams.xyz
+dig +short yourdomain.xyz
 192.0.2.15
-ubuntu@vm1:~$ curl -4 ifconfig.me
+curl -4 ifconfig.me
 192.0.2.15
 ```
 
 **❌ Example: Doesn't match yet — wait and retry:**
 ```
-ubuntu@vm1:~$ dig +short mystreams.xyz
+dig +short yourdomain.xyz
 198.51.100.23
-ubuntu@vm1:~$ curl -4 ifconfig.me
+curl -4 ifconfig.me
 192.0.2.15
 ```
 Different IPs — the domain isn't pointing at this server yet. Don't run the installer until these two lines match.
