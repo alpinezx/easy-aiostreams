@@ -1,0 +1,33 @@
+# Troubleshooting
+
+## All Guides
+
+Every guide in this repo, basic and advanced. Jump straight to whichever one you need.
+
+| Guide | Basic | Advanced |
+|---|---|---|
+| Firewall & Ports | [Basic](./basic/firewall-ports.md) | [Advanced](./advanced/firewall-ports.md) |
+| Addon Proxy Setup | [Basic](./basic/addon-proxy-setup.md) | [Advanced](./advanced/addon-proxy-setup.md) |
+| Proxy Setup | [Basic](./basic/proxy-setup.md) | [Advanced](./advanced/proxy-setup.md) |
+| VPN Setup | [Basic](./basic/vpn-setup.md) | [Advanced](./advanced/vpn-setup.md) |
+| Watchdog Alerts | [Basic](./basic/watchdog.md) | [Advanced](./advanced/watchdog.md) |
+| Backup & Restore | [Basic](./basic/backup-restore.md) | [Advanced](./advanced/backup-restore.md) |
+
+## Most Likely Issues
+
+A quick-reference list pulled from the advanced guides' own troubleshooting sections. The ten most likely to actually come up. Click through for the full fix.
+
+1. **DNS not pointing at your server yet, or ports 80/443 blocked, so the HTTPS cert fails.** The two most common snags, on a first install and on a [restore](./advanced/backup-restore.md#troubleshooting) alike. Confirm DNS first with `dig +short yourdomain.com`; if that matches but it's still stuck, check [Firewall & Ports](./advanced/firewall-ports.md), especially if you're on Oracle Cloud.
+2. **VPN status shows "unhealthy," or the tunnel won't connect.** Almost always a stale endpoint IP. → [VPN Setup: Troubleshooting](./advanced/vpn-setup.md#troubleshooting)
+3. **The `Endpoint =` line in your `.conf` file is a hostname, not an IP.** gluetun requires a literal IP address here. Resolve it with `dig` first. → [Important: gluetun needs an IP, not a hostname](./advanced/vpn-setup.md#important-gluetun-needs-an-ip-not-a-hostname)
+4. **A scraper/addon still returns a 403 or zero results after adding a proxy.** Double-check the hostname in **Addon proxy config** matches exactly what that addon actually uses. A mismatch means the rule never fires. → [Addon Proxy Setup: Testing it](./advanced/addon-proxy-setup.md#testing-it)
+5. **A free proxy doesn't clear the block.** Free IPs are shared across many users, so there's a real chance the one you picked is already flagged. Try another from the pool. → [Get a free proxy](./advanced/addon-proxy-setup.md#1-get-a-free-proxy)
+6. **Orphan container warnings, or containers stuck after an interrupted VPN mode switch.** Use **Force cleanup** from the `setup-vpn-gluetun.sh` menu, then switch to the mode you want. → [VPN Setup: Troubleshooting](./advanced/vpn-setup.md#troubleshooting)
+7. **Restore says "that archive doesn't look like a backup made by this script."** Either the wrong file was passed in, or the tarball is corrupted. Re-copy it from source and try again. → [Backup & Restore: Troubleshooting](./advanced/backup-restore.md#troubleshooting)
+8. **Restored fine, but the VPN layer doesn't come back.** It's only included in the backup if the [VPN layer](./advanced/vpn-setup.md) was already set up on the old server before the backup was taken. → [Backup & Restore: Troubleshooting](./advanced/backup-restore.md#troubleshooting)
+9. **Watchdog never alerts during a real outage.** Confirm the timer is active (`sudo systemctl status aiostreams-watchdog.timer`) and check the journal for the last check attempts. → [Watchdog: Troubleshooting](./advanced/watchdog.md#troubleshooting)
+10. **Test alert works, but you never get a DOWN alert.** You're probably in direct mode. The watchdog silently skips checks whenever the VPN is off on purpose. → [Watchdog: Troubleshooting](./advanced/watchdog.md#troubleshooting)
+
+For bugs in the script itself: [open an issue](https://github.com/alpinezx/easy-aiostreams/issues). For setup questions not covered here or in the linked guides, check out these Reddit threads [r/streamioaddons](https://www.reddit.com/r/StremioAddons/comments/1vo6a5q/self_hosted_aiostreams_easy_install_script/) - [r/nuvioaddons](https://www.reddit.com/r/nuvioaddons/comments/1vsud3b/self_hosted_aiostreams_easy_install_script_nuvio/)
+
+[← Back to main README](../README.md)

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Troubleshooting doc
+    url: https://github.com/alpinezx/easy-aiostreams/blob/main/docs/troubleshooting-and-extras.md#troubleshooting
+    about: Check here first — covers the most common issues before you open one.
+  - name: 💬 Setup questions / general discussion
+    url: https://www.reddit.com/r/StremioAddons/comments/1vo6a5q/self_hosted_aiostreams_easy_install_script/
+    about: For setup help that isn't a bug in the script itself, use the Reddit thread instead.
