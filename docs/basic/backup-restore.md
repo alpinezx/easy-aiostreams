@@ -136,6 +136,8 @@ What would you like to do?
 - Realize the domain in the backup isn't the one you want live on this server (e.g. testing under a separate subdomain)? Pick **3** and type the correct one .  it rewrites the config on the spot and re-checks immediately.
 - Nothing here will start Docker or touch your certificates until you choose .  it's safe to sit and think.
 
+⚠️ If you also use the [Webhook Relay](./webhook-relay.md) and you're restoring under a **different domain than before**, its subdomain doesn't update automatically here, it needs a manual Reconfigure afterward on the new server. See the [advanced guide](../advanced/backup-restore.md#migrating-to-a-new-server) for the exact steps. Doesn't apply if you're restoring on the same server or keeping the same domain.
+
 That's it .  no other setup needed.
 
 ---

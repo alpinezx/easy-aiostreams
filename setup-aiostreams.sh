@@ -175,7 +175,8 @@ do_backup() {
     info "Backing up $INSTALL_DIR"
     echo "Included: compose files (SECRET_KEY + logins), Caddyfile + drop-ins,"
     echo "AIOStreams user configs (./data), vpn-state (WireGuard private key,"
-    echo "if the VPN layer was ever set up), and any original WireGuard .conf"
+    echo "if the VPN layer was ever set up), webhook-relay-state (if that bolt-on"
+    echo "was ever set up), and any original WireGuard .conf"
     echo "file(s) found in /root or your home directory (staged as a convenience"
     echo "copy, not required for the VPN layer itself to keep working)."
     echo "NOT included: Caddy's HTTPS certificates (they live in named Docker volumes"
@@ -187,6 +188,17 @@ do_backup() {
             touch "$INSTALL_DIR/watchdog-state/was-active-at-backup"
         else
             rm -f "$INSTALL_DIR/watchdog-state/was-active-at-backup"
+        fi
+    fi
+
+    # Same idea as the watchdog marker above, but keyed on the container
+    # actually running rather than a systemd timer, since the webhook relay
+    # is a separate docker compose stack, not a systemd unit.
+    if [[ -d "$INSTALL_DIR/webhook-relay-state" ]]; then
+        if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx aios-webhook-relay; then
+            touch "$INSTALL_DIR/webhook-relay-state/was-active-at-backup"
+        else
+            rm -f "$INSTALL_DIR/webhook-relay-state/was-active-at-backup"
         fi
     fi
 
@@ -627,6 +639,7 @@ do_restore() {
     info "Starting the restored stack"
     hook_installed_during_restore=false
     watchdog_reinstalled_during_restore=false
+    webhook_relay_reinstalled_during_restore=false
     local script_dir
     script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     if vpn_mode_active; then
@@ -697,6 +710,30 @@ do_restore() {
         rm -f "$INSTALL_DIR/watchdog-state/was-active-at-backup"
     fi
 
+    # Same pattern again for the webhook relay: independent of the VPN
+    # branch above, decided purely by whether it was running at backup time.
+    webhook_relay_was_active_at_backup=false
+    if [[ -f "$INSTALL_DIR/webhook-relay-state/was-active-at-backup" ]]; then
+        webhook_relay_was_active_at_backup=true
+        local webhook_script=""
+        for candidate in "$INSTALL_DIR/setup-webhook.sh" "$script_dir/setup-webhook.sh"; do
+            if [[ -f "$candidate" ]]; then
+                webhook_script="$candidate"
+                break
+            fi
+        done
+        if [[ -n "$webhook_script" ]]; then
+            ensure_shared_network
+            bash "$webhook_script" start-relay < /dev/null || true
+            if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx aios-webhook-relay; then
+                webhook_relay_reinstalled_during_restore=true
+            else
+                warn "Couldn't restart the webhook relay automatically. See the reminder below."
+            fi
+        fi
+        rm -f "$INSTALL_DIR/webhook-relay-state/was-active-at-backup"
+    fi
+
     info "Restore complete!"
     echo ""
     echo "Because the SECRET_KEY and data came over intact, every existing user config"
@@ -729,6 +766,19 @@ do_restore() {
             echo "    reinstalled automatically (setup-watchdog.sh wasn't found in $INSTALL_DIR"
             echo "    or next to this script), you won't get alerts until you run 'sudo bash"
             echo "    setup-watchdog.sh' and choose 'Start' once to reinstall it."
+        fi
+    fi
+    if $webhook_relay_was_active_at_backup; then
+        if $webhook_relay_reinstalled_during_restore; then
+            echo "  - Webhook relay: it was running before the backup, so the container is back"
+            echo "    up with the same subdomain/token/ntfy topic — nothing else needed. If this"
+            echo "    is a NEW server, remember its subdomain also needs its own DNS A record"
+            echo "    pointed here, same as the main domain above."
+        else
+            echo "  - Webhook relay: it was running before the backup, but could NOT be"
+            echo "    restarted automatically (setup-webhook.sh wasn't found in $INSTALL_DIR"
+            echo "    or next to this script), it won't receive events until you run 'sudo bash"
+            echo "    setup-webhook.sh' and choose 'Start' once to bring it back up."
         fi
     fi
     if (( conf_restored_count > 0 )); then

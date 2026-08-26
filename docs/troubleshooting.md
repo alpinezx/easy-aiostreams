@@ -11,11 +11,12 @@ Every guide in this repo, basic and advanced. Jump straight to whichever one you
 | Proxy Setup | [Basic](./basic/proxy-setup.md) | [Advanced](./advanced/proxy-setup.md) |
 | VPN Setup | [Basic](./basic/vpn-setup.md) | [Advanced](./advanced/vpn-setup.md) |
 | Watchdog Alerts | [Basic](./basic/watchdog.md) | [Advanced](./advanced/watchdog.md) |
+| Webhook Relay | [Basic](./basic/webhook-relay.md) | [Advanced](./advanced/webhook-relay.md) |
 | Backup & Restore | [Basic](./basic/backup-restore.md) | [Advanced](./advanced/backup-restore.md) |
 
 ## Most Likely Issues
 
-A quick-reference list pulled from the advanced guides' own troubleshooting sections. The ten most likely to actually come up. Click through for the full fix.
+A quick-reference list pulled from the advanced guides' own troubleshooting sections. The ones most likely to actually come up. Click through for the full fix.
 
 1. **DNS not pointing at your server yet, or ports 80/443 blocked, so the HTTPS cert fails.** The two most common snags, on a first install and on a [restore](./advanced/backup-restore.md#troubleshooting) alike. Confirm DNS first with `dig +short yourdomain.com`; if that matches but it's still stuck, check [Firewall & Ports](./advanced/firewall-ports.md), especially if you're on Oracle Cloud.
 2. **VPN status shows "unhealthy," or the tunnel won't connect.** Almost always a stale endpoint IP. → [VPN Setup: Troubleshooting](./advanced/vpn-setup.md#troubleshooting)
@@ -25,8 +26,11 @@ A quick-reference list pulled from the advanced guides' own troubleshooting sect
 6. **Orphan container warnings, or containers stuck after an interrupted VPN mode switch.** Use **Force cleanup** from the `setup-vpn-gluetun.sh` menu, then switch to the mode you want. → [VPN Setup: Troubleshooting](./advanced/vpn-setup.md#troubleshooting)
 7. **Restore says "that archive doesn't look like a backup made by this script."** Either the wrong file was passed in, or the tarball is corrupted. Re-copy it from source and try again. → [Backup & Restore: Troubleshooting](./advanced/backup-restore.md#troubleshooting)
 8. **Restored fine, but the VPN layer doesn't come back.** It's only included in the backup if the [VPN layer](./advanced/vpn-setup.md) was already set up on the old server before the backup was taken. → [Backup & Restore: Troubleshooting](./advanced/backup-restore.md#troubleshooting)
-9. **Watchdog never alerts during a real outage.** Confirm the timer is active (`sudo systemctl status aiostreams-watchdog.timer`) and check the journal for the last check attempts. → [Watchdog: Troubleshooting](./advanced/watchdog.md#troubleshooting)
-10. **Test alert works, but you never get a DOWN alert.** You're probably in direct mode. The watchdog silently skips checks whenever the VPN is off on purpose. → [Watchdog: Troubleshooting](./advanced/watchdog.md#troubleshooting)
+9. **Restored under a new domain, but the webhook relay's URL still points at the old one.** Expected, not a bug, only the main domain rewrites automatically during a restore. → [Backup & Restore: Troubleshooting](./advanced/backup-restore.md#troubleshooting)
+10. **Watchdog never alerts during a real outage.** Confirm the timer is active (`sudo systemctl status aiostreams-watchdog.timer`) and check the journal for the last check attempts. → [Watchdog: Troubleshooting](./advanced/watchdog.md#troubleshooting)
+11. **Test alert works, but you never get a DOWN alert.** You're probably in direct mode. The watchdog silently skips checks whenever the VPN is off on purpose. → [Watchdog: Troubleshooting](./advanced/watchdog.md#troubleshooting)
+12. **A site's webhook verification fails with a challenge/mismatch error.** The running relay container is almost always still on an older version of the code than you think. A plain `docker restart` doesn't pick up script updates, run **Start** or **Reconfigure** from `setup-webhook.sh` instead. → [Webhook Relay: Troubleshooting](./advanced/webhook-relay.md#troubleshooting)
+13. **`curl -I` against the webhook relay's domain returns `501`.** Expected, not a bug, `curl -I` sends a `HEAD` request and the receiver only implements `GET`/`HEAD` health checks and `POST`. Use a plain `curl` (no `-I`) to test instead. → [Webhook Relay: Troubleshooting](./advanced/webhook-relay.md#troubleshooting)
 
 For bugs in the script itself: [open an issue](https://github.com/alpinezx/easy-aiostreams/issues). For setup questions not covered here or in the linked guides, check out these Reddit threads [r/streamioaddons](https://www.reddit.com/r/StremioAddons/comments/1vo6a5q/self_hosted_aiostreams_easy_install_script/) - [r/nuvioaddons](https://www.reddit.com/r/nuvioaddons/comments/1vsud3b/self_hosted_aiostreams_easy_install_script_nuvio/)
 

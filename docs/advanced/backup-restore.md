@@ -30,7 +30,9 @@ using it for.
   contains your WireGuard **private key**
 - `watchdog-state/`, if you ever set up [Watchdog Alerts](./watchdog.md) . 
   this contains your ntfy topic name
-- Every install script (`setup-aiostreams.sh`, `setup-vpn-gluetun.sh`, `setup-watchdog.sh`) .  any `.sh` file in `~/aiostreams` is included automatically, which is why all install commands download there first
+- `webhook-relay-state/`, if you ever set up the [Webhook Relay](./webhook-relay.md) . 
+  this contains your secret path token and ntfy topic
+- Every install script (`setup-aiostreams.sh`, `setup-vpn-gluetun.sh`, `setup-watchdog.sh`, `setup-webhook.sh`) .  any `.sh` file in `~/aiostreams` is included automatically, which is why all install commands download there first
 
 **Not included:** Caddy's HTTPS certificates. They're in Docker volumes, and Caddy re-issues them automatically once DNS resolves on the new server. No point bundling them.
 
@@ -239,6 +241,21 @@ If the backup was taken while the [VPN layer](./vpn-setup.md) was active,
 gluetun comes back up automatically as part of the restored stack .  no
 extra step needed there either.
 
+⚠️ **If the [Webhook Relay](./webhook-relay.md) was active, and you're
+restoring under a genuinely different domain** (not just a new IP for the
+same domain): the relay container comes back up automatically same as
+everything else, but it comes back pointed at its **old** subdomain, e.g.
+`hooks.olddomain.top`, not anything derived from the new one. Nothing
+rewrites this automatically the way the main domain gets rewritten above,
+since the relay's subdomain isn't necessarily related to the main one and
+there's no safe way to guess a replacement. Point DNS at the new server for
+whichever subdomain you want to keep using, then run `sudo bash
+setup-webhook.sh` → **4) Reconfigure** on the new server to update it (and
+re-paste the resulting URL into whatever third-party site was using it,
+since the old one won't resolve here anymore). Restoring onto the same
+server, or a new server under the same domain, isn't affected by this at
+all.
+
 ---
 
 ## Troubleshooting
@@ -260,3 +277,10 @@ It's self-contained within the backup .  as long as `vpn-state/` existed on
 the old server, it's included automatically and starts along with the main
 stack. If it's missing, the backup was likely taken before the
 [VPN layer](./vpn-setup.md) was set up on the old server.
+
+**Restored under a new domain, but the webhook relay's URL still points at the old one**
+Expected, not a bug .  see the callout above. Only the main domain gets
+rewritten automatically during a domain-mismatch restore; the
+[Webhook Relay's](./webhook-relay.md) subdomain needs `setup-webhook.sh` →
+**Reconfigure** run manually afterward, once DNS for the new subdomain
+points here.

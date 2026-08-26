@@ -153,7 +153,7 @@ If you suspect it's not your setup at all, check, [Stremio Status](https://statu
 
 ## Other Scripts
 
-Want a system-wide VPN layer, or phone alerts if your VPN tunnel drops? Those live in their own standalone scripts, see [Other Scripts](./docs/other-scripts.md)
+Want a system-wide VPN layer, phone alerts if your VPN tunnel drops, or to turn a third-party site's webhook option into a phone alert? Those live in their own standalone scripts, see [Other Scripts](./docs/other-scripts.md)
 
 For bugs in the script itself: [open an issue](https://github.com/alpinezx/easy-aiostreams/issues). For setup questions not covered here or in the linked guides, check out these Reddit threads: [r/streamioaddons](https://www.reddit.com/r/StremioAddons/comments/1vo6a5q/self_hosted_aiostreams_easy_install_script/), [r/nuvioaddons](https://www.reddit.com/r/nuvioaddons/comments/1vsud3b/self_hosted_aiostreams_easy_install_script_nuvio/)
 
