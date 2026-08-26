@@ -144,12 +144,27 @@ EOF
 }
 
 write_vpn_files() {
-    local dns_line=""
-    [[ -n "${WG_DNS:-}" ]] && dns_line=$'\n      - DNS_ADDRESS='"${WG_DNS}"
+    # Two resolvers, comma separated: gluetun spreads queries across both
+    # and skips whichever is unhealthy, so one provider outage doesn't take
+    # DNS down. Both cloudflare and quad9 run global anycast networks
+    # (many locations, same IP, closest one answers), so either alone is
+    # already resilient; running both together means an outage would have
+    # to hit two independent global anycast networks simultaneously.
+    # Deliberately not "google": their public resolver still logs IP+query
+    # for 24-48h plus indefinite anonymized retention, weaker than
+    # Cloudflare/Quad9's stricter no-log stances. Not "libredns" either:
+    # unlike the other two it's unicast (a couple of servers, no
+    # distributed network), so it can't fail over the way anycast can.
+    # No per-VPN-provider DNS override: that path
+    # (DNS_UPSTREAM_PLAIN_ADDRESSES) leaks DNS outside the tunnel if
+    # misconfigured and has open bugs upstream where it's silently ignored
+    # even when configured correctly, not worth the risk for the small
+    # cosmetic benefit of leak-test parity with the VPN provider.
+    local dns_line=$'\n      - DNS_UPSTREAM_RESOLVERS=cloudflare,quad9'
     cat > "$VPN_COMPOSE" << EOF
 services:
   gluetun:
-    image: qmcgaw/gluetun:latest
+    image: qmcgaw/gluetun:v3
     container_name: gluetun
     restart: unless-stopped
     cap_add:
@@ -245,7 +260,6 @@ refresh_vpn_snapshot() {
     WG_PUBLIC_KEY=$(grep -oP '(?<=WIREGUARD_PUBLIC_KEY=).*' "$VPN_COMPOSE" | head -1 || true)
     WG_ENDPOINT_IP=$(grep -oP '(?<=WIREGUARD_ENDPOINT_IP=).*' "$VPN_COMPOSE" | head -1 || true)
     WG_ENDPOINT_PORT=$(grep -oP '(?<=WIREGUARD_ENDPOINT_PORT=).*' "$VPN_COMPOSE" | head -1 || true)
-    WG_DNS=$(grep -oP '(?<=DNS_ADDRESS=).*' "$VPN_COMPOSE" | head -1 || true)
     SECRET_KEY=$(grep -oP '(?<=SECRET_KEY=).*' "$VPN_COMPOSE" | head -1 || true)
     AUTH_LINE=$(grep -oP '(?<=AIOSTREAMS_AUTH=).*' "$VPN_COMPOSE" | head -1 || true)
     DOMAIN=$(head -1 "$VPN_CADDYFILE" 2>/dev/null | awk '{print $1}' || true)
@@ -501,9 +515,14 @@ apply_mode() {
         if [[ "$tunnel_confirmed" == "true" ]]; then
             EXIT_IP=""
             for ip_svc in "${ip_svcs[@]}"; do
-                EXIT_IP=$(docker exec gluetun wget -qO- "$ip_svc" 2>/dev/null) && [[ -n "$EXIT_IP" ]] && break
+                EXIT_IP=$(docker exec gluetun wget -qO- --timeout=5 "$ip_svc" 2>/dev/null) && [[ -n "$EXIT_IP" ]] && break
             done
-            echo -e "\033[1;32mVPN is up.\033[0m gluetun's exit IP: $EXIT_IP"
+            if [[ -n "$EXIT_IP" ]]; then
+                echo -e "\033[1;32mVPN is up.\033[0m gluetun's exit IP: $EXIT_IP"
+            else
+                echo -e "\033[1;32mVPN is up\033[0m, but couldn't re-fetch the exit IP just now (a transient blip, most likely). Check manually with:"
+                echo "  docker exec gluetun wget -qO- ifconfig.me/ip"
+            fi
         else
             warn "Couldn't confirm the exit IP automatically. Check manually with:"
             echo "  docker exec gluetun wget -qO- ifconfig.me/ip"
@@ -616,7 +635,7 @@ do_status() {
         echo "gluetun exit IP:"
         local status_ip="" status_svc
         for status_svc in "ifconfig.me/ip" "icanhazip.com" "ipinfo.io/ip"; do
-            status_ip=$(docker exec gluetun wget -qO- "$status_svc" 2>/dev/null) && [[ -n "$status_ip" ]] && break
+            status_ip=$(docker exec gluetun wget -qO- --timeout=5 "$status_svc" 2>/dev/null) && [[ -n "$status_ip" ]] && break
         done
         if [[ -n "$status_ip" ]]; then
             echo "$status_ip"
@@ -653,7 +672,10 @@ do_uninstall_vpn() {
 
     read -rp "Also remove the gluetun Docker image (qmcgaw/gluetun)? [y/N]: " RM_IMAGE
     case "$RM_IMAGE" in
-        y|Y|yes|Yes) docker rmi qmcgaw/gluetun:latest 2>/dev/null || warn "Couldn't remove the image, it may be in use or already gone." ;;
+        y|Y|yes|Yes)
+            docker images qmcgaw/gluetun --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | xargs -r docker rmi 2>/dev/null || \
+                warn "Couldn't remove the image, it may be in use or already gone."
+            ;;
     esac
 
     local orig_conf=""
@@ -702,8 +724,8 @@ do_update_gluetun() {
     local active
     active=$(cat "$ACTIVE_MARKER" 2>/dev/null || echo "unknown")
 
-    info "Pulling latest gluetun image"
-    docker pull qmcgaw/gluetun:latest
+    info "Pulling latest gluetun (v3 stable channel)"
+    docker pull qmcgaw/gluetun:v3
 
     if [[ "$active" == "vpn" ]]; then
         echo ""
@@ -802,45 +824,6 @@ do_reconfigure_vpn() {
 
     echo "  Parsed endpoint: $WG_ENDPOINT_IP:$WG_ENDPOINT_PORT"
 
-    info "DNS (optional)"
-    echo "By default gluetun uses its own encrypted DNS (Cloudflare) rather than"
-    echo "your VPN provider's DNS server. This is intentional privacy design —"
-    echo "queries still go through the tunnel either way, but some DNS-leak-test"
-    echo "sites flag it as a mismatch since the resolver isn't your VPN provider's."
-
-    local dns_from_conf=""
-    dns_from_conf=$(grep -i '^DNS' "$WG_PATH" 2>/dev/null | head -1 | cut -d= -f2- | tr -d ' \r' | cut -d, -f1 || true)
-
-    local dns_default=""
-    [[ -f "$VPN_COMPOSE" ]] && dns_default=$(grep -i '^\s*- DNS_ADDRESS=' "$VPN_COMPOSE" 2>/dev/null | head -1 | cut -d= -f2- | tr -d ' \r' || true)
-
-    if [[ -n "$dns_from_conf" ]]; then
-        echo ""
-        echo "Found DNS = $dns_from_conf in $WG_PATH. This is what the provider's own app would use."
-        read -rp "Use this DNS server? [Y/n] (or type a different IP, or 'clear' to skip DNS entirely): " WG_DNS_INPUT
-        case "$WG_DNS_INPUT" in
-            ""|y|Y|yes|Yes) WG_DNS="$dns_from_conf" ;;
-            clear|Clear|CLEAR) WG_DNS="" ;;
-            n|N|no|No) read -rp "DNS server IP (blank to skip): " WG_DNS ;;
-            *) WG_DNS="$WG_DNS_INPUT" ;;
-        esac
-    elif [[ -n "$dns_default" ]]; then
-        echo ""
-        echo "No DNS line found in $WG_PATH. Leave blank to keep gluetun's default,"
-        echo "or enter a DNS server IP to use instead."
-        read -rp "DNS server IP [$dns_default, Enter to keep, or type 'clear' to unset]: " WG_DNS_INPUT
-        case "$WG_DNS_INPUT" in
-            "") WG_DNS="$dns_default" ;;
-            clear|Clear|CLEAR) WG_DNS="" ;;
-            *) WG_DNS="$WG_DNS_INPUT" ;;
-        esac
-    else
-        echo ""
-        echo "No DNS line found in $WG_PATH. Leave blank to keep gluetun's default,"
-        echo "or enter a DNS server IP to use instead (e.g. NordVPN: 103.86.96.100)."
-        read -rp "DNS server IP (blank to skip): " WG_DNS
-    fi
-
     echo "$WG_PATH" > "$LAST_CONF_MARKER"
     write_vpn_files
     echo "VPN config saved. Choose 'Turn VPN ON' from the menu to apply it."
@@ -894,7 +877,7 @@ while true; do
     echo "2) Turn VPN ON"
     echo "3) Turn VPN OFF (direct connection)"
     echo "4) Reconfigure VPN (change WireGuard server/config)"
-    echo "5) Update gluetun (pull latest image; safe restart if VPN is on)"
+    echo "5) Update gluetun (pull latest stable image; safe restart if VPN is on)"
     echo "6) Force cleanup (remove stray containers if a toggle got wedged)"
     echo "7) Uninstall VPN layer (clean removal, back to plain AIOStreams + Caddy)"
     echo "8) Exit"
