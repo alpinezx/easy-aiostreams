@@ -98,9 +98,52 @@ detection than another datacenter IP.
    then global `*`.
 5. Click **Save**. No restart needed .  this is a runtime setting.
 
+**Worked example** .  proxying Torrentio and TorBox's API specifically,
+with the global wildcard turned off so nothing else is caught by accident:
+
+```
+* = false
+torrentio.strem.fun = 0
+api.torbox.app = 0
+```
+
+Double-check exact hostnames against the addon's manifest URL rather than
+guessing. A wrong domain won't error, it'll just quietly not match
+anything, so the addon stays unproxied with no obvious sign why.
+Torrentio's is `torrentio.strem.fun`, not `.stream.`, an easy typo to
+make.
+
 This is the dashboard equivalent of the `ADDON_PROXY` and
 `ADDON_PROXY_CONFIG` environment variables, if you'd rather pin it via
 `.env` instead (locks the field read-only in the dashboard).
+
+---
+
+## Watch for overlap with the Built-in Proxy
+
+The Addon Proxy intercepts requests made via AIOStreams' internal request
+utility, not just addon search calls specifically. If the [Built-in
+Proxy](./proxy-setup.md) is also enabled, its fetch of the actual source
+video is itself an outgoing request. That means a global Addon Proxy rule
+(`* = 0`) can catch that fetch too, routing full video bytes through
+whatever you've set as the addon proxy, not just lightweight metadata
+calls.
+
+This is easy to miss because nothing errors, the proxy just quietly
+handles far more traffic than expected. On a capped free proxy, this can
+burn through the entire allowance in minutes. It's one more reason to
+scope **Addon proxy config** to specific hostnames rather than `*`,
+covered above, and to leave your debrid/video source domain off that list
+so its big fetches go out on your VPS's own IP instead.
+
+**On proxy sources:** if you already pay for a VPN service, check whether
+it offers its own proxy endpoints (SOCKS5 or HTTP) alongside the VPN.
+These are often uncapped since they run on the same allowance as the VPN
+itself, which makes them a more cost-effective and durable choice here
+than a free proxy tier, especially if you want to run Addon Proxy scoped
+broadly or alongside Built-in Proxy. Check your VPN provider's support
+docs for manual/service credentials, these are usually separate from your
+regular account login.
 
 ---
 

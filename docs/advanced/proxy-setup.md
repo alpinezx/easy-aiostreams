@@ -75,6 +75,13 @@ through your VPS (not just lightweight config/API traffic). Keep an eye on
 your VPS provider's bandwidth allowance if you use this heavily. This is the
 one part of the setup that can meaningfully add to your monthly data usage.
 
+⚠️ **If you're also using [Addon Proxy](./addon-proxy-setup.md)** with a
+global (`*`) rule, be aware it can catch this feature's own video fetch
+too, not just addon search calls, and route the full stream through
+whatever's set as the addon proxy. See
+[Addon Proxy Setup: overlap with the Built-in Proxy](./addon-proxy-setup.md#watch-for-overlap-with-the-built-in-proxy)
+for the details and how to scope around it.
+
 ---
 
 ## Does the VPN layer cover addons and scrapers too, or just proxied streams?

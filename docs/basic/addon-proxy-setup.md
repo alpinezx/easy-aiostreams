@@ -52,6 +52,10 @@ Search for something that previously failed on the blocked addon. If results com
 
 ⚠️ **If it's not working:** Check you've entered the values correctly and/or try a different proxy address. The free ones can often be blacklisted. If you're using the free proxy option, you have ten to try.
 
+⚠️ **If you also use the [video Proxy setting](../basic/proxy-setup.md):** setting **Addon proxy config** to `*` (proxy everything) can accidentally route your actual video streams through this same proxy too, not just addon search traffic. That can blow through a free proxy's data cap fast without any error showing up. Stick to listing specific addon hostnames instead of `*` if you're also using the video Proxy.
+
+💡 If you already pay for a VPN service, check if it offers its own proxy addresses (SOCKS5 or HTTP). These are often uncapped and free to use since they run on your existing VPN plan, making them a more durable option here than a free proxy tier.
+
 ---
 
 This is an admin-level setting and applies instance-wide, not per-config like the video Proxy setting.

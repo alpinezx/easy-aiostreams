@@ -30,6 +30,8 @@ Turn off any VPN on your playback device, then load a stream that previously fai
 
 ⚠️ Real video data goes through your VPS and counts against your provider's bandwidth limit if you stream a lot.
 
+⚠️ If you're also using [Addon Proxy Setup](./addon-proxy-setup.md) with a global (`*`) rule, it can accidentally catch this feature's video fetch too, not just addon search traffic, and route your whole stream through it. Scope Addon Proxy to specific addon hostnames instead of `*` if you're running both.
+
 This setting applies per config, not instance-wide. Repeat these steps for any new config you create.
 
 ---
