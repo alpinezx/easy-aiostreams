@@ -49,6 +49,23 @@ MAX_BODY = 20000  # refuse to buffer/log absurdly large payloads
 
 MAX_LOG_LINES = 500  # keep the log from growing forever; trimmed on every write
 
+# Field names some senders use for account-management links that should
+# survive even when we're otherwise just extracting title+message. Checked
+# case-sensitively against the payload's own keys, in this preference order.
+LINK_FIELDS = [
+    ("manageUrl", "Manage"),
+    ("unsubscribeUrl", "Unsubscribe"),
+    ("statusPageUrl", "Status page"),
+]
+
+def extract_links(data):
+    lines = []
+    for field, label in LINK_FIELDS:
+        value = data.get(field)
+        if isinstance(value, str) and value:
+            lines.append(f"{label}: {value}")
+    return lines
+
 def summarize(raw_body):
     text = raw_body.decode("utf-8", errors="replace").strip()
     try:
@@ -59,17 +76,27 @@ def summarize(raw_body):
     if not isinstance(data, dict):
         return (None, text[:800])
 
+    links = extract_links(data)
+
     # Some senders (this uptime tracker included) already send a clean,
     # human-written "title" + "message" pair with real formatting. Use those
     # directly instead of re-dumping the whole payload as compact JSON,
     # which re-escapes any real newlines in "message" into literal "\n"
-    # text, exactly what was making notifications look like a wall of junk.
+    # text. Any manage/unsubscribe/status-page links get appended
+    # separately so they're never silently dropped just because they
+    # weren't part of the human-written message text itself.
     if isinstance(data.get("title"), str) and isinstance(data.get("message"), str):
-        return (data["title"][:200], data["message"][:800])
+        body = data["message"]
+        if links:
+            body = body + "\n\n" + "\n".join(links)
+        return (data["title"][:200], body[:800])
 
     # Generic fallback for anything else (Sonarr, GitHub, a cron job, etc.)
     interesting = {k: data[k] for k in list(data)[:8]}
-    return (None, json.dumps(interesting, ensure_ascii=False)[:800])
+    body = json.dumps(interesting, ensure_ascii=False)
+    if links:
+        body = body + "\n\n" + "\n".join(links)
+    return (None, body[:800])
 
 def trim_log():
     try:
