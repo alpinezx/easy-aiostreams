@@ -145,7 +145,7 @@ Run it again any time from the same directory (`~/aiostreams`) and it'll detect 
 
 Addon/scraper blocked, streams failing to load, `403`/`429`/`502` errors in the logs? [Add-on Proxy Setup](./docs/basic/addon-proxy-setup.md)
 
-The ten most common issues across this repo. [Common Issues](./docs/troubleshooting.md#most-likely-issues)
+The most common issues you may come across. [Common Issues](./docs/troubleshooting.md#most-likely-issues)
 
 links to every guide (basic and advanced). [All Guides](./docs/troubleshooting.md#all-guides)
 
