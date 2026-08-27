@@ -47,32 +47,56 @@ NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "")
 EVENTS_LOG = os.environ.get("EVENTS_LOG", "/state/events.log")
 MAX_BODY = 20000  # refuse to buffer/log absurdly large payloads
 
+MAX_LOG_LINES = 500  # keep the log from growing forever; trimmed on every write
+
 def summarize(raw_body):
     text = raw_body.decode("utf-8", errors="replace").strip()
     try:
         data = json.loads(text)
-        if isinstance(data, dict):
-            interesting = {k: data[k] for k in list(data)[:8]}
-            text = json.dumps(interesting, ensure_ascii=False)
     except (ValueError, TypeError):
+        return (None, text[:800] if text else "(empty body)")
+
+    if not isinstance(data, dict):
+        return (None, text[:800])
+
+    # Some senders (this uptime tracker included) already send a clean,
+    # human-written "title" + "message" pair with real formatting. Use those
+    # directly instead of re-dumping the whole payload as compact JSON,
+    # which re-escapes any real newlines in "message" into literal "\n"
+    # text, exactly what was making notifications look like a wall of junk.
+    if isinstance(data.get("title"), str) and isinstance(data.get("message"), str):
+        return (data["title"][:200], data["message"][:800])
+
+    # Generic fallback for anything else (Sonarr, GitHub, a cron job, etc.)
+    interesting = {k: data[k] for k in list(data)[:8]}
+    return (None, json.dumps(interesting, ensure_ascii=False)[:800])
+
+def trim_log():
+    try:
+        with open(EVENTS_LOG, "r") as f:
+            lines = f.readlines()
+        if len(lines) > MAX_LOG_LINES:
+            with open(EVENTS_LOG, "w") as f:
+                f.writelines(lines[-MAX_LOG_LINES:])
+    except OSError:
         pass
-    return text[:800] if text else "(empty body)"
 
 def log_event(line):
     try:
         with open(EVENTS_LOG, "a") as f:
             f.write(line + "\n")
+        trim_log()
     except OSError:
         pass
 
-def forward_to_ntfy(summary):
+def forward_to_ntfy(title, summary):
     if not NTFY_TOPIC:
         return False, "no ntfy topic configured"
     url = f"{NTFY_SERVER}/{NTFY_TOPIC}"
     req = urllib.request.Request(
         url,
         data=summary.encode("utf-8"),
-        headers={"Title": "Webhook received"},
+        headers={"Title": title or "Webhook received"},
         method="POST",
     )
     try:
@@ -143,8 +167,8 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b"ok")
 
-        summary = summarize(raw_body)
-        ok, err = forward_to_ntfy(summary)
+        title, summary = summarize(raw_body)
+        ok, err = forward_to_ntfy(title, summary)
         stamp = time.strftime("%d %b %Y, %H:%M:%S %Z")
         status = "forwarded" if ok else f"NOT forwarded ({err})"
         log_event(f"{stamp}  {status}  {summary}")
