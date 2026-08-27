@@ -26,6 +26,7 @@ SCRIPT_COPY="$STATE_DIR/setup-webhook.sh"
 
 CONTAINER_NAME="aios-webhook-relay"
 INTERNAL_PORT="8787"
+BOOT_SERVICE_FILE="/etc/systemd/system/aios-webhook-boot-notify.service"
 
 # ---------------------------------------------------------------------------
 # The receiver itself: stdlib-only Python, no image build, no dependencies.
@@ -37,6 +38,7 @@ write_app_script() {
     cat > "$APP_SCRIPT" << 'PYEOF'
 import json
 import os
+import re
 import time
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -57,6 +59,35 @@ LINK_FIELDS = [
     ("unsubscribeUrl", "Unsubscribe"),
     ("statusPageUrl", "Status page"),
 ]
+
+# Matches a run of emoji-range characters (plus the invisible variation
+# selector some emoji carry) at the very start of a string, e.g. the "🟣 "
+# or "🔴 " a source might prepend to its own message. Broad on purpose,
+# covers every colored-circle/status emoji seen from real sources so far
+# (🟢🔴🟣🔵🟡🟠⚫⚪), without needing the external 'regex' package.
+LEADING_EMOJI_RE = re.compile(r"^[\U0001F000-\U0001FFFF\u2600-\u27BF\uFE0F\u200D]+\s*")
+
+# What we replace it with, based on the payload's own newState field, not
+# whatever emoji/color the source happened to pick, since that turned out to
+# be inconsistent (a service coming back UP showed as a purple circle from
+# one source and green from another). Add more states here if a source ever
+# reports something other than up/down. Empty string = strip and leave bare.
+# What we replace it with, based on the payload's own newState field, not
+# whatever emoji/color the source happened to pick, since that turned out to
+# be inconsistent (a service coming back UP showed as a purple circle from
+# one source and green from another). Configurable via UP_EMOJI/DOWN_EMOJI
+# (set through setup-webhook.sh's own menu, not edited here directly).
+# Empty string = strip and leave bare.
+STATE_EMOJI = {
+    "up": os.environ.get("UP_EMOJI", "🟢"),
+    "down": os.environ.get("DOWN_EMOJI", "🔴"),
+}
+
+def restyle_message(message, data):
+    stripped = LEADING_EMOJI_RE.sub("", message, count=1)
+    state = str(data.get("newState", "")).strip().lower()
+    emoji = STATE_EMOJI.get(state)
+    return f"{emoji} {stripped}" if emoji else stripped
 
 def extract_links(data):
     lines = []
@@ -86,7 +117,7 @@ def summarize(raw_body):
     # separately so they're never silently dropped just because they
     # weren't part of the human-written message text itself.
     if isinstance(data.get("title"), str) and isinstance(data.get("message"), str):
-        body = data["message"]
+        body = restyle_message(data["message"], data)
         if links:
             body = body + "\n\n" + "\n".join(links)
         return (data["title"][:200], body[:800])
@@ -232,6 +263,8 @@ services:
       - WEBHOOK_TOKEN=\${WEBHOOK_TOKEN}
       - NTFY_SERVER=\${NTFY_SERVER}
       - NTFY_TOPIC=\${NTFY_TOPIC}
+      - UP_EMOJI=\${UP_EMOJI}
+      - DOWN_EMOJI=\${DOWN_EMOJI}
       - EVENTS_LOG=/state/events.log
     networks:
       - ${SHARED_NET}
@@ -263,6 +296,81 @@ restart_caddy_to_pick_up_dropin() {
     fi
 }
 
+# ---------------------------------------------------------------------------
+# Boot notification: a plain systemd oneshot unit, independent of the docker
+# stack entirely, so it fires on an actual host reboot rather than every
+# time the container itself gets recreated (Start/Reconfigure/an update all
+# restart the container too, which would make a container-level hook noisy
+# and misleading as a "the SERVER rebooted" signal).
+# ---------------------------------------------------------------------------
+install_boot_notify_unit() {
+    # Own copy for the same reason setup-watchdog.sh keeps one: protects
+    # the systemd unit from a mid-edit or briefly-missing setup-webhook.sh
+    # in $INSTALL_DIR, since this needs to keep working unattended at boot.
+    cp "$SELF_SCRIPT_PATH" "$SCRIPT_COPY" 2>/dev/null || cp "$INSTALL_DIR/setup-webhook.sh" "$SCRIPT_COPY"
+    chmod 700 "$SCRIPT_COPY"
+
+    # Same reasoning as setup-watchdog.sh's equivalent unit: systemd does
+    # NOT set $HOME for root-owned units, and this script's very first
+    # lines build every path off $HOME, so it'd die silently on every boot
+    # without this.
+    cat > "$BOOT_SERVICE_FILE" << EOF
+[Unit]
+Description=AIOStreams webhook relay: notify on reboot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=HOME=$HOME
+ExecStart=/bin/bash $SCRIPT_COPY notify-boot
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    systemctl daemon-reload
+}
+
+do_toggle_boot_notify() {
+    command -v systemctl >/dev/null || error "systemd not found on this server, reboot notifications need it."
+    [[ -f "$CONFIG_FILE" ]] || error "Not configured yet, run Start first, this reuses the same ntfy topic already set up for events."
+
+    if systemctl is-enabled --quiet aios-webhook-boot-notify.service 2>/dev/null; then
+        systemctl disable --now aios-webhook-boot-notify.service 2>/dev/null || true
+        rm -f "$BOOT_SERVICE_FILE"
+        systemctl daemon-reload
+        echo "Reboot notifications turned off."
+        return
+    fi
+
+    install_boot_notify_unit
+    systemctl enable aios-webhook-boot-notify.service
+    info "Reboot notifications turned on. Sending a confirmation now (same as what you'll get after a real reboot):"
+    systemctl start aios-webhook-boot-notify.service
+    echo "Check your ntfy topic for it. From now on this fires once, automatically, every time this server boots."
+}
+
+send_boot_notification() {
+    # shellcheck disable=SC1090
+    source "$CONFIG_FILE"
+    [[ -n "${NTFY_TOPIC:-}" ]] || exit 0
+    local body="🔃 Server rebooted and is back online.
+Host: $(hostname)
+Webhook relay: https://${DOMAIN:-unknown}
+Time: $(date '+%d %b %Y, %H:%M:%S %Z')"
+
+    # A few retries: network-online.target should mean DNS already works,
+    # but cloud VMs occasionally aren't fully ready the instant this fires.
+    local attempt
+    for attempt in 1 2 3 4 5; do
+        if curl -fsS -m 8 -H "Title: Server rebooted" -d "$body" "${NTFY_SERVER}/${NTFY_TOPIC}" >/dev/null 2>&1; then
+            exit 0
+        fi
+        sleep 5
+    done
+    exit 1  # systemd logs this as a failed unit run, visible via journalctl
+}
+
 do_configure() {
     [[ -f "$COMPOSE_FILE" ]] || \
         error "Couldn't find $COMPOSE_FILE. Run setup-aiostreams.sh first, this bolts on to that install."
@@ -273,6 +381,18 @@ do_configure() {
     ensure_shared_network
     write_app_script
     touch "$EVENTS_LOG"
+
+    # Reconfigure here only ever asks about subdomain/token/ntfy below, not
+    # status emojis, those have their own menu option. Carry whatever's
+    # already set forward so running this doesn't silently reset a custom
+    # emoji choice back to the defaults.
+    local existing_up_emoji="🟢" existing_down_emoji="🔴"
+    if [[ -f "$CONFIG_FILE" ]]; then
+        # shellcheck disable=SC1090
+        source "$CONFIG_FILE"
+        existing_up_emoji="${UP_EMOJI:-🟢}"
+        existing_down_emoji="${DOWN_EMOJI:-🔴}"
+    fi
 
     info "Subdomain for this webhook receiver"
     echo "Needs to be its OWN subdomain, different from your main AIOStreams"
@@ -309,6 +429,8 @@ do_configure() {
         echo "WEBHOOK_TOKEN=$token"
         echo "NTFY_SERVER=$ntfy_server"
         echo "NTFY_TOPIC=$ntfy_topic"
+        echo "UP_EMOJI=$existing_up_emoji"
+        echo "DOWN_EMOJI=$existing_down_emoji"
     } > "$CONFIG_FILE"
     chmod 600 "$CONFIG_FILE"
 
@@ -331,12 +453,48 @@ do_configure() {
     # instead of leaving that gap for Start to (maybe) close later.
     if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$CONTAINER_NAME"; then
         info "Applying the new settings to the running relay container"
-        (cd "$STATE_DIR" && WEBHOOK_TOKEN="$token" NTFY_SERVER="$ntfy_server" NTFY_TOPIC="$ntfy_topic" docker compose -f "$RELAY_COMPOSE" up -d)
+        (cd "$STATE_DIR" && WEBHOOK_TOKEN="$token" NTFY_SERVER="$ntfy_server" NTFY_TOPIC="$ntfy_topic" UP_EMOJI="$existing_up_emoji" DOWN_EMOJI="$existing_down_emoji" docker compose -f "$RELAY_COMPOSE" up -d)
         restart_caddy_to_pick_up_dropin
         echo "Applied. The URL above is live now."
     else
         echo ""
         echo "Relay isn't running yet, run option 2 (Start) next to bring it up with these settings."
+    fi
+}
+
+do_change_emojis() {
+    [[ -f "$CONFIG_FILE" ]] || error "Not configured yet, run Start first."
+    # shellcheck disable=SC1090
+    source "$CONFIG_FILE"
+    local current_up="${UP_EMOJI:-🟢}" current_down="${DOWN_EMOJI:-🔴}"
+
+    info "Status emojis"
+    echo "Shown in place of whatever emoji the source itself sends (which"
+    echo "turned out to be inconsistent, e.g. one service showing a purple"
+    echo "circle for 'back up' instead of green). Any single emoji works."
+    echo "Use an actual emoji (✅ ❌ 🟢 🔴), not a plain text symbol (✓ ✗)"
+    echo "those render as the wrong width in some terminals and phones."
+    echo "Current: UP = $current_up   DOWN = $current_down"
+    read -rp "New emoji for UP/back-online [Enter to keep '$current_up']: " new_up
+    read -rp "New emoji for DOWN [Enter to keep '$current_down']: " new_down
+    UP_EMOJI="${new_up:-$current_up}"
+    DOWN_EMOJI="${new_down:-$current_down}"
+
+    {
+        echo "DOMAIN=$DOMAIN"
+        echo "WEBHOOK_TOKEN=$WEBHOOK_TOKEN"
+        echo "NTFY_SERVER=$NTFY_SERVER"
+        echo "NTFY_TOPIC=$NTFY_TOPIC"
+        echo "UP_EMOJI=$UP_EMOJI"
+        echo "DOWN_EMOJI=$DOWN_EMOJI"
+    } > "$CONFIG_FILE"
+    chmod 600 "$CONFIG_FILE"
+
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$CONTAINER_NAME"; then
+        (cd "$STATE_DIR" && WEBHOOK_TOKEN="$WEBHOOK_TOKEN" NTFY_SERVER="$NTFY_SERVER" NTFY_TOPIC="$NTFY_TOPIC" UP_EMOJI="$UP_EMOJI" DOWN_EMOJI="$DOWN_EMOJI" docker compose -f "$RELAY_COMPOSE" up -d)
+        echo "Applied. New notifications will use $UP_EMOJI for up, $DOWN_EMOJI for down."
+    else
+        echo "Saved. Will apply next time you Start the relay."
     fi
 }
 
@@ -351,7 +509,12 @@ do_start() {
     write_compose
     # shellcheck disable=SC1090
     source "$CONFIG_FILE"
-    export WEBHOOK_TOKEN NTFY_SERVER NTFY_TOPIC
+    # Older configs (from before this feature existed) won't have these set
+    # at all; default here so Start doesn't pass an empty string through to
+    # the container, which os.environ.get()'s own default can't rescue.
+    UP_EMOJI="${UP_EMOJI:-🟢}"
+    DOWN_EMOJI="${DOWN_EMOJI:-🔴}"
+    export WEBHOOK_TOKEN NTFY_SERVER NTFY_TOPIC UP_EMOJI DOWN_EMOJI
     (cd "$STATE_DIR" && docker compose -f "$RELAY_COMPOSE" up -d --force-recreate)
     restart_caddy_to_pick_up_dropin
     info "Webhook relay running. It can take a minute for the HTTPS cert on the new subdomain to issue."
@@ -379,6 +542,11 @@ do_status() {
         echo "Relay:        RUNNING"
     else
         echo "Relay:        STOPPED"
+    fi
+    if systemctl is-enabled --quiet aios-webhook-boot-notify.service 2>/dev/null; then
+        echo "Reboot alert: ON"
+    else
+        echo "Reboot alert: off"
     fi
     if [[ -f "$EVENTS_LOG" ]]; then
         echo ""
@@ -419,6 +587,9 @@ do_uninstall() {
         *) echo "Cancelled."; return ;;
     esac
     [[ -f "$RELAY_COMPOSE" ]] && (cd "$STATE_DIR" && docker compose -f "$RELAY_COMPOSE" down 2>/dev/null || true)
+    systemctl disable --now aios-webhook-boot-notify.service 2>/dev/null || true
+    rm -f "$BOOT_SERVICE_FILE"
+    systemctl daemon-reload 2>/dev/null || true
     rm -f "$CADDY_SNIPPET"
     restart_caddy_to_pick_up_dropin
     rm -rf "$STATE_DIR"
@@ -456,6 +627,14 @@ if [[ "${1:-}" == "start-relay" ]]; then
     exit 0
 fi
 
+# Called by the systemd unit at boot, not by a person. Deliberately quiet
+# (no info/echo chatter) since nothing is watching a terminal when this
+# runs; success or failure shows up in ntfy and journalctl respectively.
+if [[ "${1:-}" == "notify-boot" ]]; then
+    [[ -f "$CONFIG_FILE" ]] || exit 0
+    send_boot_notification
+fi
+
 while true; do
     echo ""
     echo "=== AIOStreams Webhook Relay ==="
@@ -465,9 +644,11 @@ while true; do
     echo "4) Reconfigure (change subdomain/token/ntfy target)"
     echo "5) Send test event"
     echo "6) View recent events"
-    echo "7) Uninstall"
-    echo "8) Exit"
-    read -rp "Choose an option [1-8]: " CHOICE
+    echo "7) Toggle reboot notification (ping ntfy when this server reboots)"
+    echo "8) Change status emojis (shown for UP/DOWN instead of the source's own)"
+    echo "9) Uninstall"
+    echo "10) Exit"
+    read -rp "Choose an option [1-10]: " CHOICE
 
     case "$CHOICE" in
         1) do_status ;;
@@ -476,8 +657,10 @@ while true; do
         4) do_configure ;;
         5) do_test_event ;;
         6) do_view_events ;;
-        7) do_uninstall ;;
-        8) exit 0 ;;
+        7) do_toggle_boot_notify ;;
+        8) do_change_emojis ;;
+        9) do_uninstall ;;
+        10) exit 0 ;;
         *) warn "Not a valid option." ;;
     esac
 done
