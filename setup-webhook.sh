@@ -354,7 +354,7 @@ send_boot_notification() {
     # shellcheck disable=SC1090
     source "$CONFIG_FILE"
     [[ -n "${NTFY_TOPIC:-}" ]] || exit 0
-    local body="🔃 Server rebooted and is back online.
+    local body="🔄 Server rebooted and is back online.
 Host: $(hostname)
 Webhook relay: https://${DOMAIN:-unknown}
 Time: $(date '+%d %b %Y, %H:%M:%S %Z')"
