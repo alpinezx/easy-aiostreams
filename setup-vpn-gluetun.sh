@@ -523,6 +523,7 @@ apply_mode() {
                 echo -e "\033[1;32mVPN is up\033[0m, but couldn't re-fetch the exit IP just now (a transient blip, most likely). Check manually with:"
                 echo "  docker exec gluetun wget -qO- ifconfig.me/ip"
             fi
+            check_dns_dot
         else
             warn "Couldn't confirm the exit IP automatically. Check manually with:"
             echo "  docker exec gluetun wget -qO- ifconfig.me/ip"
@@ -585,6 +586,31 @@ apply_mode() {
     echo -e "Confirm at \033[1;36mhttps://${domain}\033[0m"
 }
 
+check_dns_dot() {
+    # Best-effort check for a live connection on port 853 (DNS-over-TLS),
+    # the only real proof DNS is going out encrypted. gluetun always logs
+    # "using plaintext DNS at address ..." once on boot, that's a one-time
+    # startup message before its own DoT resolver finishes starting, not a
+    # description of ongoing traffic, so we don't check the logs at all.
+    # A passive snapshot right after the tunnel comes up would often catch
+    # nothing at all on either port, simply because nothing has queried DNS
+    # yet, not because anything's wrong. So we force a lookup ourselves
+    # immediately before checking, rather than relying on ambient traffic.
+    local dot_check
+    dot_check=$(docker exec gluetun sh -c \
+        "apk add --no-cache iproute2 >/dev/null 2>&1; \
+         getent hosts google.com >/dev/null 2>&1 & \
+         sleep 1; ss -tn 2>/dev/null | grep ':853'" 2>/dev/null || true)
+
+    if [[ -n "$dot_check" ]]; then
+        echo -e "DNS: \033[1;32mencrypted\033[0m (live connection on :853/DoT)"
+    elif docker exec gluetun sh -c "ss -tn 2>/dev/null | grep -E ':53[^0-9]'" 2>/dev/null | grep -q .; then
+        warn "DNS: a connection on plain :53 was seen and nothing on :853. Worth checking DNS_UPSTREAM_RESOLVER_TYPE in your gluetun config (should be 'dot', the default)."
+    else
+        echo "DNS: couldn't confirm either way (a forced lookup didn't produce a visible :853 or :53 connection in the check window). Not necessarily a problem, run 'Status' again or see the VPN Setup docs for a manual check."
+    fi
+}
+
 do_status() {
     local active live_mode saved
     active=$(cat "$ACTIVE_MARKER" 2>/dev/null || echo "unknown")
@@ -642,6 +668,8 @@ do_status() {
         else
             warn "Couldn't reach any IP-lookup service from inside gluetun, tunnel may be down."
         fi
+        echo ""
+        check_dns_dot
     fi
 }
 

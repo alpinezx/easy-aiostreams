@@ -276,6 +276,110 @@ playback device turned off.
 
 ---
 
+## Confirming DNS is actually encrypted (not just the tunnel)
+
+The IP check above proves your *traffic* exits through the VPN. It doesn't
+prove your *DNS lookups* are encrypted on the way out, and this is the part
+that trips people up, because gluetun's own startup log looks alarming even
+when everything is fine.
+
+**As of this version of the script, you don't need to check this by hand.**
+Every time you turn VPN mode on, and every time you run **Status**, the
+script itself checks for a live connection on port 853 and prints one of:
+
+```
+DNS: encrypted (live connection on :853/DoT)
+```
+or a warning if it isn't. Everything below is what that check is doing
+under the hood, and how to run it yourself if you ever want to double-check
+independently of the script.
+
+### The log line that looks like a leak but isn't
+
+Every time gluetun boots, you'll see something like this near the top of
+`docker compose logs gluetun`:
+
+```
+INFO [dns] using plaintext DNS at address 1.1.1.1
+```
+
+That reads like DNS-over-TLS (DoT) isn't working. It's not. This is a
+one-time bootstrap step: gluetun needs to resolve a couple of its own
+hostnames (to download its ad/malware block lists) before its internal DoT
+resolver has finished starting up, so that first lookup happens in plain
+UDP by necessity. Right after it you should see gluetun finish setting up
+its own resolver:
+
+```
+INFO [dns] downloading hostnames and IP block lists
+INFO [dns] DNS server listening on [::]:53
+```
+
+Once that's up, every DNS query AIOStreams actually makes goes through
+gluetun's resolver and out over DoT. The early "plaintext" line is
+startup housekeeping, not a description of your ongoing traffic. It shows
+up on essentially every gluetun install, VPN provider, and version, this
+isn't specific to this project's setup.
+
+### The one command that actually proves it
+
+Logs describe what gluetun *says* it's doing. To confirm what's actually
+happening on the wire, check for live connections to port `853`, the
+standard DNS-over-TLS port:
+
+```bash
+docker exec gluetun sh -c "apk add --no-cache iproute2 2>/dev/null; ss -tn | grep ':853'"
+```
+
+**Encrypted (what you want to see):**
+```
+ESTAB  0  0  10.5.0.2:42600  1.0.0.1:853
+ESTAB  0  0  10.5.0.2:39334  9.9.9.9:853
+```
+At least one `ESTAB` line ending in `:853`, connecting to a known DNS
+provider IP. That's the actual proof: port 853 is the TLS-encrypted DNS
+port, so a live connection there means queries are leaving encrypted.
+
+**Plaintext leak (worth investigating):**
+```
+ESTAB  0  0  10.5.0.2:51234  1.1.1.1:53
+```
+Port `53` instead of `853` going out to an external IP means DNS is
+genuinely leaving unencrypted. This is the case to actually chase down,
+not the log line above.
+
+If the command shows nothing on `:853` at all, not even an attempted
+connection, the WireGuard tunnel itself may be down rather than DNS being
+misconfigured specifically. Check `docker compose logs gluetun --tail=30`
+for repeated `[wireguard] Connecting to ...` lines or `i/o timeout`
+errors, which point at the handshake, not DNS.
+
+`iproute2` (which provides `ss`) isn't in the gluetun image by default and
+doesn't persist across container recreates, so the `apk add` in the
+command above reinstalls it each time. That's expected and only takes a
+second.
+
+### Known DoT provider IPs
+
+| Provider | IPs |
+|---|---|
+| Cloudflare | `1.1.1.1`, `1.0.0.1` |
+| Quad9 | `9.9.9.9`, `149.112.112.112` |
+
+These should match whatever `DNS_UPSTREAM_RESOLVERS` is set to in
+gluetun's config (Cloudflare by default). If `ss` shows a connection to an
+IP that isn't one of your configured providers, that's worth a second
+look too.
+
+> [!NOTE]
+> Don't check `docker exec gluetun cat /etc/unbound/unbound.conf` looking
+> for the DNS config directly. Gluetun v3.40 and later replaced Unbound
+> with its own internal Go-based resolver, so that file no longer exists.
+> The `ss` check above works regardless of which resolver version you're
+> on.
+
+---
+
 ## Proving the kill switch actually blocks traffic
 
 The IP comparison above confirms the tunnel is up *right now*. It doesn't
