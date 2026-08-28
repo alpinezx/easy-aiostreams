@@ -490,8 +490,15 @@ do_change_emojis() {
     } > "$CONFIG_FILE"
     chmod 600 "$CONFIG_FILE"
 
+    # Bug fix: this used to only save the new values and recreate the
+    # container on its EXISTING code, silently doing nothing if that code
+    # predated whichever setup-webhook.sh feature the running container was
+    # last deployed from. Refreshing the app script here too means this
+    # option can never again save a setting the running code doesn't
+    # actually know how to use yet.
+    write_app_script
     if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$CONTAINER_NAME"; then
-        (cd "$STATE_DIR" && WEBHOOK_TOKEN="$WEBHOOK_TOKEN" NTFY_SERVER="$NTFY_SERVER" NTFY_TOPIC="$NTFY_TOPIC" UP_EMOJI="$UP_EMOJI" DOWN_EMOJI="$DOWN_EMOJI" docker compose -f "$RELAY_COMPOSE" up -d)
+        (cd "$STATE_DIR" && WEBHOOK_TOKEN="$WEBHOOK_TOKEN" NTFY_SERVER="$NTFY_SERVER" NTFY_TOPIC="$NTFY_TOPIC" UP_EMOJI="$UP_EMOJI" DOWN_EMOJI="$DOWN_EMOJI" docker compose -f "$RELAY_COMPOSE" up -d --force-recreate)
         echo "Applied. New notifications will use $UP_EMOJI for up, $DOWN_EMOJI for down."
     else
         echo "Saved. Will apply next time you Start the relay."
