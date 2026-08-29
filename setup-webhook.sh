@@ -117,7 +117,13 @@ def summarize(raw_body):
     # separately so they're never silently dropped just because they
     # weren't part of the human-written message text itself.
     if isinstance(data.get("title"), str) and isinstance(data.get("message"), str):
-        body = restyle_message(data["message"], data)
+        if data.get("test"):
+            # Test events get a fixed bell, same as the watchdog's own test
+            # alert, rather than borrowing whatever UP_EMOJI happens to be
+            # set to right now, since a test isn't really an up/down event.
+            body = "🔔 " + LEADING_EMOJI_RE.sub("", data["message"], count=1)
+        else:
+            body = restyle_message(data["message"], data)
         if links:
             body = body + "\n\n" + "\n".join(links)
         return (data["title"][:200], body[:800])
@@ -354,7 +360,7 @@ send_boot_notification() {
     # shellcheck disable=SC1090
     source "$CONFIG_FILE"
     [[ -n "${NTFY_TOPIC:-}" ]] || exit 0
-    local body="🔄 Server rebooted and is back online.
+    local body="️🔄 Server rebooted and is back online.
 Host: $(hostname)
 Webhook relay: https://${DOMAIN:-unknown}
 Time: $(date '+%d %b %Y, %H:%M:%S %Z')"
@@ -575,12 +581,22 @@ do_test_event() {
     docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$CONTAINER_NAME" || \
         error "Relay isn't running. Start it first (option 2)."
     info "Sending a test POST straight to the container (bypasses Caddy/DNS, just checks the relay + ntfy forward)."
+    # Shaped like a real title/message event (same fields the uptime tracker
+    # sends) rather than a raw test blob, so it goes through the same clean
+    # formatting as a genuine alert, including your chosen UP_EMOJI, instead
+    # of showing up in ntfy as an ugly raw JSON dump.
     if docker exec "$CONTAINER_NAME" python3 -c "
-import urllib.request
-req = urllib.request.Request('http://127.0.0.1:${INTERNAL_PORT}/hook/${WEBHOOK_TOKEN}', data=b'{\"test\":true,\"source\":\"setup-webhook.sh\"}', method='POST')
+import urllib.request, json
+payload = json.dumps({
+    'test': True,
+    'newState': 'UP',
+    'title': 'Test notification',
+    'message': 'This is a test alert from the Webhook relay.\nIf you can see this, everything is working end to end.'
+}).encode()
+req = urllib.request.Request('http://127.0.0.1:${INTERNAL_PORT}/hook/${WEBHOOK_TOKEN}', data=payload, method='POST')
 print(urllib.request.urlopen(req, timeout=5).status)
 " ; then
-        echo "Sent. Check your ntfy topic ('$NTFY_TOPIC') and/or option 5 (View recent events)."
+        echo "Sent. Check your ntfy topic ('$NTFY_TOPIC') and/or option 6 (View recent events)."
     else
         warn "Couldn't send the test request. Check option 1 (Status) for whether the relay is actually running."
     fi
