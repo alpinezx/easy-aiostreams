@@ -111,6 +111,12 @@ CADDYFILE="$INSTALL_DIR/Caddyfile"
 
 SHARED_NET="aios_shared"
 
+# Canonical list of scripts that belong in $INSTALL_DIR (and, for
+# convenience, in the invoking user's own ~/aiostreams too). Used both by
+# do_backup's mismatch check and by do_restore's copy-back-to-user step, so
+# the two stay in sync and neither one silently drops a script again.
+AIOSTREAMS_SCRIPTS=(setup-aiostreams.sh setup-vpn-gluetun.sh setup-watchdog.sh setup-webhook.sh)
+
 # Set by the Reconfigure menu option only, when it needs the final restart
 # (further down) to know whether to bring the stack back up through the
 # tunnel-confirmed VPN gate instead of a plain restart. Defaults to false so
@@ -147,7 +153,7 @@ do_backup() {
     # a non-root user in the first place. $REAL_HOME == $HOME otherwise.
     if [[ "$REAL_HOME" != "$HOME" && -d "$REAL_HOME/aiostreams" ]]; then
         local script_mismatch=() sname
-        for sname in setup-aiostreams.sh setup-vpn-gluetun.sh setup-watchdog.sh; do
+        for sname in "${AIOSTREAMS_SCRIPTS[@]}"; do
             local user_copy="$REAL_HOME/aiostreams/$sname"
             local root_copy="$INSTALL_DIR/$sname"
             [[ -f "$user_copy" ]] || continue
@@ -629,6 +635,33 @@ do_restore() {
         fi
     fi
 
+    # Scripts travel inside $INSTALL_DIR in the tarball, so the tar xzf
+    # above already put them back at $INSTALL_DIR (root's copy). But under
+    # sudo as a non-root user, people also keep a convenience copy in their
+    # own ~/aiostreams (that's where they scp the tarball to and run this
+    # script from). Nothing restores that copy unless we do it here too,
+    # same idea as the WireGuard .conf restore just above.
+    local script_restored_count=0
+    if [[ "$REAL_HOME" != "$HOME" ]]; then
+        mkdir -p "$REAL_HOME/aiostreams"
+        for sname in "${AIOSTREAMS_SCRIPTS[@]}"; do
+            local src="$INSTALL_DIR/$sname"
+            [[ -f "$src" ]] || continue
+            local dest="$REAL_HOME/aiostreams/$sname"
+            if cp -- "$src" "$dest" 2>/dev/null; then
+                chmod 664 "$dest"
+                if [[ -n "${SUDO_UID:-}" && -n "${SUDO_GID:-}" ]]; then
+                    chown "$SUDO_UID:$SUDO_GID" "$dest" 2>/dev/null || true
+                    chown "$SUDO_UID:$SUDO_GID" "$REAL_HOME/aiostreams" 2>/dev/null || true
+                fi
+                script_restored_count=$((script_restored_count + 1))
+            fi
+        done
+        if (( script_restored_count > 0 )); then
+            echo "Restored $script_restored_count script(s) to $REAL_HOME/aiostreams (your convenience copy)."
+        fi
+    fi
+
     check_restored_domain_dns
 
     ensure_shared_network
@@ -785,6 +818,11 @@ do_restore() {
         echo "  - WireGuard .conf: $conf_restored_count original file(s) restored to /root"
         echo "    and/or $REAL_HOME, same as they were on the old server (convenience"
         echo "    copies for quick reconfigures, not required for the VPN layer itself)."
+    fi
+    if (( script_restored_count > 0 )); then
+        echo "  - Scripts: $script_restored_count file(s) restored to $REAL_HOME/aiostreams,"
+        echo "    same convenience copy you had on the old server (the real copy that"
+        echo "    actually runs the install lives in $INSTALL_DIR)."
     fi
     echo "  - Verify by logging into the AIOStreams page and playing one stream from a"
     echo "    device that already had the addon installed. Keep the old server running"
