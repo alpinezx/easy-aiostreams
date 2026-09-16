@@ -1,0 +1,107 @@
+name: 🐛 Bug Report
+description: Something broken during install, update, or runtime? Use this — reports without logs will likely be closed.
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report an issue. To keep things fixable, **please fill in every section below** — reports like "it doesn't work" with no logs make it impossible to diagnose and will likely be closed and asked to resubmit.
+
+  - type: checkboxes
+    id: pre-checks
+    attributes:
+      label: Before submitting
+      description: Please confirm the following
+      options:
+        - label: I checked the [Troubleshooting doc](../../docs/troubleshooting-and-extras.md#troubleshooting) and my issue isn't already covered there
+          required: true
+        - label: I searched [existing issues](../../issues) and this isn't a duplicate
+          required: true
+
+  - type: dropdown
+    id: build-channel
+    attributes:
+      label: Build channel
+      description: Which channel is your instance running?
+      options:
+        - stable
+        - nightly
+        - Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: stage
+    attributes:
+      label: When did this happen?
+      options:
+        - Fresh install (first run of the script)
+        - Reconfigure
+        - Update
+        - Backup / Restore
+        - Normal runtime (nothing changed recently)
+        - Other (explain below)
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Clear description of the problem. What did you expect to happen instead?
+      placeholder: e.g. "After running the update option, Caddy fails to start and the site shows a 502."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Exact commands/menu options you ran, in order
+      placeholder: |
+        1. sudo bash setup-aiostreams.sh
+        2. Selected option 5 (Update)
+        3. Chose to switch from stable to nightly
+        4. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        **Required.** Paste the relevant output. First `cd` into your install directory (e.g. `cd ~/aiostreams`) or these commands won't find your compose file. Useful commands:
+        - `docker compose logs --tail=200`
+        - `docker compose ps`
+        - Output of the script itself, including any error text
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots (if applicable)
+      description: Drag and drop images here — especially useful for browser/UI issues (configure page, dashboard, login errors, etc.)
+
+  - type: input
+    id: os
+    attributes:
+      label: OS and version
+      placeholder: e.g. Ubuntu 24.04.1 LTS
+    validations:
+      required: true
+
+  - type: input
+    id: vps-provider
+    attributes:
+      label: VPS provider (optional)
+      placeholder: e.g. Hetzner, DigitalOcean, Oracle Free Tier
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: VPN/extras enabled, recent changes to your setup, anything unusual about your environment

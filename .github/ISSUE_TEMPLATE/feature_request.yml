@@ -1,0 +1,33 @@
+name: 💡 Feature Request
+description: Suggest an improvement or new option for the script
+title: "[FEATURE] "
+labels: ["enhancement"]
+body:
+  - type: checkboxes
+    id: pre-checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and this hasn't already been requested
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: What are you trying to do that the script doesn't currently support?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What would you like the script/menu to do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered (optional)
