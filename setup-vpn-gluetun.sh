@@ -65,6 +65,34 @@ sync_self_into_install_dir() {
 }
 sync_self_into_install_dir
 
+# Opt-in regex/SEL access lines (see setup-aiostreams.sh's fresh-install
+# prompt). Both templates below splice these in, so toggling VPN mode never
+# silently drops them. The live docker-compose.yml is the source of truth,
+# same as domain and image tag: remove the lines there and the next toggle
+# drops them from the saved variants too.
+ADVANCED_ENV_LINES=""
+
+advanced_access_lines() {
+    if grep -q 'SEL_SYNC_ACCESS=all' "$1" 2>/dev/null && grep -q 'REGEX_FILTER_ACCESS=all' "$1" 2>/dev/null; then
+        printf '      - SEL_SYNC_ACCESS=all\n      - REGEX_FILTER_ACCESS=all'
+    fi
+}
+
+# Brings the saved direct/vpn variants in line with the live file's
+# regex/SEL setting. The direct variant is only ever written once (first
+# VPN setup), so without this it would stay frozen at whatever it was then.
+sync_advanced_access() {
+    local f
+    ADVANCED_ENV_LINES=$(advanced_access_lines "$COMPOSE_FILE")
+    for f in "$DIRECT_COMPOSE" "$VPN_COMPOSE"; do
+        [[ -f "$f" ]] || continue
+        sed -i '/SEL_SYNC_ACCESS=/d; /REGEX_FILTER_ACCESS=/d' "$f"
+        if [[ -n "$ADVANCED_ENV_LINES" ]]; then
+            sed -i 's/^\(      - AIOSTREAMS_AUTH_REQUIRED=true\)$/\1\n      - SEL_SYNC_ACCESS=all\n      - REGEX_FILTER_ACCESS=all/' "$f"
+        fi
+    done
+}
+
 # Returns non-zero instead of exiting, so callers can chain `||` fallbacks.
 # IMAGE_TAG isn't part of the success check, defaulting to "latest" if absent
 # (e.g. a compose file from before build-channel selection existed) so it
@@ -75,6 +103,7 @@ try_read_existing_values() {
     AUTH_LINE=$(grep -oP 'AIOSTREAMS_AUTH=\K[^"]+' "$1" 2>/dev/null | head -1 || true)
     IMAGE_TAG=$(grep -oP 'image: viren070/aiostreams:\K\S+' "$1" 2>/dev/null | head -1 || true)
     [[ -z "$IMAGE_TAG" ]] && IMAGE_TAG="latest"
+    ADVANCED_ENV_LINES=$(advanced_access_lines "$1")
     [[ -n "$DOMAIN" && -n "$SECRET_KEY" && -n "$AUTH_LINE" ]]
 }
 
@@ -100,6 +129,12 @@ services:
     image: viren070/aiostreams:${IMAGE_TAG}
     container_name: aiostreams
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/nodejs/bin/node", "/app/scripts/healthcheck.js"]
+      interval: 5s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
     volumes:
       - ./data:/app/data
     environment:
@@ -108,8 +143,9 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - AIOSTREAMS_AUTH=${AUTH_LINE}
       - AIOSTREAMS_AUTH_REQUIRED=true
+${ADVANCED_ENV_LINES}
   caddy:
-    image: caddy:latest
+    image: caddy:2
     container_name: caddy
     restart: unless-stopped
     ports:
@@ -196,6 +232,12 @@ services:
     # caddy keep unless-stopped since neither depends on the tunnel this way.
     restart: "no"
     network_mode: "service:gluetun"
+    healthcheck:
+      test: ["CMD", "/nodejs/bin/node", "/app/scripts/healthcheck.js"]
+      interval: 5s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
     depends_on:
       - gluetun
     volumes:
@@ -206,8 +248,9 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - AIOSTREAMS_AUTH=${AUTH_LINE}
       - AIOSTREAMS_AUTH_REQUIRED=true
+${ADVANCED_ENV_LINES}
   caddy:
-    image: caddy:latest
+    image: caddy:2
     container_name: caddy
     restart: unless-stopped
     ports:
@@ -266,6 +309,7 @@ refresh_vpn_snapshot() {
     DOMAIN=$(head -1 "$VPN_CADDYFILE" 2>/dev/null | awk '{print $1}' || true)
     IMAGE_TAG=$(grep -oP 'image: viren070/aiostreams:\K\S+' "$VPN_COMPOSE" 2>/dev/null | head -1 || true)
     [[ -z "$IMAGE_TAG" ]] && IMAGE_TAG="latest"
+    ADVANCED_ENV_LINES=$(advanced_access_lines "$COMPOSE_FILE")
 
     if [[ -z "$WG_PRIVATE_KEY" || -z "$WG_ADDRESS" || -z "$WG_PUBLIC_KEY" || -z "$WG_ENDPOINT_IP" || -z "$WG_ENDPOINT_PORT" || -z "$SECRET_KEY" || -z "$AUTH_LINE" || -z "$DOMAIN" ]]; then
         warn "Couldn't cleanly extract all values from the existing VPN snapshot, leaving it as-is rather than risk writing a broken one. If aiostreams-vpn-boot.service seems missing after this, run 'Reconfigure VPN' (option 4) once to regenerate it from scratch."
@@ -343,6 +387,7 @@ done
 if \$tunnel_confirmed; then
     log "Tunnel confirmed at boot, starting aiostreams"
     docker compose up -d --no-deps aiostreams >/dev/null 2>&1
+    rm -f "\$INSTALL_DIR/aiostreams-stopped-on-purpose"
     log "aiostreams started."
 else
     log "Tunnel could not be confirmed after boot — aiostreams NOT started (left stopped, not attached to an unconfirmed tunnel). Check: docker compose -f \$COMPOSE_FILE logs gluetun, then once resolved: cd \$INSTALL_DIR && sudo bash setup-aiostreams.sh (option 3, Start AIOStreams)."
@@ -446,6 +491,8 @@ apply_mode() {
         fi
     fi
 
+    sync_advanced_access
+
     # Teardown happens FIRST, against the currently active compose file,
     # before the new one is swapped in, otherwise switching vpn -> direct
     # tears down using a file with no gluetun service and no knowledge that
@@ -541,6 +588,7 @@ this."
             if [[ "$tunnel_confirmed" == "true" ]]; then
                 info "Tunnel confirmed, starting AIOStreams"
                 docker compose up -d aiostreams
+                rm -f "$INSTALL_DIR/aiostreams-stopped-on-purpose"
                 for attempt in 1 2 3 4 5; do
                     state=$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo "false")
                     [[ "$state" == "true" ]] && break

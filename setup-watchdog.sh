@@ -32,12 +32,59 @@ CHECK_INTERVAL_MIN="2"  # same interval, as a bare number of minutes —
 # `docker exec` on a missing container fails too, so this also naturally
 # catches gluetun being gone entirely (crashed, force-removed).
 
+STOPPED_MARKER="$INSTALL_DIR/aiostreams-stopped-on-purpose"
+
 check_gluetun_tunnel() {
     docker exec gluetun wget -qO- --timeout=5 http://127.0.0.1:9999 >/dev/null 2>&1
 }
 
+# Asks from INSIDE gluetun, not from aiostreams itself. That catches two
+# things a plain "is the container running" check misses:
+#   - aiostreams crashed (in VPN mode it's restart: "no", so nothing
+#     brings it back on its own)
+#   - gluetun's container restarted and got a fresh network namespace,
+#     leaving aiostreams "running" but stranded in the old dead one, so
+#     Caddy can't reach it and it has no internet
+# Any HTTP answer at all (even a 401/404) means aiostreams is listening in
+# gluetun's current namespace. Only "nothing there" counts as down.
+check_aiostreams_reachable() {
+    local out
+    out=$(docker exec gluetun wget -q -O /dev/null -T 5 http://127.0.0.1:3000/ 2>&1) && return 0
+    ! grep -qiE "refused|timed out|can't connect|unable to connect|bad address|no route" <<< "$out"
+}
+
+aiostreams_running() {
+    [[ "$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null)" == "true" ]]
+}
+
+# Sets FAIL_REASON on failure, for the alert text.
 run_checks() {
-    check_gluetun_tunnel
+    FAIL_REASON=""
+    if ! check_gluetun_tunnel; then
+        FAIL_REASON="gluetun tunnel appears to be DOWN (health check failing)"
+        return 1
+    fi
+
+    # "Stop AIOStreams" in setup-aiostreams.sh leaves this marker. Honor it
+    # only while aiostreams is actually stopped; once anything starts it
+    # again, the marker is stale, so clear it and go back to checking.
+    if [[ -f "$STOPPED_MARKER" ]]; then
+        if aiostreams_running; then
+            rm -f "$STOPPED_MARKER"
+        else
+            return 0
+        fi
+    fi
+
+    if ! aiostreams_running; then
+        FAIL_REASON="aiostreams is NOT running (tunnel is fine). In VPN mode nothing restarts it automatically. Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"
+        return 1
+    fi
+    if ! check_aiostreams_reachable; then
+        FAIL_REASON="aiostreams is running but unreachable through gluetun (likely stranded after a gluetun restart). Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"
+        return 1
+    fi
+    return 0
 }
 
 send_ntfy() {
@@ -65,15 +112,15 @@ do_run_check() {
         echo "$(date '+%d %b %Y, %H:%M:%S %Z') OK" > "$LASTCHECK_FILE"
         echo 0 > "$FAILCOUNT_FILE"
         if [[ "$alert_state" == "down" ]]; then
-            send_ntfy "✅ AIOStreams: gluetun tunnel is back up." || true
+            send_ntfy "✅ AIOStreams: all checks passing again (tunnel up, aiostreams reachable)." || true
             echo "up" > "$ALERTSTATE_FILE"
         fi
     else
-        echo "$(date '+%d %b %Y, %H:%M:%S %Z') FAIL" > "$LASTCHECK_FILE"
+        echo "$(date '+%d %b %Y, %H:%M:%S %Z') FAIL: ${FAIL_REASON}" > "$LASTCHECK_FILE"
         fails=$((fails + 1))
         echo "$fails" > "$FAILCOUNT_FILE"
         if [[ "$fails" -ge "$FAIL_THRESHOLD" && "$alert_state" == "up" ]]; then
-            send_ntfy "🔴 AIOStreams: gluetun tunnel appears to be DOWN (health check failing)." || true
+            send_ntfy "🔴 AIOStreams: ${FAIL_REASON}." || true
             echo "down" > "$ALERTSTATE_FILE"
         fi
     fi

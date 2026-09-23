@@ -257,20 +257,20 @@ write_compose() {
     cat > "$RELAY_COMPOSE" << EOF
 services:
   webhook-relay:
-    image: python:3-alpine
+    image: python:3.13-alpine
     container_name: ${CONTAINER_NAME}
     restart: unless-stopped
     command: ["python3", "/app/webhook_relay.py"]
     volumes:
       - ${APP_SCRIPT}:/app/webhook_relay.py:ro
       - ${STATE_DIR}:/state
+    # Token/topic/emojis come straight from the config file, so a manual
+    # 'docker compose up -d' in this folder can't recreate the relay with
+    # an empty token (which would make every webhook 404).
+    env_file:
+      - ${CONFIG_FILE}
     environment:
       - PORT=${INTERNAL_PORT}
-      - WEBHOOK_TOKEN=\${WEBHOOK_TOKEN}
-      - NTFY_SERVER=\${NTFY_SERVER}
-      - NTFY_TOPIC=\${NTFY_TOPIC}
-      - UP_EMOJI=\${UP_EMOJI}
-      - DOWN_EMOJI=\${DOWN_EMOJI}
       - EVENTS_LOG=/state/events.log
     networks:
       - ${SHARED_NET}
@@ -282,6 +282,7 @@ EOF
 
 write_caddy_snippet() {
     local domain="$1"
+    rm -f "${CADDY_SNIPPET}.rejected"
     cat > "$CADDY_SNIPPET" << EOF
 ${domain} {
     reverse_proxy ${CONTAINER_NAME}:${INTERNAL_PORT}
@@ -290,15 +291,25 @@ EOF
 }
 
 restart_caddy_to_pick_up_dropin() {
-    # The main install's caddy container needs to see the new file under
-    # caddy.d/ and get a fresh cert for the new subdomain. Caddy doesn't
-    # watch that directory on its own, so a restart of just that one
-    # container (not the whole stack) is what actually applies it.
-    if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx caddy; then
-        (cd "$INSTALL_DIR" && docker compose restart caddy) || \
-            warn "Couldn't restart the caddy container automatically. Run 'docker compose restart caddy' in $INSTALL_DIR yourself."
-    else
+    # A reload, not a restart: Caddy validates the new config first and, if
+    # it's bad, refuses it and keeps serving the old one. A restart with a
+    # bad snippet would take the main AIOStreams site down with it.
+    if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -qx caddy; then
         warn "No running 'caddy' container found. Is setup-aiostreams.sh installed and running on this server?"
+        return 0
+    fi
+    local out
+    if out=$(docker exec -w /etc/caddy caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile 2>&1); then
+        return 0
+    fi
+    warn "Caddy rejected the new config and is still running the old one (main site unaffected)."
+    echo "$out" | tail -n 5
+    if [[ -f "$CADDY_SNIPPET" ]]; then
+        # Out of the *.caddy glob, so the next Caddy restart or server
+        # reboot doesn't trip over it and take the main site down.
+        mv -f "$CADDY_SNIPPET" "${CADDY_SNIPPET}.rejected"
+        warn "Moved the relay's Caddy snippet aside to ${CADDY_SNIPPET}.rejected so it can't break Caddy on the next restart."
+        warn "Run Reconfigure (option 4) to fix the subdomain."
     fi
 }
 
@@ -377,6 +388,28 @@ Time: $(date '+%d %b %Y, %H:%M:%S %Z')"
     exit 1  # systemd logs this as a failed unit run, visible via journalctl
 }
 
+# Values are written single-quoted so both 'source' (bash) and Compose's
+# env_file read them as plain text, never as commands. That only works if
+# no value contains a single quote or newline, which the validators below
+# guarantee before anything reaches this.
+write_config() {
+    local k
+    {
+        for k in DOMAIN WEBHOOK_TOKEN NTFY_SERVER NTFY_TOPIC UP_EMOJI DOWN_EMOJI; do
+            printf "%s='%s'\n" "$k" "${!k}"
+        done
+    } > "$CONFIG_FILE"
+    chmod 600 "$CONFIG_FILE"
+}
+
+valid_domain() {
+    [[ "$1" =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+$ ]]
+}
+
+valid_emoji() {
+    [[ -n "$1" && "$1" != *"'"* && ! "$1" =~ [[:space:]] ]]
+}
+
 do_configure() {
     [[ -f "$COMPOSE_FILE" ]] || \
         error "Couldn't find $COMPOSE_FILE. Run setup-aiostreams.sh first, this bolts on to that install."
@@ -404,11 +437,20 @@ do_configure() {
     echo "Needs to be its OWN subdomain, different from your main AIOStreams"
     echo "domain, with its own A record already pointed at this server's IP"
     echo "(same as the main installer required). e.g. hooks.yourdomain.top"
-    local domain
+    local domain main_domain=""
+    [[ -f "$INSTALL_DIR/Caddyfile" ]] && main_domain=$(head -n1 "$INSTALL_DIR/Caddyfile" | awk '{print $1}')
     while true; do
         read -rp "Subdomain: " domain
-        [[ -n "$domain" && "$domain" != *"/"* && "$domain" != *" "* ]] && break
-        warn "That doesn't look like a bare domain (no spaces or slashes). Try again."
+        domain=$(echo "$domain" | xargs)
+        if ! valid_domain "$domain"; then
+            warn "That doesn't look like a domain. Letters, numbers, dots and hyphens only (e.g. hooks.example.com)."
+            continue
+        fi
+        if [[ -n "$main_domain" && "${domain,,}" == "${main_domain,,}" ]]; then
+            warn "That's your main AIOStreams domain. The relay needs its own subdomain."
+            continue
+        fi
+        break
     done
 
     info "Secret path token"
@@ -417,28 +459,33 @@ do_configure() {
     local suggestion token
     suggestion=$(head -c 18 /dev/urandom 2>/dev/null | base64 2>/dev/null | tr -dc 'a-zA-Z0-9' | head -c 24)
     [[ -z "$suggestion" ]] && suggestion="hook-${RANDOM}${RANDOM}${RANDOM}"
-    read -rp "Token [Enter to use '$suggestion']: " token
-    token="${token:-$suggestion}"
+    while true; do
+        read -rp "Token [Enter to use '$suggestion']: " token
+        token="${token:-$suggestion}"
+        [[ "$token" =~ ^[A-Za-z0-9_-]{8,}$ ]] && break
+        warn "Token must be at least 8 characters: letters, numbers, _ or - only."
+    done
 
     info "Where should received events go?"
     echo "This relays every incoming event to an ntfy.sh topic (same idea as"
     echo "the watchdog script, if you've set that up you can reuse a topic"
     echo "or use a separate one)."
     local ntfy_server ntfy_topic
-    read -rp "ntfy server [Enter for https://ntfy.sh]: " ntfy_server
-    ntfy_server="${ntfy_server:-https://ntfy.sh}"
-    read -rp "ntfy topic name: " ntfy_topic
-    [[ -n "$ntfy_topic" ]] || error "A topic name is required, that's what your phone subscribes to."
+    while true; do
+        read -rp "ntfy server [Enter for https://ntfy.sh]: " ntfy_server
+        ntfy_server="${ntfy_server:-https://ntfy.sh}"
+        ntfy_server="${ntfy_server%/}"
+        [[ "$ntfy_server" =~ ^https?://[A-Za-z0-9.:-]+(/[A-Za-z0-9._~/-]*)?$ ]] && break
+        warn "That doesn't look like a server URL (e.g. https://ntfy.sh)."
+    done
+    while true; do
+        read -rp "ntfy topic name: " ntfy_topic
+        [[ "$ntfy_topic" =~ ^[A-Za-z0-9_-]{1,64}$ ]] && break
+        warn "Topic names are 1-64 characters: letters, numbers, _ or - only (ntfy's own rule)."
+    done
 
-    {
-        echo "DOMAIN=$domain"
-        echo "WEBHOOK_TOKEN=$token"
-        echo "NTFY_SERVER=$ntfy_server"
-        echo "NTFY_TOPIC=$ntfy_topic"
-        echo "UP_EMOJI=$existing_up_emoji"
-        echo "DOWN_EMOJI=$existing_down_emoji"
-    } > "$CONFIG_FILE"
-    chmod 600 "$CONFIG_FILE"
+    DOMAIN="$domain" WEBHOOK_TOKEN="$token" NTFY_SERVER="$ntfy_server" NTFY_TOPIC="$ntfy_topic" \
+        UP_EMOJI="$existing_up_emoji" DOWN_EMOJI="$existing_down_emoji" write_config
 
     write_compose
     write_caddy_snippet "$domain"
@@ -459,7 +506,7 @@ do_configure() {
     # instead of leaving that gap for Start to (maybe) close later.
     if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$CONTAINER_NAME"; then
         info "Applying the new settings to the running relay container"
-        (cd "$STATE_DIR" && WEBHOOK_TOKEN="$token" NTFY_SERVER="$ntfy_server" NTFY_TOPIC="$ntfy_topic" UP_EMOJI="$existing_up_emoji" DOWN_EMOJI="$existing_down_emoji" docker compose -f "$RELAY_COMPOSE" up -d)
+        (cd "$STATE_DIR" && docker compose -f "$RELAY_COMPOSE" up -d --force-recreate)
         restart_caddy_to_pick_up_dropin
         echo "Applied. The URL above is live now."
     else
@@ -481,20 +528,21 @@ do_change_emojis() {
     echo "Use an actual emoji (✅ ❌ 🟢 🔴), not a plain text symbol (✓ ✗)"
     echo "those render as the wrong width in some terminals and phones."
     echo "Current: UP = $current_up   DOWN = $current_down"
-    read -rp "New emoji for UP/back-online [Enter to keep '$current_up']: " new_up
-    read -rp "New emoji for DOWN [Enter to keep '$current_down']: " new_down
-    UP_EMOJI="${new_up:-$current_up}"
-    DOWN_EMOJI="${new_down:-$current_down}"
+    local new_up new_down
+    while true; do
+        read -rp "New emoji for UP/back-online [Enter to keep '$current_up']: " new_up
+        UP_EMOJI="${new_up:-$current_up}"
+        valid_emoji "$UP_EMOJI" && break
+        warn "One emoji, no spaces or quotes."
+    done
+    while true; do
+        read -rp "New emoji for DOWN [Enter to keep '$current_down']: " new_down
+        DOWN_EMOJI="${new_down:-$current_down}"
+        valid_emoji "$DOWN_EMOJI" && break
+        warn "One emoji, no spaces or quotes."
+    done
 
-    {
-        echo "DOMAIN=$DOMAIN"
-        echo "WEBHOOK_TOKEN=$WEBHOOK_TOKEN"
-        echo "NTFY_SERVER=$NTFY_SERVER"
-        echo "NTFY_TOPIC=$NTFY_TOPIC"
-        echo "UP_EMOJI=$UP_EMOJI"
-        echo "DOWN_EMOJI=$DOWN_EMOJI"
-    } > "$CONFIG_FILE"
-    chmod 600 "$CONFIG_FILE"
+    write_config
 
     # Bug fix: this used to only save the new values and recreate the
     # container on its EXISTING code, silently doing nothing if that code
@@ -504,7 +552,7 @@ do_change_emojis() {
     # actually know how to use yet.
     write_app_script
     if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$CONTAINER_NAME"; then
-        (cd "$STATE_DIR" && WEBHOOK_TOKEN="$WEBHOOK_TOKEN" NTFY_SERVER="$NTFY_SERVER" NTFY_TOPIC="$NTFY_TOPIC" UP_EMOJI="$UP_EMOJI" DOWN_EMOJI="$DOWN_EMOJI" docker compose -f "$RELAY_COMPOSE" up -d --force-recreate)
+        (cd "$STATE_DIR" && docker compose -f "$RELAY_COMPOSE" up -d --force-recreate)
         echo "Applied. New notifications will use $UP_EMOJI for up, $DOWN_EMOJI for down."
     else
         echo "Saved. Will apply next time you Start the relay."
@@ -527,7 +575,8 @@ do_start() {
     # the container, which os.environ.get()'s own default can't rescue.
     UP_EMOJI="${UP_EMOJI:-🟢}"
     DOWN_EMOJI="${DOWN_EMOJI:-🔴}"
-    export WEBHOOK_TOKEN NTFY_SERVER NTFY_TOPIC UP_EMOJI DOWN_EMOJI
+    # Rewrites older unquoted configs into the quoted format env_file reads.
+    write_config
     (cd "$STATE_DIR" && docker compose -f "$RELAY_COMPOSE" up -d --force-recreate)
     restart_caddy_to_pick_up_dropin
     info "Webhook relay running. It can take a minute for the HTTPS cert on the new subdomain to issue."
@@ -613,7 +662,7 @@ do_uninstall() {
     systemctl disable --now aios-webhook-boot-notify.service 2>/dev/null || true
     rm -f "$BOOT_SERVICE_FILE"
     systemctl daemon-reload 2>/dev/null || true
-    rm -f "$CADDY_SNIPPET"
+    rm -f "$CADDY_SNIPPET" "${CADDY_SNIPPET}.rejected"
     restart_caddy_to_pick_up_dropin
     rm -rf "$STATE_DIR"
     echo "Done. Running this script again starts fresh from first-time setup."

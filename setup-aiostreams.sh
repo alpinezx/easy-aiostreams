@@ -91,6 +91,7 @@ vpn_gated_start_aiostreams() {
     echo "  Confirming the WireGuard tunnel is actually connected..."
     if confirm_gluetun_tunnel; then
         echo "  Tunnel confirmed, starting aiostreams"
+        rm -f "$STOPPED_MARKER"
         docker compose up -d --no-deps "$@" aiostreams || \
             { warn "aiostreams didn't start cleanly. Check 'docker compose logs aiostreams' in $INSTALL_DIR."; return 1; }
         return 0
@@ -123,6 +124,11 @@ AIOSTREAMS_SCRIPTS=(setup-aiostreams.sh setup-vpn-gluetun.sh setup-watchdog.sh s
 # a fresh install (which never touches this flag) doesn't trip `set -u`.
 RECONFIGURE_WAS_VPN_ACTIVE=false
 CADDY_DROPIN_DIR="$INSTALL_DIR/caddy.d"
+
+# Written by "Stop AIOStreams" so the watchdog knows a stopped aiostreams is
+# deliberate and doesn't page you. Cleared on any start; the watchdog also
+# clears it itself whenever it sees aiostreams running again.
+STOPPED_MARKER="$INSTALL_DIR/aiostreams-stopped-on-purpose"
 
 ensure_shared_network() {
     docker network inspect "$SHARED_NET" >/dev/null 2>&1 || \
@@ -299,6 +305,37 @@ do_backup() {
         warn "That applies to BOTH copies above, delete the one in $HOME too once you're done."
     fi
     [[ -t 0 ]] && read -rp "Continue now that you've read this... " _
+}
+
+remove_addons_on_uninstall() {
+    local removed=()
+    if [[ -f /etc/systemd/system/aiostreams-watchdog.timer ]]; then
+        systemctl disable --now aiostreams-watchdog.timer >/dev/null 2>&1 || true
+        rm -f /etc/systemd/system/aiostreams-watchdog.timer /etc/systemd/system/aiostreams-watchdog.service
+        removed+=("watchdog timer")
+    fi
+    if [[ -f /etc/systemd/system/aiostreams-vpn-boot.service ]]; then
+        systemctl disable aiostreams-vpn-boot.service >/dev/null 2>&1 || true
+        rm -f /etc/systemd/system/aiostreams-vpn-boot.service /usr/local/bin/aiostreams-vpn-boot.sh
+        removed+=("VPN boot hook")
+    fi
+    if [[ -f "$INSTALL_DIR/webhook-relay-state/docker-compose.yml" ]]; then
+        (cd "$INSTALL_DIR/webhook-relay-state" && docker compose -f docker-compose.yml down >/dev/null 2>&1) || \
+            docker rm -f aios-webhook-relay >/dev/null 2>&1 || true
+        removed+=("webhook relay container")
+    fi
+    if [[ -f /etc/systemd/system/aios-webhook-boot-notify.service ]]; then
+        systemctl disable aios-webhook-boot-notify.service >/dev/null 2>&1 || true
+        rm -f /etc/systemd/system/aios-webhook-boot-notify.service
+        removed+=("webhook reboot notification")
+    fi
+    if (( ${#removed[@]} > 0 )); then
+        systemctl daemon-reload >/dev/null 2>&1 || true
+        local joined
+        joined=$(printf '%s, ' "${removed[@]}")
+        echo "Also removed add-ons: ${joined%, }."
+        echo "(Their saved settings stay in $INSTALL_DIR unless you delete that below.)"
+    fi
 }
 
 check_restored_domain_dns() {
@@ -600,7 +637,9 @@ do_restore() {
     fi
 
     info "Extracting backup"
-    tar xzf "$tarball" -C "$HOME"
+    # Only the aiostreams/ folder: a tarball with anything else in it can't
+    # drop files elsewhere in root's home (e.g. ~/.ssh).
+    tar xzf "$tarball" -C "$HOME" aiostreams
     chmod 600 "$COMPOSE_FILE" 2>/dev/null || true
     grep -q 'SECRET_KEY=' "$COMPOSE_FILE" || \
         error "Restored compose file has no SECRET_KEY. The archive may be damaged. Nothing has been started."
@@ -945,6 +984,7 @@ if [[ -f "$COMPOSE_FILE" ]]; then
             # Targets aiostreams only, caddy (and gluetun in VPN mode) stay
             # up, so the domain still responds (502) instead of going dark.
             docker compose stop aiostreams
+            touch "$STOPPED_MARKER"
             echo "Stopped. Caddy is still up (visitors get a 502) and, if VPN mode is"
             echo "on, the tunnel is untouched. Start (option 3) to bring it back."
             continue
@@ -964,6 +1004,7 @@ if [[ -f "$COMPOSE_FILE" ]]; then
                 # 'up -d' rather than 'start': also handles the case where
                 # the container doesn't exist yet at all.
                 docker compose up -d aiostreams
+                rm -f "$STOPPED_MARKER"
                 echo "Started."
             fi
             echo ""
@@ -1152,6 +1193,12 @@ if [[ -f "$COMPOSE_FILE" ]]; then
                 docker compose down --rmi "$RMI_MODE"
                 echo "Containers and $([[ "$RMI_MODE" == "all" ]] && echo "images (including pulled ones)" || echo "locally-built images only, pulled images kept") removed (volumes preserved)."
             fi
+            # Add-ons live outside this compose stack (systemd units, and the
+            # webhook relay's own compose stack), so 'down' above never
+            # touches them. Left behind, the watchdog timer keeps firing every
+            # 2 min against a script that may be deleted next, and the relay
+            # keeps running with nothing in front of it.
+            remove_addons_on_uninstall
             docker network rm "$SHARED_NET" >/dev/null 2>&1 || true
 
             read -rp "Delete the config directory ($INSTALL_DIR), including your SECRET_KEY backup? [y/N]: " REMOVE_CONFIG
@@ -1389,11 +1436,9 @@ info "Using image tag: viren070/aiostreams:${IMAGE_TAG}"
 # Asked ONLY on a genuinely fresh install (no existing compose file yet).
 # On Reconfigure, this is deliberately NOT re-asked, it just carries forward
 # whatever was already set, silently. Re-asking on every Reconfigure was the
-# root of a real gap: setup-vpn-gluetun.sh's own compose template has no
-# awareness of these two vars at all, so toggling VPN mode after answering
-# this prompt could silently drop the setting without any clear signal why.
-# Leaving it as a one-time fresh-install decision sidesteps that entirely,
-# it's just carried along untouched from here on, VPN mode or not.
+# root of a real gap. setup-vpn-gluetun.sh reads these two lines from the
+# live compose file and carries them into both its direct and VPN variants
+# on every toggle, so the setting survives VPN mode either way.
 if [[ -f "$COMPOSE_FILE" ]]; then
     if grep -q "SEL_SYNC_ACCESS=all" "$COMPOSE_FILE" && grep -q "REGEX_FILTER_ACCESS=all" "$COMPOSE_FILE"; then
         ENABLE_ADVANCED_ACCESS=true
@@ -1502,7 +1547,7 @@ services:
       - AIOSTREAMS_AUTH_REQUIRED=true
 ${ADVANCED_ACCESS_ENV_LINES}
   caddy:
-    image: caddy:latest
+    image: caddy:2
     container_name: caddy
     restart: unless-stopped
     ports:
@@ -1645,6 +1690,7 @@ echo "IMPORTANT:"
 echo -e "  - Your SECRET_KEY and login username are saved to: \033[1;36m$CREDS_FILE\033[0m"
 echo "  - Move that file somewhere safe (off the server) and then delete it,"
 echo "    it currently sits in plaintext on disk."
+echo "  - If you already had a config from before this change: open the configure page,"
 echo "    log in, and hit Save once so it picks up the new access protection."
 if $ENABLE_ADVANCED_ACCESS; then
     echo "  - Regex filters & synced filter templates are ENABLED (SEL_SYNC_ACCESS=all,"
