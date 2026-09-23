@@ -15,6 +15,36 @@ warn()  { printf '\033[1;33m!! \033[0m %s\n' "$1"; }
 alert() { printf '\033[1;31m!! %s !!\033[0m\n' "$1"; }
 error() { printf '\033[1;31mXX \033[0m %s\n' "$1"; exit 1; }
 
+# Image cleanup after updates. Remembers each image's ID before a pull,
+# then removes just the old copies that pull replaced. Only ever touches
+# this stack's own images, and Docker refuses to delete one a container
+# still uses, so anything not recreated keeps its old image (no harm).
+snapshot_image_ids() {
+    local ref
+    for ref in "$@"; do
+        printf '%s %s\n' "$ref" "$(docker image inspect -f '{{.Id}}' "$ref" 2>/dev/null || echo none)"
+    done
+}
+
+cleanup_replaced_images() {
+    local ref old new freed=0
+    while read -r ref old; do
+        [[ -z "$ref" || -z "$old" || "$old" == "none" ]] && continue
+        new=$(docker image inspect -f '{{.Id}}' "$ref" 2>/dev/null || echo none)
+        if [[ "$new" != "$old" ]] && docker image rm "$old" >/dev/null 2>&1; then
+            freed=$((freed + 1))
+        fi
+    done <<< "$1"
+    if (( freed > 0 )); then
+        echo "Removed $freed old image(s) replaced by this update, to free disk space."
+    fi
+    return 0
+}
+
+compose_image_refs() {
+    grep -oP '^\s*image:\s*\K\S+' "$1" 2>/dev/null || true
+}
+
 # Colors just the given fragment red+bold, for embedding inside an otherwise
 # plain line, e.g. echo "some text $(hl "the important bit") more text".
 hl() { printf '\033[1;31m%s\033[0m' "$1"; }
@@ -716,6 +746,9 @@ do_restore() {
     # Starting on a stale image against a newer database fails with a
     # migration-mismatch error, so always pull fresh before bringing it up.
     info "Pulling current images before starting"
+    local image_snapshot
+    # shellcheck disable=SC2046  # image refs never contain spaces
+    image_snapshot=$(snapshot_image_ids $(compose_image_refs "$COMPOSE_FILE"))
     if ! (cd "$INSTALL_DIR" && docker compose pull); then
         # Read the actual tag this restore uses (could be nightly, not latest)
         # so the fallback command tells you to pull the right one.
@@ -762,6 +795,7 @@ do_restore() {
     else
         (cd "$INSTALL_DIR" && docker compose up -d --force-recreate --remove-orphans)
     fi
+    cleanup_replaced_images "$image_snapshot"
 
     # Same domain check_restored_domain_dns already confirmed against DNS
     # above, re-read here since that was a local var in a different
@@ -1091,6 +1125,8 @@ if [[ -f "$COMPOSE_FILE" ]]; then
 
             warn_if_vpn_layer_off "Updating AIOStreams" || continue
             echo "Updating AIOStreams (pull + recreate)..."
+            # shellcheck disable=SC2046  # image refs never contain spaces
+            IMAGE_SNAPSHOT=$(snapshot_image_ids $(compose_image_refs "$COMPOSE_FILE"))
             docker compose pull
             if vpn_mode_active; then
                 echo "VPN mode detected, recreating gluetun+caddy first, then gating aiostreams"
@@ -1099,6 +1135,7 @@ if [[ -f "$COMPOSE_FILE" ]]; then
             else
                 docker compose up -d --force-recreate --remove-orphans
             fi
+            cleanup_replaced_images "$IMAGE_SNAPSHOT"
             echo ""
             echo "Update complete. Current images:"
             docker compose images

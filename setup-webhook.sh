@@ -11,6 +11,36 @@ info()  { printf '\n\033[1;34m==>\033[0m %s\n' "$1"; }
 warn()  { printf '\033[1;33m!! \033[0m %s\n' "$1"; }
 error() { printf '\033[1;31mXX \033[0m %s\n' "$1"; exit 1; }
 
+# Image cleanup after updates. Remembers each image's ID before a pull,
+# then removes just the old copies that pull replaced. Only ever touches
+# this stack's own images, and Docker refuses to delete one a container
+# still uses, so anything not recreated keeps its old image (no harm).
+snapshot_image_ids() {
+    local ref
+    for ref in "$@"; do
+        printf '%s %s\n' "$ref" "$(docker image inspect -f '{{.Id}}' "$ref" 2>/dev/null || echo none)"
+    done
+}
+
+cleanup_replaced_images() {
+    local ref old new freed=0
+    while read -r ref old; do
+        [[ -z "$ref" || -z "$old" || "$old" == "none" ]] && continue
+        new=$(docker image inspect -f '{{.Id}}' "$ref" 2>/dev/null || echo none)
+        if [[ "$new" != "$old" ]] && docker image rm "$old" >/dev/null 2>&1; then
+            freed=$((freed + 1))
+        fi
+    done <<< "$1"
+    if (( freed > 0 )); then
+        echo "Removed $freed old image(s) replaced by this update, to free disk space."
+    fi
+    return 0
+}
+
+compose_image_refs() {
+    grep -oP '^\s*image:\s*\K\S+' "$1" 2>/dev/null || true
+}
+
 INSTALL_DIR="$HOME/aiostreams"
 COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"
 CADDY_DROPIN_DIR="$INSTALL_DIR/caddy.d"
@@ -577,7 +607,18 @@ do_start() {
     DOWN_EMOJI="${DOWN_EMOJI:-🔴}"
     # Rewrites older unquoted configs into the quoted format env_file reads.
     write_config
+    # Pull first, so Start doubles as Update: this stack isn't covered by
+    # setup-aiostreams.sh's Update option, and without a pull the container
+    # would be recreated from the same cached image forever. A failed pull
+    # (offline, registry hiccup) just falls back to the cached image.
+    info "Checking for a newer webhook relay (Python) image"
+    local image_snapshot
+    # shellcheck disable=SC2046  # image refs never contain spaces
+    image_snapshot=$(snapshot_image_ids $(compose_image_refs "$RELAY_COMPOSE"))
+    (cd "$STATE_DIR" && docker compose -f "$RELAY_COMPOSE" pull) || \
+        warn "Couldn't pull a newer image, starting with the one already on this server."
     (cd "$STATE_DIR" && docker compose -f "$RELAY_COMPOSE" up -d --force-recreate)
+    cleanup_replaced_images "$image_snapshot"
     restart_caddy_to_pick_up_dropin
     info "Webhook relay running. It can take a minute for the HTTPS cert on the new subdomain to issue."
     echo "URL: https://${DOMAIN}/hook/${WEBHOOK_TOKEN}"
@@ -711,7 +752,7 @@ while true; do
     echo ""
     echo "=== AIOStreams Webhook Relay ==="
     echo "1) Status"
-    echo "2) Start"
+    echo "2) Start (also pulls the latest image)"
     echo "3) Stop"
     echo "4) Reconfigure (change subdomain/token/ntfy target)"
     echo "5) Send test event"

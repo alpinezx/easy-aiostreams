@@ -15,6 +15,36 @@ notice() { printf '\033[1;33m!! %s !!\033[0m\n' "$1"; }
 alert() { printf '\033[1;31m!! %s !!\033[0m\n' "$1"; }
 error() { printf '\033[1;31mXX \033[0m %s\n' "$1"; exit 1; }
 
+# Image cleanup after updates. Remembers each image's ID before a pull,
+# then removes just the old copies that pull replaced. Only ever touches
+# this stack's own images, and Docker refuses to delete one a container
+# still uses, so anything not recreated keeps its old image (no harm).
+snapshot_image_ids() {
+    local ref
+    for ref in "$@"; do
+        printf '%s %s\n' "$ref" "$(docker image inspect -f '{{.Id}}' "$ref" 2>/dev/null || echo none)"
+    done
+}
+
+cleanup_replaced_images() {
+    local ref old new freed=0
+    while read -r ref old; do
+        [[ -z "$ref" || -z "$old" || "$old" == "none" ]] && continue
+        new=$(docker image inspect -f '{{.Id}}' "$ref" 2>/dev/null || echo none)
+        if [[ "$new" != "$old" ]] && docker image rm "$old" >/dev/null 2>&1; then
+            freed=$((freed + 1))
+        fi
+    done <<< "$1"
+    if (( freed > 0 )); then
+        echo "Removed $freed old image(s) replaced by this update, to free disk space."
+    fi
+    return 0
+}
+
+compose_image_refs() {
+    grep -oP '^\s*image:\s*\K\S+' "$1" 2>/dev/null || true
+}
+
 if [[ $EUID -ne 0 ]]; then
     error "Please run this script as root (or with sudo)."
 fi
@@ -809,6 +839,8 @@ do_update_gluetun() {
     active=$(cat "$ACTIVE_MARKER" 2>/dev/null || echo "unknown")
 
     info "Pulling latest gluetun (v3 stable channel)"
+    local image_snapshot
+    image_snapshot=$(snapshot_image_ids qmcgaw/gluetun:v3)
     docker pull qmcgaw/gluetun:v3
 
     if [[ "$active" == "vpn" ]]; then
@@ -822,6 +854,7 @@ do_update_gluetun() {
         echo "Done. You're in direct mode, so nothing needs restarting —"
         echo "the updated image will be used next time you turn the VPN on."
     fi
+    cleanup_replaced_images "$image_snapshot"
 }
 
 do_reconfigure_vpn() {
