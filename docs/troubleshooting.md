@@ -50,7 +50,7 @@ A quick-reference list pulled from the advanced guides' own troubleshooting sect
 11. **Watchdog never alerts during a real outage.** Confirm the timer is active (`sudo systemctl status aiostreams-watchdog.timer`) and check the journal for the last check attempts.
     → [Watchdog: Troubleshooting](./advanced/watchdog.md#troubleshooting)
 
-12. **Test alert works, but you never get a DOWN alert.** You're probably in direct mode. The watchdog silently skips checks whenever the VPN is off on purpose.
+12. **Test alert works, but you never get a DOWN alert.** Either you're in direct mode, where the watchdog skips its checks by design, or AIOStreams was stopped from the setup script's menu, which deliberately suppresses alerts until it's running again.
     → [Watchdog: Troubleshooting](./advanced/watchdog.md#troubleshooting)
 
 13. **A site's webhook verification fails with a challenge/mismatch error.** The running relay container is almost always still on an older version of the code than you think. A plain `docker restart` doesn't pick up script updates, run **Start** or **Reconfigure** from `setup-webhook.sh` instead.

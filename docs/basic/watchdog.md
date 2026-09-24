@@ -1,8 +1,8 @@
-# Watchdog Alerts .  Basic Guide
+# Watchdog Alerts: Basic Guide
 
-For getting a phone notification if the VPN tunnel goes down.
+For getting a phone notification if the VPN tunnel goes down, or AIOStreams stops responding while the VPN is on.
 
-⚠️ **Requires the [VPN layer](./vpn-setup.md) already set up.** The only thing this watches right now is gluetun's tunnel.
+⚠️ **Requires the [VPN layer](./vpn-setup.md) already set up.** Everything it checks runs through gluetun, so there's nothing to watch without it.
 
 > Want the full explanation of how this works under the hood, or hit a snag? → [Advanced guide](../advanced/watchdog.md)
 
@@ -12,7 +12,7 @@ For getting a phone notification if the VPN tunnel goes down.
 
 **This does:** gives you somewhere to actually receive the alert.
 
-Install [ntfy](https://ntfy.sh) from the Play Store or App Store, or just keep `https://ntfy.sh` open in a browser tab .  either works. No account, no signup, nothing to register.
+Install [ntfy](https://ntfy.sh) from the Play Store or App Store, or just keep `https://ntfy.sh` open in a browser tab. Either works. No account, no signup, nothing to register.
 
 ---
 
@@ -26,7 +26,7 @@ curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads
 sudo bash setup-watchdog.sh
 ```
 
-Choose **2) Start**. It'll suggest a random topic name (or let you type your own .  pick something long and hard to guess, since anyone who knows it can see your alerts), then pause so you can subscribe before it sends a test alert.
+Choose **2) Start**. It'll suggest a random topic name (or let you type your own; pick something long and hard to guess, since anyone who knows it can see your alerts), then pause so you can subscribe before it sends a test alert.
 
 ---
 
@@ -42,17 +42,20 @@ In the ntfy app (or your browser tab), subscribe to the exact topic name the scr
 
 **This does:** proves delivery actually works, before you ever need it for real.
 
-You should see: *"🔔 Test alert from AIOStreams watchdog .  if you see this, alerts are working."*
+You should see: *"🔔 Test alert from AIOStreams watchdog, if you see this, alerts are working."*
 
-If nothing shows up within a few seconds, don't move on yet .  see the [advanced guide's troubleshooting section](../advanced/watchdog.md#troubleshooting).
+If nothing shows up within a few seconds, don't move on yet. See the [advanced guide's troubleshooting section](../advanced/watchdog.md#troubleshooting).
 
 ---
 
 ## What you'll get
 
-- **🔴 A "DOWN" alert** if gluetun's tunnel fails health checks for a few minutes straight (not on a single blip .  see the advanced guide for why).
-- **✅ A "back up" alert** once it recovers. One alert per state change, not a repeat every check.
-- **Silence while you're intentionally in direct mode** .  turning the VPN off on purpose won't page you.
+- **🔴 A "DOWN" alert** if a check fails a couple of times in a row (not on a single blip, see the advanced guide for why). The alert says what failed and how to fix it:
+  - the VPN tunnel is down
+  - AIOStreams isn't running, or is running but unreachable (in VPN mode)
+- **✅ A "back up" alert** once everything recovers. One alert per state change, not a repeat every check.
+- **Silence while you're intentionally in direct mode.** Turning the VPN off on purpose won't page you.
+- **Silence when you stop something on purpose** from its own script's menu (Stop AIOStreams in `setup-aiostreams.sh`). Only unexpected stops alert.
 
 ---
 
@@ -63,11 +66,11 @@ Run the script again any time for a menu:
 cd ~/aiostreams
 sudo bash setup-watchdog.sh
 ```
-- **Status** .  is it running, when did it last check, and the current tunnel state.
-- **Start / Stop** .  turn checking on or off. Config is kept either way.
-- **Send test alert** .  fire a test message any time, without waiting for a real failure.
-- **Reconfigure** .  change the ntfy topic.
-- **Uninstall** .  clean removal (timer, service, saved state).
+- **Status**: is it running, when did it last check, what the last check found, and the current alert state.
+- **Start / Stop**: turn checking on or off. Config is kept either way.
+- **Send test alert**: fire a test message any time, without waiting for a real failure.
+- **Reconfigure**: change the ntfy topic.
+- **Uninstall**: clean removal (timer, service, saved state).
 
 ---
 

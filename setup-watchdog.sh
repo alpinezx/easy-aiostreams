@@ -220,7 +220,7 @@ do_stop() {
     systemctl disable --now aiostreams-watchdog.timer 2>/dev/null || true
     mkdir -p "$STATE_DIR"
     echo "$(date '+%d %b %Y, %H:%M:%S %Z') STOPPED (watchdog disabled, no checks running)" > "$LASTCHECK_FILE"
-    echo "Watchdog stopped. Config and tunnel state are kept. Start picks up where it left off."
+    echo "Watchdog stopped. Config and alert state are kept. Start picks up where it left off."
 }
 
 do_status() {
@@ -242,9 +242,9 @@ do_status() {
     fi
     if [[ -f "$ALERTSTATE_FILE" ]]; then
         if [[ "$running" -eq 1 ]]; then
-            echo "Tunnel state: $(cat "$ALERTSTATE_FILE")"
+            echo "Alert state: $(cat "$ALERTSTATE_FILE")"
         else
-            echo "Tunnel state: $(cat "$ALERTSTATE_FILE")  (last known, watchdog is stopped, not live)"
+            echo "Alert state: $(cat "$ALERTSTATE_FILE")  (last known, watchdog is stopped, not live)"
         fi
     fi
 }
