@@ -60,7 +60,11 @@ vpn_mode_active() {
 warn_if_vpn_layer_off() {
     local action_desc="$1"   # e.g. "Starting", "Restarting", "Updating"
 
-    [[ -d "$INSTALL_DIR/vpn-state" ]] || return 0
+    # Only warn if the VPN was actually set up and then switched off. The
+    # 'active' marker is written only once setup completes; the vpn-state
+    # folder itself is created as soon as setup-vpn-gluetun.sh is opened,
+    # so checking for the folder warned people who never set a VPN up.
+    [[ -f "$INSTALL_DIR/vpn-state/active" ]] || return 0
     vpn_mode_active && return 0
 
     echo ""
