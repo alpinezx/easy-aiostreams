@@ -506,7 +506,7 @@ do_configure() {
     echo "This relays every incoming event to an ntfy.sh topic (same idea as"
     echo "the watchdog script, if you've set that up you can reuse a topic"
     echo "or use a separate one)."
-    local ntfy_server ntfy_topic
+    local ntfy_server ntfy_topic topic_suggestion
     while true; do
         read -rp "ntfy server [Enter for https://ntfy.sh]: " ntfy_server
         ntfy_server="${ntfy_server:-https://ntfy.sh}"
@@ -514,8 +514,10 @@ do_configure() {
         [[ "$ntfy_server" =~ ^https?://[A-Za-z0-9.:-]+(/[A-Za-z0-9._~/-]*)?$ ]] && break
         warn "That doesn't look like a server URL (e.g. https://ntfy.sh)."
     done
+    topic_suggestion="hook-${RANDOM}${RANDOM}"
     while true; do
-        read -rp "ntfy topic name: " ntfy_topic
+        read -rp "ntfy topic name [Enter to use '$topic_suggestion']: " ntfy_topic
+        ntfy_topic="${ntfy_topic:-$topic_suggestion}"
         [[ "$ntfy_topic" =~ ^[A-Za-z0-9_-]{1,64}$ ]] && break
         warn "Topic names are 1-64 characters: letters, numbers, _ or - only (ntfy's own rule)."
     done
