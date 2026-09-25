@@ -469,6 +469,8 @@ do_configure() {
     echo "(same as the main installer required). e.g. hooks.yourdomain.top"
     local domain main_domain=""
     [[ -f "$INSTALL_DIR/Caddyfile" ]] && main_domain=$(head -n1 "$INSTALL_DIR/Caddyfile" | awk '{print $1}')
+    local mediaflow_domain
+    mediaflow_domain=$(grep -hoP "^DOMAIN='?\K[^'\s]+" "$INSTALL_DIR/mediaflow-state/config" 2>/dev/null || true)
     while true; do
         read -rp "Subdomain: " domain
         domain=$(echo "$domain" | xargs)
@@ -478,6 +480,10 @@ do_configure() {
         fi
         if [[ -n "$main_domain" && "${domain,,}" == "${main_domain,,}" ]]; then
             warn "That's your main AIOStreams domain. The relay needs its own subdomain."
+            continue
+        fi
+        if [[ -n "$mediaflow_domain" && "${domain,,}" == "${mediaflow_domain,,}" ]]; then
+            warn "That's your MediaFlow Proxy subdomain. The relay needs its own subdomain."
             continue
         fi
         break

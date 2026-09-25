@@ -489,6 +489,24 @@ confirm_vpn_disruption() {
     esac
 }
 
+# Rewriting docker-compose.yml below (via write_direct_files/write_vpn_files)
+# drops MediaFlow Proxy Light's patches to it (aios_shared wiring, and the
+# caddy log mount if its fail2ban jail is on). This re-applies them to the
+# FILE only, right after the swap and before anything starts, so the stack
+# comes up already wired and still goes through this script's tunnel gate.
+# A no-op if MediaFlow was never set up.
+reapply_mediaflow_patches_if_present() {
+    local mediaflow_script="$INSTALL_DIR/setup-mediaflow.sh"
+    [[ -f "$INSTALL_DIR/mediaflow-state/config" ]] || return 0
+    if [[ ! -f "$mediaflow_script" ]]; then
+        warn "MediaFlow Proxy Light is configured but setup-mediaflow.sh wasn't found in $INSTALL_DIR to re-apply its compose changes after this mode switch."
+        warn "Run it manually afterward: sudo bash setup-mediaflow.sh (option 2, Start)."
+        return 0
+    fi
+    bash "$mediaflow_script" patch-compose < /dev/null || \
+        warn "Couldn't re-apply MediaFlow's compose changes. Run: sudo bash setup-mediaflow.sh (option 2, Start)."
+}
+
 apply_mode() {
     local mode="$1"  # "direct" or "vpn"
     # Must stay opt-in, not the default: do_uninstall_vpn relies on
@@ -544,6 +562,7 @@ apply_mode() {
         install_vpn_boot_hook
     fi
     chmod 600 "$COMPOSE_FILE"
+    reapply_mediaflow_patches_if_present
     echo "$mode" > "$ACTIVE_MARKER"
 
     local domain
@@ -667,6 +686,7 @@ this."
             error "Stack did NOT come back up cleanly after switching to '$mode' mode. Not running: ${not_running[*]}. Nothing further was deleted or removed. Check 'docker compose logs' and 'docker ps -a', then re-run this script once it's resolved (try 'docker compose up -d' manually from $INSTALL_DIR first, that's often enough on its own)."
         fi
     fi
+
 
     echo ""
     echo -e "Confirm at \033[1;36mhttps://${domain}\033[0m"

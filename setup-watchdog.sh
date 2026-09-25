@@ -33,6 +33,16 @@ CHECK_INTERVAL_MIN="2"  # same interval, as a bare number of minutes —
 # catches gluetun being gone entirely (crashed, force-removed).
 
 STOPPED_MARKER="$INSTALL_DIR/aiostreams-stopped-on-purpose"
+MEDIAFLOW_STATE_DIR="$INSTALL_DIR/mediaflow-state"
+MEDIAFLOW_STOPPED_MARKER="$MEDIAFLOW_STATE_DIR/stopped-on-purpose"
+
+vpn_mode_on() {
+    [[ "$(cat "$VPN_ACTIVE_MARKER" 2>/dev/null)" == "vpn" ]]
+}
+
+mediaflow_configured() {
+    [[ -f "$MEDIAFLOW_STATE_DIR/config" ]]
+}
 
 check_gluetun_tunnel() {
     docker exec gluetun wget -qO- --timeout=5 http://127.0.0.1:9999 >/dev/null 2>&1
@@ -57,9 +67,42 @@ aiostreams_running() {
     [[ "$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null)" == "true" ]]
 }
 
-# Sets FAIL_REASON on failure, for the alert text.
+# MediaFlow Proxy Light has no published port, so the health check goes
+# through the caddy container (same aios_shared network, and its image has
+# wget). Caddy being down is checked first, since that takes out the
+# public MediaFlow URL and the main site together.
+check_mediaflow() {
+    if [[ -f "$MEDIAFLOW_STOPPED_MARKER" ]]; then
+        if [[ "$(docker inspect -f '{{.State.Running}}' mediaflow-proxy-light 2>/dev/null)" == "true" ]]; then
+            rm -f "$MEDIAFLOW_STOPPED_MARKER"
+        else
+            return 0
+        fi
+    fi
+    if [[ "$(docker inspect -f '{{.State.Running}}' caddy 2>/dev/null)" != "true" ]]; then
+        FAIL_REASON="caddy is NOT running, so the main site and MediaFlow are both unreachable. Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"
+        return 1
+    fi
+    if [[ "$(docker inspect -f '{{.State.Running}}' mediaflow-proxy-light 2>/dev/null)" != "true" ]]; then
+        FAIL_REASON="MediaFlow Proxy is NOT running. Fix: sudo bash setup-mediaflow.sh, option 2 (Start)"
+        return 1
+    fi
+    if ! docker exec caddy wget -q -O /dev/null -T 5 http://mediaflow-proxy-light:8888/health >/dev/null 2>&1; then
+        FAIL_REASON="MediaFlow Proxy is running but not answering its health check. Check: docker logs mediaflow-proxy-light"
+        return 1
+    fi
+    return 0
+}
+
+# Sets FAIL_REASON on failure, for the alert text. VPN checks only run in
+# VPN mode, MediaFlow checks only if it's set up; do_run_check skips
+# entirely when neither applies.
 run_checks() {
     FAIL_REASON=""
+    if mediaflow_configured && ! vpn_mode_on; then
+        check_mediaflow
+        return
+    fi
     if ! check_gluetun_tunnel; then
         FAIL_REASON="gluetun tunnel appears to be DOWN (health check failing)"
         return 1
@@ -84,6 +127,10 @@ run_checks() {
         FAIL_REASON="aiostreams is running but unreachable through gluetun (likely stranded after a gluetun restart). Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"
         return 1
     fi
+    if mediaflow_configured; then
+        check_mediaflow
+        return
+    fi
     return 0
 }
 
@@ -97,10 +144,10 @@ send_ntfy() {
 do_run_check() {
     mkdir -p "$STATE_DIR"
 
-    # Skip entirely if VPN mode isn't meant to be on, since flipping to direct
-    # mode on purpose shouldn't page you.
-    if [[ ! -f "$VPN_ACTIVE_MARKER" ]] || [[ "$(cat "$VPN_ACTIVE_MARKER" 2>/dev/null)" != "vpn" ]]; then
-        echo "$(date '+%d %b %Y, %H:%M:%S %Z') SKIPPED (VPN mode not active)" > "$LASTCHECK_FILE"
+    # Nothing to watch: VPN off (on purpose, shouldn't page you) and no
+    # MediaFlow. With MediaFlow set up, it's still checked in direct mode.
+    if ! vpn_mode_on && ! mediaflow_configured; then
+        echo "$(date '+%d %b %Y, %H:%M:%S %Z') SKIPPED (VPN mode not active, MediaFlow not set up)" > "$LASTCHECK_FILE"
         return 0
     fi
 
@@ -112,7 +159,7 @@ do_run_check() {
         echo "$(date '+%d %b %Y, %H:%M:%S %Z') OK" > "$LASTCHECK_FILE"
         echo 0 > "$FAILCOUNT_FILE"
         if [[ "$alert_state" == "down" ]]; then
-            send_ntfy "✅ AIOStreams: all checks passing again (tunnel up, aiostreams reachable)." || true
+            send_ntfy "✅ AIOStreams: all checks passing again." || true
             echo "up" > "$ALERTSTATE_FILE"
         fi
     else
@@ -127,8 +174,8 @@ do_run_check() {
 }
 
 do_configure() {
-    [[ -f "$VPN_ACTIVE_MARKER" ]] || \
-        error "Couldn't find $VPN_ACTIVE_MARKER. Run setup-vpn-gluetun.sh first (this watchdog checks gluetun's tunnel, so the VPN layer needs to exist first)."
+    [[ -f "$VPN_ACTIVE_MARKER" ]] || mediaflow_configured || \
+        error "Nothing to watch yet. This watchdog checks the VPN tunnel (setup-vpn-gluetun.sh) and MediaFlow Proxy (setup-mediaflow.sh). Set up at least one of those first."
 
     mkdir -p "$STATE_DIR"
     chmod 700 "$STATE_DIR"

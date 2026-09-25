@@ -520,6 +520,18 @@ playback devices connect to your debrid service directly .  bypassing your
 VPS (and therefore gluetun) entirely for that traffic. The proxy needs to
 be on for VPN mode to have any effect on your actual stream playback.
 
+> ⚠️ **Using [MediaFlow Proxy](./mediaflow-proxy.md) instead of the
+> built-in proxy?** Everything above assumes the built-in proxy
+> specifically. MediaFlow runs as its own separate container, outside
+> gluetun's network entirely, structurally, always. Turning gluetun on
+> does **not** pull MediaFlow's video traffic into the tunnel the way it
+> does for the built-in proxy. Video would still exit on your VPS's real
+> IP even with VPN mode fully on, while everything else (scraping,
+> metadata, debrid API calls) exits via the VPN, two different IPs for
+> the same session. See [MediaFlow Proxy: which setup actually matches
+> your goal](./mediaflow-proxy.md#which-setup-actually-matches-your-goal)
+> before assuming VPN mode alone covers MediaFlow's traffic, it doesn't.
+
 That said, this only applies to the final video-data hop to your playback
 device. Every scraper addon call and debrid API call AIOStreams itself
 makes .  searching, resolving links, checking your account .  always goes

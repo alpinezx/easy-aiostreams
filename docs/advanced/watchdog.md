@@ -1,12 +1,12 @@
-# Watchdog Alerts (optional: get pinged if the VPN tunnel or AIOStreams goes down)
+# Watchdog Alerts (optional: get pinged if the VPN tunnel, AIOStreams or MediaFlow goes down)
 
 > In a hurry? [Basic guide](../basic/watchdog.md) covers the same steps with no deep explanations.
 
 ## What this is for
 
-The [kill switch](./vpn-setup.md) already guarantees a dropped tunnel can't leak; it just goes silent instead. That's the safe outcome, but "silent" also means you might not notice AIOStreams is down until you go to watch something. `setup-watchdog.sh` closes that gap: it runs a set of checks every couple of minutes and sends a push notification (via [ntfy.sh](https://ntfy.sh)) if something's down, saying what failed and how to fix it, and again once it's back.
+The [kill switch](./vpn-setup.md) already guarantees a dropped tunnel can't leak; it just goes silent instead. That's the safe outcome, but "silent" also means you might not notice AIOStreams is down until you go to watch something. `setup-watchdog.sh` closes that gap: it runs a set of checks every couple of minutes and sends a push notification (via [ntfy.sh](https://ntfy.sh)) if something's down, saying what failed and how to fix it, and again once it's back. It also watches MediaFlow Proxy, which can fail on its own without anything else looking wrong.
 
-It requires the [VPN layer](./vpn-setup.md) already set up, since every check runs through gluetun.
+It needs at least one of the [VPN layer](./vpn-setup.md) or [MediaFlow Proxy](./mediaflow-proxy.md) set up. Each group of checks only runs when the thing it checks is actually in use.
 
 ---
 
@@ -18,6 +18,12 @@ It requires the [VPN layer](./vpn-setup.md) already set up, since every check ru
 2. **AIOStreams is running.** In VPN mode AIOStreams is set to `restart: "no"` (so it can never start before the tunnel is confirmed), which also means nothing restarts it if it crashes. This check catches that.
 3. **AIOStreams is reachable through gluetun.** The watchdog asks for `http://127.0.0.1:3000/` from *inside* gluetun. If gluetun's container ever restarts on its own, it gets a fresh network namespace and AIOStreams is left stranded in the old one: still "running", but unreachable by Caddy and with no internet. Only this check catches that. Any HTTP answer at all counts as reachable (even a 401 from the login page); only "nothing there" counts as down.
 
+### Whenever MediaFlow Proxy is set up (VPN on or off)
+
+4. **Caddy is running.** Checked first, since Caddy being down takes out the main site and the public MediaFlow URL together.
+5. **MediaFlow's container is running.**
+6. **MediaFlow answers its health check.** MediaFlow has no published port, so the watchdog asks for `http://mediaflow-proxy-light:8888/health` from inside the Caddy container, over the shared `aios_shared` network.
+
 ---
 
 ## How the timing works
@@ -28,8 +34,9 @@ It requires the [VPN layer](./vpn-setup.md) already set up, since every check ru
 
 ## When it stays quiet on purpose
 
-- **In direct mode, the VPN checks (1–3) are skipped.** It reads the same `vpn-state/active` marker `setup-vpn-gluetun.sh` uses, so turning the VPN off on purpose doesn't trigger a false alarm.
-- **Deliberate stops don't alert.** Stop AIOStreams in `setup-aiostreams.sh` leaves a small `stopped-on-purpose` marker, and the watchdog skips that check while it's there. Stopping with a plain `docker stop` leaves no marker, so it alerts, same as a crash. The marker clears itself as soon as the watchdog sees the container running again, however it got started.
+- **In direct mode, the VPN checks (1–3) are skipped.** It reads the same `vpn-state/active` marker `setup-vpn-gluetun.sh` uses, so turning the VPN off on purpose doesn't trigger a false alarm. MediaFlow is still checked, since it runs the same in either mode.
+- **With the VPN off and no MediaFlow, the whole check is skipped.** Status shows `SKIPPED` in that case.
+- **Deliberate stops don't alert.** Stop AIOStreams in `setup-aiostreams.sh` and Stop in `setup-mediaflow.sh` each leave a small `stopped-on-purpose` marker, and the watchdog skips that check while it's there. Stopping with a plain `docker stop` leaves no marker, so it alerts, same as a crash. The marker clears itself as soon as the watchdog sees the container running again, however it got started.
 
 ---
 
@@ -68,6 +75,7 @@ Use **4) Send test alert** for pure delivery testing any time. To test full dete
 
 - **Tunnel:** `sudo docker stop gluetun` for about 5 minutes, confirm the DOWN alert, then restore with `sudo bash setup-vpn-gluetun.sh` → **2) Turn VPN ON** (not a plain `docker start gluetun`, which skips the clean recreate) and confirm the recovery alert follows.
 - **AIOStreams (VPN mode):** `cd /root/aiostreams && sudo docker compose stop aiostreams`, wait for the alert, then `sudo bash setup-aiostreams.sh` → **4) Restart the stack**.
+- **MediaFlow:** `sudo docker stop mediaflow-proxy-light`, wait for the alert, then `sudo bash setup-mediaflow.sh` → **2) Start**. Stopping it with **3) Stop** in that menu instead should produce *no* alert, which confirms the stopped-on-purpose marker works.
 
 ---
 

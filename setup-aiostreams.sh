@@ -150,7 +150,7 @@ SHARED_NET="aios_shared"
 # convenience, in the invoking user's own ~/aiostreams too). Used both by
 # do_backup's mismatch check and by do_restore's copy-back-to-user step, so
 # the two stay in sync and neither one silently drops a script again.
-AIOSTREAMS_SCRIPTS=(setup-aiostreams.sh setup-vpn-gluetun.sh setup-watchdog.sh setup-webhook.sh)
+AIOSTREAMS_SCRIPTS=(setup-aiostreams.sh setup-vpn-gluetun.sh setup-watchdog.sh setup-webhook.sh setup-mediaflow.sh)
 
 # Set by the Reconfigure menu option only, when it needs the final restart
 # (further down) to know whether to bring the stack back up through the
@@ -248,6 +248,17 @@ do_backup() {
         fi
     fi
 
+    # Same idea again for MediaFlow Proxy Light: a separate compose stack on
+    # aios_shared, not part of the main docker-compose.yml, so it needs its
+    # own was-active marker to know whether to bring it back on restore.
+    if [[ -d "$INSTALL_DIR/mediaflow-state" ]]; then
+        if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx mediaflow-proxy-light; then
+            touch "$INSTALL_DIR/mediaflow-state/was-active-at-backup"
+        else
+            rm -f "$INSTALL_DIR/mediaflow-state/was-active-at-backup"
+        fi
+    fi
+
     if [[ -d "$INSTALL_DIR/vpn-state" ]]; then
         local conf_stage_dir="$INSTALL_DIR/vpn-state/original-confs"
         rm -rf "$conf_stage_dir"
@@ -286,7 +297,11 @@ do_backup() {
     out="$HOME/aiostreams-backup-${ts}.tar.gz"
     # umask is process-wide, so scope it to a subshell so it doesn't leak
     # into files written later this session.
-    if ( umask 077; tar --warning=no-file-changed -czf "$out" -C "$HOME" "$(basename "$INSTALL_DIR")" ); then
+    # caddy-logs is MediaFlow's access log for fail2ban: regenerated on its
+    # own, can grow to around 1GB, and holds full stream URLs (which can
+    # include the MediaFlow API password). Nothing a restore needs.
+    if ( umask 077; tar --warning=no-file-changed --exclude="$(basename "$INSTALL_DIR")/caddy-logs" \
+            -czf "$out" -C "$HOME" "$(basename "$INSTALL_DIR")" ); then
         tar_status=0
     else
         tar_status=$?
@@ -357,6 +372,19 @@ remove_addons_on_uninstall() {
         (cd "$INSTALL_DIR/webhook-relay-state" && docker compose -f docker-compose.yml down >/dev/null 2>&1) || \
             docker rm -f aios-webhook-relay >/dev/null 2>&1 || true
         removed+=("webhook relay container")
+    fi
+    if [[ -f "$INSTALL_DIR/mediaflow-state/docker-compose.yml" ]]; then
+        (cd "$INSTALL_DIR/mediaflow-state" && docker compose -f docker-compose.yml down >/dev/null 2>&1) || \
+            docker rm -f mediaflow-proxy-light >/dev/null 2>&1 || true
+        removed+=("MediaFlow Proxy Light container")
+    fi
+    # fail2ban can refuse to start at all if a jail's log file is missing, so
+    # leaving this behind after ~/aiostreams is deleted would also take
+    # down any other jails on the server (SSH included).
+    if [[ -f /etc/fail2ban/jail.d/aios-mediaflow.conf ]]; then
+        rm -f /etc/fail2ban/jail.d/aios-mediaflow.conf /etc/fail2ban/filter.d/aios-mediaflow.conf
+        systemctl restart fail2ban >/dev/null 2>&1 || true
+        removed+=("MediaFlow fail2ban jail")
     fi
     if [[ -f /etc/systemd/system/aios-webhook-boot-notify.service ]]; then
         systemctl disable aios-webhook-boot-notify.service >/dev/null 2>&1 || true
@@ -764,6 +792,7 @@ do_restore() {
     hook_installed_during_restore=false
     watchdog_reinstalled_during_restore=false
     webhook_relay_reinstalled_during_restore=false
+    mediaflow_reinstalled_during_restore=false
     local script_dir
     script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     if vpn_mode_active; then
@@ -859,6 +888,30 @@ do_restore() {
         rm -f "$INSTALL_DIR/webhook-relay-state/was-active-at-backup"
     fi
 
+    # Same pattern again for MediaFlow Proxy Light: independent of the VPN
+    # branch above, decided purely by whether it was running at backup time.
+    mediaflow_was_active_at_backup=false
+    if [[ -f "$INSTALL_DIR/mediaflow-state/was-active-at-backup" ]]; then
+        mediaflow_was_active_at_backup=true
+        local mediaflow_script=""
+        for candidate in "$INSTALL_DIR/setup-mediaflow.sh" "$script_dir/setup-mediaflow.sh"; do
+            if [[ -f "$candidate" ]]; then
+                mediaflow_script="$candidate"
+                break
+            fi
+        done
+        if [[ -n "$mediaflow_script" ]]; then
+            ensure_shared_network
+            bash "$mediaflow_script" start-mediaflow < /dev/null || true
+            if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx mediaflow-proxy-light; then
+                mediaflow_reinstalled_during_restore=true
+            else
+                warn "Couldn't restart MediaFlow Proxy Light automatically. See the reminder below."
+            fi
+        fi
+        rm -f "$INSTALL_DIR/mediaflow-state/was-active-at-backup"
+    fi
+
     info "Restore complete!"
     echo ""
     echo "Because the SECRET_KEY and data came over intact, every existing user config"
@@ -904,6 +957,19 @@ do_restore() {
             echo "    restarted automatically (setup-webhook.sh wasn't found in $INSTALL_DIR"
             echo "    or next to this script), it won't receive events until you run 'sudo bash"
             echo "    setup-webhook.sh' and choose 'Start' once to bring it back up."
+        fi
+    fi
+    if $mediaflow_was_active_at_backup; then
+        if $mediaflow_reinstalled_during_restore; then
+            echo "  - MediaFlow Proxy Light: it was running before the backup, so it's back up"
+            echo "    with the same subdomain/password — nothing else needed. If this is a NEW"
+            echo "    server, remember its subdomain also needs its own DNS A record pointed"
+            echo "    here, same as the main domain above."
+        else
+            echo "  - MediaFlow Proxy Light: it was running before the backup, but could NOT be"
+            echo "    restarted automatically (setup-mediaflow.sh wasn't found in $INSTALL_DIR"
+            echo "    or next to this script), it won't be reachable until you run 'sudo bash"
+            echo "    setup-mediaflow.sh' and choose Start to bring it back up."
         fi
     fi
     if (( conf_restored_count > 0 )); then
@@ -1614,6 +1680,19 @@ EOF
 umask "$OLD_UMASK"
 
 chmod 600 docker-compose.yml
+
+# The template above doesn't know about MediaFlow Proxy Light's patches
+# (aios_shared wiring for aiostreams, caddy log mount for its fail2ban
+# jail). Re-apply them to the file now, before anything starts, so the
+# stack comes up already wired instead of silently losing them.
+if [[ -f "$INSTALL_DIR/mediaflow-state/config" ]]; then
+    if [[ -f "$INSTALL_DIR/setup-mediaflow.sh" ]]; then
+        bash "$INSTALL_DIR/setup-mediaflow.sh" patch-compose < /dev/null || \
+            warn "Couldn't re-apply MediaFlow's compose changes. Run 'sudo bash setup-mediaflow.sh' and choose Start afterward."
+    else
+        warn "MediaFlow is configured but setup-mediaflow.sh isn't in $INSTALL_DIR. Run it and choose Start afterward."
+    fi
+fi
 
 info "Writing Caddyfile (HTTPS reverse proxy; access control is handled by AIOStreams' own login)"
 cat > Caddyfile << EOF

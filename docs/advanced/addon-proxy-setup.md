@@ -200,6 +200,14 @@ This is the dashboard equivalent of the `ADDON_PROXY` and
 
 ## Watch for overlap with the Built-in Proxy
 
+> ℹ️ **Using [MediaFlow Proxy](./mediaflow-proxy.md) instead of the
+> Built-in Proxy?** Everything in this section doesn't apply to you.
+> MediaFlow runs as its own separate container and fetches video itself,
+> outside AIOStreams' internal request utility entirely, so nothing here,
+> including `* = 0`, ever reaches it either way. See
+> [MediaFlow Proxy: routing its traffic through a proxy](./mediaflow-proxy.md#routing-its-traffic-through-a-proxy)
+> instead, that's a separate, independent setting.
+
 The Addon Proxy intercepts requests made via AIOStreams' internal request
 utility, not just addon search calls specifically. If the [Built-in
 Proxy](./proxy-setup.md) is also enabled, its fetch of the actual source

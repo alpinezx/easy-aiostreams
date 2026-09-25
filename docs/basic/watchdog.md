@@ -1,8 +1,8 @@
 # Watchdog Alerts: Basic Guide
 
-For getting a phone notification if the VPN tunnel goes down, or AIOStreams stops responding while the VPN is on.
+For getting a phone notification if part of your stack goes down: the VPN tunnel, AIOStreams itself while the VPN is on, or MediaFlow Proxy.
 
-⚠️ **Requires the [VPN layer](./vpn-setup.md) already set up.** Everything it checks runs through gluetun, so there's nothing to watch without it.
+⚠️ **Needs at least one of these set up first:** the [VPN layer](./vpn-setup.md) or [MediaFlow Proxy](./mediaflow-proxy.md). With neither, there's nothing for it to watch.
 
 > Want the full explanation of how this works under the hood, or hit a snag? → [Advanced guide](../advanced/watchdog.md)
 
@@ -53,9 +53,11 @@ If nothing shows up within a few seconds, don't move on yet. See the [advanced g
 - **🔴 A "DOWN" alert** if a check fails a couple of times in a row (not on a single blip, see the advanced guide for why). The alert says what failed and how to fix it:
   - the VPN tunnel is down
   - AIOStreams isn't running, or is running but unreachable (in VPN mode)
+  - MediaFlow Proxy isn't running or isn't answering
+  - Caddy isn't running (takes down the main site and MediaFlow together)
 - **✅ A "back up" alert** once everything recovers. One alert per state change, not a repeat every check.
-- **Silence while you're intentionally in direct mode.** Turning the VPN off on purpose won't page you.
-- **Silence when you stop something on purpose** from its own script's menu (Stop AIOStreams in `setup-aiostreams.sh`). Only unexpected stops alert.
+- **Silence while you're intentionally in direct mode.** Turning the VPN off on purpose won't page you (MediaFlow is still watched, since it runs in either mode).
+- **Silence when you stop something on purpose** from its own script's menu (Stop AIOStreams in `setup-aiostreams.sh`, Stop in `setup-mediaflow.sh`). Only unexpected stops alert.
 
 ---
 
