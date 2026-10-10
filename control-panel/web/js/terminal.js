@@ -380,7 +380,7 @@ function cmdRow(label, cmd, state, updateCmd) {
       : null;
   return h("li", {},
     h("span", { class: "cmd-label" }, label, tag),
-    h("code", { class: "mono cmd", text: cmd }),
+    h("code", { class: "mono cmd", text: cmd, title: cmd }),
     h("span", { class: "cmd-btns" },
       copyBtn("Copy", cmd, "Copied. Paste it into the terminal."),
       updateCmd ? copyBtn("Update", updateCmd, "Copied. Paste it into the terminal to fetch the newest version from GitHub.") : null));

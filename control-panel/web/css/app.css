@@ -379,14 +379,16 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .log-help h4 { margin: 14px 0 6px; font-size: .88rem; color: var(--text); }
 .log-help a { color: var(--accent); }
 .cmds { list-style: none; padding: 0; margin: 0 0 6px; display: grid; gap: 6px; }
-.cmds li { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
-.cmd-label { color: var(--dim); font-size: .84rem; }
-.cmd { padding: 4px 8px; background: var(--sunk); border-radius: 8px; overflow-x: auto; white-space: nowrap; color: var(--text); }
-@media (max-width: 720px) { .cmds li { grid-template-columns: minmax(0, 1fr) auto; } .cmd-label { grid-column: 1 / -1; } }
-.cmds li { grid-template-columns: 190px minmax(0, 1fr) auto; }
-
-.cmds li { grid-template-columns: 210px minmax(0, 1fr) auto; }
-.cmd-label { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cmds li { display: grid; grid-template-columns: 210px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.cmd-label { color: var(--dim); font-size: .84rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* The command itself, shown so you can see what Copy copies. Cut short with
+   "..." rather than pushing the buttons out of view. */
+.cmd { padding: 4px 8px; background: var(--sunk); border-radius: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+/* Phones: name and buttons only. Copy still copies the full command. */
+@media (max-width: 720px) {
+  .cmds li { grid-template-columns: minmax(0, 1fr) auto; }
+  .cmd { display: none; }
+}
 .sdot-tag { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; font-weight: 600; }
 .sdot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
 .sdot-tag[data-s="ok"] .sdot { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft), 0 0 8px var(--ok); }
@@ -489,7 +491,7 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .term-select-bar .dim { flex: 1; font-size: 13px; }
 .term-select { flex: 1; margin: 0; padding: 10px 12px; overflow: auto; overscroll-behavior: contain; font-family: var(--mono), monospace; font-size: 13px; line-height: 1.35;
   white-space: pre-wrap; word-break: break-all; color: var(--text); user-select: text; -webkit-user-select: text; touch-action: pan-y; }
-.cmd-btns { display: flex; gap: 4px; }
+.cmd-btns { display: flex; gap: 4px; flex: none; }
 
 /* unlock card: everything shrinks to the card, however big the phone's text size is */
 .term-gate { grid-template-columns: minmax(0, 1fr); }
