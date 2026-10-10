@@ -112,11 +112,11 @@ Docker install, HTTPS certificate, and secret key generation are all handled aut
 
 Once it finishes, visit your domain and log in via AIOStreams' login page. From there, AIOStreams' own setup takes over.
 
-**Where it's installed:** everything lives in `/opt/aiostreams`, one folder whether you're root or a sudo user. The installer turns `~/aiostreams` into a shortcut to it, so `cd ~/aiostreams` keeps working. It holds your `SECRET_KEY` and logins, so only root can change it. If you installed with `sudo` as your own user, you can still `cd` into it and read it; use `sudo` to edit anything, or connect as root if you edit scripts over SFTP.
+**Where it's installed:** everything lives in `/opt/aiostreams`, one folder whether you're root or a sudo user, and every guide in these docs uses that path. The installer also adds `~/aiostreams` as a shortcut to it. It holds your `SECRET_KEY` and logins, so only root can change it. If you installed with `sudo` as your own user, you can still `cd` into it and read it; use `sudo` to edit anything, or connect as root if you edit scripts over SFTP.
 
 ## Re-running the script later
 
-Run it again any time from `~/aiostreams` (a shortcut to `/opt/aiostreams`) and it'll detect your existing install and offer a menu that loops back after each action, so you can run several in a row without relaunching:
+Run it again any time with `sudo bash /opt/aiostreams/setup-aiostreams.sh` and it'll detect your existing install and offer a menu that loops back after each action, so you can run several in a row without relaunching:
 
 ```
  1) View status
@@ -131,8 +131,6 @@ Run it again any time from `~/aiostreams` (a shortcut to `/opt/aiostreams`) and 
 10) Exit
 ```
 
-From anywhere: `sudo bash /opt/aiostreams/setup-aiostreams.sh`
-
 **Stable vs nightly:** on a fresh install (or Reconfigure), you'll be asked to choose the `latest` (stable) or `nightly` build. Switch channels anytime from **Update**, it'll walk you through it and confirm before switching.
 
 ## Moving an older install to /opt
@@ -143,7 +141,7 @@ Installs made before this change live in root's home (`/root/aiostreams`), with 
 sudo bash setup-aiostreams.sh migrate
 ```
 
-It takes a backup, stops the stack for about a minute, moves the folder to `/opt/aiostreams`, updates the add-ons, systemd units and the control panel to the new path, and starts back up whatever was running. `/root/aiostreams` and your `~/aiostreams` become shortcuts to the new folder. Your old `~/aiostreams` is removed only if it held nothing but identical copies of the scripts; otherwise it's renamed to `~/aiostreams.old-<time>`. To put everything back the way it was: `sudo bash /opt/aiostreams/setup-aiostreams.sh migrate undo`.
+It takes a backup, stops the stack for about a minute, moves the folder to `/opt/aiostreams`, updates the add-ons, systemd units and the control panel to the new path, and starts back up whatever was running. `/root/aiostreams` and your `~/aiostreams` become shortcuts to the new folder. Until you move, use `~/aiostreams` wherever the guides say `/opt/aiostreams`. Your old `~/aiostreams` is removed only if it held nothing but identical copies of the scripts; otherwise it's renamed to `~/aiostreams.old-<time>`. To put everything back the way it was: `sudo bash /opt/aiostreams/setup-aiostreams.sh migrate undo`.
 
 ## Notes
 

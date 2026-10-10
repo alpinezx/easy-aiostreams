@@ -50,7 +50,7 @@ Most VPS providers block outbound port 25 by default, which makes plain SMTP unr
 
 ## Troubleshooting
 
-*(Run these from `~/aiostreams`; `cd ~/aiostreams` first if you're not already there.)*
+*(Run these from `/opt/aiostreams`; `cd /opt/aiostreams` first if you're not already there.)*
 
 **No alert arrives during a real outage**
 Check `sudo systemctl status aiostreams-watchdog.timer` is active, and `sudo journalctl -u aiostreams-watchdog.service -n 50` for the last several check attempts. Or run `sudo bash setup-watchdog.sh` → **1) Status**, which shows the last check's result (including the failure reason) and the current alert state directly.
@@ -74,11 +74,11 @@ Two usual causes. You're in direct mode, where the VPN checks are skipped by des
 Use **4) Send test alert** for pure delivery testing any time. To test full detection:
 
 - **Tunnel:** `sudo docker stop gluetun` for about 5 minutes, confirm the DOWN alert, then restore with `sudo bash setup-vpn-gluetun.sh` → **2) Turn VPN ON** (not a plain `docker start gluetun`, which skips the clean recreate) and confirm the recovery alert follows.
-- **AIOStreams (VPN mode):** `cd ~/aiostreams && sudo docker compose stop aiostreams`, wait for the alert, then `sudo bash setup-aiostreams.sh` → **4) Restart the stack**.
+- **AIOStreams (VPN mode):** `cd /opt/aiostreams && sudo docker compose stop aiostreams`, wait for the alert, then `sudo bash /opt/aiostreams/setup-aiostreams.sh` → **4) Restart the stack**.
 - **MediaFlow:** `sudo docker stop mediaflow-proxy-light`, wait for the alert, then `sudo bash setup-mediaflow.sh` → **2) Start**. Stopping it with **3) Stop** in that menu instead should produce *no* alert, which confirms the stopped-on-purpose marker works.
 
 ---
 
 ## Removing it
 
-Run from `~/aiostreams`: `sudo bash setup-watchdog.sh` → **6) Uninstall**. That stops and removes the systemd timer/service and all saved state (including your ntfy topic). Nothing about the other scripts is affected. Uninstalling AIOStreams itself with `setup-aiostreams.sh` also removes the watchdog automatically.
+Run `sudo bash /opt/aiostreams/setup-watchdog.sh` → **6) Uninstall**. That stops and removes the systemd timer/service and all saved state (including your ntfy topic). Nothing about the other scripts is affected. Uninstalling AIOStreams itself with `setup-aiostreams.sh` also removes the watchdog automatically.

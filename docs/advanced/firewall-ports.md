@@ -24,12 +24,12 @@ Other providers with a similar two-layer setup: AWS (Security Groups + Network A
 
 ## Troubleshooting
 
-*(Run these from `~/aiostreams`, `cd ~/aiostreams` first if you're not already there. Everything below assumes you've already run the installer at least once and Caddy is trying to get a certificate. Before that point, nothing's listening on 80/443 yet, so these checks won't tell you anything, run the installer first, then come back here if it hangs.)*
+*(Run these from `/opt/aiostreams`, `cd /opt/aiostreams` first if you're not already there. Everything below assumes you've already run the installer at least once and Caddy is trying to get a certificate. Before that point, nothing's listening on 80/443 yet, so these checks won't tell you anything, run the installer first, then come back here if it hangs.)*
 
 **Cert stuck at "not confirmed yet" for more than a few minutes, DNS already matches**
 The installer itself now tries to work this out for you once it times out at 90s, checking whether Caddy's actually bound to 80/443 and whether DNS matches this server, and telling you directly if it looks like a provider firewall. To confirm that diagnosis yourself, or if you're in the case it couldn't narrow down, check the actual Caddy logs:
 ```bash
-docker compose logs caddy
+sudo docker compose logs caddy
 ```
 Look for a line like `could not get certificate from issuer ... Timeout during connect (likely firewall problem)`, that's Let's Encrypt's own server reporting the timeout, not a guess. Any other timeout, connection refused, or Let's Encrypt error tells you exactly what failed instead of just "still waiting."
 
@@ -53,7 +53,7 @@ No phone terminal or second device needed, a browser does this too:
 **Open** (green) means that port's reachable from the outside. **Timed-Out** (orange) means it's still blocked somewhere between you and the server, note that this reads the same whether nothing's listening yet or a firewall is actively dropping the traffic, the scanner can't tell those two apart, so treat it as "not reachable, go check both firewall layers" either way.
 
 **It worked before, and now a Reconfigure or restart broke it**
-Almost certainly unrelated to firewalls, if it worked once, the ports are open and stay open unless you changed something at the provider level yourself. Check `docker compose ps` for container status and `docker compose logs caddy` for what actually changed.
+Almost certainly unrelated to firewalls, if it worked once, the ports are open and stay open unless you changed something at the provider level yourself. Check `sudo docker compose ps` for container status and `sudo docker compose logs caddy` for what actually changed.
 
 **Once the port's actually open**
 No need to Reconfigure or reinstall, nothing about the install itself was wrong. Re-run `sudo bash setup-aiostreams.sh`, pick **4) Restart the stack** to make Caddy retry immediately instead of waiting on its own backoff timer, then **1) View status** to confirm (it prints Caddy's recent certificate log lines).

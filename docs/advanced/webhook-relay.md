@@ -14,7 +14,7 @@ It requires `setup-aiostreams.sh` already installed and running — it reuses th
 
 This runs as a **separate, standalone Docker Compose stack**, not an addition to the main `docker-compose.yml`. Deliberately so: a bug here can't take down AIOStreams or its Caddy instance, and there's nothing to merge or conflict with on an Update/Reconfigure of the main install.
 
-The two stacks talk to each other through the `aios_shared` external Docker network, which `setup-aiostreams.sh` already creates. The relay container joins it under a fixed name (`aios-webhook-relay`), and a file gets dropped into `~/aiostreams/caddy.d/` (the drop-in directory the main Caddyfile already `import`s), so the main Caddy instance picks up automatic HTTPS for the new subdomain without its own Caddyfile ever being touched.
+The two stacks talk to each other through the `aios_shared` external Docker network, which `setup-aiostreams.sh` already creates. The relay container joins it under a fixed name (`aios-webhook-relay`), and a file gets dropped into `/opt/aiostreams/caddy.d/` (the drop-in directory the main Caddyfile already `import`s), so the main Caddy instance picks up automatic HTTPS for the new subdomain without its own Caddyfile ever being touched.
 
 The receiver itself is stdlib-only Python (`http.server`), mounted into an unmodified `python:3-alpine` image rather than a custom-built one — nothing to build, nothing to publish, one file to read if you want to see exactly what it does.
 
@@ -30,7 +30,7 @@ Sites that offer a webhook channel almost always verify the endpoint before savi
 
 ...and expects that exact `challenge` value echoed straight back in the response, not just any `200`. The relay checks every incoming POST body for a `challenge` field before doing anything else — if present, it responds immediately with `{"challenge": "<same value>"}` and does **not** relay that particular request to ntfy (it's not a real event, just a handshake). Anything without a `challenge` field falls through to the normal path: forward a summary to ntfy, then ACK with a plain `ok`.
 
-If you're hooking up a different site and its verification handshake doesn't match this shape, the relay script (`~/aiostreams/webhook-relay-state/webhook_relay.py` once installed, or the `write_app_script` function in `setup-webhook.sh` before that) is the one place to adjust it — the `challenge` check happens early in `do_POST`.
+If you're hooking up a different site and its verification handshake doesn't match this shape, the relay script (`/opt/aiostreams/webhook-relay-state/webhook_relay.py` once installed, or the `write_app_script` function in `setup-webhook.sh` before that) is the one place to adjust it — the `challenge` check happens early in `do_POST`.
 
 ---
 
@@ -53,7 +53,7 @@ So: pull a new `setup-webhook.sh`, then hit **Start** (keeps existing config) or
 
 ## Backup, restore, and domain migrations
 
-The relay's config, token, and code all live under `~/aiostreams/webhook-relay-state/`, a plain subfolder of the main install, so a normal `setup-aiostreams.sh` backup captures it automatically with no extra step. Restoring onto the same server, or a new server under the **same** domain, brings the relay back exactly as it was, no action needed.
+The relay's config, token, and code all live under `/opt/aiostreams/webhook-relay-state/`, a plain subfolder of the main install, so a normal `setup-aiostreams.sh` backup captures it automatically with no extra step. Restoring onto the same server, or a new server under the **same** domain, brings the relay back exactly as it was, no action needed.
 
 **One gap worth knowing:** restoring under a genuinely *different* domain rewrites the main site's domain automatically (that's `check_restored_domain_dns` in `setup-aiostreams.sh`), but does not touch the relay's own subdomain, since it isn't necessarily derived from the main domain and there's no safe way to guess a replacement. After that kind of restore, the relay comes back up pointed at its old subdomain until you manually run **Reconfigure** here. Full details → [Backup & Restore advanced guide](./backup-restore.md#migrating-to-a-new-server).
 
@@ -61,7 +61,7 @@ The relay's config, token, and code all live under `~/aiostreams/webhook-relay-s
 
 
 
-*(Run these from `~/aiostreams` — `cd ~/aiostreams` first if you're not already there.)*
+*(Run these from `/opt/aiostreams` — `cd /opt/aiostreams` first if you're not already there.)*
 
 **`curl -I https://yoursubdomain...` returns `501`**
 Expected, not a bug — `curl -I` sends a `HEAD` request, and the receiver only implements `GET`/`HEAD`(health checks) and `POST` (the real path). Use a plain `curl https://yoursubdomain...` (should return `ok`) or test with `POST` instead.
@@ -82,10 +82,10 @@ Fixed as of the version that added this: Reconfigure now recreates the running c
 Confirm you're subscribed to the *exact* topic shown in Status, and that the server can reach ntfy.sh at all: `curl -v https://ntfy.sh` from the VPS. Same failure mode as the [watchdog's equivalent case](./watchdog.md#troubleshooting).
 
 **New subdomain never gets a cert / stays on plain HTTP**
-Caddy only picks up a new `caddy.d/` file on restart, which the script already does automatically after Start/Reconfigure/Uninstall. If you edited the drop-in file by hand instead, run `docker compose restart caddy` from `~/aiostreams` yourself.
+Caddy only picks up a new `caddy.d/` file on restart, which the script already does automatically after Start/Reconfigure/Uninstall. If you edited the drop-in file by hand instead, run `sudo docker compose restart caddy` from `/opt/aiostreams` yourself.
 
 ---
 
 ## Removing it
 
-Run from `~/aiostreams`: `sudo bash setup-webhook.sh` → **7) Uninstall** — stops and removes the relay container, deletes its Caddy drop-in file (restarting caddy to apply that), and clears all saved state (including your token and event history). Nothing about `setup-aiostreams.sh`, `setup-vpn-gluetun.sh`, or `setup-watchdog.sh` is affected.
+Run `sudo bash /opt/aiostreams/setup-webhook.sh` → **7) Uninstall** — stops and removes the relay container, deletes its Caddy drop-in file (restarting caddy to apply that), and clears all saved state (including your token and event history). Nothing about `setup-aiostreams.sh`, `setup-vpn-gluetun.sh`, or `setup-watchdog.sh` is affected.

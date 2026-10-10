@@ -189,7 +189,7 @@ Remove the jail entirely with menu option 8. It only touches its own filter/jail
 
 ## Everyday use / menu reference
 
-Run `sudo bash setup-mediaflow.sh` from `~/aiostreams` any time for the menu: Status, Start, Stop, Reconfigure, Test, Show AIOStreams dashboard settings, Add/Remove fail2ban protection, Uninstall.
+Run `sudo bash /opt/aiostreams/setup-mediaflow.sh` any time for the menu: Status, Start, Stop, Reconfigure, Test, Show AIOStreams dashboard settings, Add/Remove fail2ban protection, Uninstall.
 
 **Test** (option 5) checks two things in sequence: first that the container itself responds (via a throwaway `curlimages/curl` container on the same Docker network, since MediaFlow Proxy Light's image has no shell utilities of its own to exec into), then that the real public path works end to end (DNS, TLS, and Caddy, the same route your actual streaming client uses). If the first passes but the second fails, the problem is in DNS/cert/Caddy, not MediaFlow itself.
 
