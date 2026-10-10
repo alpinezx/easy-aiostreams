@@ -755,6 +755,18 @@ do_restore() {
     tar xzf "$tarball" -C "$(dirname "$INSTALL_DIR")" aiostreams
     if [[ "$INSTALL_DIR" == "$OPT_INSTALL_DIR" ]]; then
         secure_install_dir
+        # A backup from an old-layout server has its old folder written into
+        # the add-on compose files (and the panel's). Point them here, the
+        # same rewrite migrate does, instead of relying on the link at the
+        # old path.
+        local old_root
+        for old_root in "$ROOT_HOME/aiostreams" "/root/aiostreams"; do
+            rewrite_install_paths "$old_root" "$INSTALL_DIR" "$INSTALL_DIR"
+            if (( ${#REWRITTEN_FILES[@]} > 0 )); then
+                echo "Pointed $(( ${#REWRITTEN_FILES[@]} )) file(s) from the backup's old folder ($old_root) at $INSTALL_DIR."
+                systemctl daemon-reload >/dev/null 2>&1 || true
+            fi
+        done
     fi
     chmod 600 "$COMPOSE_FILE" 2>/dev/null || true
     grep -q 'SECRET_KEY=' "$COMPOSE_FILE" || \
