@@ -119,6 +119,19 @@ do_backup() {
         fi
     fi
 
+    # And for the control panel, so a restore brings it back only if it was
+    # running.
+    if [[ -f "$INSTALL_DIR/ui-state/config" ]]; then
+        if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx aios-ui; then
+            touch "$INSTALL_DIR/ui-state/was-active-at-backup"
+        else
+            rm -f "$INSTALL_DIR/ui-state/was-active-at-backup"
+        fi
+    fi
+    # Tells a restore which of the markers above this backup can have.
+    # Format 2 added the panel's.
+    printf '# Written by setup-backup.sh with each backup.\nformat=2\n' > "$INSTALL_DIR/backup-info"
+
     if [[ -d "$INSTALL_DIR/vpn-state" ]]; then
         local conf_stage_dir="$INSTALL_DIR/vpn-state/original-confs"
         rm -rf "$conf_stage_dir"
@@ -388,6 +401,225 @@ find_script() {
 }
 
 # ---------------------------------------------------------------------------
+# Add-ons, as far as a restore is concerned
+# ---------------------------------------------------------------------------
+
+# The add-ons with a subdomain of their own:
+# id|name|state folder|Caddy site file|container
+ADDONS=(
+    "mediaflow|MediaFlow Proxy|mediaflow-state|50-mediaflow.caddy|mediaflow-proxy-light"
+    "webhook|Webhook relay|webhook-relay-state|50-webhook-relay.caddy|aios-webhook-relay"
+    "panel|Control panel|ui-state|60-ui.caddy|aios-ui"
+)
+# Filled in by check_addon_domains for each installed add-on, by id.
+declare -A ADDON_NAME=() ADDON_DOMAIN=() ADDON_START=() ADDON_DNS=() ADDON_NEW=() ADDON_OFF_BY_CHOICE=()
+PUBLIC_IP=""
+
+addon_domain() {
+    grep -m1 -oP "^DOMAIN='?\K[^'\s]+" "$INSTALL_DIR/$1/config" 2>/dev/null || true
+}
+
+resolve_ip() {
+    getent ahostsv4 "$1" 2>/dev/null | awk '{ print $1; exit }' || true
+}
+
+# Sets PUBLIC_IP to this server's own public IPv4 address, once.
+find_public_ip() {
+    [[ -n "$PUBLIC_IP" ]] && return 0
+    local svc
+    for svc in "https://ifconfig.me" "https://icanhazip.com" "https://ipinfo.io/ip"; do
+        PUBLIC_IP=$(curl -fs4 --max-time 4 "$svc" 2>/dev/null | tr -d ' \n') && [[ -n "$PUBLIC_IP" ]] && break
+    done
+    return 0
+}
+
+valid_domain() {
+    [[ "$1" =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+$ ]]
+}
+
+# True when this runs inside the control panel's own web terminal. Stopping
+# the panel from there would kill the shell running this restore.
+in_panel_terminal() {
+    [[ "${AIOS_UI_TERMINAL:-}" == "1" ]] && return 0
+    local id
+    id=$(docker inspect -f '{{.Id}}' aios-ui 2>/dev/null) || return 1
+    [[ -n "$id" ]] && grep -q "$id" /proc/self/cgroup 2>/dev/null
+}
+
+# Whether an add-on was running when the backup was made. Backups before
+# format 2 didn't record the panel's state, and the panel is normally
+# running, so it counts as running when it's installed.
+addon_was_running() {
+    local id="$1" dir="$2" format
+    [[ -f "$INSTALL_DIR/$dir/was-active-at-backup" ]] && return 0
+    if [[ "$id" == panel ]]; then
+        format=$(grep -m1 -oP '^format=\K[0-9]+' "$INSTALL_DIR/backup-info" 2>/dev/null || echo 1)
+        (( format < 2 )) && return 0
+    fi
+    return 1
+}
+
+# The add-ons of the install about to be set aside, for the warning.
+current_addons() {
+    local found=()
+    [[ -f "$INSTALL_DIR/mediaflow-state/docker-compose.yml" ]] && found+=("MediaFlow Proxy")
+    [[ -f "$INSTALL_DIR/webhook-relay-state/docker-compose.yml" ]] && found+=("webhook relay")
+    [[ -f /etc/systemd/system/aiostreams-watchdog.timer ]] && found+=("watchdog")
+    [[ -f /etc/systemd/system/aiostreams-vpn-boot.service ]] && found+=("VPN boot hook")
+    [[ -f /etc/fail2ban/jail.d/aios-mediaflow.conf ]] && found+=("MediaFlow fail2ban jail")
+    docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx aios-ui && found+=("control panel")
+    (( ${#found[@]} )) && printf '%s, ' "${found[@]}" | sed 's/, $//'
+    return 0
+}
+
+# Stops and removes the add-ons of the install about to be set aside, so
+# nothing keeps running against a folder that has moved. The backup's own
+# add-ons come back further down. The panel is left running when this runs
+# inside its own terminal.
+retire_current_addons() {
+    local main="$1"
+    if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx aios-ui; then
+        if in_panel_terminal; then
+            echo "Leaving the control panel running, since this restore runs inside it."
+        else
+            docker rm -f aios-ui >/dev/null 2>&1 && echo "Stopped the current control panel."
+        fi
+    fi
+    bash "$main" _remove-addons < /dev/null || \
+        warn "Couldn't remove all of the current install's add-ons. Check 'docker ps' afterwards."
+}
+
+# Points an add-on at a new subdomain: its saved settings and its Caddy site.
+set_addon_domain() {
+    local dir="$1" site="$2" old="$3" new="$4" q="" old_re
+    grep -q "^DOMAIN='" "$INSTALL_DIR/$dir/config" && q="'"
+    sed -i "s/^DOMAIN=.*/DOMAIN=${q}${new}${q}/" "$INSTALL_DIR/$dir/config"
+    old_re=$(printf '%s' "$old" | sed 's/[.]/\\./g')
+    [[ -f "$INSTALL_DIR/caddy.d/$site" ]] && sed -i "0,/^${old_re} {/s//${new} {/" "$INSTALL_DIR/caddy.d/$site"
+    return 0
+}
+
+# Asks for a new subdomain for an add-on until it gets a usable one, or an
+# empty answer (keep the old one). Prints the chosen domain.
+ask_new_domain() {
+    local name="$1" here="$2" taken="$3" current="$4" new ip yn
+    while true; do
+        read -rp "New subdomain for $name (Enter to keep the current one): " new >&2 || return 0
+        new=$(echo "$new" | xargs)
+        [[ -z "$new" || "${new,,}" == "${current,,}" ]] && return 0
+        if ! valid_domain "$new"; then
+            warn "That doesn't look like a domain. Letters, numbers, dots and hyphens only (e.g. proxy.example.com)." >&2
+            continue
+        fi
+        if [[ " $taken " == *" ${new,,} "* ]]; then
+            warn "$new is already used by AIOStreams or another add-on. Each needs its own subdomain." >&2
+            continue
+        fi
+        ip=$(resolve_ip "$new")
+        if [[ -n "$here" && "$ip" != "$here" ]]; then
+            if [[ -n "$ip" ]]; then
+                warn "$new points at $ip, not this server ($here)." >&2
+            else
+                warn "$new doesn't resolve to anything yet." >&2
+            fi
+            read -rp "Use it anyway (its certificate follows once DNS points here)? [y/N]: " yn >&2 || yn=""
+            [[ "$yn" =~ ^[Yy]$ ]] || continue
+        fi
+        printf '%s\n' "$new"
+        return 0
+    done
+}
+
+# Every add-on installed in the backup, running or not, gets its subdomain
+# checked: one switched off for now still needs DNS pointing here the day
+# it's switched back on. For each one that doesn't point here, you can move
+# it to another subdomain, keep it and fix DNS yourself, or (if it was
+# running) leave it switched off for now. Nothing here blocks the restore.
+check_addon_domains() {
+    local a id name dir site ctr domain ip here choice new taken main_domain
+    find_public_ip
+    here="$PUBLIC_IP"
+    main_domain=$(head -n1 "$CADDYFILE" 2>/dev/null | awk '{print $1}')
+    taken="${main_domain,,}"
+    for a in "${ADDONS[@]}"; do
+        IFS='|' read -r id name dir site ctr <<< "$a"
+        [[ -f "$INSTALL_DIR/$dir/config" ]] || continue
+        domain=$(addon_domain "$dir")
+        ADDON_NAME[$id]="$name"
+        ADDON_DOMAIN[$id]="$domain"
+        ADDON_START[$id]=false
+        addon_was_running "$id" "$dir" && ADDON_START[$id]=true
+        [[ -n "$domain" ]] && taken+=" ${domain,,}"
+    done
+    (( ${#ADDON_NAME[@]} )) || return 0
+
+    echo ""
+    echo "Checking the add-ons' subdomains..."
+    for a in "${ADDONS[@]}"; do
+        IFS='|' read -r id name dir site ctr <<< "$a"
+        [[ -n "${ADDON_NAME[$id]:-}" ]] || continue
+        domain="${ADDON_DOMAIN[$id]}"
+        if [[ -z "$domain" ]]; then
+            ADDON_DNS[$id]=unknown
+            continue
+        fi
+        ip=$(resolve_ip "$domain")
+        if [[ -z "$here" ]]; then
+            ADDON_DNS[$id]=unknown
+            echo "  $name: $domain (couldn't find this server's own IP to compare)"
+            continue
+        fi
+        if [[ "$ip" == "$here" ]]; then
+            ADDON_DNS[$id]=ok
+            echo "  $name: $domain points here. Good."
+            continue
+        fi
+        ADDON_DNS[$id]=waiting
+        echo ""
+        if [[ -n "$ip" ]]; then
+            warn "$name: $domain points at $ip, but this server is $here."
+        else
+            warn "$name: $domain doesn't resolve to anything yet."
+        fi
+        if ${ADDON_START[$id]}; then
+            echo "  1) Move it to a different subdomain (one whose A record points here)"
+            echo "  2) Keep $domain and point its DNS here yourself (it starts now)"
+            echo "  3) Keep $domain but leave it switched off for now"
+        else
+            echo "  It was switched off when the backup was made, so it stays off either way."
+            echo "  1) Move it to a different subdomain (one whose A record points here)"
+            echo "  2) Keep $domain and point its DNS here before you switch it on"
+        fi
+        while true; do
+            read -rp "Choice (Enter = 2): " choice || choice=2
+            case "${choice:-2}" in
+                1)
+                    new=$(ask_new_domain "$name" "$here" "$taken" "$domain")
+                    if [[ -n "$new" && "${new,,}" != "${domain,,}" ]]; then
+                        set_addon_domain "$dir" "$site" "$domain" "$new"
+                        taken+=" ${new,,}"
+                        ADDON_NEW[$id]="$new"
+                        ADDON_DOMAIN[$id]="$new"
+                        [[ "$(resolve_ip "$new")" == "$here" ]] && ADDON_DNS[$id]=ok
+                        echo "  $name now uses $new."
+                    fi
+                    break ;;
+                2) break ;;
+                3)
+                    if ${ADDON_START[$id]}; then
+                        ADDON_START[$id]=false
+                        ADDON_OFF_BY_CHOICE[$id]=true
+                        break
+                    fi
+                    warn "Not a valid choice." ;;
+                *) warn "Not a valid choice." ;;
+            esac
+        done
+    done
+    return 0
+}
+
+# ---------------------------------------------------------------------------
 # Restore
 # ---------------------------------------------------------------------------
 
@@ -485,17 +717,39 @@ do_restore() {
     [[ -n "$main_src" && -f "$main_src" ]] || main_src=$(find_script setup-aiostreams.sh)
     if [[ -n "$main_src" ]]; then
         cp -- "$main_src" "$keep/setup-aiostreams.sh"
+    else
+        # None around: the backup carries one, which does if it's current.
+        tar -xzOf "$tarball" aiostreams/setup-aiostreams.sh > "$keep/setup-aiostreams.sh" 2>/dev/null || true
+    fi
+    # This restore needs a setup-aiostreams.sh that can retire the current
+    # add-ons and start the restored stack. One from before this script
+    # existed can't, so fetch the current one, before anything changes.
+    if ! grep -q '_remove-addons)' "$keep/setup-aiostreams.sh" 2>/dev/null; then
+        info "Downloading the current setup-aiostreams.sh"
+        if curl -fsSL "$RAW_BASE/setup-aiostreams.sh" -o "$keep/main-dl.sh" \
+            && grep -q '_remove-addons)' "$keep/main-dl.sh"; then
+            mv -f -- "$keep/main-dl.sh" "$keep/setup-aiostreams.sh"
+        else
+            error "Couldn't download setup-aiostreams.sh. Put the current one next to this script and run the restore again. Nothing was changed."
+        fi
     fi
 
     if [[ -d "$INSTALL_DIR" ]]; then
+        local addons_now
+        addons_now=$(current_addons)
         warn "An installation already exists at $INSTALL_DIR."
         warn "Restoring will REPLACE it, including its SECRET_KEY. If the existing"
         warn "install has user configs the backup doesn't, those would be orphaned."
+        if [[ -n "$addons_now" ]]; then
+            warn "Its add-ons are stopped and removed first ($addons_now)."
+            warn "The backup's own add-ons are brought back afterwards."
+        fi
         read -rp "Move the current install aside and continue? [y/N]: " C
         if [[ ! "$C" =~ ^[Yy]$ ]]; then
             echo "Restore cancelled."
             return 0
         fi
+        [[ -n "$addons_now" ]] && retire_current_addons "$keep/setup-aiostreams.sh"
         local aside
         aside="$(dirname "$INSTALL_DIR")/aiostreams.pre-restore-$(date +%Y%m%d-%H%M%S)"
         mv "$INSTALL_DIR" "$aside"
@@ -522,8 +776,8 @@ do_restore() {
 
     info "Extracting backup"
     # Only the aiostreams/ folder: a tarball with anything else in it can't
-    # drop files elsewhere (e.g. ~/.ssh). Every backup, including ones made
-    # before the move to /opt, stores the folder as aiostreams/.
+    # drop files elsewhere (e.g. ~/.ssh). Every backup stores the folder as
+    # aiostreams/.
     mkdir -p "$(dirname "$INSTALL_DIR")"
     tar xzf "$tarball" -C "$(dirname "$INSTALL_DIR")" aiostreams
     chmod 700 "$INSTALL_DIR"   # setup-aiostreams.sh sets the final access below
@@ -565,17 +819,18 @@ do_restore() {
     # The scripts being run win over the backup's copies.
     install_script_copy "$keep/setup-backup.sh" setup-backup.sh
     install_script_copy "$keep/setup-aiostreams.sh" setup-aiostreams.sh
-    # A backup from before this script existed carries a setup-aiostreams.sh
-    # that can't start a restored stack for it. Fetch the current one.
-    if ! grep -q '_restore-start)' "$INSTALL_DIR/setup-aiostreams.sh" 2>/dev/null; then
-        info "Downloading the current setup-aiostreams.sh"
-        curl -fsSL "$RAW_BASE/setup-aiostreams.sh" -o "$keep/main-dl.sh" \
-            && grep -q '_restore-start)' "$keep/main-dl.sh" \
-            || error "Couldn't download setup-aiostreams.sh. The backup is extracted to $INSTALL_DIR; put the current setup-aiostreams.sh there and run: sudo bash $INSTALL_DIR/setup-backup.sh restore $tarball"
-        install_script_copy "$keep/main-dl.sh" setup-aiostreams.sh
-    fi
 
     check_restored_domain_dns
+    check_addon_domains
+
+    # MediaFlow's fail2ban jail lives outside the backup. Whether it was on
+    # shows in its Caddy site (the access log is only there for the jail);
+    # look before Start rewrites that file.
+    local mediaflow_jail_lost=false
+    if grep -q 'mediaflow-access.log' "$INSTALL_DIR/caddy.d/50-mediaflow.caddy" 2>/dev/null \
+        && [[ ! -f /etc/fail2ban/jail.d/aios-mediaflow.conf ]]; then
+        mediaflow_jail_lost=true
+    fi
 
     # Folder access, ~/aiostreams shortcuts, VPN boot hook, image pull, the
     # start itself (through the tunnel with the VPN) and the HTTPS check all
@@ -587,120 +842,118 @@ do_restore() {
         return 0
     fi
 
-    # Add-ons come back only if they were running when the backup was made.
-    local watchdog_was_active=false watchdog_back=false
+    # Add-ons come back only if they were running when the backup was made
+    # (and you didn't choose to leave them off above). Each line of the
+    # summary is collected as it goes.
+    local summary=() script
     if [[ -f "$INSTALL_DIR/watchdog-state/was-active-at-backup" ]]; then
-        watchdog_was_active=true
-        local watchdog_script
-        watchdog_script=$(find_script setup-watchdog.sh)
-        if [[ -n "$watchdog_script" ]]; then
-            bash "$watchdog_script" install-timer < /dev/null || true
-            if systemctl is-active --quiet aiostreams-watchdog.timer 2>/dev/null; then
-                watchdog_back=true
-            else
-                warn "Couldn't reinstall the watchdog's timer automatically. See the reminder below."
-            fi
+        script=$(find_script setup-watchdog.sh)
+        [[ -n "$script" ]] && { bash "$script" install-timer < /dev/null || true; }
+        if systemctl is-active --quiet aiostreams-watchdog.timer 2>/dev/null; then
+            summary+=("Watchdog: running again, alerts resume by themselves.")
+        else
+            summary+=("Watchdog: was running, but couldn't be started. Run 'sudo bash $INSTALL_DIR/setup-watchdog.sh' and choose Start.")
         fi
-        rm -f "$INSTALL_DIR/watchdog-state/was-active-at-backup"
+    elif [[ -f "$INSTALL_DIR/watchdog-state/config" ]]; then
+        summary+=("Watchdog: switched off when the backup was made, left off.")
     fi
 
-    local webhook_was_active=false webhook_back=false
-    if [[ -f "$INSTALL_DIR/webhook-relay-state/was-active-at-backup" ]]; then
-        webhook_was_active=true
-        local webhook_script
-        webhook_script=$(find_script setup-webhook.sh)
-        if [[ -n "$webhook_script" ]]; then
-            bash "$webhook_script" start-relay < /dev/null || true
-            if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx aios-webhook-relay; then
-                webhook_back=true
+    local id dir site ctr name a ok
+    for a in "${ADDONS[@]}"; do
+        IFS='|' read -r id name dir site ctr <<< "$a"
+        [[ -n "${ADDON_NAME[$id]:-}" ]] || continue
+        local domain="${ADDON_DOMAIN[$id]}" where="" line own
+        [[ -n "$domain" ]] && where=" ($domain)"
+        case "$id" in
+            mediaflow) own="$INSTALL_DIR/setup-mediaflow.sh" ;;
+            webhook) own="$INSTALL_DIR/setup-webhook.sh" ;;
+            panel) own="$INSTALL_DIR/control-panel/setup-ui.sh" ;;
+        esac
+        if ! ${ADDON_START[$id]}; then
+            if [[ -n "${ADDON_OFF_BY_CHOICE[$id]:-}" ]]; then
+                line="$name$where: left off, as you chose. Point its DNS here, then run 'sudo bash $own' and choose Start."
             else
-                warn "Couldn't restart the webhook relay automatically. See the reminder below."
+                line="$name$where: switched off when the backup was made, left off."
             fi
+            [[ "${ADDON_DNS[$id]:-}" == waiting ]] && [[ -z "${ADDON_OFF_BY_CHOICE[$id]:-}" ]] && \
+                line+=" Its DNS doesn't point here yet: fix that before switching it on."
+            summary+=("$line")
+            continue
         fi
-        rm -f "$INSTALL_DIR/webhook-relay-state/was-active-at-backup"
+        ok=false
+        case "$id" in
+            mediaflow)
+                script=$(find_script setup-mediaflow.sh)
+                [[ -n "$script" ]] && { bash "$script" start-mediaflow < /dev/null || true; } ;;
+            webhook)
+                script=$(find_script setup-webhook.sh)
+                [[ -n "$script" ]] && { bash "$script" start-relay < /dev/null || true; } ;;
+            panel)
+                if in_panel_terminal; then
+                    summary+=("$name$where: press Restart panel (Terminal tab) so it picks up the restored install.")
+                    continue
+                fi
+                script="$INSTALL_DIR/control-panel/setup-ui.sh"
+                if [[ -f "$script" ]]; then
+                    info "Building and starting the control panel"
+                    bash "$script" rebuild < /dev/null || true
+                else
+                    summary+=("$name$where: its files aren't in the backup. Download it again (see docs/basic/control-panel.md); your login and unlock link are kept.")
+                    continue
+                fi ;;
+        esac
+        docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$ctr" && ok=true
+        if $ok && [[ "${ADDON_DNS[$id]:-}" == waiting ]]; then
+            line="$name$where: running, waiting for DNS. Point $domain at ${PUBLIC_IP:-this server} and its certificate follows by itself."
+        elif $ok; then
+            line="$name$where: running again."
+        else
+            line="$name$where: was running, but couldn't be started. Run 'sudo bash $own' and choose Start."
+        fi
+        summary+=("$line")
+    done
+
+    # What changed with a new subdomain needs updating elsewhere too.
+    local token
+    if [[ -n "${ADDON_NEW[mediaflow]:-}" ]]; then
+        summary+=("MediaFlow moved to ${ADDON_NEW[mediaflow]}: in the AIOStreams dashboard, set its Public URL to https://${ADDON_NEW[mediaflow]}")
+    fi
+    if [[ -n "${ADDON_NEW[webhook]:-}" ]]; then
+        token=$(grep -m1 -oP "^WEBHOOK_TOKEN='?\K[^'\s]+" "$INSTALL_DIR/webhook-relay-state/config" 2>/dev/null || true)
+        summary+=("Webhook relay moved: paste the new URL into the sites that send to it: https://${ADDON_NEW[webhook]}/hook/${token:-<token>}")
+    fi
+    if [[ -n "${ADDON_NAME[panel]:-}" && -f "$INSTALL_DIR/ui-state/gate-token" ]]; then
+        summary+=("Control panel unlock link (open it once in each browser): https://${ADDON_DOMAIN[panel]}/unlock/$(cat "$INSTALL_DIR/ui-state/gate-token")")
+    fi
+    $mediaflow_jail_lost && \
+        summary+=("MediaFlow's fail2ban protection was on, but lives outside the backup: add it again with setup-mediaflow.sh option 7.")
+    if (( conf_restored_count > 0 )); then
+        summary+=("WireGuard .conf: $conf_restored_count original file(s) restored to /root and/or $REAL_HOME (convenience copies).")
     fi
 
-    local mediaflow_was_active=false mediaflow_back=false
-    if [[ -f "$INSTALL_DIR/mediaflow-state/was-active-at-backup" ]]; then
-        mediaflow_was_active=true
-        local mediaflow_script
-        mediaflow_script=$(find_script setup-mediaflow.sh)
-        if [[ -n "$mediaflow_script" ]]; then
-            bash "$mediaflow_script" start-mediaflow < /dev/null || true
-            if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx mediaflow-proxy-light; then
-                mediaflow_back=true
-            else
-                warn "Couldn't restart MediaFlow Proxy Light automatically. See the reminder below."
-            fi
-        fi
-        rm -f "$INSTALL_DIR/mediaflow-state/was-active-at-backup"
-    fi
+    rm -f "$INSTALL_DIR"/{watchdog-state,webhook-relay-state,mediaflow-state,ui-state}/was-active-at-backup
 
     info "Restore complete!"
     echo ""
-    echo "Because the SECRET_KEY and data came over intact, every existing user config"
-    echo "and installed Stremio manifest URL keeps working, nothing to recreate."
-    echo ""
-    echo "If this is a NEW server (new IP), remember:"
-    echo "  - Update the DNS A record for the domain to point at THIS server's IP."
-    echo "  - Caddy re-issues HTTPS certificates automatically once DNS resolves here"
-    echo "    (its cert volumes start fresh; that's expected and fine)."
+    echo "The SECRET_KEY and data came over intact, so every existing user config"
+    echo "and installed Stremio manifest URL keeps working."
     if grep -q 'container_name: gluetun' "$COMPOSE_FILE" 2>/dev/null; then
         if [[ -f /etc/systemd/system/aiostreams-vpn-boot.service ]]; then
-            echo "  - VPN mode: the boot-safety hook (aiostreams-vpn-boot.service) has been"
-            echo "    reinstalled on this server, so AIOStreams will come back correctly after"
-            echo "    a reboot, gated on the tunnel, same as it did on the original server."
+            summary=("VPN: on, and its boot-safety hook is installed, so AIOStreams comes back after a reboot." "${summary[@]}")
         else
-            echo "  - VPN mode: the boot-safety hook (aiostreams-vpn-boot.service) lives outside"
-            echo "    the backup and could NOT be installed automatically (setup-vpn-gluetun.sh"
-            echo "    wasn't found in $INSTALL_DIR), AIOStreams will not survive this server's"
-            echo "    next reboot until you run 'sudo bash $INSTALL_DIR/setup-vpn-gluetun.sh'"
-            echo "    and choose 'Turn VPN ON' once to install it."
+            summary=("VPN: on, but its boot-safety hook couldn't be installed. Run 'sudo bash $INSTALL_DIR/setup-vpn-gluetun.sh' and choose 'Turn VPN ON' once, or AIOStreams won't come back after a reboot." "${summary[@]}")
         fi
     fi
-    if $watchdog_was_active; then
-        if $watchdog_back; then
-            echo "  - Watchdog: it was running before the backup, so its timer"
-            echo "    (aiostreams-watchdog.timer) has been reinstalled on this server,"
-            echo "    alerts will resume with no action needed."
-        else
-            echo "  - Watchdog: it was running before the backup, but its timer could NOT be"
-            echo "    reinstalled automatically. You won't get alerts until you run"
-            echo "    'sudo bash $INSTALL_DIR/setup-watchdog.sh' and choose 'Start' once."
-        fi
+    if (( ${#summary[@]} )); then
+        echo ""
+        for line in "${summary[@]}"; do
+            echo "  - $line"
+        done
     fi
-    if $webhook_was_active; then
-        if $webhook_back; then
-            echo "  - Webhook relay: it was running before the backup, so the container is back"
-            echo "    up with the same subdomain/token/ntfy topic, nothing else needed. If this"
-            echo "    is a NEW server, remember its subdomain also needs its own DNS A record"
-            echo "    pointed here, same as the main domain above."
-        else
-            echo "  - Webhook relay: it was running before the backup, but could NOT be"
-            echo "    restarted automatically. It won't receive events until you run"
-            echo "    'sudo bash $INSTALL_DIR/setup-webhook.sh' and choose 'Start' once."
-        fi
-    fi
-    if $mediaflow_was_active; then
-        if $mediaflow_back; then
-            echo "  - MediaFlow Proxy Light: it was running before the backup, so it's back up"
-            echo "    with the same subdomain/password, nothing else needed. If this is a NEW"
-            echo "    server, remember its subdomain also needs its own DNS A record pointed"
-            echo "    here, same as the main domain above."
-        else
-            echo "  - MediaFlow Proxy Light: it was running before the backup, but could NOT be"
-            echo "    restarted automatically. It won't be reachable until you run"
-            echo "    'sudo bash $INSTALL_DIR/setup-mediaflow.sh' and choose Start."
-        fi
-    fi
-    if (( conf_restored_count > 0 )); then
-        echo "  - WireGuard .conf: $conf_restored_count original file(s) restored to /root"
-        echo "    and/or $REAL_HOME, same as they were on the old server (convenience"
-        echo "    copies for quick reconfigures, not required for the VPN layer itself)."
-    fi
-    echo "  - Verify by logging into the AIOStreams page and playing one stream from a"
-    echo "    device that already had the addon installed. Keep the old server running"
-    echo "    until that works. It's your rollback."
+    echo ""
+    echo "If this is a new server, keep the old one running until you've logged into"
+    echo "AIOStreams here and played one stream from a device that already had the"
+    echo "addon installed. It's your rollback."
     return 0
 }
 

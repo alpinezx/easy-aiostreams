@@ -148,6 +148,16 @@ current one aside, right next to it (e.g.
 `/opt/aiostreams.pre-restore-YYYYMMDD-HHMMSS`) rather than deleting it
 outright, so you can recover if you picked the wrong tarball.
 
+Its add-ons go first: MediaFlow, the webhook relay, the watchdog timer, the
+VPN boot hook, MediaFlow's fail2ban jail and the control panel are stopped
+and removed before the folder moves, and the restore warns you which ones it
+found. Their settings stay in the set-aside copy. Then the **backup's** own
+add-ons come back (see [Add-ons on restore](#add-ons-on-restore)), so you
+end up with exactly what the backup had, and nothing left running against a
+folder that moved. The one exception is the control panel when you run the
+restore from its own Terminal tab: stopping it would cut off the restore, so
+it stays up and you press **Restart panel** afterwards.
+
 Backups made before October 2026, when installs lived in
 `/root/aiostreams`, are restored once with the
 [migrate-to-opt](https://github.com/alpinezx/easy-aiostreams/tree/migrate-to-opt)
@@ -270,20 +280,40 @@ If the backup was taken while the [VPN layer](./vpn-setup.md) was active,
 gluetun comes back up automatically as part of the restored stack .  no
 extra step needed there either.
 
-⚠️ **If the [Webhook Relay](./webhook-relay.md) was active, and you're
-restoring under a genuinely different domain** (not just a new IP for the
-same domain): the relay container comes back up automatically same as
-everything else, but it comes back pointed at its **old** subdomain, e.g.
-`hooks.olddomain.top`, not anything derived from the new one. Nothing
-rewrites this automatically the way the main domain gets rewritten above,
-since the relay's subdomain isn't necessarily related to the main one and
-there's no safe way to guess a replacement. Point DNS at the new server for
-whichever subdomain you want to keep using, then run `sudo bash
-setup-webhook.sh` → **4) Reconfigure** on the new server to update it (and
-re-paste the resulting URL into whatever third-party site was using it,
-since the old one won't resolve here anymore). Restoring onto the same
-server, or a new server under the same domain, isn't affected by this at
-all.
+## Add-ons on restore
+
+A backup records which add-ons were **installed** (their settings are in it)
+and which were **running** when it was made. The restore uses both:
+
+- **Every installed add-on gets its subdomain checked**, running or not:
+  MediaFlow Proxy, the webhook relay and the control panel. One that's
+  switched off today still needs DNS pointing here the day you switch it on.
+- If a subdomain points here, nothing to do. If it points somewhere else
+  (usually the old server) or doesn't resolve, the restore says so with both
+  IPs and asks:
+  ```
+  1) Move it to a different subdomain (one whose A record points here)
+  2) Keep it and point its DNS here yourself (it starts now)
+  3) Keep it but leave it switched off for now
+  ```
+  Enter picks 2. Option 3 only appears for one that was running; one that was
+  off stays off either way. Moving it updates its saved settings and its
+  Caddy site on the spot. Nothing here stops the restore, and AIOStreams
+  itself comes up regardless.
+- **What was running starts again**, the control panel included (it's rebuilt
+  from its folder in the backup). What was off stays off.
+- **The summary at the end** lists each add-on: running, waiting for DNS
+  (started, and its certificate follows once DNS points here), or left off.
+  It also lists what needs updating elsewhere:
+  - MediaFlow on a new subdomain: set its **Public URL** in the AIOStreams
+    dashboard to the new address.
+  - Webhook relay on a new subdomain: the new webhook URL to paste into the
+    sites that send to it.
+  - The control panel's unlock link, to open once in each browser.
+  - MediaFlow's fail2ban protection, if it was on: it lives outside the
+    backup, so add it again with `setup-mediaflow.sh` option 7.
+
+The watchdog has no subdomain. It comes back if it was running.
 
 ---
 
@@ -307,9 +337,7 @@ the old server, it's included automatically and starts along with the main
 stack. If it's missing, the backup was likely taken before the
 [VPN layer](./vpn-setup.md) was set up on the old server.
 
-**Restored under a new domain, but the webhook relay's URL still points at the old one**
-Expected, not a bug .  see the callout above. Only the main domain gets
-rewritten automatically during a domain-mismatch restore; the
-[Webhook Relay's](./webhook-relay.md) subdomain needs `setup-webhook.sh` →
-**Reconfigure** run manually afterward, once DNS for the new subdomain
-points here.
+**Restored under a new domain, and an add-on still uses its old subdomain**
+You chose to keep it when the restore asked. Point that subdomain's DNS at
+this server, or move the add-on with its own script's Reconfigure option
+(`setup-mediaflow.sh` or `setup-webhook.sh`, option 4).

@@ -195,8 +195,10 @@ ensure_caddy_dropin_dir() {
     fi
 }
 
+# Removes the add-ons that live outside the main compose stack. "restore"
+# is setup-backup.sh retiring the install it's about to set aside.
 remove_addons_on_uninstall() {
-    local removed=()
+    local mode="${1:-uninstall}" removed=()
     if [[ -f /etc/systemd/system/aiostreams-watchdog.timer ]]; then
         systemctl disable --now aiostreams-watchdog.timer >/dev/null 2>&1 || true
         rm -f /etc/systemd/system/aiostreams-watchdog.timer /etc/systemd/system/aiostreams-watchdog.service
@@ -234,8 +236,12 @@ remove_addons_on_uninstall() {
         systemctl daemon-reload >/dev/null 2>&1 || true
         local joined
         joined=$(printf '%s, ' "${removed[@]}")
-        echo "Also removed add-ons: ${joined%, }."
-        echo "(Their saved settings stay in $INSTALL_DIR unless you delete that below.)"
+        if [[ "$mode" == restore ]]; then
+            echo "Stopped and removed the current install's add-ons: ${joined%, }."
+        else
+            echo "Also removed add-ons: ${joined%, }."
+            echo "(Their saved settings stay in $INSTALL_DIR unless you delete that below.)"
+        fi
     fi
 }
 
@@ -542,6 +548,10 @@ case "${1:-}" in
     backup|restore)
         script=$(backup_script) || exit 1
         AIOS_MAIN_SCRIPT="$SELF_SCRIPT_PATH" exec bash "$script" "$@"
+        ;;
+    _remove-addons)
+        remove_addons_on_uninstall restore
+        exit 0
         ;;
     _restore-start)
         status=0
