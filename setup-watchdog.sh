@@ -2,59 +2,29 @@
 
 set -euo pipefail
 
-# Resolved to an absolute path HERE, at the very top, before anything below
-# can cd elsewhere, same reasoning as the equivalent line in
-# setup-aiostreams.sh and setup-vpn-gluetun.sh.
-SELF_SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)/$(basename "${BASH_SOURCE[0]}")"
-
 info()  { printf '\n\033[1;34m==>\033[0m %s\n' "$1"; }
 warn()  { printf '\033[1;33m!! \033[0m %s\n' "$1"; }
 error() { printf '\033[1;31mXX \033[0m %s\n' "$1"; exit 1; }
 
-# Install folder. New installs, and servers moved with
-# 'sudo bash setup-aiostreams.sh migrate', use /opt/aiostreams: one path for
-# root and every sudo user. A server set up before that keeps its old
-# ~/aiostreams under root's home until it is migrated. The same rule is in
-# every setup-*.sh and in setup-ui.sh, so keep them identical.
+# Everything lives in /opt/aiostreams: one folder for root and every user.
 OPT_INSTALL_DIR="/opt/aiostreams"
-LEGACY_INSTALL_DIR=""
-for _legacy in "${HOME:-/root}/aiostreams" "$(getent passwd root 2>/dev/null | cut -d: -f6)/aiostreams"; do
-    if [[ "$_legacy" == /*/aiostreams && "$_legacy" != "$OPT_INSTALL_DIR" && ! -L "$_legacy" \
-        && -f "$_legacy/docker-compose.yml" ]]; then
-        LEGACY_INSTALL_DIR="$_legacy"
-        break
+INSTALL_DIR="$OPT_INSTALL_DIR"
+
+# Installs made before October 2026 live in root's home instead. These
+# scripts don't work with that layout: stop rather than mistake the server
+# for one without an install. setup-aiostreams.sh offers the move.
+for _old in "$(getent passwd root 2>/dev/null | cut -d: -f6)/aiostreams" "${HOME:-/root}/aiostreams"; do
+    if [[ "$_old" == /*/aiostreams && "$_old" != "$INSTALL_DIR" && ! -L "$_old" \
+        && -f "$_old/docker-compose.yml" && ! -f "$INSTALL_DIR/docker-compose.yml" ]]; then
+        echo "This server's AIOStreams install is still in $_old, where installs made"
+        echo "before October 2026 live. It now belongs in $INSTALL_DIR. To move it, run:"
+        echo "  sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-aiostreams.sh -o $_old/setup-aiostreams.sh"
+        echo "  sudo bash $_old/setup-aiostreams.sh"
+        echo "or follow https://github.com/alpinezx/easy-aiostreams/tree/migrate-to-opt"
+        exit 1
     fi
 done
-unset _legacy
-if [[ -n "$LEGACY_INSTALL_DIR" && ! -f "$OPT_INSTALL_DIR/docker-compose.yml" ]]; then
-    INSTALL_DIR="$LEGACY_INSTALL_DIR"
-else
-    INSTALL_DIR="$OPT_INSTALL_DIR"
-fi
-
-# A server still on the old layout is offered the move to /opt, only when a
-# person is at the keyboard for the plain menu: never for subcommands, and
-# never from the control panel's buttons, timers or systemd (none of those
-# have a terminal on stdout). Saying no changes nothing; it asks again next
-# time. Same block in every setup-*.sh and setup-ui.sh.
-if [[ "$INSTALL_DIR" != "$OPT_INSTALL_DIR" && $# -eq 0 && -t 0 && -t 1 && $EUID -eq 0 ]] \
-    && grep -q '^do_migrate()' "$INSTALL_DIR/setup-aiostreams.sh" 2>/dev/null; then
-    echo ""
-    echo "Easy AIOStreams now keeps everything in $OPT_INSTALL_DIR, one folder for"
-    echo "root and every user. This server still uses $INSTALL_DIR."
-    read -rp "Move it now? It takes a backup first, about a minute of downtime. [Y/n]: " _move
-    if [[ ! "$_move" =~ ^[Nn] ]]; then
-        # The copy being run goes along, the same as its own sync would do.
-        if ! [[ "$SELF_SCRIPT_PATH" -ef "$INSTALL_DIR/$(basename "$SELF_SCRIPT_PATH")" ]]; then
-            cp -f -- "$SELF_SCRIPT_PATH" "$INSTALL_DIR/$(basename "$SELF_SCRIPT_PATH")" 2>/dev/null || true
-        fi
-        bash "$INSTALL_DIR/setup-aiostreams.sh" migrate --yes || true
-        if [[ -f "$OPT_INSTALL_DIR/docker-compose.yml" ]]; then
-            exec bash "$OPT_INSTALL_DIR/$(basename "$SELF_SCRIPT_PATH")"
-        fi
-    fi
-    unset _move
-fi
+unset _old
 VPN_ACTIVE_MARKER="$INSTALL_DIR/vpn-state/active"
 STATE_DIR="$INSTALL_DIR/watchdog-state"
 CONFIG_FILE="$STATE_DIR/config"
@@ -368,26 +338,6 @@ command -v docker    >/dev/null || error "Docker not found. Run this on the same
 command -v curl      >/dev/null || error "curl not found. Install it first (apt install curl)."
 command -v systemctl >/dev/null || error "systemd not found. This script relies on systemd timers."
 
-# Bug fix: under sudo, $INSTALL_DIR is root's home, not a non-root sudo
-# user's, so a script downloaded into that user's home never lands here,
-# and do_restore's lookup checks $INSTALL_DIR first, silently breaking the
-# automatic timer reinstall on restore otherwise. Deliberately not called
-# on --run-check above, which systemd fires every couple minutes. This is
-# the TOP-LEVEL script; separate from install_systemd_units' own copy into
-# watchdog-state/, which is what the systemd unit actually executes.
-sync_self_into_install_dir() {
-    local dest="$INSTALL_DIR/setup-watchdog.sh"
-    [[ -f "$SELF_SCRIPT_PATH" ]] || return 0
-    [[ "$SELF_SCRIPT_PATH" == "$dest" ]] && return 0
-    if [[ ! -f "$dest" ]] || ! cmp -s "$SELF_SCRIPT_PATH" "$dest"; then
-        if cp -- "$SELF_SCRIPT_PATH" "$dest" 2>/dev/null; then
-            chmod +x "$dest" 2>/dev/null || true
-            echo "(Synced this script into $INSTALL_DIR/setup-watchdog.sh. That's the copy future backups/restores will use.)"
-        fi
-    fi
-    return 0
-}
-sync_self_into_install_dir
 
 # Errors out rather than risking a hang on an interactive prompt if the
 # config is somehow missing here.

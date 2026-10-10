@@ -1,5 +1,10 @@
 # Easy AIOStreams
 
+> [!IMPORTANT]
+> **Installed this before October 2026?** The install folder has moved from `/root/aiostreams` to `/opt/aiostreams`, and these scripts only work with the new location. [Follow these steps to move your install](https://github.com/alpinezx/easy-aiostreams/tree/migrate-to-opt) (about a minute of downtime, with a backup first). Running the updated `setup-aiostreams.sh` on an old install also offers to do it for you.
+>
+> **Installing for the first time?** You can skip this.
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 A one-command installer for a self-hosted [AIOStreams](https://github.com/Viren070/AIOStreams) instance. It sets up Docker, Caddy (automatic HTTPS via Let's Encrypt), and secure login access to the config page and dashboard, all in one script. Restricted to your own credentials.
@@ -132,16 +137,6 @@ Run it again any time with `sudo bash /opt/aiostreams/setup-aiostreams.sh` and i
 ```
 
 **Stable vs nightly:** on a fresh install (or Reconfigure), you'll be asked to choose the `latest` (stable) or `nightly` build. Switch channels anytime from **Update**, it'll walk you through it and confirm before switching.
-
-## Moving an older install to /opt
-
-Installs made before this change live in root's home (`/root/aiostreams`), with a second copy of the scripts in your own `~/aiostreams` when you use `sudo`. They keep working as they are. The next time you open any of the scripts' menus, it asks once whether to move the install to `/opt` now; press Enter for yes, or `n` to keep things as they are (it asks again next time). You can also run the move yourself:
-
-```bash
-sudo bash setup-aiostreams.sh migrate
-```
-
-It takes a backup, stops the stack for about a minute, moves the folder to `/opt/aiostreams`, updates the add-ons, systemd units and the control panel to the new path, and starts back up whatever was running. `/root/aiostreams` and your `~/aiostreams` become shortcuts to the new folder. Until you move, use `~/aiostreams` wherever the guides say `/opt/aiostreams`. Your old `~/aiostreams` is removed only if it held nothing but identical copies of the scripts; otherwise it's renamed to `~/aiostreams.old-<time>`. To put everything back the way it was: `sudo bash /opt/aiostreams/setup-aiostreams.sh migrate undo`.
 
 ## Notes
 
