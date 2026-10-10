@@ -43,7 +43,50 @@ compose_image_refs() {
     grep -oP '^\s*image:\s*\K\S+' "$1" 2>/dev/null || true
 }
 
-INSTALL_DIR="$HOME/aiostreams"
+# Install folder. New installs, and servers moved with
+# 'sudo bash setup-aiostreams.sh migrate', use /opt/aiostreams: one path for
+# root and every sudo user. A server set up before that keeps its old
+# ~/aiostreams under root's home until it is migrated. The same rule is in
+# every setup-*.sh and in setup-ui.sh, so keep them identical.
+OPT_INSTALL_DIR="/opt/aiostreams"
+LEGACY_INSTALL_DIR=""
+for _legacy in "${HOME:-/root}/aiostreams" "$(getent passwd root 2>/dev/null | cut -d: -f6)/aiostreams"; do
+    if [[ "$_legacy" == /*/aiostreams && "$_legacy" != "$OPT_INSTALL_DIR" && ! -L "$_legacy" \
+        && -f "$_legacy/docker-compose.yml" ]]; then
+        LEGACY_INSTALL_DIR="$_legacy"
+        break
+    fi
+done
+unset _legacy
+if [[ -n "$LEGACY_INSTALL_DIR" && ! -f "$OPT_INSTALL_DIR/docker-compose.yml" ]]; then
+    INSTALL_DIR="$LEGACY_INSTALL_DIR"
+else
+    INSTALL_DIR="$OPT_INSTALL_DIR"
+fi
+
+# A server still on the old layout is offered the move to /opt, only when a
+# person is at the keyboard for the plain menu: never for subcommands, and
+# never from the control panel's buttons, timers or systemd (none of those
+# have a terminal on stdout). Saying no changes nothing; it asks again next
+# time. Same block in every setup-*.sh and setup-ui.sh.
+if [[ "$INSTALL_DIR" != "$OPT_INSTALL_DIR" && $# -eq 0 && -t 0 && -t 1 && $EUID -eq 0 ]] \
+    && grep -q '^do_migrate()' "$INSTALL_DIR/setup-aiostreams.sh" 2>/dev/null; then
+    echo ""
+    echo "Easy AIOStreams now keeps everything in $OPT_INSTALL_DIR, one folder for"
+    echo "root and every user. This server still uses $INSTALL_DIR."
+    read -rp "Move it now? It takes a backup first, about a minute of downtime. [Y/n]: " _move
+    if [[ ! "$_move" =~ ^[Nn] ]]; then
+        # The copy being run goes along, the same as its own sync would do.
+        if ! [[ "$SELF_SCRIPT_PATH" -ef "$INSTALL_DIR/$(basename "$SELF_SCRIPT_PATH")" ]]; then
+            cp -f -- "$SELF_SCRIPT_PATH" "$INSTALL_DIR/$(basename "$SELF_SCRIPT_PATH")" 2>/dev/null || true
+        fi
+        bash "$INSTALL_DIR/setup-aiostreams.sh" migrate --yes || true
+        if [[ -f "$OPT_INSTALL_DIR/docker-compose.yml" ]]; then
+            exec bash "$OPT_INSTALL_DIR/$(basename "$SELF_SCRIPT_PATH")"
+        fi
+    fi
+    unset _move
+fi
 COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"
 CADDY_DROPIN_DIR="$INSTALL_DIR/caddy.d"
 SHARED_NET="aios_shared"

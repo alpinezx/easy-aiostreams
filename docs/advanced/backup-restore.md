@@ -119,11 +119,18 @@ Picking **1) Backup first** on top of it also gets you the full tarball
 
 This is the everyday case: rolling an existing install back to an earlier
 backup, on the same box, with no new server and no DNS change involved. The
-script detects the existing `~/aiostreams` directory, warns you that
+script detects the existing install folder, warns you that
 restoring will **replace** it (including its `SECRET_KEY`), and moves the
-current one aside (e.g. `~/aiostreams.pre-restore-YYYYMMDD-HHMMSS`) rather
-than deleting it outright, so you can recover if you picked the wrong
+current one aside, right next to it (e.g.
+`/opt/aiostreams.pre-restore-YYYYMMDD-HHMMSS`, or
+`/root/aiostreams.pre-restore-...` on an install not moved to `/opt` yet)
+rather than deleting it outright, so you can recover if you picked the wrong
 tarball.
+
+Backups from before the move to `/opt` restore fine on a server that uses
+`/opt`, and the other way round: every backup stores the folder the same
+way, and restore puts it wherever this server keeps its install. On a brand
+new server that's `/opt/aiostreams`.
 
 From the management menu, choose **8) Restore from backup**, then pick your
 tarball from the list. That's it .  the script finds tarballs sitting in the
