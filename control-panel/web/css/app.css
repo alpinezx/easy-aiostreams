@@ -384,10 +384,17 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 /* The command itself, shown so you can see what Copy copies. Cut short with
    "..." rather than pushing the buttons out of view. */
 .cmd { padding: 4px 8px; background: var(--sunk); border-radius: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
-/* Phones: name and buttons only. Copy still copies the full command. */
+/* Phones: one small block per script. Name and status dot on top, Copy and
+   Update underneath as two equal outlined buttons. The command is hidden;
+   Copy still copies all of it. */
 @media (max-width: 720px) {
-  .cmds li { grid-template-columns: minmax(0, 1fr) auto; }
+  .log-help ul.cmds { padding-left: 0; gap: 0; }
+  .cmds li { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 12px 0; border-top: 1px solid var(--line-soft); }
+  .cmds li:first-child { border-top: 0; padding-top: 4px; }
   .cmd { display: none; }
+  .cmd-label { flex-wrap: nowrap; color: var(--text); font-size: .95rem; font-weight: 500; }
+  .cmd-btns { gap: 8px; }
+  .cmd-btns .btn { flex: 1; border-color: var(--line); background: var(--raised); color: var(--text); padding: 8px 12px; }
 }
 .sdot-tag { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; font-weight: 600; }
 .sdot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
