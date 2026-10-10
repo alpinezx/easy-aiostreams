@@ -17,6 +17,8 @@ For backing up your current setup, rolling back to an earlier backup on the same
 ```bash
 sudo bash /opt/aiostreams/setup-aiostreams.sh backup
 ```
+(Backup and restore live in their own script, `setup-backup.sh`. The command above fetches it the first time, so there's nothing extra to download.)
+
 This prints a file name like `aiostreams-backup-YYYYMMDD-HHMMSS.tar.gz` and a ready-to-use `scp` command to copy it off the server .  **use the exact command it prints**, don't copy the one below blind. It differs depending on how you're logged in:
 - **Logged in as root:** the file lives in `/root`, and it prints something like
   ```bash

@@ -20,6 +20,24 @@ every stored user config coming back exactly as they were. Nothing to
 recreate, no Stremio manifest URLs to reissue, whichever reason you're
 using it for.
 
+## Where backup and restore live
+
+Backup and restore have their own script, `setup-backup.sh`, next to the
+others in `/opt/aiostreams`. You don't need to download it yourself:
+`setup-aiostreams.sh backup`, `setup-aiostreams.sh restore <file>` and menu
+options 7 and 8 hand over to it, and fetch it from GitHub the first time if
+it isn't there yet. You can also run it directly:
+
+```bash
+sudo bash /opt/aiostreams/setup-backup.sh                  # menu
+sudo bash /opt/aiostreams/setup-backup.sh backup
+sudo bash /opt/aiostreams/setup-backup.sh restore aiostreams-backup-YYYYMMDD-HHMMSS.tar.gz
+```
+
+A restore puts the newest copies of both scripts you have into the restored
+folder, so restoring an older backup never leaves you on older scripts. Older
+backups made before `setup-backup.sh` existed restore the same way.
+
 ## What's included in a backup
 
 - Both compose files (`docker-compose.yml`) .  these hold your `SECRET_KEY`
@@ -32,7 +50,7 @@ using it for.
   this contains your ntfy topic name
 - `webhook-relay-state/`, if you ever set up the [Webhook Relay](./webhook-relay.md) . 
   this contains your secret path token and ntfy topic
-- Every install script (`setup-aiostreams.sh`, `setup-vpn-gluetun.sh`, `setup-watchdog.sh`, `setup-webhook.sh`) .  any `.sh` file in `/opt/aiostreams` is included automatically, which is why all install commands download there first
+- Every install script (`setup-aiostreams.sh`, `setup-backup.sh`, `setup-vpn-gluetun.sh`, `setup-watchdog.sh`, `setup-webhook.sh`, `setup-mediaflow.sh`) .  any `.sh` file in `/opt/aiostreams` is included automatically, which is why all install commands download there first
 
 **Not included:** Caddy's HTTPS certificates. They're in Docker volumes, and Caddy re-issues them automatically once DNS resolves on the new server. No point bundling them.
 

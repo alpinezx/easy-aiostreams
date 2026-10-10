@@ -390,6 +390,7 @@ let helpKey = null;
 const RAW_BASE = "https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/";
 const FALLBACK = [
   { label: "AIOStreams menu", file: "setup-aiostreams.sh", present: true },
+  { label: "Backup & restore", file: "setup-backup.sh", present: false },
   { label: "VPN (Gluetun)", file: "setup-vpn-gluetun.sh", present: false },
   { label: "MediaFlow Proxy", file: "setup-mediaflow.sh", present: false },
   { label: "Phone alerts", file: "setup-watchdog.sh", present: false },
