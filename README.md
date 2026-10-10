@@ -112,7 +112,7 @@ Docker install, HTTPS certificate, and secret key generation are all handled aut
 
 Once it finishes, visit your domain and log in via AIOStreams' login page. From there, AIOStreams' own setup takes over.
 
-**Where it's installed:** everything lives in `/opt/aiostreams`, one folder whether you're root or a sudo user. The installer turns `~/aiostreams` into a shortcut to it, so `cd ~/aiostreams` keeps working. The folder is root-only (it holds your `SECRET_KEY` and logins), so use `sudo` to edit anything in it, or connect as root if you edit scripts over SFTP.
+**Where it's installed:** everything lives in `/opt/aiostreams`, one folder whether you're root or a sudo user. The installer turns `~/aiostreams` into a shortcut to it, so `cd ~/aiostreams` keeps working. It holds your `SECRET_KEY` and logins, so only root can change it. If you installed with `sudo` as your own user, you can still `cd` into it and read it; use `sudo` to edit anything, or connect as root if you edit scripts over SFTP.
 
 ## Re-running the script later
 

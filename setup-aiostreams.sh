@@ -754,7 +754,7 @@ do_restore() {
     mkdir -p "$(dirname "$INSTALL_DIR")"
     tar xzf "$tarball" -C "$(dirname "$INSTALL_DIR")" aiostreams
     if [[ "$INSTALL_DIR" == "$OPT_INSTALL_DIR" ]]; then
-        chmod 700 "$INSTALL_DIR"   # root only, see the fresh-install step
+        secure_install_dir
     fi
     chmod 600 "$COMPOSE_FILE" 2>/dev/null || true
     grep -q 'SECRET_KEY=' "$COMPOSE_FILE" || \
@@ -1051,6 +1051,20 @@ do_restore() {
 # ---------------------------------------------------------------------------
 # The /opt layout: shortcut links, and 'migrate' for servers set up before it.
 # ---------------------------------------------------------------------------
+
+# /opt/aiostreams holds the SECRET_KEY, logins and (with the VPN) a WireGuard
+# private key, which root's home used to keep private. Root-only, except
+# that the sudo user running this gets read access through their group, so
+# 'cd ~/aiostreams' and SFTP browsing still work for them (they can already
+# read all of it through sudo). Writing still needs sudo or root.
+secure_install_dir() {
+    local dir="${1:-$INSTALL_DIR}"
+    chown root:root "$dir" 2>/dev/null || true
+    if [[ -n "${SUDO_GID:-}" && "${SUDO_GID}" != 0 && -n "${SUDO_USER:-}" && "$SUDO_USER" != root ]]; then
+        chgrp "$SUDO_GID" "$dir" 2>/dev/null && chmod 750 "$dir" && return 0
+    fi
+    chmod 700 "$dir"
+}
 
 container_running() {
     [[ "$(docker inspect -f '{{.State.Running}}' "$1" 2>/dev/null)" == "true" ]]
@@ -1374,7 +1388,7 @@ do_migrate() {
     if ! mv -- "$old" "$new"; then
         error "The move failed. If $old is still complete, start it again with: cd $old && sudo docker compose up -d"
     fi
-    chmod 700 "$new"
+    secure_install_dir "$new"
     ln -s -- "$new" "$old"
     echo "Moved. $old is now a link to $new."
 
@@ -2118,7 +2132,7 @@ if [[ ! -d "$INSTALL_DIR" && "$INSTALL_DIR" == "$OPT_INSTALL_DIR" ]]; then
     # Root only, like root's home was for the old layout: this folder holds
     # the SECRET_KEY, logins and (with the VPN) a WireGuard private key.
     mkdir -p "$INSTALL_DIR"
-    chmod 700 "$INSTALL_DIR"
+    secure_install_dir
 fi
 mkdir -p "$INSTALL_DIR"
 cd "$INSTALL_DIR"
