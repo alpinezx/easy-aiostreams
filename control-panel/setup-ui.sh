@@ -42,6 +42,10 @@ SHARED_NET="aios_shared"
 # if it came from the GitHub repo) and is built straight from there. Its
 # settings, login and logs live next to it in ui-state.
 PANEL_DIR="$INSTALL_DIR/control-panel"
+# Where Update downloads new versions from. AIOS_UI_BRANCH=dev tries the dev
+# branch instead of main.
+PANEL_BRANCH="${AIOS_UI_BRANCH:-main}"
+PANEL_TARBALL="https://github.com/alpinezx/easy-aiostreams/archive/refs/heads/${PANEL_BRANCH}.tar.gz"
 STATE_DIR="$INSTALL_DIR/ui-state"
 UI_COMPOSE="$STATE_DIR/docker-compose.yml"
 CONFIG_FILE="$STATE_DIR/config"
@@ -274,7 +278,7 @@ terminal_state() {
 make_terminal_key() {
     local key
     key=$(docker run --rm -v "$STATE_DIR:/state" "$IMAGE_NAME" python -m app.setup_terminal on 2>/dev/null) \
-        || { warn "The panel image doesn't have the terminal yet. Run option 4 (Rebuild) first, then try again."; return 1; }
+        || { warn "The panel image doesn't have the terminal yet. Run option 4 (Update) first, then try again."; return 1; }
     echo ""
     echo "  Terminal key (shown once, store it in a password manager):"
     echo ""
@@ -322,6 +326,35 @@ do_stop() {
     refuse_in_terminal && return
     (cd "$STATE_DIR" && docker compose -f "$UI_COMPOSE" stop)
     echo "Stopped. AIOStreams is not affected."
+}
+
+# Menu option 4. Downloads the newest control-panel folder from GitHub into
+# $PANEL_DIR (unless told not to), then rebuilds. A download that fails or
+# looks wrong changes nothing.
+do_update() {
+    refuse_in_terminal && return
+    local C tmp
+    read -rp "Download the newest version from GitHub first? [Y/n] (n = just rebuild from the files already here): " C
+    if [[ "$C" =~ ^[Nn] ]]; then
+        do_rebuild
+        return
+    fi
+    info "Downloading the newest control panel ($PANEL_BRANCH branch)"
+    tmp=$(mktemp -d)
+    if ! curl -fsSL "$PANEL_TARBALL" | tar xz -C "$tmp" --strip-components=1 "easy-aiostreams-${PANEL_BRANCH}/control-panel" \
+        || [[ ! -f "$tmp/control-panel/app/main.py" || ! -f "$tmp/control-panel/setup-ui.sh" ]]; then
+        rm -rf "$tmp"
+        warn "Couldn't download it. Nothing was changed; the panel keeps running as it is."
+        return
+    fi
+    # Swap the code in. Only code lives here: settings and login are in ui-state.
+    rm -rf "${PANEL_DIR:?}/app" "${PANEL_DIR:?}/web" "${PANEL_DIR:?}/tests"
+    cp -a "$tmp/control-panel/." "$PANEL_DIR/"
+    chmod 700 "$PANEL_DIR/setup-ui.sh"
+    rm -rf "$tmp"
+    echo "Downloaded."
+    # Rebuild with the new copy of this script, in case it changed too.
+    exec bash "$PANEL_DIR/setup-ui.sh" rebuild
 }
 
 do_rebuild() {
@@ -372,6 +405,11 @@ do_uninstall() {
     exit 0
 }
 
+if [[ "${1:-}" == "rebuild" && -f "$CONFIG_FILE" ]]; then
+    do_rebuild
+    exit 0
+fi
+
 if [[ ! -f "$CONFIG_FILE" ]]; then
     do_install
     exit 0
@@ -383,7 +421,7 @@ while true; do
     echo "1) Status"
     echo "2) Start"
     echo "3) Stop"
-    echo "4) Rebuild (after putting a new version in $PANEL_DIR)"
+    echo "4) Update (download the newest version from GitHub and rebuild)"
     echo "5) Make a new unlock link (signs out every browser)"
     echo "6) Change username/password"
     echo "7) Show the unlock link"
@@ -395,7 +433,7 @@ while true; do
         1) do_status ;;
         2) do_start ;;
         3) do_stop ;;
-        4) do_rebuild ;;
+        4) do_update ;;
         5) do_new_link ;;
         6) do_reset_password ;;
         7) print_unlock ;;

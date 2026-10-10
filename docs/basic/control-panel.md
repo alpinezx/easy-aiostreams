@@ -108,7 +108,7 @@ sudo bash /opt/aiostreams/control-panel/setup-ui.sh
 ```
 
 - **1) Status**, **2) Start**, **3) Stop**
-- **4) Rebuild**: after getting a new version (see below)
+- **4) Update**: download the newest version from GitHub and rebuild (see below)
 - **5) Make a new unlock link**: signs out every browser
 - **6) Change username/password**
 - **7) Show the unlock link**
@@ -117,12 +117,13 @@ sudo bash /opt/aiostreams/control-panel/setup-ui.sh
 
 ## Updating the panel
 
-Download it again (step 2), then choose **4) Rebuild**. Your login, unlock link and terminal key stay the same.
+Open the menu and choose **4) Update**, then press Enter. It downloads the newest version from GitHub and rebuilds the panel. Your login, unlock link and terminal key stay the same. If the download fails, nothing changes.
 
 ```bash
-curl -fsSL https://github.com/alpinezx/easy-aiostreams/archive/refs/heads/main.tar.gz | sudo tar xz -C /opt/aiostreams --strip-components=1 easy-aiostreams-main/control-panel
 sudo bash /opt/aiostreams/control-panel/setup-ui.sh
 ```
+
+Do this over SSH, not from the panel's own Terminal tab (rebuilding the panel would cut that terminal off).
 
 ---
 
