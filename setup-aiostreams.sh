@@ -144,46 +144,20 @@ vpn_gated_start_aiostreams() {
 OPT_INSTALL_DIR="/opt/aiostreams"
 INSTALL_DIR="$OPT_INSTALL_DIR"
 
-# Installs made before October 2026 live in root's home instead. These
-# scripts don't work with that layout; the migrate-to-opt branch moves it,
-# once. Stop here rather than mistake such a server for a fresh one, and
-# offer the move when a person is at the keyboard. Same block in every
-# setup-*.sh and in setup-ui.sh.
-MIGRATE_GUIDE_URL="https://github.com/alpinezx/easy-aiostreams/tree/migrate-to-opt"
-# Where setup-backup.sh is fetched from when it's missing. AIOS_BRANCH=dev to test.
-RAW_BASE="https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/${AIOS_BRANCH:-main}"
-MIGRATE_SCRIPT_URL="https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/migrate-to-opt/setup-aiostreams.sh"
-for _old in "$(getent passwd root 2>/dev/null | cut -d: -f6)/aiostreams" "${HOME:-/root}/aiostreams"; do
-    if [[ "$_old" == /*/aiostreams && "$_old" != "$INSTALL_DIR" && ! -L "$_old" \
-        && -f "$_old/docker-compose.yml" && ! -f "$INSTALL_DIR/docker-compose.yml" ]]; then
-        echo ""
-        echo "This server's AIOStreams install is still in $_old, where"
-        echo "installs made before October 2026 live. It now belongs in"
-        echo "$INSTALL_DIR, and this script only works with that. Moving it takes"
-        echo "a backup first and about a minute of downtime."
-        if [[ $EUID -eq 0 && -t 0 && -t 1 ]]; then
-            read -rp "Move it now? [Y/n]: " _move
-            if [[ ! "$_move" =~ ^[Nn] ]]; then
-                _tmp=$(mktemp -d)
-                cp -- "$SELF_SCRIPT_PATH" "$_tmp/self.sh"
-                if curl -fsSL "$MIGRATE_SCRIPT_URL" -o "$_tmp/migrate.sh" \
-                    && bash "$_tmp/migrate.sh" migrate --yes \
-                    && [[ -f "$INSTALL_DIR/docker-compose.yml" ]]; then
-                    cp -f -- "$_tmp/self.sh" "$INSTALL_DIR/$(basename "$SELF_SCRIPT_PATH")"
-                    chmod 755 "$INSTALL_DIR/$(basename "$SELF_SCRIPT_PATH")"
-                    rm -rf "$_tmp"
-                    exec bash "$INSTALL_DIR/$(basename "$SELF_SCRIPT_PATH")" "$@"
-                fi
-                rm -rf "$_tmp"
-                echo "The move didn't finish. Nothing else was changed."
-            fi
-        fi
-        echo "To move it, follow the steps here: $MIGRATE_GUIDE_URL"
-        exit 1
-    fi
-done
+# Installs made before October 2026 live in /root/aiostreams instead, and
+# these scripts don't work with that layout. Stop rather than mistake the
+# server for one without an install.
+_old="$(getent passwd root 2>/dev/null | cut -d: -f6)/aiostreams"
+if [[ -f "$_old/docker-compose.yml" && ! -L "$_old" && ! -f "$INSTALL_DIR/docker-compose.yml" ]]; then
+    echo "This server's AIOStreams install is in $_old, from before October 2026."
+    echo "These scripts only work with $INSTALL_DIR. Move it first:"
+    echo "  https://github.com/alpinezx/easy-aiostreams/tree/migrate-to-opt"
+    exit 1
+fi
 unset _old
 COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"
+# Where setup-backup.sh is fetched from when it's missing. AIOS_BRANCH=dev to test.
+RAW_BASE="https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/${AIOS_BRANCH:-main}"
 CADDYFILE="$INSTALL_DIR/Caddyfile"
 CADDY_DROPIN_DIR="$INSTALL_DIR/caddy.d"
 # Written by "Stop AIOStreams" so the watchdog knows a stopped aiostreams is
@@ -573,11 +547,6 @@ case "${1:-}" in
         status=0
         restore_start_stack || status=$?
         exit "$status"
-        ;;
-    migrate)
-        echo "This version doesn't move installs any more; it only works with $INSTALL_DIR."
-        echo "To move an install from before October 2026, follow: $MIGRATE_GUIDE_URL"
-        exit 1
         ;;
 esac
 

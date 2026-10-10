@@ -45,20 +45,16 @@ compose_image_refs() {
 OPT_INSTALL_DIR="/opt/aiostreams"
 INSTALL_DIR="$OPT_INSTALL_DIR"
 
-# Installs made before October 2026 live in root's home instead. These
-# scripts don't work with that layout: stop rather than mistake the server
-# for one without an install. setup-aiostreams.sh offers the move.
-for _old in "$(getent passwd root 2>/dev/null | cut -d: -f6)/aiostreams" "${HOME:-/root}/aiostreams"; do
-    if [[ "$_old" == /*/aiostreams && "$_old" != "$INSTALL_DIR" && ! -L "$_old" \
-        && -f "$_old/docker-compose.yml" && ! -f "$INSTALL_DIR/docker-compose.yml" ]]; then
-        echo "This server's AIOStreams install is still in $_old, where installs made"
-        echo "before October 2026 live. It now belongs in $INSTALL_DIR. To move it, run:"
-        echo "  sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-aiostreams.sh -o $_old/setup-aiostreams.sh"
-        echo "  sudo bash $_old/setup-aiostreams.sh"
-        echo "or follow https://github.com/alpinezx/easy-aiostreams/tree/migrate-to-opt"
-        exit 1
-    fi
-done
+# Installs made before October 2026 live in /root/aiostreams instead, and
+# these scripts don't work with that layout. Stop rather than mistake the
+# server for one without an install.
+_old="$(getent passwd root 2>/dev/null | cut -d: -f6)/aiostreams"
+if [[ -f "$_old/docker-compose.yml" && ! -L "$_old" && ! -f "$INSTALL_DIR/docker-compose.yml" ]]; then
+    echo "This server's AIOStreams install is in $_old, from before October 2026."
+    echo "These scripts only work with $INSTALL_DIR. Move it first:"
+    echo "  https://github.com/alpinezx/easy-aiostreams/tree/migrate-to-opt"
+    exit 1
+fi
 unset _old
 COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"
 CADDY_DROPIN_DIR="$INSTALL_DIR/caddy.d"
@@ -565,7 +561,7 @@ do_configure() {
         (cd "$STATE_DIR" && docker compose -f "$RELAY_COMPOSE" up -d --force-recreate)
         restart_caddy_to_pick_up_dropin
         echo "Applied. The URL above is live now."
-    else
+    elif [[ "${1:-}" != from-start ]]; then
         echo ""
         echo "Relay isn't running yet, run option 2 (Start) next to bring it up with these settings."
     fi
@@ -616,7 +612,8 @@ do_change_emojis() {
 }
 
 do_start() {
-    [[ -f "$CONFIG_FILE" ]] || do_configure
+    # from-start: Start brings it up straight after, so skip "run Start next".
+    [[ -f "$CONFIG_FILE" ]] || do_configure from-start
     # Rewritten every Start (not just Reconfigure), so pulling a newer
     # setup-webhook.sh and running Start is enough to pick up code changes,
     # no need to re-answer the Reconfigure prompts just to refresh the app.

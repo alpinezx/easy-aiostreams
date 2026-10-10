@@ -28,26 +28,23 @@ require_cmd() {
 OPT_INSTALL_DIR="/opt/aiostreams"
 INSTALL_DIR="$OPT_INSTALL_DIR"
 
-# Installs made before October 2026 live in root's home instead. These
-# scripts don't work with that layout: stop rather than mistake the server
-# for one without an install. setup-aiostreams.sh offers the move.
-for _old in "$(getent passwd root 2>/dev/null | cut -d: -f6)/aiostreams" "${HOME:-/root}/aiostreams"; do
-    if [[ "$_old" == /*/aiostreams && "$_old" != "$INSTALL_DIR" && ! -L "$_old" \
-        && -f "$_old/docker-compose.yml" && ! -f "$INSTALL_DIR/docker-compose.yml" ]]; then
-        echo "This server's AIOStreams install is still in $_old, where installs made"
-        echo "before October 2026 live. It now belongs in $INSTALL_DIR. To move it, run:"
-        echo "  sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-aiostreams.sh -o $_old/setup-aiostreams.sh"
-        echo "  sudo bash $_old/setup-aiostreams.sh"
-        echo "or follow https://github.com/alpinezx/easy-aiostreams/tree/migrate-to-opt"
-        exit 1
-    fi
-done
+# Installs made before October 2026 live in /root/aiostreams instead, and
+# these scripts don't work with that layout. Stop rather than mistake the
+# server for one without an install.
+_old="$(getent passwd root 2>/dev/null | cut -d: -f6)/aiostreams"
+if [[ -f "$_old/docker-compose.yml" && ! -L "$_old" && ! -f "$INSTALL_DIR/docker-compose.yml" ]]; then
+    echo "This server's AIOStreams install is in $_old, from before October 2026."
+    echo "These scripts only work with $INSTALL_DIR. Move it first:"
+    echo "  https://github.com/alpinezx/easy-aiostreams/tree/migrate-to-opt"
+    exit 1
+fi
 unset _old
 COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"
 CADDYFILE="$INSTALL_DIR/Caddyfile"
 
 # Where a missing setup-aiostreams.sh is fetched from. AIOS_BRANCH=dev to test.
 RAW_BASE="https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/${AIOS_BRANCH:-main}"
+MIGRATE_SCRIPT_URL="https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/migrate-to-opt/setup-aiostreams.sh"
 
 # Root's home: where backup tarballs are written. Looked up rather than
 # taken from $HOME, so a caller with HOME set elsewhere can't scatter
@@ -244,48 +241,6 @@ do_backup() {
 # ---------------------------------------------------------------------------
 # Restore helpers
 # ---------------------------------------------------------------------------
-
-# Files outside the install folder that can have its absolute path written
-# into them by the add-on scripts.
-INSTALL_PATH_EXTERNAL_FILES=(
-    /etc/systemd/system/aiostreams-watchdog.service
-    /etc/systemd/system/aios-webhook-boot-notify.service
-    /etc/systemd/system/aiostreams-vpn-boot.service
-    /usr/local/bin/aiostreams-vpn-boot.sh
-    /etc/fail2ban/jail.d/aios-mediaflow.conf
-)
-
-# NUL-separated list of every small config file that can name the install
-# folder: the external files above, plus compose files, configs, env files
-# and Caddy files inside it. Never ./data, logs, or the panel's source copy.
-install_path_files() {
-    local dir="$1" f
-    for f in "${INSTALL_PATH_EXTERNAL_FILES[@]}"; do
-        if [[ -f "$f" ]]; then
-            printf '%s\0' "$f"
-        fi
-    done
-    find "$dir" -maxdepth 3 \
-        \( -path "$dir/data" -o -path "$dir/caddy-logs" -o -path "$dir/ui-state/src" \) -prune -o \
-        -type f -size -1024k \
-        \( -name '*.yml' -o -name '*.yaml' -o -name '*.env' -o -name 'config' -o -name '*.caddy' -o -name 'Caddyfile*' \) \
-        -print0 2>/dev/null
-}
-
-# Replaces the folder path FROM with TO wherever FROM appears as a whole path
-# (followed by /, :, a quote, a space or the end of the line), so a name like
-# /root/aiostreams-backup-... is never touched. Sets REWRITTEN_FILES.
-rewrite_install_paths() {
-    local from="$1" to="$2" dir="$3" f re
-    REWRITTEN_FILES=()
-    re=$(printf '%s' "$from" | sed 's/[][\.*^$+?(){}|#]/\\&/g')
-    while IFS= read -r -d '' f; do
-        grep -qF -- "$from" "$f" 2>/dev/null || continue
-        sed -i -E "s#${re}([/:\"'[:space:]]|\$)#${to}\\1#g" "$f"
-        REWRITTEN_FILES+=("$f")
-    done < <(install_path_files "$dir")
-    return 0
-}
 
 check_restored_domain_dns() {
     [[ -f "$CADDYFILE" ]] || return 0   # nothing to check against
@@ -497,6 +452,28 @@ do_restore() {
     grep -q 'aiostreams/docker-compose.yml' <<< "$tar_listing" || \
         error "That archive doesn't look like a backup made by this script (no aiostreams/docker-compose.yml inside)."
 
+    # A backup from before October 2026 names /root/aiostreams inside its
+    # add-on and panel settings, which only work there. The migrate-to-opt
+    # version restores those into /opt; send it there before changing anything.
+    local old_ref
+    old_ref=$(tar -xzOf "$tarball" --exclude='aiostreams/data' --wildcards --no-anchored \
+            '*.yml' '*.yaml' '*.caddy' '*.env' 'config' 2>/dev/null \
+        | grep -m1 -oE '/(root|home/[^/[:space:]"]+)/aiostreams([/:"[:space:]]|$)' || true)
+    if [[ -n "$old_ref" ]]; then
+        echo ""
+        warn "This backup is from before October 2026, when installs lived in /root/aiostreams."
+        echo "Restore it once with the migrate-to-opt version, which brings it into"
+        echo "$INSTALL_DIR, then put the current script back:"
+        echo ""
+        echo "  curl -fsSL $MIGRATE_SCRIPT_URL -o ~/setup-aiostreams-migrate.sh"
+        echo "  sudo bash ~/setup-aiostreams-migrate.sh restore $tarball"
+        echo "  rm ~/setup-aiostreams-migrate.sh"
+        echo "  sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-aiostreams.sh -o $INSTALL_DIR/setup-aiostreams.sh"
+        echo ""
+        echo "Nothing was changed on this server."
+        return 1
+    fi
+
     # Keep the scripts being run before the install folder moves: they may
     # live in it, and they're put back into the restored one further down.
     local keep
@@ -550,16 +527,6 @@ do_restore() {
     mkdir -p "$(dirname "$INSTALL_DIR")"
     tar xzf "$tarball" -C "$(dirname "$INSTALL_DIR")" aiostreams
     chmod 700 "$INSTALL_DIR"   # setup-aiostreams.sh sets the final access below
-    # A backup made before the move to /opt has /root/aiostreams written
-    # into the add-on compose files (and the panel's). Point them here.
-    local old_root
-    for old_root in "$ROOT_HOME/aiostreams" "/root/aiostreams"; do
-        rewrite_install_paths "$old_root" "$INSTALL_DIR" "$INSTALL_DIR"
-        if (( ${#REWRITTEN_FILES[@]} > 0 )); then
-            echo "Pointed ${#REWRITTEN_FILES[@]} file(s) from the backup's old folder ($old_root) at $INSTALL_DIR."
-            systemctl daemon-reload >/dev/null 2>&1 || true
-        fi
-    done
     chmod 600 "$COMPOSE_FILE" 2>/dev/null || true
     grep -q 'SECRET_KEY=' "$COMPOSE_FILE" || \
         error "Restored compose file has no SECRET_KEY. The archive may be damaged. Nothing has been started."

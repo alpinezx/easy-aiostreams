@@ -35,8 +35,9 @@ sudo bash /opt/aiostreams/setup-backup.sh restore aiostreams-backup-YYYYMMDD-HHM
 ```
 
 A restore puts the newest copies of both scripts you have into the restored
-folder, so restoring an older backup never leaves you on older scripts. Older
-backups made before `setup-backup.sh` existed restore the same way.
+folder, so restoring an older backup never leaves you on older scripts. Backups
+made before `setup-backup.sh` existed (but after the move to `/opt`) restore the
+same way.
 
 ## What's included in a backup
 
@@ -148,8 +149,10 @@ current one aside, right next to it (e.g.
 outright, so you can recover if you picked the wrong tarball.
 
 Backups made before October 2026, when installs lived in
-`/root/aiostreams`, restore fine too: they land in `/opt/aiostreams` like
-any other, and the restore points their add-on paths at the new folder.
+`/root/aiostreams`, are restored once with the
+[migrate-to-opt](https://github.com/alpinezx/easy-aiostreams/tree/migrate-to-opt)
+version, which brings them into `/opt/aiostreams`. The restore spots one
+and prints the exact commands, without changing anything.
 
 From the management menu, choose **8) Restore from backup**, then pick your
 tarball from the list. That's it .  the script finds tarballs sitting in the

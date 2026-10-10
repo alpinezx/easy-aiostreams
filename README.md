@@ -1,7 +1,7 @@
 # Easy AIOStreams
 
 > [!IMPORTANT]
-> **Installed this before October 2026?** The install folder has moved from `/root/aiostreams` to `/opt/aiostreams`, and these scripts only work with the new location. [Follow these steps to move your install](https://github.com/alpinezx/easy-aiostreams/tree/migrate-to-opt) (about a minute of downtime, with a backup first). Running the updated `setup-aiostreams.sh` on an old install also offers to do it for you.
+> **Installed this before October 2026?** The install folder has moved from `/root/aiostreams` to `/opt/aiostreams`, and these scripts only work with the new location. [Follow these steps to move your install](https://github.com/alpinezx/easy-aiostreams/tree/migrate-to-opt) (about a minute of downtime, with a backup first). Restoring a backup made before then onto a new server also goes through that branch once; the restore tells you how if it spots one.
 >
 > **Installing for the first time?** You can skip this.
 
