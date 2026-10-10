@@ -59,7 +59,26 @@ if [[ -n "${SUDO_USER:-}" && "$SUDO_USER" != "root" ]]; then
     [[ -n "$sudo_home" && -d "$sudo_home" ]] && REAL_HOME="$sudo_home"
 fi
 
-INSTALL_DIR="$HOME/aiostreams"
+# Install folder. New installs, and servers moved with
+# 'sudo bash setup-aiostreams.sh migrate', use /opt/aiostreams: one path for
+# root and every sudo user. A server set up before that keeps its old
+# ~/aiostreams under root's home until it is migrated. The same rule is in
+# every setup-*.sh and in setup-ui.sh, so keep them identical.
+OPT_INSTALL_DIR="/opt/aiostreams"
+LEGACY_INSTALL_DIR=""
+for _legacy in "${HOME:-/root}/aiostreams" "$(getent passwd root 2>/dev/null | cut -d: -f6)/aiostreams"; do
+    if [[ "$_legacy" == /*/aiostreams && "$_legacy" != "$OPT_INSTALL_DIR" && ! -L "$_legacy" \
+        && -f "$_legacy/docker-compose.yml" ]]; then
+        LEGACY_INSTALL_DIR="$_legacy"
+        break
+    fi
+done
+unset _legacy
+if [[ -n "$LEGACY_INSTALL_DIR" && ! -f "$OPT_INSTALL_DIR/docker-compose.yml" ]]; then
+    INSTALL_DIR="$LEGACY_INSTALL_DIR"
+else
+    INSTALL_DIR="$OPT_INSTALL_DIR"
+fi
 COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"
 CADDYFILE="$INSTALL_DIR/Caddyfile"
 STATE_DIR="$INSTALL_DIR/vpn-state"

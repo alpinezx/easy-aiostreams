@@ -41,7 +41,26 @@ compose_image_refs() {
     grep -oP '^\s*image:\s*\K\S+' "$1" 2>/dev/null || true
 }
 
-INSTALL_DIR="$HOME/aiostreams"
+# Install folder. New installs, and servers moved with
+# 'sudo bash setup-aiostreams.sh migrate', use /opt/aiostreams: one path for
+# root and every sudo user. A server set up before that keeps its old
+# ~/aiostreams under root's home until it is migrated. The same rule is in
+# every setup-*.sh and in setup-ui.sh, so keep them identical.
+OPT_INSTALL_DIR="/opt/aiostreams"
+LEGACY_INSTALL_DIR=""
+for _legacy in "${HOME:-/root}/aiostreams" "$(getent passwd root 2>/dev/null | cut -d: -f6)/aiostreams"; do
+    if [[ "$_legacy" == /*/aiostreams && "$_legacy" != "$OPT_INSTALL_DIR" && ! -L "$_legacy" \
+        && -f "$_legacy/docker-compose.yml" ]]; then
+        LEGACY_INSTALL_DIR="$_legacy"
+        break
+    fi
+done
+unset _legacy
+if [[ -n "$LEGACY_INSTALL_DIR" && ! -f "$OPT_INSTALL_DIR/docker-compose.yml" ]]; then
+    INSTALL_DIR="$LEGACY_INSTALL_DIR"
+else
+    INSTALL_DIR="$OPT_INSTALL_DIR"
+fi
 COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"
 CADDY_DROPIN_DIR="$INSTALL_DIR/caddy.d"
 SHARED_NET="aios_shared"
