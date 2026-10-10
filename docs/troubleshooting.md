@@ -14,6 +14,7 @@ Every guide in this repo, basic and advanced. Jump straight to whichever one you
 | Watchdog Alerts | [Basic](./basic/watchdog.md) | [Advanced](./advanced/watchdog.md) |
 | Webhook Relay | [Basic](./basic/webhook-relay.md) | [Advanced](./advanced/webhook-relay.md) |
 | Backup & Restore | [Basic](./basic/backup-restore.md) | [Advanced](./advanced/backup-restore.md) |
+| Control Panel (beta) | [Basic](./basic/control-panel.md) | [Advanced](./advanced/control-panel.md) |
 
 ## Most Likely Issues
 
