@@ -10,6 +10,15 @@
 > ```
 >
 > It takes a backup first, stops the stack for about a minute, moves everything to `/opt/aiostreams` (add-ons, systemd units and the control panel included) and starts back up whatever was running. `~/aiostreams` becomes a shortcut to the new folder. To put it back: `sudo bash /opt/aiostreams/setup-aiostreams.sh migrate undo`.
+>
+> **Restoring a backup made before October 2026 onto a new server?** Use this version for that restore too. It puts the backup in `/opt/aiostreams` and points its add-ons there. Then put the current script from the main branch in place:
+>
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/migrate-to-opt/setup-aiostreams.sh -o ~/setup-aiostreams-migrate.sh
+> sudo bash ~/setup-aiostreams-migrate.sh restore aiostreams-backup-YYYYMMDD-HHMMSS.tar.gz
+> rm ~/setup-aiostreams-migrate.sh
+> sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-aiostreams.sh -o /opt/aiostreams/setup-aiostreams.sh
+> ```
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
