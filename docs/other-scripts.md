@@ -14,6 +14,10 @@ Optional add-ons on top of the main install. Each is its own standalone script, 
 
 - **Want to turn a third-party site's "Webhook" notification option into a phone alert?** Gives you a real HTTPS endpoint on your own domain (something webhook fields require but a topic-based service like ntfy doesn't provide on its own), and relays whatever it receives to ntfy. Run with `setup-webhook.sh`. → [Basic](./basic/webhook-relay.md) · [Advanced](./advanced/webhook-relay.md)
 
+### Control Panel (beta)
+
+- **Rather manage your server from a web page than over SSH?** A private dashboard on its own subdomain: see what's running, start, stop, update and back up with a button, read the logs, and optionally open a terminal from your phone. Locked behind a secret unlock link plus its own login. Run with `control-panel/setup-ui.sh`. → [Basic](./basic/control-panel.md) · [Advanced](./advanced/control-panel.md)
+
 ### MediaFlow Proxy
 
 - **Seeing a CPU spike every time you scrub/seek during playback?** Swaps AIOStreams' built-in proxy for [MediaFlow Proxy Light](https://github.com/mhdzumair/MediaFlow-Proxy-Light), a faster, lighter Rust-based proxy that handles the same scrub-triggered request bursts with far less CPU cost. Trade-off: you lose AIOStreams' own per-stream dashboard visibility while it's active (see the advanced guide). Includes optional hardening (blocked UI pages, a fail2ban jail). Run with `setup-mediaflow.sh`. → [Basic](./basic/mediaflow-proxy.md) · [Advanced](./advanced/mediaflow-proxy.md)
