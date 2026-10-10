@@ -1,193 +1,49 @@
-# Easy AIOStreams
-
-> [!IMPORTANT]
-> **This is the `migrate-to-opt` branch.** It only exists to move an install made before October 2026 from `/root/aiostreams` to `/opt/aiostreams`. Do it once, then go back to the [main branch](https://github.com/alpinezx/easy-aiostreams) for everything else.
->
-> ```bash
-> curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/migrate-to-opt/setup-aiostreams.sh -o ~/setup-aiostreams-migrate.sh
-> sudo bash ~/setup-aiostreams-migrate.sh migrate
-> rm ~/setup-aiostreams-migrate.sh
-> ```
->
-> It takes a backup first, stops the stack for about a minute, moves everything to `/opt/aiostreams` (add-ons, systemd units and the control panel included) and starts back up whatever was running. `~/aiostreams` becomes a shortcut to the new folder. To put it back: `sudo bash /opt/aiostreams/setup-aiostreams.sh migrate undo`.
->
-> **Restoring a backup made before October 2026 onto a new server?** Use this version for that restore too. It puts the backup in `/opt/aiostreams` and points its add-ons there. Then put the current script from the main branch in place:
->
-> ```bash
-> curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/migrate-to-opt/setup-aiostreams.sh -o ~/setup-aiostreams-migrate.sh
-> sudo bash ~/setup-aiostreams-migrate.sh restore aiostreams-backup-YYYYMMDD-HHMMSS.tar.gz
-> rm ~/setup-aiostreams-migrate.sh
-> sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-aiostreams.sh -o /opt/aiostreams/setup-aiostreams.sh
-> ```
+# Easy AIOStreams: move to /opt
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-A one-command installer for a self-hosted [AIOStreams](https://github.com/Viren070/AIOStreams) instance. It sets up Docker, Caddy (automatic HTTPS via Let's Encrypt), and secure login access to the config page and dashboard, all in one script. Restricted to your own credentials.
+> [!IMPORTANT]
+> **This is the `migrate-to-opt` branch.** It only exists to move an install made before October 2026 from `/root/aiostreams` to `/opt/aiostreams`. Do it once, then go back to the [main branch](https://github.com/alpinezx/easy-aiostreams) for installing, updating and everything else.
 
-## Contents
-
-- [What this gives you](#what-this-gives-you)
-- [Prerequisites](#prerequisites)
-- [Quick start](#quick-start)
-- [Re-running the script later](#re-running-the-script-later)
-- [Notes](#notes)
-- [Backup & Restore: Migrating to a new server](#backup--restore--migrating-to-a-new-server-optional)
-- [Troubleshooting](#troubleshooting)
-- [Other Scripts](#other-scripts)
-
-## What this gives you
-
-- Your own AIOStreams instance, not a shared public one
-- HTTPS out of the box, auto-renewing, no manual cert wrangling
-- **App-level login** (AIOStreams' own auth). The configure page, dashboard, and the config API all require your username/password. Nobody else can create or edit configs on your instance, even if they talk to the API directly.
-- A management menu for status checks, restart, updates, switching from stable to nightly and back, backups, and clean uninstall, all in one place
-- Single-tarball backup and restore, for migrating to a new server or restoring to an existing one, without losing any configs
-
-## Prerequisites
-
-- A fresh VPS with root access, running Ubuntu 24.04+ or Debian 13 (should also work on Debian 12, untested)
-- Ports 80 and 443 opened in your provider's firewall if it's enabled. Oracle cloud users, do this first > [Firewall Ports](./docs/basic/firewall-ports.md#2-check-your-providers-own-firewall-separate-from-the-server).
-- A subdomain you control, with an **A record already pointed at your server's IP** before running the script
-
-### Don't have a VPS yet?
-
-Any provider with root SSH access works: DigitalOcean, Hetzner, Oracle's free tier, Vultr, and others all run this fine. Compare specs/pricing at [vpsbenchmarks.com's under-$8/month list](https://www.vpsbenchmarks.com/best_vps/2026/under/8).
-
-**This script won't run on Vercel, Netlify, Railway, or similar app-hosting platforms.**
-
-### Don't have a domain yet?
-
-Any registrar works. If you're buying one just for this, prefer `.xyz` or `.top` over a country-code TLD (`.co.uk`, `.de`). They're usually DNS-ready in minutes, versus hours to days for country-code domains.
-
-- **[Porkbun](https://porkbun.com)**: cheap `.xyz`/`.top`, free WHOIS privacy + SSL, near-instant activation
-- **[Spaceship](https://spaceship.com)**: Namecheap's leaner sister site, competitive pricing (especially `.com`), free WHOIS privacy
-- **[Namecheap](https://namecheap.com)**: the established option, huge TLD selection, slightly pricier renewals
-- **[DuckDNS](https://www.duckdns.org)**: totally free `yourname.duckdns.org` subdomain, no card needed. Fine for personal use, though you don't get to pick your own TLD.
-
-Whichever you pick, add an **A record** pointing at your VPS's IP before running the script. The install fails the HTTPS step if DNS hasn't propagated.
-
-## Quick start
-
-### Confirm your DNS is actually pointing at your server first
-
-The install fails the HTTPS step if your **A record** hasn't propagated yet. Run this, but swap `yourdomain.xyz` for your own real domain first, it's just a placeholder:
-
-Bare name only, no `https://`, no trailing `/`, no backslash. e.g. `dig +short yourdomain.xyz`, or `dig +short aio.yourdomain.xyz` for a subdomain. It should print a single IP; compare it to your server's:
+## Move an existing install
 
 ```bash
-dig +short yourdomain.xyz
+curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/migrate-to-opt/setup-aiostreams.sh -o ~/setup-aiostreams-migrate.sh
+sudo bash ~/setup-aiostreams-migrate.sh migrate
+rm ~/setup-aiostreams-migrate.sh
 ```
+
+What it does:
+
+- Takes a backup first
+- Stops the stack for about a minute
+- Moves everything to `/opt/aiostreams`, and points the add-ons, systemd units and control panel at the new path
+- Starts back up whatever was running
+
+Afterwards `/root/aiostreams` and your `~/aiostreams` become shortcuts to the new folder. Your old `~/aiostreams` is removed only if it held nothing but identical copies of the scripts; otherwise it's renamed to `~/aiostreams.old-<time>`.
+
+To put everything back the way it was:
 
 ```bash
-curl -4 ifconfig.me
+sudo bash /opt/aiostreams/setup-aiostreams.sh migrate undo
 ```
 
-**✅ Example: Matches, good to go:**
-```
-dig +short yourdomain.xyz
-192.0.2.15
-curl -4 ifconfig.me
-192.0.2.15
-```
+## Restore a pre-October 2026 backup onto a new server
 
-**❌ Example: Doesn't match yet, wait and retry:**
-```
-dig +short yourdomain.xyz
-198.51.100.23
-curl -4 ifconfig.me
-192.0.2.15
-```
-Different IPs mean the domain isn't pointing at this server yet. Don't run the installer until these two lines match.
-
-### Run the installer
-
-Create the install folder and move into it:
+Use this version for that restore too. It puts the backup in `/opt/aiostreams` and points its add-ons there. The last line then puts the current script from the main branch in place:
 
 ```bash
-sudo mkdir -p /opt/aiostreams && cd /opt/aiostreams
+curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/migrate-to-opt/setup-aiostreams.sh -o ~/setup-aiostreams-migrate.sh
+sudo bash ~/setup-aiostreams-migrate.sh restore aiostreams-backup-YYYYMMDD-HHMMSS.tar.gz
+rm ~/setup-aiostreams-migrate.sh
+sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-aiostreams.sh -o /opt/aiostreams/setup-aiostreams.sh
 ```
 
-Download the script:
+If you're moving to a new server, remember to update your domain's A record afterwards. The [backup & restore guide](https://github.com/alpinezx/easy-aiostreams/blob/main/docs/basic/backup-restore.md) on main covers that.
 
-```bash
-sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-aiostreams.sh -o setup-aiostreams.sh
-```
+## Everything else
 
-(Optional: take a look before running it with `less setup-aiostreams.sh`)
-
-Run it:
-
-```bash
-sudo bash setup-aiostreams.sh
-```
-
-The script will ask you for:
-1. Your domain/subdomain
-2. A username and password for logging into the instance
-3. Which build to run: stable (recommended) or nightly
-
-Passwords need at least 8 characters, and are limited to letters, numbers, and `@ % ^ * _ + = . ! ? -`. Other symbols would break the `user:pass` environment format.
-
-Docker install, HTTPS certificate, and secret key generation are all handled automatically.
-
-Once it finishes, visit your domain and log in via AIOStreams' login page. From there, AIOStreams' own setup takes over.
-
-**Where it's installed:** everything lives in `/opt/aiostreams`, one folder whether you're root or a sudo user, and every guide in these docs uses that path. The installer also adds `~/aiostreams` as a shortcut to it. It holds your `SECRET_KEY` and logins, so only root can change it. If you installed with `sudo` as your own user, you can still `cd` into it and read it; use `sudo` to edit anything, or connect as root if you edit scripts over SFTP.
-
-## Re-running the script later
-
-Run it again any time with `sudo bash /opt/aiostreams/setup-aiostreams.sh` and it'll detect your existing install and offer a menu that loops back after each action, so you can run several in a row without relaunching:
-
-```
- 1) View status
- 2) Stop AIOStreams
- 3) Start AIOStreams
- 4) Restart the stack (AIOStreams + Caddy, and the VPN if enabled)
- 5) Update (pull latest images + restart; can also switch stable/nightly)
- 6) Reconfigure (change domain/login, backs up your current config first)
- 7) Backup (one tarball with everything needed for migration or safekeeping)
- 8) Restore from backup (also runs on a fresh server: sudo bash setup-aiostreams.sh restore <file>)
- 9) Uninstall (clean removal)
-10) Exit
-```
-
-**Stable vs nightly:** on a fresh install (or Reconfigure), you'll be asked to choose the `latest` (stable) or `nightly` build. Switch channels anytime from **Update**, it'll walk you through it and confirm before switching.
-
-## Moving an older install to /opt
-
-Installs made before this change live in root's home (`/root/aiostreams`), with a second copy of the scripts in your own `~/aiostreams` when you use `sudo`. They keep working as they are. The next time you open any of the scripts' menus, it asks once whether to move the install to `/opt` now; press Enter for yes, or `n` to keep things as they are (it asks again next time). You can also run the move yourself:
-
-```bash
-sudo bash setup-aiostreams.sh migrate
-```
-
-It takes a backup, stops the stack for about a minute, moves the folder to `/opt/aiostreams`, updates the add-ons, systemd units and the control panel to the new path, and starts back up whatever was running. `/root/aiostreams` and your `~/aiostreams` become shortcuts to the new folder. Until you move, use `~/aiostreams` wherever the guides say `/opt/aiostreams`. Your old `~/aiostreams` is removed only if it held nothing but identical copies of the scripts; otherwise it's renamed to `~/aiostreams.old-<time>`. To put everything back the way it was: `sudo bash /opt/aiostreams/setup-aiostreams.sh migrate undo`.
-
-## Notes
-
-- The installer prints your credentials file location and a couple of important reminders once it finishes. Read that summary before closing the terminal.
-
-## Backup & Restore (Migrating to a new server, optional)
-
-- Back up your whole stack to a single tarball and restore it to your existing or a new VPS, preserving the same domain, login, `SECRET_KEY`, and all, so every existing user config and installed Stremio manifest keeps working. Covers the DNS update you'll need to make afterward if you're migrating to a new server. → [Basic](./docs/basic/backup-restore.md) · [Advanced](./docs/advanced/backup-restore.md)
-
-## Troubleshooting
-
-**HTTPS certificate stuck at "not confirmed"?** [Firewall & Ports Guide](./docs/basic/firewall-ports.md#2-check-your-providers-own-firewall-separate-from-the-server)
-
-Addon/scraper blocked, streams failing to load, `403`/`429`/`502` errors in the logs? [Add-on Proxy Setup](./docs/basic/addon-proxy-setup.md)
-
-The most common issues you may come across. [Common Issues](./docs/troubleshooting.md#most-likely-issues)
-
-links to every guide (basic and advanced). [All Guides](./docs/troubleshooting.md#all-guides)
-
-If you suspect it's not your setup at all, check, [Stremio Status](https://status.stremio-status.com/) or [IbbyLabs Uptime Tracker](https://uptime.ibbylabs.dev/) to see if the addon/provider itself is down.
-
-## Other Scripts
-
-Want a system-wide VPN layer, phone alerts if your VPN tunnel, AIOStreams or MediaFlow goes down, to turn a third-party site's webhook option into a phone alert, or a lighter alternative proxy if scrubbing/seeking spikes your VPS's CPU? Those live in their own standalone scripts, see [Other Scripts](./docs/other-scripts.md)
-
-For bugs in the script itself: [open an issue](https://github.com/alpinezx/easy-aiostreams/issues). For setup questions not covered here or in the linked guides, check out these Reddit threads: [r/streamioaddons](https://www.reddit.com/r/StremioAddons/comments/1vo6a5q/self_hosted_aiostreams_easy_install_script/), [r/nuvioaddons](https://www.reddit.com/r/nuvioaddons/comments/1vsud3b/self_hosted_aiostreams_easy_install_script_nuvio/)
+Installing, updating, the management menu, troubleshooting and the other scripts are all on the [main branch README](https://github.com/alpinezx/easy-aiostreams). Bugs: [open an issue](https://github.com/alpinezx/easy-aiostreams/issues).
 
 ## License
 
