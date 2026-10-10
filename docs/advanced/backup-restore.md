@@ -68,6 +68,11 @@ Or non-interactively, without going through the menu at all:
 sudo bash /opt/aiostreams/setup-aiostreams.sh backup
 ```
 
+While the tarball is written (a few seconds), AIOStreams is paused so its
+database is copied in one piece rather than caught mid-write. It's frozen,
+not stopped: nothing restarts, and it carries on as soon as the copy is done.
+If AIOStreams was stopped on purpose, it's left stopped.
+
 Either way, this writes a timestamped tarball, e.g.
 `aiostreams-backup-YYYYMMDD-HHMMSS.tar.gz`, and prints the `scp` command
 to copy it off the server. **Use the exact command it prints** .  it depends

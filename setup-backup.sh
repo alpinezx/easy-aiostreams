@@ -163,11 +163,28 @@ do_backup() {
     # caddy-logs is MediaFlow's access log for fail2ban: regenerated on its
     # own, can grow to around 1GB, and holds full stream URLs (which can
     # include the MediaFlow API password). Nothing a restore needs.
+    # AIOStreams writes to its database every few seconds. Freeze it while
+    # the archive is written so the database is copied in one piece, not
+    # caught mid-write. A pause keeps it running (no restart, no VPN
+    # re-check), and the trap unfreezes it however this script ends.
+    local paused=false started
+    if [[ "$(docker inspect -f '{{.State.Status}}' aiostreams 2>/dev/null)" == "running" ]] \
+        && docker pause aiostreams >/dev/null 2>&1; then
+        paused=true
+        trap 'docker unpause aiostreams >/dev/null 2>&1 || true' EXIT
+        echo "Pausing AIOStreams while the backup is written, so its database is copied cleanly..."
+    fi
+    started=$SECONDS
     if ( umask 077; tar --warning=no-file-changed --exclude="$(basename "$INSTALL_DIR")/caddy-logs" \
             -czf "$out" -C "$(dirname "$INSTALL_DIR")" "$(basename "$INSTALL_DIR")" ); then
         tar_status=0
     else
         tar_status=$?
+    fi
+    if $paused; then
+        docker unpause aiostreams >/dev/null 2>&1 || warn "Couldn't unpause AIOStreams. Run: docker unpause aiostreams"
+        trap - EXIT
+        echo "AIOStreams resumed (paused for $((SECONDS - started))s)."
     fi
     # GNU tar: 0 = clean, 1 = file changed while being read (archive still
     # usable), 2+ = genuinely failed.
