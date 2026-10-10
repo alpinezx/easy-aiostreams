@@ -236,7 +236,10 @@ do_backup() {
     # a non-root user in the first place. $REAL_HOME == $HOME otherwise.
     # A ~/aiostreams that is just a link to the install folder (the /opt
     # layout) has nothing to compare.
-    if [[ "$REAL_HOME" != "$BACKUP_HOME" && -d "$REAL_HOME/aiostreams" ]] \
+    # Skipped during a migrate: it keeps any differing copies anyway (the
+    # user's folder is renamed aside, not deleted) and says which ones.
+    if ! ${SKIP_SCRIPT_MISMATCH_CHECK:-false} \
+        && [[ "$REAL_HOME" != "$BACKUP_HOME" && -d "$REAL_HOME/aiostreams" ]] \
         && ! [[ "$REAL_HOME/aiostreams" -ef "$INSTALL_DIR" ]]; then
         local script_mismatch=() sname
         for sname in "${AIOSTREAMS_SCRIPTS[@]}"; do
@@ -1123,6 +1126,7 @@ link_install_shortcuts() {
                 warn "Only one of $link and $INSTALL_DIR should hold the install. Check which is in use."
                 continue
             fi
+            local differ=()
             for name in "${AIOSTREAMS_SCRIPTS[@]}"; do
                 [[ -f "$link/$name" && ! -L "$link/$name" ]] || continue
                 # One the install folder doesn't have yet (say an add-on
@@ -1132,6 +1136,8 @@ link_install_shortcuts() {
                 fi
                 if cmp -s "$link/$name" "$INSTALL_DIR/$name"; then
                     rm -f -- "$link/$name"
+                else
+                    differ+=("$name")
                 fi
             done
             if ! rmdir -- "$link" 2>/dev/null; then
@@ -1139,6 +1145,12 @@ link_install_shortcuts() {
                 mv -- "$link" "$aside"
                 echo "Your old $link had other files in it too, so it was renamed to"
                 echo "$aside. Nothing in it was deleted. Remove it once you've checked it."
+                if (( ${#differ[@]} > 0 )); then
+                    echo "These scripts in it were different from the install folder's copies,"
+                    echo "which are the ones in use from now on: ${differ[*]}"
+                    echo "If yours were the newer ones, copy them over:"
+                    echo "  sudo cp $aside/<script> $INSTALL_DIR/"
+                fi
             fi
             moved_into=true
         elif [[ -e "$link" ]]; then
@@ -1384,7 +1396,9 @@ do_migrate() {
 
     # '|| true': do_backup's last line is a tty-only pause, which returns
     # non-zero without a terminal. LAST_BACKUP_FILE says whether it worked.
+    SKIP_SCRIPT_MISMATCH_CHECK=true
     do_backup || true
+    SKIP_SCRIPT_MISMATCH_CHECK=false
     [[ -n "$LAST_BACKUP_FILE" ]] || { echo "No backup was made, so nothing was moved."; return 0; }
 
     if [[ -n "$stray" ]]; then
@@ -1462,7 +1476,9 @@ do_migrate_undo() {
 
     # '|| true': do_backup's last line is a tty-only pause, which returns
     # non-zero without a terminal. LAST_BACKUP_FILE says whether it worked.
+    SKIP_SCRIPT_MISMATCH_CHECK=true
     do_backup || true
+    SKIP_SCRIPT_MISMATCH_CHECK=false
     [[ -n "$LAST_BACKUP_FILE" ]] || { echo "No backup was made, so nothing was moved."; return 0; }
 
     if $M_SAME_FS; then
