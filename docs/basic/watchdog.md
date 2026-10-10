@@ -21,9 +21,8 @@ Install [ntfy](https://ntfy.sh) from the Play Store or App Store, or just keep `
 **This does:** installs the watchdog and walks you through first-time setup.
 
 ```bash
-cd ~/aiostreams
-sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-watchdog.sh -o setup-watchdog.sh
-sudo bash setup-watchdog.sh
+sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-watchdog.sh -o /opt/aiostreams/setup-watchdog.sh
+sudo bash /opt/aiostreams/setup-watchdog.sh
 ```
 
 Choose **2) Start**. It'll suggest a random topic name (or let you type your own; pick something long and hard to guess, since anyone who knows it can see your alerts), then pause so you can subscribe before it sends a test alert.
@@ -65,8 +64,7 @@ If nothing shows up within a few seconds, don't move on yet. See the [advanced g
 
 Run the script again any time for a menu:
 ```bash
-cd ~/aiostreams
-sudo bash setup-watchdog.sh
+sudo bash /opt/aiostreams/setup-watchdog.sh
 ```
 - **Status**: is it running, when did it last check, what the last check found, and the current alert state.
 - **Start / Stop**: turn checking on or off. Config is kept either way.

@@ -12,11 +12,10 @@ For backing up your current setup, rolling back to an earlier backup on the same
 
 **This does:** packs everything (your domain settings, login, `SECRET_KEY`, and every saved config) into one file.
 
-> The backup tars up the entire install folder (`~/aiostreams`, which is `/opt/aiostreams` on current installs), not just the app data .  so `setup-vpn-gluetun.sh`, `setup-watchdog.sh`, and any other install scripts sitting in that folder come along automatically too. Nothing to move by hand.
+> The backup tars up the entire install folder (`/opt/aiostreams`), not just the app data .  so `setup-vpn-gluetun.sh`, `setup-watchdog.sh`, and any other install scripts sitting in that folder come along automatically too. Nothing to move by hand.
 
 ```bash
-cd ~/aiostreams
-sudo bash setup-aiostreams.sh backup
+sudo bash /opt/aiostreams/setup-aiostreams.sh backup
 ```
 This prints a file name like `aiostreams-backup-YYYYMMDD-HHMMSS.tar.gz` and a ready-to-use `scp` command to copy it off the server .  **use the exact command it prints**, don't copy the one below blind. It differs depending on how you're logged in:
 - **Logged in as root:** the file lives in `/root`, and it prints something like
@@ -112,7 +111,7 @@ Prefer not to use a terminal for this? An SFTP app (FileZilla, WinSCP, Termius) 
 
 Before running this, double check `dig +short yourdomain.com` (from step 2) is showing your **new** server's IP. If it's not there yet, wait a bit longer .  restoring before DNS has caught up is the most common cause of a stuck HTTPS certificate.
 
-Run this from wherever step 3 uploaded the files (your home directory, or `/root` if you're logging in as root .  `~/aiostreams` doesn't exist yet on a fresh server, so this is the one script command in these docs that *isn't* run from there):
+Run this from wherever step 3 uploaded the files (your home directory, or `/root` if you're logging in as root .  `/opt/aiostreams` doesn't exist yet on a fresh server, so this is the one script command in these docs that *isn't* run from there):
 ```bash
 sudo bash setup-aiostreams.sh
 ```

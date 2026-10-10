@@ -33,9 +33,8 @@ Install [ntfy](https://ntfy.sh) from the Play Store or App Store, or just keep `
 **This does:** installs the relay and walks you through first-time setup.
 
 ```bash
-cd ~/aiostreams
-sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-webhook.sh -o setup-webhook.sh
-sudo bash setup-webhook.sh
+sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-webhook.sh -o /opt/aiostreams/setup-webhook.sh
+sudo bash /opt/aiostreams/setup-webhook.sh
 ```
 
 Choose **2) Start**. It'll ask for:
@@ -77,8 +76,7 @@ If it doesn't → see the [advanced guide's troubleshooting section](../advanced
 
 Run the script again any time for a menu:
 ```bash
-cd ~/aiostreams
-sudo bash setup-webhook.sh
+sudo bash /opt/aiostreams/setup-webhook.sh
 ```
 - **Status** — running or not, current domain/URL, last few events.
 - **Start / Stop** — turn the relay on or off. Config is kept either way. Start also refreshes the code, so pulling a script update just needs a Start, not a full Reconfigure.

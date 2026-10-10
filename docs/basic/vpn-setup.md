@@ -65,9 +65,8 @@ Either way the script auto-detects it .  remember the path in case you need it, 
 **This does:** installs the VPN layer and walks you through first-time setup.
 
 ```bash
-cd ~/aiostreams
-sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-vpn-gluetun.sh -o setup-vpn-gluetun.sh
-sudo bash setup-vpn-gluetun.sh
+sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-vpn-gluetun.sh -o /opt/aiostreams/setup-vpn-gluetun.sh
+sudo bash /opt/aiostreams/setup-vpn-gluetun.sh
 ```
 
 It'll ask for the path to your `.conf` file from step 3, then set everything up and switch you into VPN mode automatically.
@@ -80,8 +79,7 @@ It'll ask for the path to your `.conf` file from step 3, then set everything up 
 
 Run the script and choose **1) Status** .  it prints gluetun's exit IP directly, no typing required:
 ```bash
-cd ~/aiostreams
-sudo bash setup-vpn-gluetun.sh
+sudo bash /opt/aiostreams/setup-vpn-gluetun.sh
 ```
 
 Want to see it side-by-side with your VPS's own real IP, for extra proof? Run both of these:
@@ -110,8 +108,7 @@ Try loading `https://yourdomain` or playing a stream .  it should fail (a Caddy 
 
 Then bring it back properly .  don't just `docker start gluetun`:
 ```bash
-cd ~/aiostreams
-sudo bash setup-vpn-gluetun.sh
+sudo bash /opt/aiostreams/setup-vpn-gluetun.sh
 ```
 Choose **2) Turn VPN ON**.
 
@@ -121,8 +118,7 @@ Choose **2) Turn VPN ON**.
 
 Run the script again any time for a menu:
 ```bash
-cd ~/aiostreams
-sudo bash setup-vpn-gluetun.sh
+sudo bash /opt/aiostreams/setup-vpn-gluetun.sh
 ```
 - **Turn VPN ON / OFF** .  switches modes, a few seconds of downtime.
 - **Status** .  shows whether it's on and healthy.

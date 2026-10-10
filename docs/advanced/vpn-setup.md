@@ -132,12 +132,11 @@ case auto-detect doesn't find it .  you'll be asked for it either way.
 
 ## Installing the script
 
-From the same directory as your AIOStreams install (`~/aiostreams`):
+Download it into your AIOStreams install folder (`/opt/aiostreams`) and run it:
 
 ```bash
-cd ~/aiostreams
-sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-vpn-gluetun.sh -o setup-vpn-gluetun.sh
-sudo bash setup-vpn-gluetun.sh
+sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-vpn-gluetun.sh -o /opt/aiostreams/setup-vpn-gluetun.sh
+sudo bash /opt/aiostreams/setup-vpn-gluetun.sh
 ```
 
 ## First-time setup
@@ -162,8 +161,7 @@ Run the script again any time and you'll get a menu instead of the setup
 flow:
 
 ```bash
-cd ~/aiostreams
-sudo bash setup-vpn-gluetun.sh
+sudo bash /opt/aiostreams/setup-vpn-gluetun.sh
 ```
 
 ```
@@ -297,7 +295,7 @@ independently of the script.
 ### The log line that looks like a leak but isn't
 
 Every time gluetun boots, you'll see something like this near the top of
-`docker compose logs gluetun`:
+`sudo docker compose logs gluetun`:
 
 ```
 INFO [dns] using plaintext DNS at address 1.1.1.1
@@ -350,7 +348,7 @@ not the log line above.
 
 If the command shows nothing on `:853` at all, not even an attempted
 connection, the WireGuard tunnel itself may be down rather than DNS being
-misconfigured specifically. Check `docker compose logs gluetun --tail=30`
+misconfigured specifically. Check `sudo docker compose logs gluetun --tail=30`
 for repeated `[wireguard] Connecting to ...` lines or `i/o timeout`
 errors, which point at the handshake, not DNS.
 
@@ -406,7 +404,7 @@ removes AIOStreams' only network path entirely. Try loading
   VPS's real IP.
 - **The site or stream keeps working anyway** .  this would mean something
   is bypassing the VPN layer entirely, and is worth investigating
-  immediately (double-check `docker compose ps` shows the `aiostreams`
+  immediately (double-check `sudo docker compose ps` shows the `aiostreams`
   service really is using gluetun's network, and that you're testing while
   VPN mode is genuinely active .  see Status above).
 
@@ -418,8 +416,7 @@ nothing.
 
 Restore properly afterward .  **not** a plain `docker start gluetun`:
 ```bash
-cd ~/aiostreams
-sudo bash setup-vpn-gluetun.sh
+sudo bash /opt/aiostreams/setup-vpn-gluetun.sh
 ```
 Choose **2) Turn VPN ON**. This does a full teardown/recreate and verifies
 all three containers actually come back running, rather than trusting a
@@ -551,10 +548,10 @@ two compare directly.
 
 ## Troubleshooting
 
-*(Run these from `~/aiostreams` .  `cd ~/aiostreams` first if you're not already there.)*
+*(Run these from `/opt/aiostreams` .  `cd /opt/aiostreams` first if you're not already there.)*
 
 **"Couldn't confirm the tunnel came up" / status shows unhealthy**
-Check the raw logs: `docker compose logs gluetun`. Look for connection
+Check the raw logs: `sudo docker compose logs gluetun`. Look for connection
 errors near the `[wireguard] Connecting to ...` line. A stale endpoint IP
 (see the hostname section above) is the most common cause.
 

@@ -32,7 +32,7 @@ using it for.
   this contains your ntfy topic name
 - `webhook-relay-state/`, if you ever set up the [Webhook Relay](./webhook-relay.md) . 
   this contains your secret path token and ntfy topic
-- Every install script (`setup-aiostreams.sh`, `setup-vpn-gluetun.sh`, `setup-watchdog.sh`, `setup-webhook.sh`) .  any `.sh` file in `~/aiostreams` is included automatically, which is why all install commands download there first
+- Every install script (`setup-aiostreams.sh`, `setup-vpn-gluetun.sh`, `setup-watchdog.sh`, `setup-webhook.sh`) .  any `.sh` file in `/opt/aiostreams` is included automatically, which is why all install commands download there first
 
 **Not included:** Caddy's HTTPS certificates. They're in Docker volumes, and Caddy re-issues them automatically once DNS resolves on the new server. No point bundling them.
 
@@ -47,8 +47,7 @@ From the management menu (existing install detected):
 Or non-interactively, without going through the menu at all:
 
 ```bash
-cd ~/aiostreams
-sudo bash setup-aiostreams.sh backup
+sudo bash /opt/aiostreams/setup-aiostreams.sh backup
 ```
 
 Either way, this writes a timestamped tarball, e.g.
