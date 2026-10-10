@@ -1,5 +1,16 @@
 # Easy AIOStreams
 
+> [!IMPORTANT]
+> **This is the `migrate-to-opt` branch.** It only exists to move an install made before October 2026 from `/root/aiostreams` to `/opt/aiostreams`. Do it once, then go back to the [main branch](https://github.com/alpinezx/easy-aiostreams) for everything else.
+>
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/migrate-to-opt/setup-aiostreams.sh -o ~/setup-aiostreams-migrate.sh
+> sudo bash ~/setup-aiostreams-migrate.sh migrate
+> rm ~/setup-aiostreams-migrate.sh
+> ```
+>
+> It takes a backup first, stops the stack for about a minute, moves everything to `/opt/aiostreams` (add-ons, systemd units and the control panel included) and starts back up whatever was running. `~/aiostreams` becomes a shortcut to the new folder. To put it back: `sudo bash /opt/aiostreams/setup-aiostreams.sh migrate undo`.
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 A one-command installer for a self-hosted [AIOStreams](https://github.com/Viren070/AIOStreams) instance. It sets up Docker, Caddy (automatic HTTPS via Let's Encrypt), and secure login access to the config page and dashboard, all in one script. Restricted to your own credentials.
