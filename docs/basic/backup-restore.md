@@ -12,7 +12,7 @@ For backing up your current setup, rolling back to an earlier backup on the same
 
 **This does:** packs everything (your domain settings, login, `SECRET_KEY`, and every saved config) into one file.
 
-> The backup tars up the entire `~/aiostreams` folder, not just the app data .  so `setup-vpn-gluetun.sh`, `setup-watchdog.sh`, and any other install scripts sitting in that folder come along automatically too. Nothing to move by hand.
+> The backup tars up the entire install folder (`~/aiostreams`, which is `/opt/aiostreams` on current installs), not just the app data .  so `setup-vpn-gluetun.sh`, `setup-watchdog.sh`, and any other install scripts sitting in that folder come along automatically too. Nothing to move by hand.
 
 ```bash
 cd ~/aiostreams

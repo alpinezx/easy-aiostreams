@@ -81,16 +81,16 @@ Different IPs mean the domain isn't pointing at this server yet. Don't run the i
 
 ### Run the installer
 
-Create the install directory and move into it:
+Create the install folder and move into it:
 
 ```bash
-mkdir -p ~/aiostreams && cd ~/aiostreams
+sudo mkdir -p /opt/aiostreams && cd /opt/aiostreams
 ```
 
 Download the script:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-aiostreams.sh -o setup-aiostreams.sh
+sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-aiostreams.sh -o setup-aiostreams.sh
 ```
 
 (Optional: take a look before running it with `less setup-aiostreams.sh`)
@@ -116,7 +116,7 @@ Once it finishes, visit your domain and log in via AIOStreams' login page. From 
 
 ## Re-running the script later
 
-Run it again any time from the same directory (`~/aiostreams`) and it'll detect your existing install and offer a menu that loops back after each action, so you can run several in a row without relaunching:
+Run it again any time from `~/aiostreams` (a shortcut to `/opt/aiostreams`) and it'll detect your existing install and offer a menu that loops back after each action, so you can run several in a row without relaunching:
 
 ```
  1) View status

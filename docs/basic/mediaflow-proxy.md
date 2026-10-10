@@ -24,7 +24,7 @@ Should print this server's IP.
 
 ```bash
 cd ~/aiostreams
-curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-mediaflow.sh -o setup-mediaflow.sh
+sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-mediaflow.sh -o setup-mediaflow.sh
 sudo bash setup-mediaflow.sh
 ```
 

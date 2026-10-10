@@ -34,7 +34,7 @@ Install [ntfy](https://ntfy.sh) from the Play Store or App Store, or just keep `
 
 ```bash
 cd ~/aiostreams
-curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-webhook.sh -o setup-webhook.sh
+sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-webhook.sh -o setup-webhook.sh
 sudo bash setup-webhook.sh
 ```
 

@@ -74,7 +74,7 @@ Two usual causes. You're in direct mode, where the VPN checks are skipped by des
 Use **4) Send test alert** for pure delivery testing any time. To test full detection:
 
 - **Tunnel:** `sudo docker stop gluetun` for about 5 minutes, confirm the DOWN alert, then restore with `sudo bash setup-vpn-gluetun.sh` → **2) Turn VPN ON** (not a plain `docker start gluetun`, which skips the clean recreate) and confirm the recovery alert follows.
-- **AIOStreams (VPN mode):** `cd /root/aiostreams && sudo docker compose stop aiostreams`, wait for the alert, then `sudo bash setup-aiostreams.sh` → **4) Restart the stack**.
+- **AIOStreams (VPN mode):** `cd ~/aiostreams && sudo docker compose stop aiostreams`, wait for the alert, then `sudo bash setup-aiostreams.sh` → **4) Restart the stack**.
 - **MediaFlow:** `sudo docker stop mediaflow-proxy-light`, wait for the alert, then `sudo bash setup-mediaflow.sh` → **2) Start**. Stopping it with **3) Stop** in that menu instead should produce *no* alert, which confirms the stopped-on-purpose marker works.
 
 ---

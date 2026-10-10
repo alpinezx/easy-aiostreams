@@ -22,7 +22,7 @@ Install [ntfy](https://ntfy.sh) from the Play Store or App Store, or just keep `
 
 ```bash
 cd ~/aiostreams
-curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-watchdog.sh -o setup-watchdog.sh
+sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-watchdog.sh -o setup-watchdog.sh
 sudo bash setup-watchdog.sh
 ```
 
