@@ -136,7 +136,7 @@ From the same directory as your AIOStreams install (`~/aiostreams`):
 
 ```bash
 cd ~/aiostreams
-curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-vpn-gluetun.sh -o setup-vpn-gluetun.sh
+sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-vpn-gluetun.sh -o setup-vpn-gluetun.sh
 sudo bash setup-vpn-gluetun.sh
 ```
 

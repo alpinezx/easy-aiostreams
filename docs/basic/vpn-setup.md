@@ -66,7 +66,7 @@ Either way the script auto-detects it .  remember the path in case you need it, 
 
 ```bash
 cd ~/aiostreams
-curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-vpn-gluetun.sh -o setup-vpn-gluetun.sh
+sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-vpn-gluetun.sh -o setup-vpn-gluetun.sh
 sudo bash setup-vpn-gluetun.sh
 ```
 

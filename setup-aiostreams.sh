@@ -2145,9 +2145,9 @@ if ! docker compose version >/dev/null 2>&1; then
 fi
 
 info "Setting up $INSTALL_DIR"
-if [[ ! -d "$INSTALL_DIR" && "$INSTALL_DIR" == "$OPT_INSTALL_DIR" ]]; then
-    # Root only, like root's home was for the old layout: this folder holds
-    # the SECRET_KEY, logins and (with the VPN) a WireGuard private key.
+if [[ "$INSTALL_DIR" == "$OPT_INSTALL_DIR" && ! -f "$COMPOSE_FILE" ]]; then
+    # A fresh install (the README has people make this folder with
+    # 'sudo mkdir' first): see secure_install_dir for who gets access.
     mkdir -p "$INSTALL_DIR"
     secure_install_dir
 fi
