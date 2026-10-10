@@ -1365,8 +1365,10 @@ do_migrate() {
     fi
     echo ""
     echo "Undo any time with: sudo bash $new/setup-aiostreams.sh migrate undo"
-    read -rp "Go ahead? [y/N]: " C
-    [[ "$C" =~ ^[Yy]$ ]] || { echo "Cancelled, nothing changed."; return 0; }
+    if ! ${MIGRATE_ASSUME_YES:-false}; then
+        read -rp "Go ahead? [y/N]: " C
+        [[ "$C" =~ ^[Yy]$ ]] || { echo "Cancelled, nothing changed."; return 0; }
+    fi
 
     # '|| true': do_backup's last line is a tty-only pause, which returns
     # non-zero without a terminal. LAST_BACKUP_FILE says whether it worked.
@@ -1555,11 +1557,31 @@ case "${1:-}" in
         if [[ "${2:-}" == "undo" ]]; then
             do_migrate_undo
         else
+            # --yes: the person already said yes (the offer below, or the
+            # same offer in one of the add-on scripts).
+            [[ "${2:-}" == "--yes" ]] && MIGRATE_ASSUME_YES=true
             do_migrate
         fi
         exit 0
         ;;
 esac
+
+# A server still on the old layout is offered the move to /opt, only when a
+# person is at the keyboard for the plain menu: never for subcommands, and
+# never from the control panel's buttons (stdout is a pipe there). Saying no
+# changes nothing; it asks again next time.
+if [[ "$INSTALL_DIR" != "$OPT_INSTALL_DIR" && $# -eq 0 && -t 0 && -t 1 ]]; then
+    echo ""
+    echo "Easy AIOStreams now keeps everything in $OPT_INSTALL_DIR, one folder for"
+    echo "root and every user. This server still uses $INSTALL_DIR."
+    read -rp "Move it now? It takes a backup first, about a minute of downtime. [Y/n]: " MOVE_NOW
+    if [[ ! "$MOVE_NOW" =~ ^[Nn] ]]; then
+        MIGRATE_ASSUME_YES=true
+        do_migrate
+        echo ""
+        read -rp "Press Enter to go on to the menu... " _
+    fi
+fi
 
 while true; do
 
@@ -1577,11 +1599,6 @@ if [[ -f "$COMPOSE_FILE" ]]; then
         alert "VPN mode is configured but the boot-safety hook is not installed on this"
         alert "server. AIOStreams will not restart after a reboot. Fix: run"
         alert "'sudo bash setup-vpn-gluetun.sh' and choose \"Turn VPN ON\"."
-    fi
-
-    if [[ "$INSTALL_DIR" != "$OPT_INSTALL_DIR" ]]; then
-        echo ""
-        echo "Tip: run 'sudo bash setup-aiostreams.sh migrate' to move this install to $OPT_INSTALL_DIR (one folder for root and every user)."
     fi
 
     echo ""

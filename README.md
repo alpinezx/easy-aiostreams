@@ -137,7 +137,7 @@ From anywhere: `sudo bash /opt/aiostreams/setup-aiostreams.sh`
 
 ## Moving an older install to /opt
 
-Installs made before this change live in root's home (`/root/aiostreams`), with a second copy of the scripts in your own `~/aiostreams` when you use `sudo`. They keep working as they are; the menu shows a one-line tip until you move them. To move one:
+Installs made before this change live in root's home (`/root/aiostreams`), with a second copy of the scripts in your own `~/aiostreams` when you use `sudo`. They keep working as they are. The next time you open any of the scripts' menus, it asks once whether to move the install to `/opt` now; press Enter for yes, or `n` to keep things as they are (it asks again next time). You can also run the move yourself:
 
 ```bash
 sudo bash setup-aiostreams.sh migrate
