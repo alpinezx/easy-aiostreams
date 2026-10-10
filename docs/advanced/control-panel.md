@@ -23,14 +23,14 @@ It runs as one container, `aios-ui`, on the shared `aios_shared` network, with n
 
 ## Install, update, uninstall
 
-Install and update are the same download into place:
+Install is a download into place, then the first run of `setup-ui.sh`:
 
 ```bash
 curl -fsSL https://github.com/alpinezx/easy-aiostreams/archive/refs/heads/main.tar.gz | sudo tar xz -C /opt/aiostreams --strip-components=1 easy-aiostreams-main/control-panel
 sudo bash /opt/aiostreams/control-panel/setup-ui.sh
 ```
 
-The first run installs. After that the same command opens the menu, where **4) Rebuild** picks up new files. Login, unlock link and terminal key are kept.
+After that the same command opens the menu. **4) Update** downloads the newest `control-panel` folder from the `main` branch into place (replacing `app/`, `web/` and `tests/` so removed files don't linger) and rebuilds with the new copy of `setup-ui.sh`. Answer **n** to rebuild from the files already there instead, for example after editing them. Login, unlock link and terminal key are kept. A failed or incomplete download changes nothing. To try the `dev` branch: `sudo AIOS_UI_BRANCH=dev bash /opt/aiostreams/control-panel/setup-ui.sh`.
 
 **9) Uninstall** stops and removes the container, its Caddy site and its image, and deletes `ui-state` (login, unlock token, terminal key, history). It then asks whether to delete `control-panel` too: say **n** to reinstall straight away from the same files, **y** to leave nothing behind. AIOStreams isn't touched either way. Delete the panel's DNS record afterwards if you're not reinstalling.
 
