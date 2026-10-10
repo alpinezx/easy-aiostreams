@@ -140,61 +140,66 @@ vpn_gated_start_aiostreams() {
     fi
 }
 
-# Install folder. New installs, and servers moved with
-# 'sudo bash setup-aiostreams.sh migrate', use /opt/aiostreams: one path for
-# root and every sudo user. A server set up before that keeps its old
-# ~/aiostreams under root's home until it is migrated. The same rule is in
-# every setup-*.sh and in setup-ui.sh, so keep them identical.
+# Everything lives in /opt/aiostreams: one folder for root and every user.
 OPT_INSTALL_DIR="/opt/aiostreams"
-LEGACY_INSTALL_DIR=""
-for _legacy in "${HOME:-/root}/aiostreams" "$(getent passwd root 2>/dev/null | cut -d: -f6)/aiostreams"; do
-    if [[ "$_legacy" == /*/aiostreams && "$_legacy" != "$OPT_INSTALL_DIR" && ! -L "$_legacy" \
-        && -f "$_legacy/docker-compose.yml" ]]; then
-        LEGACY_INSTALL_DIR="$_legacy"
-        break
+INSTALL_DIR="$OPT_INSTALL_DIR"
+
+# Installs made before October 2026 live in root's home instead. These
+# scripts don't work with that layout; the migrate-to-opt branch moves it,
+# once. Stop here rather than mistake such a server for a fresh one, and
+# offer the move when a person is at the keyboard. Same block in every
+# setup-*.sh and in setup-ui.sh.
+MIGRATE_GUIDE_URL="https://github.com/alpinezx/easy-aiostreams/tree/migrate-to-opt"
+MIGRATE_SCRIPT_URL="https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/migrate-to-opt/setup-aiostreams.sh"
+for _old in "$(getent passwd root 2>/dev/null | cut -d: -f6)/aiostreams" "${HOME:-/root}/aiostreams"; do
+    if [[ "$_old" == /*/aiostreams && "$_old" != "$INSTALL_DIR" && ! -L "$_old" \
+        && -f "$_old/docker-compose.yml" && ! -f "$INSTALL_DIR/docker-compose.yml" ]]; then
+        echo ""
+        echo "This server's AIOStreams install is still in $_old, where"
+        echo "installs made before October 2026 live. It now belongs in"
+        echo "$INSTALL_DIR, and this script only works with that. Moving it takes"
+        echo "a backup first and about a minute of downtime."
+        if [[ $EUID -eq 0 && -t 0 && -t 1 ]]; then
+            read -rp "Move it now? [Y/n]: " _move
+            if [[ ! "$_move" =~ ^[Nn] ]]; then
+                _tmp=$(mktemp -d)
+                cp -- "$SELF_SCRIPT_PATH" "$_tmp/self.sh"
+                if curl -fsSL "$MIGRATE_SCRIPT_URL" -o "$_tmp/migrate.sh" \
+                    && bash "$_tmp/migrate.sh" migrate --yes \
+                    && [[ -f "$INSTALL_DIR/docker-compose.yml" ]]; then
+                    cp -f -- "$_tmp/self.sh" "$INSTALL_DIR/$(basename "$SELF_SCRIPT_PATH")"
+                    chmod 755 "$INSTALL_DIR/$(basename "$SELF_SCRIPT_PATH")"
+                    rm -rf "$_tmp"
+                    exec bash "$INSTALL_DIR/$(basename "$SELF_SCRIPT_PATH")" "$@"
+                fi
+                rm -rf "$_tmp"
+                echo "The move didn't finish. Nothing else was changed."
+            fi
+        fi
+        echo "To move it, follow the steps here: $MIGRATE_GUIDE_URL"
+        exit 1
     fi
 done
-unset _legacy
-if [[ -n "$LEGACY_INSTALL_DIR" && ! -f "$OPT_INSTALL_DIR/docker-compose.yml" ]]; then
-    INSTALL_DIR="$LEGACY_INSTALL_DIR"
-else
-    INSTALL_DIR="$OPT_INSTALL_DIR"
-fi
+unset _old
+COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"
+CADDYFILE="$INSTALL_DIR/Caddyfile"
+CADDY_DROPIN_DIR="$INSTALL_DIR/caddy.d"
+# Written by "Stop AIOStreams" so the watchdog knows a stopped aiostreams is
+# deliberate and doesn't page you. Cleared on any start; the watchdog also
+# clears it itself whenever it sees aiostreams running again.
+STOPPED_MARKER="$INSTALL_DIR/aiostreams-stopped-on-purpose"
 
-# Root's home: where backup tarballs are written, same as always. Looked up
-# rather than taken from $HOME, so a caller that sets HOME to something else
-# (an older control panel passes the install folder's parent, which is /opt
-# after a migrate) can't scatter tarballs into /opt.
+# Root's home: where backup tarballs are written. Looked up rather than
+# taken from $HOME, so a caller with HOME set elsewhere can't scatter
+# tarballs into odd places.
 ROOT_HOME="$(getent passwd root 2>/dev/null | cut -d: -f6)"
 ROOT_HOME="${ROOT_HOME:-/root}"
-
-# Everything derived from INSTALL_DIR, in one place so 'migrate' can switch
-# to the new folder halfway through a run.
-set_install_paths() {
-    INSTALL_DIR="$1"
-    COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"
-    CADDYFILE="$INSTALL_DIR/Caddyfile"
-    CADDY_DROPIN_DIR="$INSTALL_DIR/caddy.d"
-    # Written by "Stop AIOStreams" so the watchdog knows a stopped aiostreams is
-    # deliberate and doesn't page you. Cleared on any start; the watchdog also
-    # clears it itself whenever it sees aiostreams running again.
-    STOPPED_MARKER="$INSTALL_DIR/aiostreams-stopped-on-purpose"
-    # Legacy installs keep writing backups next to themselves, exactly as
-    # before. /opt installs write them to root's home.
-    if [[ "$INSTALL_DIR" == "$OPT_INSTALL_DIR" ]]; then
-        BACKUP_HOME="$ROOT_HOME"
-    else
-        BACKUP_HOME="$(dirname "$INSTALL_DIR")"
-    fi
-}
-set_install_paths "$INSTALL_DIR"
+BACKUP_HOME="$ROOT_HOME"
 
 SHARED_NET="aios_shared"
 
-# Canonical list of scripts that belong in $INSTALL_DIR (and, for
-# convenience, in the invoking user's own ~/aiostreams too). Used both by
-# do_backup's mismatch check and by do_restore's copy-back-to-user step, so
-# the two stay in sync and neither one silently drops a script again.
+# Every script that belongs in $INSTALL_DIR. Used when a leftover
+# ~/aiostreams folder is turned into a shortcut (link_install_shortcuts).
 AIOSTREAMS_SCRIPTS=(setup-aiostreams.sh setup-vpn-gluetun.sh setup-watchdog.sh setup-webhook.sh setup-mediaflow.sh)
 
 # Set by the Reconfigure menu option only, when it needs the final restart
@@ -216,56 +221,8 @@ ensure_caddy_dropin_dir() {
     fi
 }
 
-# Set by do_backup to the tarball it wrote, empty when it was cancelled.
-LAST_BACKUP_FILE=""
-
 do_backup() {
-    LAST_BACKUP_FILE=""
     [[ -f "$COMPOSE_FILE" ]] || error "No installation found at $INSTALL_DIR, nothing to back up."
-
-    # Under sudo (not literal root), $INSTALL_DIR is ALWAYS $HOME/aiostreams
-    # where $HOME is root's home, regardless of which directory you're
-    # sitting in, or where you dropped updated .sh files. If someone's been
-    # editing/updating scripts in their own user's ~/aiostreams (a very
-    # natural thing to do. That's often the directory they're actually
-    # looking at), those changes silently never reach the backup, because
-    # this backs up $INSTALL_DIR specifically. Confirmed happening in
-    # practice, not just theoretical: catch it here so it's visible BEFORE
-    # a backup goes out missing scripts, not discovered three restores
-    # later on a different server. Only relevant when running via sudo as
-    # a non-root user in the first place. $REAL_HOME == $HOME otherwise.
-    # A ~/aiostreams that is just a link to the install folder (the /opt
-    # layout) has nothing to compare.
-    # Skipped during a migrate: it keeps any differing copies anyway (the
-    # user's folder is renamed aside, not deleted) and says which ones.
-    if ! ${SKIP_SCRIPT_MISMATCH_CHECK:-false} \
-        && [[ "$REAL_HOME" != "$BACKUP_HOME" && -d "$REAL_HOME/aiostreams" ]] \
-        && ! [[ "$REAL_HOME/aiostreams" -ef "$INSTALL_DIR" ]]; then
-        local script_mismatch=() sname
-        for sname in "${AIOSTREAMS_SCRIPTS[@]}"; do
-            local user_copy="$REAL_HOME/aiostreams/$sname"
-            local root_copy="$INSTALL_DIR/$sname"
-            [[ -f "$user_copy" ]] || continue
-            if [[ ! -f "$root_copy" ]]; then
-                script_mismatch+=("$sname (in $REAL_HOME/aiostreams, not in $INSTALL_DIR)")
-            elif ! cmp -s "$user_copy" "$root_copy"; then
-                script_mismatch+=("$sname (differs between the two locations)")
-            fi
-        done
-        if (( ${#script_mismatch[@]} > 0 )); then
-            warn "This backup will only include scripts from $INSTALL_DIR (that's what"
-            warn "\$HOME resolves to under sudo), NOT $REAL_HOME/aiostreams, even though"
-            warn "that's likely the directory you're actually looking at day to day."
-            warn "Mismatch found:"
-            for sname in "${script_mismatch[@]}"; do
-                warn "  - $sname"
-            done
-            warn "If you meant to update the scripts that actually get backed up, copy them"
-            warn "into $INSTALL_DIR first: sudo cp $REAL_HOME/aiostreams/*.sh $INSTALL_DIR/"
-            read -rp "Continue with the backup as-is anyway? [y/N]: " CONTINUE_MISMATCH
-            [[ "$CONTINUE_MISMATCH" =~ ^[Yy]$ ]] || { echo "Backup cancelled."; return 0; }
-        fi
-    fi
 
     info "Backing up $INSTALL_DIR"
     echo "Included: compose files (SECRET_KEY + logins), Caddyfile + drop-ins,"
@@ -366,7 +323,6 @@ do_backup() {
         warn "restorable, but data written during the sweep may not be captured consistently."
     fi
     chmod 600 "$out"
-    LAST_BACKUP_FILE="$out"
     size=$(du -h "$out" | cut -f1)
     ip=$(hostname -I 2>/dev/null | awk '{print $1}')
 
@@ -654,7 +610,7 @@ do_restore() {
     if [[ -z "$tarball" ]]; then
         local candidates=() f sel
         shopt -s nullglob
-        for f in "$BACKUP_HOME"/*aiostreams*.tar.gz "$HOME"/*aiostreams*.tar.gz "$REAL_HOME"/*aiostreams*.tar.gz "$PWD"/*aiostreams*.tar.gz; do
+        for f in "$BACKUP_HOME"/*aiostreams*.tar.gz "$REAL_HOME"/*aiostreams*.tar.gz "$PWD"/*aiostreams*.tar.gz; do
             [[ -f "$f" ]] && candidates+=("$f")
         done
         shopt -u nullglob
@@ -751,26 +707,21 @@ do_restore() {
 
     info "Extracting backup"
     # Only the aiostreams/ folder: a tarball with anything else in it can't
-    # drop files elsewhere in root's home (e.g. ~/.ssh). Every backup, old or
-    # new, stores the folder as aiostreams/, so this lands it in
-    # $INSTALL_DIR whichever layout this server uses.
+    # drop files elsewhere (e.g. ~/.ssh). Every backup, including ones made
+    # before the move to /opt, stores the folder as aiostreams/.
     mkdir -p "$(dirname "$INSTALL_DIR")"
     tar xzf "$tarball" -C "$(dirname "$INSTALL_DIR")" aiostreams
-    if [[ "$INSTALL_DIR" == "$OPT_INSTALL_DIR" ]]; then
-        secure_install_dir
-        # A backup from an old-layout server has its old folder written into
-        # the add-on compose files (and the panel's). Point them here, the
-        # same rewrite migrate does, instead of relying on the link at the
-        # old path.
-        local old_root
-        for old_root in "$ROOT_HOME/aiostreams" "/root/aiostreams"; do
-            rewrite_install_paths "$old_root" "$INSTALL_DIR" "$INSTALL_DIR"
-            if (( ${#REWRITTEN_FILES[@]} > 0 )); then
-                echo "Pointed $(( ${#REWRITTEN_FILES[@]} )) file(s) from the backup's old folder ($old_root) at $INSTALL_DIR."
-                systemctl daemon-reload >/dev/null 2>&1 || true
-            fi
-        done
-    fi
+    secure_install_dir
+    # A backup made before the move to /opt has /root/aiostreams written
+    # into the add-on compose files (and the panel's). Point them here.
+    local old_root
+    for old_root in "$ROOT_HOME/aiostreams" "/root/aiostreams"; do
+        rewrite_install_paths "$old_root" "$INSTALL_DIR" "$INSTALL_DIR"
+        if (( ${#REWRITTEN_FILES[@]} > 0 )); then
+            echo "Pointed ${#REWRITTEN_FILES[@]} file(s) from the backup's old folder ($old_root) at $INSTALL_DIR."
+            systemctl daemon-reload >/dev/null 2>&1 || true
+        fi
+    done
     chmod 600 "$COMPOSE_FILE" 2>/dev/null || true
     grep -q 'SECRET_KEY=' "$COMPOSE_FILE" || \
         error "Restored compose file has no SECRET_KEY. The archive may be damaged. Nothing has been started."
@@ -805,39 +756,11 @@ do_restore() {
         fi
     fi
 
-    # Scripts travel inside $INSTALL_DIR in the tarball, so the tar xzf
-    # above already put them back at $INSTALL_DIR (root's copy). But under
-    # sudo as a non-root user, people also keep a convenience copy in their
-    # own ~/aiostreams (that's where they scp the tarball to and run this
-    # script from). Nothing restores that copy unless we do it here too,
-    # same idea as the WireGuard .conf restore just above.
-    # In the /opt layout there is no separate copy: ~/aiostreams becomes a
-    # link to the install folder instead (link_install_shortcuts).
-    local script_restored_count=0
-    if [[ "$INSTALL_DIR" == "$OPT_INSTALL_DIR" ]]; then
-        # The copy of this script being run wins over the one in the
-        # tarball, the same as the next run's sync would do.
-        sync_self_into_install_dir
-        link_install_shortcuts
-    elif [[ "$REAL_HOME" != "$BACKUP_HOME" ]] && ! [[ "$REAL_HOME/aiostreams" -ef "$INSTALL_DIR" ]]; then
-        mkdir -p "$REAL_HOME/aiostreams"
-        for sname in "${AIOSTREAMS_SCRIPTS[@]}"; do
-            local src="$INSTALL_DIR/$sname"
-            [[ -f "$src" ]] || continue
-            local dest="$REAL_HOME/aiostreams/$sname"
-            if cp -- "$src" "$dest" 2>/dev/null; then
-                chmod 664 "$dest"
-                if [[ -n "${SUDO_UID:-}" && -n "${SUDO_GID:-}" ]]; then
-                    chown "$SUDO_UID:$SUDO_GID" "$dest" 2>/dev/null || true
-                    chown "$SUDO_UID:$SUDO_GID" "$REAL_HOME/aiostreams" 2>/dev/null || true
-                fi
-                script_restored_count=$((script_restored_count + 1))
-            fi
-        done
-        if (( script_restored_count > 0 )); then
-            echo "Restored $script_restored_count script(s) to $REAL_HOME/aiostreams (your convenience copy)."
-        fi
-    fi
+    # Put this script in the install folder too (the copy being run wins
+    # over the tarball's), and give root and the sudo user their
+    # ~/aiostreams shortcut.
+    sync_self_into_install_dir
+    link_install_shortcuts
 
     check_restored_domain_dns
 
@@ -1053,22 +976,18 @@ do_restore() {
         echo "    and/or $REAL_HOME, same as they were on the old server (convenience"
         echo "    copies for quick reconfigures, not required for the VPN layer itself)."
     fi
-    if (( script_restored_count > 0 )); then
-        echo "  - Scripts: $script_restored_count file(s) restored to $REAL_HOME/aiostreams,"
-        echo "    same convenience copy you had on the old server (the real copy that"
-        echo "    actually runs the install lives in $INSTALL_DIR)."
-    fi
     echo "  - Verify by logging into the AIOStreams page and playing one stream from a"
     echo "    device that already had the addon installed. Keep the old server running"
     echo "    until that works. It's your rollback."
 }
 
 # ---------------------------------------------------------------------------
-# The /opt layout: shortcut links, and 'migrate' for servers set up before it.
+# The install folder: permissions, ~/aiostreams shortcuts, and pointing an
+# older backup's paths at /opt.
 # ---------------------------------------------------------------------------
 
 # /opt/aiostreams holds the SECRET_KEY, logins and (with the VPN) a WireGuard
-# private key, which root's home used to keep private. Root-only, except
+# private key. Root-only, except
 # that the sudo user running this gets read access through their group, so
 # 'cd ~/aiostreams' and SFTP browsing still work for them (they can already
 # read all of it through sudo). Writing still needs sudo or root.
@@ -1081,32 +1000,14 @@ secure_install_dir() {
     chmod 700 "$dir"
 }
 
-container_running() {
-    [[ "$(docker inspect -f '{{.State.Running}}' "$1" 2>/dev/null)" == "true" ]]
-}
-
-# True when this runs inside the control panel's web terminal (root or user
-# shell). Those processes share the panel container's cgroup namespace, so
-# compare against it rather than trusting an environment variable alone,
-# which sudo clears for the user shell.
-in_panel_terminal() {
-    [[ "${AIOS_UI_TERMINAL:-}" == "1" ]] && return 0
-    local pid mine
-    pid=$(docker inspect -f '{{.State.Pid}}' aios-ui 2>/dev/null) || return 1
-    [[ "$pid" =~ ^[1-9][0-9]*$ ]] || return 1
-    mine=$(readlink /proc/self/ns/cgroup 2>/dev/null) || return 1
-    [[ -n "$mine" && "$mine" == "$(readlink "/proc/$pid/ns/cgroup" 2>/dev/null)" \
-        && "$mine" != "$(readlink /proc/1/ns/cgroup 2>/dev/null)" ]]
-}
-
-# /opt layout only. Gives root, and the sudo user running this, a
-# ~/aiostreams that is just a link to the install folder, so 'cd ~/aiostreams'
-# and every older doc keep working. A real ~/aiostreams folder from before is
+# Gives root, and the sudo user running this, a
+# ~/aiostreams that is just a link to the install folder, a handy shortcut.
+# A real ~/aiostreams folder (an old habit: downloading scripts there) is
 # removed when all it holds is identical copies of these scripts; anything
 # else in it means it is renamed to ~/aiostreams.old-<time> instead, so
 # nothing is ever deleted that isn't already in the install folder.
 link_install_shortcuts() {
-    [[ "$INSTALL_DIR" == "$OPT_INSTALL_DIR" && -d "$INSTALL_DIR" ]] || return 0
+    [[ -d "$INSTALL_DIR" ]] || return 0
     local homes=("$ROOT_HOME") h link aside name owner moved_into=false
     if [[ -n "${REAL_HOME:-}" && "$REAL_HOME" != "$ROOT_HOME" ]]; then
         homes+=("$REAL_HOME")
@@ -1170,7 +1071,7 @@ link_install_shortcuts() {
     return 0
 }
 
-# Undoes link_install_shortcuts, for uninstall and 'migrate undo'.
+# Undoes link_install_shortcuts, for uninstall.
 remove_install_shortcuts() {
     local target="$1" h
     for h in "$ROOT_HOME" "${REAL_HOME:-}"; do
@@ -1183,10 +1084,8 @@ remove_install_shortcuts() {
 }
 
 # Files outside the install folder that can have its absolute path written
-# into them. Each is generated by one of the scripts, but regenerating them
-# through those scripts would also enable, start or test things, so migrate
-# rewrites the path in place instead (and 'migrate undo' rewrites it back).
-MIGRATE_EXTERNAL_FILES=(
+# into them by the add-on scripts.
+INSTALL_PATH_EXTERNAL_FILES=(
     /etc/systemd/system/aiostreams-watchdog.service
     /etc/systemd/system/aios-webhook-boot-notify.service
     /etc/systemd/system/aiostreams-vpn-boot.service
@@ -1199,7 +1098,7 @@ MIGRATE_EXTERNAL_FILES=(
 # and Caddy files inside it. Never ./data, logs, or the panel's source copy.
 install_path_files() {
     local dir="$1" f
-    for f in "${MIGRATE_EXTERNAL_FILES[@]}"; do
+    for f in "${INSTALL_PATH_EXTERNAL_FILES[@]}"; do
         if [[ -f "$f" ]]; then
             printf '%s\0' "$f"
         fi
@@ -1226,313 +1125,6 @@ rewrite_install_paths() {
     return 0
 }
 
-# Stops everything that has files open in the install folder, remembering
-# what was running so migrate_start_all brings back the same set. The panel
-# only mounts the folder read-only, so it is only stopped when the move has
-# to copy across disks.
-migrate_stop_all() {
-    local dir="$1" stop_panel="$2"
-    M_WATCHDOG=false; M_STACK=false; M_AIO=false; M_MEDIAFLOW=false; M_RELAY=false; M_PANEL=false
-    if systemctl is-active --quiet aiostreams-watchdog.timer 2>/dev/null; then
-        M_WATCHDOG=true
-        systemctl stop aiostreams-watchdog.timer 2>/dev/null || true
-        echo "Paused the watchdog, so it doesn't alert while things are stopped."
-    fi
-    if container_running aiostreams; then M_AIO=true; M_STACK=true; fi
-    if container_running caddy || container_running gluetun; then M_STACK=true; fi
-    if container_running mediaflow-proxy-light; then M_MEDIAFLOW=true; fi
-    if container_running aios-webhook-relay; then M_RELAY=true; fi
-    if container_running aios-ui; then M_PANEL=true; fi
-
-    info "Stopping the stack"
-    if [[ -f "$dir/mediaflow-state/docker-compose.yml" ]]; then
-        (cd "$dir/mediaflow-state" && docker compose -f docker-compose.yml stop) || true
-    fi
-    if [[ -f "$dir/webhook-relay-state/docker-compose.yml" ]]; then
-        (cd "$dir/webhook-relay-state" && docker compose -f docker-compose.yml stop) || true
-    fi
-    (cd "$dir" && docker compose stop) || warn "docker compose stop reported a problem. Carrying on, the move itself doesn't need Docker."
-    if $stop_panel && [[ -f "$dir/ui-state/docker-compose.yml" ]]; then
-        (cd "$dir/ui-state" && docker compose -f docker-compose.yml stop) || true
-    fi
-    return 0
-}
-
-migrate_start_all() {
-    local dir="$1"
-    cd "$dir" || { warn "Could not cd to $dir, nothing was started."; return 1; }
-    if $M_STACK; then
-        info "Starting the stack from $dir"
-        if vpn_mode_active; then
-            if $M_AIO; then
-                vpn_gated_start_aiostreams || warn "AIOStreams didn't come back up. See the message above, then use Start (option 3)."
-            else
-                docker compose up -d --no-deps gluetun caddy || warn "gluetun/caddy didn't start. Check 'docker compose logs' in $dir."
-            fi
-        else
-            if $M_AIO; then
-                docker compose up -d || warn "The stack didn't start cleanly. Check 'docker compose logs' in $dir."
-            else
-                docker compose up -d --no-deps caddy || warn "caddy didn't start. Check 'docker compose logs caddy' in $dir."
-            fi
-        fi
-    else
-        echo "The stack wasn't running before, so it was left stopped."
-    fi
-    if $M_MEDIAFLOW; then
-        (cd "$dir/mediaflow-state" && docker compose -f docker-compose.yml up -d) || \
-            warn "MediaFlow Proxy Light didn't start. Run 'sudo bash setup-mediaflow.sh' and choose Start."
-    fi
-    if $M_RELAY; then
-        (cd "$dir/webhook-relay-state" && docker compose -f docker-compose.yml up -d) || \
-            warn "The webhook relay didn't start. Run 'sudo bash setup-webhook.sh' and choose Start."
-    fi
-    if $M_WATCHDOG; then
-        systemctl start aiostreams-watchdog.timer 2>/dev/null || \
-            warn "Couldn't resume the watchdog. Run 'sudo bash setup-watchdog.sh' and choose Start."
-    fi
-    return 0
-}
-
-# Recreates the control panel so its mounts point at the new folder. Runs a
-# few seconds later as its own systemd unit: from the panel's web terminal,
-# recreating the panel directly would kill this very shell halfway.
-recreate_panel() {
-    local dir="$1/ui-state"
-    [[ -f "$dir/docker-compose.yml" ]] || return 0
-    if require_cmd systemd-run && systemd-run --quiet --collect --unit="aios-ui-recreate-$(date +%s)" \
-            /bin/bash -c "sleep 4; cd $(printf '%q' "$dir") && docker compose -f docker-compose.yml up -d --force-recreate --no-build" \
-            >/dev/null 2>&1; then
-        echo "The control panel restarts on the new folder in a few seconds. If you're"
-        echo "using it right now, its terminal disconnects; reload the page after that."
-    else
-        (cd "$dir" && docker compose -f docker-compose.yml up -d --force-recreate --no-build) || \
-            warn "Couldn't restart the control panel. Run 'sudo bash setup-ui.sh' and choose Start."
-    fi
-}
-
-# Shared by migrate and 'migrate undo': summary of what was rewritten and
-# what still mentions the old path (it keeps working through the link).
-report_path_rewrite() {
-    local from="$1" dir="$2" f left=()
-    if (( ${#REWRITTEN_FILES[@]} > 0 )); then
-        echo "Updated the folder path in:"
-        for f in "${REWRITTEN_FILES[@]}"; do echo "  - $f"; done
-    fi
-    while IFS= read -r -d '' f; do
-        if grep -qE -- "$(printf '%s' "$from" | sed 's/[][\.*^$+?(){}|]/\\&/g')([/:\"'[:space:]]|\$)" "$f" 2>/dev/null; then
-            left+=("$f")
-        fi
-    done < <(install_path_files "$dir")
-    if (( ${#left[@]} > 0 )); then
-        warn "These still mention $from:"
-        for f in "${left[@]}"; do warn "  - $f"; done
-    fi
-    return 0
-}
-
-# Shared checks before moving the folder either way. Sets M_SAME_FS.
-migrate_preflight() {
-    local from="$1" to_parent="$2"
-    require_cmd docker && docker compose version >/dev/null 2>&1 || \
-        error "Docker with the compose plugin is needed to stop and start the stack."
-    mkdir -p "$to_parent"
-    M_SAME_FS=true
-    if [[ "$(stat -c %d "$from")" != "$(stat -c %d "$to_parent")" ]]; then
-        M_SAME_FS=false
-        if in_panel_terminal; then
-            error "$from and $to_parent are on different disks here, so the move has to copy files and the control panel has to stop for it, which would cut off this terminal. Run it over SSH instead."
-        fi
-    fi
-}
-
-do_migrate() {
-    local old="$INSTALL_DIR" new="$OPT_INSTALL_DIR" stray="" C
-
-    info "Move the install to $new"
-    if [[ "$old" == "$new" ]]; then
-        if [[ -f "$new/docker-compose.yml" ]]; then
-            echo "This server already uses $new. Nothing to move."
-            link_install_shortcuts
-            return 0
-        fi
-        error "No AIOStreams install found to move (looked in $ROOT_HOME/aiostreams and $new)."
-    fi
-    if [[ -L "$new" ]] || { [[ -e "$new" ]] && [[ ! -d "$new" ]]; }; then
-        error "$new exists but isn't a plain folder. Not touching anything."
-    fi
-    if [[ -d "$new" ]]; then
-        # Checked by the path rule already, but say so plainly here.
-        [[ -f "$new/docker-compose.yml" ]] && error "$new already holds an install. Not touching anything."
-        stray="$new.pre-migrate-$(date +%Y%m%d-%H%M%S)"
-    fi
-    migrate_preflight "$old" "$(dirname "$new")"
-
-    echo "This moves everything in $old to $new, one folder for root and"
-    echo "every user, and leaves a link at $old so old commands and docs keep working."
-    echo ""
-    echo "  1. Takes a backup first (same as menu option 7)"
-    echo "  2. Stops AIOStreams and its add-ons (about a minute of downtime)"
-    echo "  3. Moves the folder and updates the files that name it (add-on compose"
-    echo "     files, systemd units, the VPN boot hook, the fail2ban jail)"
-    echo "  4. Starts back up whatever was running before"
-    if [[ -n "$stray" ]]; then
-        echo ""
-        echo "$new already exists with no install in it (probably scripts downloaded"
-        echo "there). It gets renamed to $stray first, nothing in it is deleted."
-    fi
-    if [[ -n "${REAL_HOME:-}" && "$REAL_HOME" != "$ROOT_HOME" && -d "$REAL_HOME/aiostreams" && ! -L "$REAL_HOME/aiostreams" ]]; then
-        echo ""
-        echo "Your own $REAL_HOME/aiostreams becomes a shortcut to $new too. Scripts in"
-        echo "it that match the install are dropped; anything else keeps the folder,"
-        echo "renamed to $REAL_HOME/aiostreams.old-<time>."
-    fi
-    echo ""
-    echo "Undo any time with: sudo bash $new/setup-aiostreams.sh migrate undo"
-    if ! ${MIGRATE_ASSUME_YES:-false}; then
-        read -rp "Go ahead? [y/N]: " C
-        [[ "$C" =~ ^[Yy]$ ]] || { echo "Cancelled, nothing changed."; return 0; }
-    fi
-
-    # '|| true': do_backup's last line is a tty-only pause, which returns
-    # non-zero without a terminal. LAST_BACKUP_FILE says whether it worked.
-    SKIP_SCRIPT_MISMATCH_CHECK=true
-    do_backup || true
-    SKIP_SCRIPT_MISMATCH_CHECK=false
-    [[ -n "$LAST_BACKUP_FILE" ]] || { echo "No backup was made, so nothing was moved."; return 0; }
-
-    if [[ -n "$stray" ]]; then
-        mv -- "$new" "$stray"
-        echo "Renamed the empty $new to $stray."
-    fi
-    if $M_SAME_FS; then
-        migrate_stop_all "$old" false
-    else
-        migrate_stop_all "$old" true
-    fi
-
-    info "Moving $old to $new"
-    cd / || true
-    if ! mv -- "$old" "$new"; then
-        error "The move failed. If $old is still complete, start it again with: cd $old && sudo docker compose up -d"
-    fi
-    secure_install_dir "$new"
-    ln -s -- "$new" "$old"
-    echo "Moved. $old is now a link to $new."
-
-    rewrite_install_paths "$old" "$new" "$new"
-    systemctl daemon-reload >/dev/null 2>&1 || true
-    if [[ " ${REWRITTEN_FILES[*]} " == *" /etc/fail2ban/jail.d/aios-mediaflow.conf "* ]]; then
-        systemctl restart fail2ban >/dev/null 2>&1 || warn "fail2ban didn't restart. Check: systemctl status fail2ban"
-    fi
-    report_path_rewrite "$old" "$new"
-
-    set_install_paths "$new"
-    link_install_shortcuts
-    migrate_start_all "$new"
-
-    if $M_STACK; then
-        local proj wd
-        proj=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' caddy 2>/dev/null || true)
-        wd=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project.working_dir"}}' caddy 2>/dev/null || true)
-        if [[ "$proj" == "aiostreams" && "$wd" == "$new" ]]; then
-            echo "Docker still calls the stack 'aiostreams', so it kept the same containers"
-            echo "and the same HTTPS certificate volumes."
-        else
-            warn "Docker reports project '${proj:-?}' in '${wd:-?}' for caddy, expected 'aiostreams' in $new."
-            warn "Check 'sudo docker compose ls' before going further."
-        fi
-    fi
-
-    info "Done"
-    echo "Install folder: $new"
-    echo "Menu from now on: sudo bash $new/setup-aiostreams.sh"
-    echo "(cd ~/aiostreams still works, it's a shortcut now)"
-    echo "Backup taken before the move: $LAST_BACKUP_FILE"
-    echo "To put it back: sudo bash $new/setup-aiostreams.sh migrate undo"
-    if $M_PANEL || ! $M_SAME_FS; then
-        echo ""
-        recreate_panel "$new"
-    fi
-}
-
-do_migrate_undo() {
-    local new="$OPT_INSTALL_DIR" old="$ROOT_HOME/aiostreams" C prev name f
-    info "Move the install back to $old"
-    [[ "$INSTALL_DIR" == "$new" && -f "$new/docker-compose.yml" ]] || \
-        error "This server doesn't use $new, so there's nothing to undo."
-    if [[ -L "$old" ]]; then
-        [[ "$old" -ef "$new" ]] || error "$old is a link to somewhere else. Not touching anything."
-    elif [[ -e "$old" ]]; then
-        error "$old exists and isn't the link migrate leaves. Not touching anything."
-    fi
-    migrate_preflight "$new" "$ROOT_HOME"
-
-    echo "This moves everything in $new back to $old (the old layout) and"
-    echo "puts back the paths migrate changed. It takes a backup first and stops the"
-    echo "stack for about a minute, same as the move did."
-    read -rp "Go ahead? [y/N]: " C
-    [[ "$C" =~ ^[Yy]$ ]] || { echo "Cancelled, nothing changed."; return 0; }
-
-    # '|| true': do_backup's last line is a tty-only pause, which returns
-    # non-zero without a terminal. LAST_BACKUP_FILE says whether it worked.
-    SKIP_SCRIPT_MISMATCH_CHECK=true
-    do_backup || true
-    SKIP_SCRIPT_MISMATCH_CHECK=false
-    [[ -n "$LAST_BACKUP_FILE" ]] || { echo "No backup was made, so nothing was moved."; return 0; }
-
-    if $M_SAME_FS; then
-        migrate_stop_all "$new" false
-    else
-        migrate_stop_all "$new" true
-    fi
-    info "Moving $new to $old"
-    cd / || true
-    rm -f -- "$old"
-    if ! mv -- "$new" "$old"; then
-        error "The move failed. If $new is still complete, start it again with: cd $new && sudo docker compose up -d"
-    fi
-    rewrite_install_paths "$new" "$old" "$old"
-    systemctl daemon-reload >/dev/null 2>&1 || true
-    if [[ " ${REWRITTEN_FILES[*]} " == *" /etc/fail2ban/jail.d/aios-mediaflow.conf "* ]]; then
-        systemctl restart fail2ban >/dev/null 2>&1 || warn "fail2ban didn't restart. Check: systemctl status fail2ban"
-    fi
-    report_path_rewrite "$new" "$old"
-
-    # The sudo user's convenience copy, the way the old layout expects it.
-    remove_install_shortcuts "$new"
-    if [[ -n "${REAL_HOME:-}" && "$REAL_HOME" != "$ROOT_HOME" && ! -e "$REAL_HOME/aiostreams" ]]; then
-        prev=$(find "$REAL_HOME" -maxdepth 1 -type d -name 'aiostreams.old-*' 2>/dev/null | sort | tail -n1)
-        if [[ -n "$prev" ]]; then
-            mv -- "$prev" "$REAL_HOME/aiostreams"
-            echo "Put your old folder back: $prev is $REAL_HOME/aiostreams again."
-        else
-            mkdir -p "$REAL_HOME/aiostreams"
-        fi
-        for name in "${AIOSTREAMS_SCRIPTS[@]}"; do
-            f="$REAL_HOME/aiostreams/$name"
-            if [[ -f "$old/$name" && ! -e "$f" ]]; then
-                cp -- "$old/$name" "$f" && chmod 664 "$f"
-            fi
-        done
-        if [[ -n "${SUDO_UID:-}" && -n "${SUDO_GID:-}" ]]; then
-            chown -R "$SUDO_UID:$SUDO_GID" "$REAL_HOME/aiostreams" 2>/dev/null || true
-        fi
-        echo "$REAL_HOME/aiostreams holds your copy of the scripts again."
-    fi
-
-    set_install_paths "$old"
-    migrate_start_all "$old"
-
-    info "Done"
-    echo "Install folder: $old (the old layout)"
-    echo "Backup taken before the move: $LAST_BACKUP_FILE"
-    if $M_PANEL || ! $M_SAME_FS; then
-        echo ""
-        recreate_panel "$old"
-    fi
-}
-
 if [[ $EUID -ne 0 ]]; then
     error "Please run this script as root (or with sudo)."
 fi
@@ -1542,7 +1134,7 @@ fi
 # home via SUDO_USER/getent so restore's scan checks there too.
 # Defaults to where backups go (root's home), not $HOME, so a caller with
 # HOME set elsewhere doesn't get a stray "user copy" of each backup there.
-REAL_HOME="$BACKUP_HOME"
+REAL_HOME="$ROOT_HOME"
 if [[ -n "${SUDO_USER:-}" && "$SUDO_USER" != "root" ]]; then
     sudo_home=$(getent passwd "$SUDO_USER" 2>/dev/null | cut -d: -f6)
     [[ -n "$sudo_home" && -d "$sudo_home" ]] && REAL_HOME="$sudo_home"
@@ -1552,11 +1144,9 @@ for REQUIRED_CMD in curl openssl tar; do
     require_cmd "$REQUIRED_CMD" || error "Required command '$REQUIRED_CMD' not found. Install it first (e.g. 'apt-get install -y $REQUIRED_CMD') and re-run this script."
 done
 
-# Bug fix (confirmed happening in practice, repeatedly): under sudo, $HOME
-# is root's home, not the invoking user's, so a script downloaded into a
-# non-root sudo user's home (the common cloud-provider default) never
-# actually reaches $INSTALL_DIR, and do_backup only tars $INSTALL_DIR.
-# This keeps whatever copy is currently running synced there on every call.
+# Puts the copy of this script being run into the install folder, so
+# backups carry it. Used on a fresh install and a restore, where the script
+# may have been run from somewhere else (a home folder, next to a tarball).
 sync_self_into_install_dir() {
     [[ -d "$INSTALL_DIR" ]] || return 0
     local dest="$INSTALL_DIR/setup-aiostreams.sh"
@@ -1570,7 +1160,6 @@ sync_self_into_install_dir() {
     fi
     return 0
 }
-sync_self_into_install_dir
 
 case "${1:-}" in
     backup)
@@ -1582,38 +1171,14 @@ case "${1:-}" in
         exit 0
         ;;
     migrate)
-        if [[ "${2:-}" == "undo" ]]; then
-            do_migrate_undo
-        else
-            # --yes: the person already said yes (the offer below, or the
-            # same offer in one of the add-on scripts).
-            [[ "${2:-}" == "--yes" ]] && MIGRATE_ASSUME_YES=true
-            do_migrate
-        fi
-        exit 0
+        echo "This version doesn't move installs any more; it only works with $INSTALL_DIR."
+        echo "To move an install from before October 2026, follow: $MIGRATE_GUIDE_URL"
+        exit 1
         ;;
 esac
 
-# A server still on the old layout is offered the move to /opt, only when a
-# person is at the keyboard for the plain menu: never for subcommands, and
-# never from the control panel's buttons (stdout is a pipe there). Saying no
-# changes nothing; it asks again next time.
-if [[ "$INSTALL_DIR" != "$OPT_INSTALL_DIR" && $# -eq 0 && -t 0 && -t 1 ]]; then
-    echo ""
-    echo "Easy AIOStreams now keeps everything in $OPT_INSTALL_DIR, one folder for"
-    echo "root and every user. This server still uses $INSTALL_DIR."
-    read -rp "Move it now? It takes a backup first, about a minute of downtime. [Y/n]: " MOVE_NOW
-    if [[ ! "$MOVE_NOW" =~ ^[Nn] ]]; then
-        MIGRATE_ASSUME_YES=true
-        do_migrate
-        echo ""
-        read -rp "Press Enter to go on to the menu... " _
-    fi
-fi
 
 while true; do
-
-sync_self_into_install_dir
 
 if [[ -f "$COMPOSE_FILE" ]]; then
     if ! require_cmd docker || ! docker compose version >/dev/null 2>&1; then
@@ -2173,7 +1738,7 @@ if ! docker compose version >/dev/null 2>&1; then
 fi
 
 info "Setting up $INSTALL_DIR"
-if [[ "$INSTALL_DIR" == "$OPT_INSTALL_DIR" && ! -f "$COMPOSE_FILE" ]]; then
+if [[ ! -f "$COMPOSE_FILE" ]]; then
     # A fresh install (the README has people make this folder with
     # 'sudo mkdir' first): see secure_install_dir for who gets access.
     mkdir -p "$INSTALL_DIR"

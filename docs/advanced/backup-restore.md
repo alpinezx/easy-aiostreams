@@ -121,15 +121,12 @@ backup, on the same box, with no new server and no DNS change involved. The
 script detects the existing install folder, warns you that
 restoring will **replace** it (including its `SECRET_KEY`), and moves the
 current one aside, right next to it (e.g.
-`/opt/aiostreams.pre-restore-YYYYMMDD-HHMMSS`, or
-`/root/aiostreams.pre-restore-...` on an install not moved to `/opt` yet)
-rather than deleting it outright, so you can recover if you picked the wrong
-tarball.
+`/opt/aiostreams.pre-restore-YYYYMMDD-HHMMSS`) rather than deleting it
+outright, so you can recover if you picked the wrong tarball.
 
-Backups from before the move to `/opt` restore fine on a server that uses
-`/opt`, and the other way round: every backup stores the folder the same
-way, and restore puts it wherever this server keeps its install. On a brand
-new server that's `/opt/aiostreams`.
+Backups made before October 2026, when installs lived in
+`/root/aiostreams`, restore fine too: they land in `/opt/aiostreams` like
+any other, and the restore points their add-on paths at the new folder.
 
 From the management menu, choose **8) Restore from backup**, then pick your
 tarball from the list. That's it .  the script finds tarballs sitting in the
