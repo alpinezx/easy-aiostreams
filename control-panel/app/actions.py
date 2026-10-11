@@ -27,6 +27,7 @@ class Action:
     timeout: int = 600
     confirm: str | None = None   # confirmation text; None = no modal
     needs: tuple[str, ...] = ()  # paths (relative to INSTALL_DIR) that must exist
+    env: tuple[str, ...] = ()    # extra NAME=value for the script
 
 
 # Extra "N" before the final exit choice absorbs the one y/N prompt that
@@ -106,6 +107,16 @@ def build_update(backup: bool, channel: str | None) -> Action:
     return Action("stack.update", "Update", "Updating", "Update finished", AIO,
                   stdin="\n".join(answers) + "\n", timeout=1200, needs=(AIO,),
                   confirm=confirm)
+
+
+def build_restore(path: str) -> Action:
+    """A same-server rollback to the backup at path, which the caller has
+    matched against the backups actually on the server. --same-server runs
+    the check first and refuses rather than asks. AIOS_UI_TERMINAL tells it
+    the panel is running it, so it leaves the panel running."""
+    return Action("stack.restore", "Restore", "Restoring", "Restore finished", AIO,
+                  args=("restore", "--same-server", path), timeout=1800, needs=(AIO,),
+                  env=("AIOS_UI_TERMINAL=1",))
 
 
 def resolve(action_id: str, params: dict | None = None) -> Action:

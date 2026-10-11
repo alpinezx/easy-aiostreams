@@ -341,3 +341,24 @@ def test_backup_build_asks_tar_for_backup_info_only(monkeypatch):
                                          "--occurrence=1", "aiostreams/backup-info"]
     monkeypatch.setattr(stack.subprocess, "run", lambda cmd, **kw: SimpleNamespace(returncode=2, stdout=""))
     assert b.backup_build({"name": "x.tar.gz", "dirs": ["/root"]}) is None
+
+
+def test_parse_restore_check():
+    ok = "Checking x. Nothing is changed.\n  ok: It holds AIOStreams v2.35.9.\n  ok: a.example.com points at this server.\nResult: OK, it can be restored here without questions.\n"
+    assert stack.parse_restore_check(ok, 0) == {"ok": True, "reasons": [],
+                                                "notes": ["It holds AIOStreams v2.35.9.", "a.example.com points at this server."]}
+    no = "Checking x.\n  no: Its domain is b.example.com, but this install uses a.example.com.\nResult: not a same-server restore.\n"
+    got = stack.parse_restore_check(no, 3)
+    assert got["ok"] is False and got["reasons"] == ["Its domain is b.example.com, but this install uses a.example.com."]
+    # a setup-backup.sh from before --check treats it as a file name and fails
+    old = "\x1b[1;34m==>\x1b[0m Restore from backup\n\x1b[1;31mXX \x1b[0m File not found: --check\n"
+    got = stack.parse_restore_check(old, 1)
+    assert got["ok"] is False and "Update it on the Terminal tab" in got["reasons"][0]
+    assert stack.parse_restore_check("Result: OK\n", 3)["ok"] is False          # the exit code has the last word
+
+
+def test_backup_path_prefers_roots_copy(monkeypatch):
+    monkeypatch.setattr(stack, "HOMES_DIR", "/home")
+    b = {"name": "aiostreams-backup-1.tar.gz", "dirs": ["/home/ubuntu", "/root"]}
+    assert stack.backup_path(b) == "/root/aiostreams-backup-1.tar.gz"
+    assert stack.backup_path({**b, "dirs": ["/home/ubuntu"]}) == "/home/ubuntu/aiostreams-backup-1.tar.gz"

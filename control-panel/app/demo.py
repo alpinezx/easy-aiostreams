@@ -155,6 +155,15 @@ class DemoBackend:
             return {"version": "2.35.9", "tag": "2026.10.06.2045-nightly"}
         return {"version": "2.35.9", "tag": "v2.35.9"}
 
+    def restore_check(self, b: dict) -> dict:
+        time.sleep(0.6)
+        if b["name"] == "aiostreams-backup-20260914-094407.tar.gz":
+            return {"ok": False, "notes": [], "reasons": [
+                "Its domain is old.example.com, but this install uses streams.example.com.",
+                "Control panel: panel.old.example.com doesn't point at this server."]}
+        return {"ok": True, "reasons": [], "notes": ["It holds AIOStreams v2.35.9.",
+                "streams.example.com points at this server.", "Control panel: panel.example.com points at this server."]}
+
     def log_stream(self, container: str, tail: int) -> FakeStream:
         return FakeStream(container, 0 if container in self._cleared_logs else tail)
 
@@ -195,6 +204,12 @@ class DemoBackend:
             self.running["aiostreams"] = True; self.stopped_on_purpose = False
             self.started["aiostreams"] = datetime.now(timezone.utc)
             say("Started.")
+        elif action.id == "stack.restore":
+            for l in ["Checking the backup for a same-server restore. Nothing is changed.", "  ok: streams.example.com points at this server.",
+                      "Result: OK, it can be restored here without questions.", "==> Restore from backup",
+                      "Moving the current install aside (same-server restore).", "==> Extracting backup", "==> Starting the restored stack",
+                      "==> Restore complete!", "  - Control panel (panel.example.com): restart it (Restart panel) so it picks up the restored install."]:
+                say(l, 0.4)
         elif action.id == "stack.backup":
             say("==> Creating backup"); say("Backup written to /root/aiostreams-backup-20261009-161500.tar.gz")
             say("!! This file contains your SECRET_KEY, all logins and your WireGuard private key.")

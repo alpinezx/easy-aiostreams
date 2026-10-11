@@ -79,6 +79,7 @@ async function boot() {
   window.addEventListener("hashchange", route);
   window.addEventListener("job-started", tick);
   window.addEventListener("job-finished", tick);
+  window.addEventListener("restart-panel", () => terminal.restartPanel());
   document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
   window.addEventListener("resize", () => { if (status && view === "overview") { /* trunk position */ render(status, goLogs); } });
   route();
