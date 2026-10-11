@@ -18,6 +18,12 @@ const NOISE = [
   /dial tcp [0-9.]+:8080: connect: connection refused/,      // the panel itself restarting
   /lookup aios-ui on [^ ]+: (server misbehaving|no such host)/,   // the panel container stopped or being rebuilt
 ];
+// AIOStreams cutting a response is only noise next to a stack restart; on its own it means a viewer's stream broke.
+const CUT_BY_AIOS = /aborting with incomplete response.*"error":"reading: [^"]*(:3000: read: connection reset by peer|unexpected EOF)"/;
+const CADDY_STOP = /shutting down apps, then terminating|"msg":"shutdown complete"|exiting; byeee/;
+const RESTART_WINDOW = 10;
+const CADDY_TS = /"ts":([0-9.]+)/;
+let lastStop = -Infinity;
 let hideNoise = false, hideWarn = false;
 try {
   hideNoise = localStorage.getItem("aios.hideNoise") === "1";
@@ -43,7 +49,21 @@ function parse(raw) {
   }
   const lv = LEVEL.exec(text);
   const cls = (lv && LEVEL_CLS[lv[1].toLowerCase()]) || (ERR.test(text) ? "error" : WARN.test(text) ? "warn" : "out");
-  return { raw, noise: NOISE.some((r) => r.test(raw)), time, text, cls };
+  const ts = Number((CADDY_TS.exec(text) || [])[1]) || NaN;
+  const cut = CUT_BY_AIOS.test(raw);
+  const noise = NOISE.some((r) => r.test(raw)) || (cut && ts - lastStop <= RESTART_WINDOW);
+  return { raw, noise, time, text, cls, ts, cut };
+}
+
+// A Caddy stop marks AIOStreams cuts just before it as noise. Returns true if any line changed.
+function markRestart(stop) {
+  lastStop = stop.ts;
+  let changed = false;
+  for (let i = lines.length - 1; i >= 0 && !(lines[i].ts < stop.ts - RESTART_WINDOW); i--) {
+    const l = lines[i];
+    if (l.cut && !l.noise) { l.noise = true; changed = true; }
+  }
+  return changed;
 }
 
 const hiddenByToggle = (l) => (hideNoise && current === "caddy" && l.noise) || (hideWarn && l.cls === "warn");
@@ -110,7 +130,7 @@ function setConn(s, text) { const c = $("#log-conn"); c.dataset.s = s; c.textCon
 
 function connect() {
   if (es) { es.close(); es = null; }
-  lines = []; connected = false; paint(); syncButtons();
+  lines = []; lastStop = -Infinity; connected = false; paint(); syncButtons();
   if (!current) return;
   setConn("retry", "Connecting");
   es = new EventSource(`/api/logs/${encodeURIComponent(current)}?tail=300`);
@@ -123,6 +143,10 @@ function connect() {
     lines.push(l);
     if (lines.length > MAX) lines.splice(0, lines.length - MAX);
     const term = $("#log-term");
+    if (!isNaN(l.ts) && CADDY_STOP.test(l.raw) && markRestart(l)) {
+      syncButtons();
+      if (hideNoise && current === "caddy") paint();
+    }
     if (l.noise || l.cls === "warn") syncButtons();
     if (visible(l)) {
       if (term.querySelector(".term-empty")) clear(term);
