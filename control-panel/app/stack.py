@@ -217,32 +217,39 @@ class Backend:
         self._user_copy_cache = (now, found)
         return found
 
-    # The AIOStreams version actually running, read from the container's own
-    # package.json (the image carries no version label). Asked once per
-    # container: an update recreates it, which gives it a new id.
-    _version_cache: tuple[str, str | None] = ("", None)
+    # The AIOStreams build actually running, read from inside the container (the
+    # image carries no version label). resources/metadata.json has the release
+    # tag (v2.35.9, or 2026.10.10.1200-nightly); package.json covers images
+    # without it. Asked once per container: an update recreates it, with a new id.
+    _version_cache: tuple[str, tuple[str | None, str | None]] = ("", (None, None))
+    _BUILD_JS = ("let o={};try{const m=require('/app/resources/metadata.json');o={v:m.version,t:m.tag}}catch(e){}"
+                 "if(!o.v){try{o.v=require('/app/package.json').version}catch(e){}}JSON.stringify(o)")
 
-    def _aio_version(self, c) -> str | None:
+    def _aio_build(self, c) -> tuple[str | None, str | None]:
         if c is None or not (c.attrs.get("State") or {}).get("Running"):
-            return None
+            return None, None
         cid = getattr(c, "id", "") or ""
         if cid and self._version_cache[0] == cid:
             return self._version_cache[1]
-        ver = None
+        ver = tag = None
         # The image is distroless: node lives at /nodejs/bin/node and isn't on
         # PATH. Plain "node" covers older images built on node:*-slim.
         for node in ("/nodejs/bin/node", "node"):
             try:
-                r = c.exec_run([node, "-p", "require('/app/package.json').version"])
-                out = (r.output or b"").decode(errors="replace").strip()
-                if r.exit_code == 0 and re.fullmatch(r"\d+\.\d+\.\d+[0-9A-Za-z.+-]*", out):
-                    ver = out
-                    break
+                r = c.exec_run([node, "-p", self._BUILD_JS])
+                got = json.loads((r.output or b"").decode(errors="replace").strip()) if r.exit_code == 0 else None
             except Exception:
-                pass
+                continue
+            if not isinstance(got, dict):
+                continue
+            v, t = str(got.get("v") or ""), str(got.get("t") or "")
+            if re.fullmatch(r"\d+\.\d+\.\d+[0-9A-Za-z.+-]*", v):
+                ver = v
+                tag = t if re.fullmatch(r"v\d+\.\d+\.\d+|\d{4}\.\d\d\.\d\d\.\d{4}-nightly", t) else None
+                break
         if cid:
-            self._version_cache = (cid, ver)
-        return ver
+            self._version_cache = (cid, (ver, tag))
+        return ver, tag
 
     def status(self) -> dict:
         self._last_view = time.time()
@@ -315,9 +322,10 @@ class Backend:
             )
 
         host = self._host()
+        version, build_tag = self._aio_build(by_name.get("aiostreams"))
         return {
             "installed": installed, "docker_ok": docker_ok,
-            "domain": domain, "channel": tag, "version": self._aio_version(by_name.get("aiostreams")),
+            "domain": domain, "channel": tag, "version": version, "build_tag": build_tag,
             "vpn": vpn, "install_dir": str(config.INSTALL_DIR),
             "scripts": [{"id": i, "label": l, "file": f, "present": self.p(f).exists()} for i, l, f in SCRIPTS],
             "user_copy": self.user_copy(),

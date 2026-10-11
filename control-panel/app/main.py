@@ -147,10 +147,12 @@ async def status(user: str = Depends(current_user)):
 
 
 @app.get("/api/aiostreams-releases")
-async def aiostreams_releases(force: bool = False, user: str = Depends(current_user)):
+async def aiostreams_releases(force: bool = False, channel: str = "stable", user: str = Depends(current_user)):
+    if channel not in releases.CHANNELS:
+        raise HTTPException(400, "channel must be stable or nightly")
     if config.DEMO:
-        return releases.demo()
-    return await asyncio.to_thread(releases.get, force)
+        return releases.demo(channel)
+    return await asyncio.to_thread(releases.get, force, channel)
 
 
 # Lock + note per backup, kept in the panel's own state (so it rides along in backups).

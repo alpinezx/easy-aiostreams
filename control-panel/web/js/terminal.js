@@ -389,13 +389,15 @@ function cmdRow(label, cmd, state, updateCmd) {
 let helpKey = null;
 const RAW_BASE = "https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/";
 const FALLBACK = [
-  { label: "AIOStreams menu", file: "setup-aiostreams.sh", present: true },
-  { label: "Backup & restore", file: "setup-backup.sh", present: false },
-  { label: "VPN (Gluetun)", file: "setup-vpn-gluetun.sh", present: false },
-  { label: "MediaFlow Proxy", file: "setup-mediaflow.sh", present: false },
-  { label: "Phone alerts", file: "setup-watchdog.sh", present: false },
-  { label: "Webhook relay", file: "setup-webhook.sh", present: false },
+  { id: "aiostreams", label: "AIOStreams menu", file: "setup-aiostreams.sh", present: true },
+  { id: "vpn", label: "VPN (Gluetun)", file: "setup-vpn-gluetun.sh", present: false },
+  { id: "mediaflow", label: "MediaFlow Proxy", file: "setup-mediaflow.sh", present: false },
+  { id: "watchdog", label: "Phone alerts", file: "setup-watchdog.sh", present: false },
+  { id: "webhook", label: "Webhook relay", file: "setup-webhook.sh", present: false },
 ];
+// The AIOStreams menu runs backup and restore through setup-backup.sh and only
+// downloads it when it's missing, so its Update refreshes both.
+const UPDATE_WITH = { aiostreams: ["setup-backup.sh"] };
 
 function buildHelp(status, force) {
   const box = $("#term-help");
@@ -411,8 +413,12 @@ function buildHelp(status, force) {
   // goes through sudo. Fetch to a temporary name first, so a failed download never leaves a broken script.
   const fetchCmd = (f) => `curl -fsSL ${RAW_BASE}${f} -o ${f}.new && chmod 755 ${f}.new && mv ${f}.new ${f}`;
   const fetchTo = (f) => asUser ? `sudo sh -c 'cd ${dir} && ${fetchCmd(f)}'` : `cd ${dir} && ${fetchCmd(f)}`;
+  const updateOf = (x) => {
+    const files = [x.file, ...(UPDATE_WITH[x.id] || [])];
+    return `${files.map(fetchTo).join(" && ")} && echo "Updated ${files.join(" and ")}"`;
+  };
   const rows = scripts.map((x) => x.present
-    ? cmdRow(x.label, `sudo bash ${dir}/${x.file}`, "ok", `${fetchTo(x.file)} && echo "Updated ${x.file}"`)
+    ? cmdRow(x.label, `sudo bash ${dir}/${x.file}`, "ok", updateOf(x))
     : cmdRow(x.label, `${fetchTo(x.file)} && sudo bash ${dir}/${x.file}`, "get"));
   box.append(
     h("summary", { text: "Scripts and GitHub link" }),
@@ -420,8 +426,8 @@ function buildHelp(status, force) {
       : "The terminal is a root shell on the server, so these run as they would over SSH. Source and docs: ",
       h("a", { href: REPO, target: "_blank", rel: "noopener noreferrer", text: "github.com/alpinezx/easy-aiostreams" }), "."),
     h("h4", { text: "Scripts" }),
-    h("p", { class: "dim", text: "The AIOStreams script comes with the install, and the backup script arrives with the first backup. The others are separate downloads. A green dot means the script is on this server; an orange Get and run means it is not yet, and Copy gives a command that downloads it and then runs it." }),
-    h("p", { class: "dim", text: "Update fetches the newest version of a script you already have from GitHub, without running it." }),
+    h("p", { class: "dim", text: "The AIOStreams script comes with the install, and its menu also runs backups and restores (options 7 and 8). The others are separate downloads. A green dot means the script is on this server; an orange Get and run means it is not yet, and Copy gives a command that downloads it and then runs it." }),
+    h("p", { class: "dim", text: "Update fetches the newest version of a script you already have from GitHub, without running it. The AIOStreams menu's Update also fetches the backup script it uses, so the two stay in step." }),
     h("p", { class: "dim", text: `Scripts live in ${dir}${uc ? ` (${uc.dir} is a shortcut to it)` : ""}. Only root can change files there: to edit a script over SFTP, connect as root.` }),
     h("ul", { class: "cmds" }, ...rows),
     h("p", { class: "dim", text: "To restore a backup, use Copy restore command on the Backup & Restore tab." }));

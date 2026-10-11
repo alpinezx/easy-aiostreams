@@ -191,7 +191,7 @@ def test_clear_logs_only_hides_and_never_touches_the_log_file(tmp_path, monkeypa
 def test_status_reports_which_scripts_exist(tmp_path, monkeypatch):
     b = make_backend(tmp_path, monkeypatch, [container("caddy")], extra_files=("setup-aiostreams.sh", "setup-backup.sh", "setup-mediaflow.sh"))
     got = {s["id"]: s["present"] for s in b.status()["scripts"]}
-    assert got == {"aiostreams": True, "backup": True, "vpn": False, "mediaflow": True, "watchdog": False, "webhook": False}
+    assert got == {"aiostreams": True, "vpn": False, "mediaflow": True, "watchdog": False, "webhook": False}
 
 
 def test_set_asides_listed_and_only_those_deleted(tmp_path, monkeypatch):
@@ -278,24 +278,39 @@ def test_version_read_once_per_container(tmp_path, monkeypatch):
     calls = []
     def exec_run(cmd):
         calls.append(cmd)
-        return SimpleNamespace(exit_code=0, output=b"2.35.9\n")
+        return SimpleNamespace(exit_code=0, output=b'{"v":"2.35.9","t":"v2.35.9"}\n')
     aio = container("aiostreams", health="healthy"); aio.id = "abc"; aio.exec_run = exec_run
     b = make_backend(tmp_path, monkeypatch, [container("caddy"), aio])
-    b._version_cache = ("", None)
-    assert b.status()["version"] == "2.35.9"
+    b._version_cache = ("", (None, None))
+    st = b.status()
+    assert (st["version"], st["build_tag"]) == ("2.35.9", "v2.35.9")
     assert b.status()["version"] == "2.35.9" and len(calls) == 1      # first path worked; cached for the same container
     aio.id = "def"                                                      # recreated by an update
     b.status(); assert len(calls) == 2
 
 
+def test_nightly_tag_read_and_odd_tags_dropped(tmp_path, monkeypatch):
+    for out, want in [(b'{"v":"2.35.9","t":"2026.10.10.1200-nightly"}', "2026.10.10.1200-nightly"),
+                      (b'{"v":"2.35.9"}', None),                                 # package.json fallback: no tag
+                      (b'{"v":"2.35.9","t":"<b>x</b>"}', None)]:
+        aio = container("aiostreams"); aio.id = out.decode()
+        aio.exec_run = lambda cmd, out=out: SimpleNamespace(exit_code=0, output=out)
+        d = tmp_path / str(abs(hash(out))); d.mkdir()
+        b = make_backend(d, monkeypatch, [container("caddy"), aio])
+        b._version_cache = ("", (None, None))
+        st = b.status()
+        assert st["version"] == "2.35.9" and st["build_tag"] == want
+
+
 def test_version_none_when_stopped_or_unreadable(tmp_path, monkeypatch):
     stopped = container("aiostreams", running=False); stopped.id = "x"
     b = make_backend(tmp_path, monkeypatch, [container("caddy"), stopped])
-    b._version_cache = ("", None)
+    b._version_cache = ("", (None, None))
     assert b.status()["version"] is None
     odd = container("aiostreams"); odd.id = "y"
     odd.exec_run = lambda cmd: SimpleNamespace(exit_code=0, output=b"<html>nope")
     (tmp_path / "b").mkdir()
     b = make_backend(tmp_path / "b", monkeypatch, [container("caddy"), odd])
-    b._version_cache = ("", None)
-    assert b.status()["version"] is None
+    b._version_cache = ("", (None, None))
+    st = b.status()
+    assert st["version"] is None and st["build_tag"] is None
