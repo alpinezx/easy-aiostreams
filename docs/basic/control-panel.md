@@ -75,7 +75,11 @@ On a phone it all stacks into one column:
 
 **Activity.** Every button you pressed and what it printed, so you can check how an update or backup went.
 
-**Backup & Restore.** **Back up now** makes the same backup as `setup-aiostreams.sh` option 7. Each backup can be locked (so it can't be deleted by accident) and given a note. **Copy restore command** and **Copy scp command** give you ready-made commands for restoring or copying a backup off the server.
+**Backup & Restore.** **Back up now** makes the same backup as `setup-aiostreams.sh` option 7. Each backup shows the AIOStreams version it holds, and can be locked (so it can't be deleted by accident) and given a note. Backups made by **Update** label themselves, for example "Before switching stable → nightly".
+
+**Restore** rolls this server back to a backup, with no questions. It's for this same server only: before anything changes, the panel checks that the backup has the same domains as the running install and that they point here. If anything doesn't match (a different domain, a backup from before October 2026, a switched-off VPN, too little disk), it refuses and gives you the command to run over SSH instead, where the restore can ask you what to do. You type `restore` to confirm, the current install is moved aside rather than deleted, and **Restart panel** at the end loads the restored install. Moving to a new server is always done over SSH.
+
+**Copy restore command** and **Copy scp command** give you ready-made commands for restoring over SSH or copying a backup off the server.
 
 ![The Backup & Restore tab](../images/control-panel/backups.png)
 

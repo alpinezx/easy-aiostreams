@@ -46,6 +46,12 @@ keep their settings in `*-state/` folders inside it, and their Caddy sites in
   webhook's reboot notification in `webhook-relay-state/boot-notify-at-backup`.
   `backup-info` holds the format number (3 now). Bump it when adding a marker,
   and give older backups a reminder instead of guessing.
+- The panel's Restore button runs `setup-aiostreams.sh restore --same-server
+  <file>`, which runs `restore_check` (also `restore --check`) and refuses
+  unless the restore would ask nothing, then restores with no questions and
+  stdin closed. Any new question in the restore needs a matching check in
+  `restore_check` and an unattended answer, or the panel's restore can't
+  handle it.
 - Anything outside `/opt/aiostreams` (systemd units, fail2ban jails) isn't in a
   backup. A restore has to recreate it from a marker, or the summary has to say
   how to.
@@ -82,6 +88,12 @@ Later the same day: a backup from the version that records the AIOStreams
 build in `backup-info` and sorts the archive (`backup-info` read in 0.01s),
 restored over a running install with the control panel stopped, rebuilt and
 reported running again.
+
+Then the panel's Restore button: `restore --check` passing on a current
+backup; `restore --same-server` refusing a copy with its main domain changed
+(exit 3, nothing changed, no set-aside folder), and the panel showing the same
+refusal; a real restore started from the panel, which left the panel running,
+finished on Restore finished, and came back after Restart panel.
 
 Lesson from that evening: nightly can migrate AIOStreams' database past what
 stable understands ("Database is at migration 46 but this build only knows up

@@ -324,6 +324,7 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .check input { width: 18px; height: 18px; accent-color: var(--accent); }
 .dialog .btns { display: flex; justify-content: flex-end; gap: 8px; }
 .dialog .check-list { margin: 0 0 4px; padding-left: 20px; font-size: .9rem; display: grid; gap: 4px; }
+.dialog > .check-list { margin-bottom: 18px; }
 .dialog .check-list li::marker { color: var(--warn); }
 .dialog .check-list.ok li::marker { color: var(--ok); }
 .dialog p.small { margin: 0; font-size: .85rem; }
