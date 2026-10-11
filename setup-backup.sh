@@ -106,6 +106,13 @@ do_backup() {
         else
             rm -f "$INSTALL_DIR/webhook-relay-state/was-active-at-backup"
         fi
+        # Its reboot notification is a systemd unit, outside the folder, so
+        # a restore can only bring it back if the backup says it was on.
+        if systemctl is-enabled --quiet aios-webhook-boot-notify.service 2>/dev/null; then
+            touch "$INSTALL_DIR/webhook-relay-state/boot-notify-at-backup"
+        else
+            rm -f "$INSTALL_DIR/webhook-relay-state/boot-notify-at-backup"
+        fi
     fi
 
     # Same idea again for MediaFlow Proxy Light: a separate compose stack on
@@ -129,8 +136,8 @@ do_backup() {
         fi
     fi
     # Tells a restore which of the markers above this backup can have.
-    # Format 2 added the panel's.
-    printf '# Written by setup-backup.sh with each backup.\nformat=2\n' > "$INSTALL_DIR/backup-info"
+    # Format 2 added the panel's, format 3 the webhook's reboot notification.
+    printf '# Written by setup-backup.sh with each backup.\nformat=3\n' > "$INSTALL_DIR/backup-info"
 
     if [[ -d "$INSTALL_DIR/vpn-state" ]]; then
         local conf_stage_dir="$INSTALL_DIR/vpn-state/original-confs"
@@ -924,6 +931,24 @@ do_restore() {
         summary+=("$line")
     done
 
+    # The webhook's reboot notification: back on if it was on. Backups from
+    # before format 3 can't say, so they only get a reminder.
+    if [[ -n "${ADDON_NAME[webhook]:-}" ]]; then
+        local backup_format
+        backup_format=$(grep -m1 -oP '^format=\K[0-9]+' "$INSTALL_DIR/backup-info" 2>/dev/null || echo 1)
+        if [[ -f "$INSTALL_DIR/webhook-relay-state/boot-notify-at-backup" ]]; then
+            script=$(find_script setup-webhook.sh)
+            if [[ -n "$script" ]] && bash "$script" enable-boot-notify < /dev/null \
+                && systemctl is-enabled --quiet aios-webhook-boot-notify.service 2>/dev/null; then
+                summary+=("Webhook reboot notification: on again.")
+            else
+                summary+=("Webhook reboot notification was on, but couldn't be switched back on. Run 'sudo bash $INSTALL_DIR/setup-webhook.sh' and choose option 7.")
+            fi
+        elif (( backup_format < 3 )); then
+            summary+=("Webhook reboot notification: this backup is too old to say whether it was on. If it was, run 'sudo bash $INSTALL_DIR/setup-webhook.sh' and choose option 7.")
+        fi
+    fi
+
     # What changed with a new subdomain needs updating elsewhere too.
     local token
     if [[ -n "${ADDON_NEW[mediaflow]:-}" ]]; then
@@ -942,7 +967,8 @@ do_restore() {
         summary+=("WireGuard .conf: $conf_restored_count original file(s) restored to /root and/or $REAL_HOME (convenience copies).")
     fi
 
-    rm -f "$INSTALL_DIR"/{watchdog-state,webhook-relay-state,mediaflow-state,ui-state}/was-active-at-backup
+    rm -f "$INSTALL_DIR"/{watchdog-state,webhook-relay-state,mediaflow-state,ui-state}/was-active-at-backup \
+        "$INSTALL_DIR/webhook-relay-state/boot-notify-at-backup"
 
     info "Restore complete!"
     echo ""

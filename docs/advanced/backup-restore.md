@@ -315,6 +315,11 @@ and which were **running** when it was made. The restore uses both:
 
 The watchdog has no subdomain. It comes back if it was running.
 
+The webhook relay's reboot notification comes back on if it was on when the
+backup was made. Backups made before this was recorded can't say, so the
+summary reminds you to switch it on again with `setup-webhook.sh` option 7 if
+you had it.
+
 ---
 
 ## Troubleshooting

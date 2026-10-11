@@ -780,6 +780,15 @@ if [[ "${1:-}" == "start-relay" ]]; then
     exit 0
 fi
 
+# Called by a restore whose backup had the reboot notification on. Same as
+# option 7 turning it on, minus the confirmation ping and the chatter.
+if [[ "${1:-}" == "enable-boot-notify" ]]; then
+    [[ -f "$CONFIG_FILE" ]] || error "No webhook relay config found at $CONFIG_FILE, nothing to notify with."
+    install_boot_notify_unit
+    systemctl enable aios-webhook-boot-notify.service >/dev/null 2>&1
+    exit 0
+fi
+
 # Called by the systemd unit at boot, not by a person. Deliberately quiet
 # (no info/echo chatter) since nothing is watching a terminal when this
 # runs; success or failure shows up in ntfy and journalctl respectively.
