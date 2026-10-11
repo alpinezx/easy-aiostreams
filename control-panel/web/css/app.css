@@ -256,7 +256,7 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .view-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; }
 .view-head h2 { margin: 0; font-size: 1.875rem; font-weight: 700; letter-spacing: -.02em; }
 .view-head .btn { margin-left: auto; }
-.note { background: var(--warn-soft); border-radius: 12px; padding: 12px 16px; color: var(--text); margin: 0 0 16px; font-size: .94rem; }
+.note { background: var(--ok-soft); border-radius: 12px; padding: 12px 16px; color: var(--text); margin: 0 0 16px; font-size: .94rem; }
 .note b { font-weight: 650; }
 
 /* ---------- drawer (live output) ---------- */
