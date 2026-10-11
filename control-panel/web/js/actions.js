@@ -153,9 +153,17 @@ function finish(job, code) {
   $("#drawer-title").textContent = ok ? job.done : `${job.label} failed`;
   $("#drawer-sub").textContent = ok ? "Finished without errors." : "Open the lines marked red to see why. Nothing else was changed.";
   const foot = $("#drawer-foot"); clear(foot);
-  foot.append(h("span", { class: "result " + (ok ? "ok" : "bad"), text: ok ? "Done" : `Exited with code ${code}` }),
-    h("button", { class: "btn small", style: null, type: "button", text: "Close", onclick: closeDrawer }));
-  foot.lastChild.style.marginLeft = "auto";
+  // A restore leaves this panel looking at the folder it moved aside, until it restarts.
+  const restored = ok && job.action === "stack.restore";
+  if (restored) $("#drawer-sub").textContent = "Restart the panel now, so it picks up the restored install.";
+  if (!ok && job.action === "stack.restore") {
+    $("#drawer-sub").textContent = "If the output ends with Nothing was changed, nothing was. Otherwise your previous install is kept as a set-aside folder on Backup & Restore.";
+  }
+  foot.append(...[h("span", { class: "result " + (ok ? "ok" : "bad"), text: ok ? "Done" : `Exited with code ${code}` }),
+    restored ? h("button", { class: "btn small primary", type: "button", text: "Restart panel",
+      onclick: () => window.dispatchEvent(new CustomEvent("restart-panel")) }) : null,
+    h("button", { class: "btn small", style: null, type: "button", text: "Close", onclick: closeDrawer })].filter(Boolean));
+  foot.children[1].style.marginLeft = "auto";
 }
 
 export async function openJob(id) {

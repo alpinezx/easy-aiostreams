@@ -5,6 +5,9 @@
 #   sudo bash /opt/aiostreams/setup-backup.sh                  menu
 #   sudo bash /opt/aiostreams/setup-backup.sh backup           make a backup
 #   sudo bash /opt/aiostreams/setup-backup.sh restore [file]   restore one
+#   ... restore --check <file>         would it restore here without questions?
+#   ... restore --same-server <file>   roll this server back, no questions
+#                                      (only after the check passes)
 #
 # setup-aiostreams.sh's own "backup" and "restore" commands and menu
 # options hand over to this script, so either way works.
@@ -325,6 +328,13 @@ check_restored_domain_dns() {
             alert "That usually means DNS is still pointing at the OLD server (or hasn't propagated yet)."
         fi
         warn "Starting the stack now will likely fail to get an HTTPS certificate."
+        # The check just before a same-server restore found DNS pointing
+        # here, so this is a blip, and the install has been moved aside by
+        # now: start it rather than leave the server down.
+        if $UNATTENDED; then
+            warn "Continuing anyway: it pointed here moments ago, and this server keeps its certificate."
+            return 0
+        fi
 
         echo ""
         echo "What would you like to do?"
@@ -620,7 +630,12 @@ check_addon_domains() {
             echo "  2) Keep $domain and point its DNS here before you switch it on"
         fi
         while true; do
-            read -rp "Choice (Enter = 2): " choice || choice=2
+            if $UNATTENDED; then
+                choice=2
+                echo "  Keeping $domain (same-server restore)."
+            else
+                read -rp "Choice (Enter = 2): " choice || choice=2
+            fi
             case "${choice:-2}" in
                 1)
                     new=$(ask_new_domain "$name" "$here" "$taken" "$domain")
@@ -648,9 +663,130 @@ check_addon_domains() {
     return 0
 }
 
+# A path from before October 2026 (/root/aiostreams, or a home's) in the
+# backup's settings, or nothing when it has none.
+backup_old_ref() {
+    tar -xzOf "$1" --exclude='aiostreams/data' --wildcards --no-anchored \
+            '*.yml' '*.yaml' '*.caddy' '*.env' 'config' 2>/dev/null \
+        | grep -m1 -oE '/(root|home/[^/[:space:]"]+)/aiostreams([/:"[:space:]]|$)' || true
+}
+
+# ---------------------------------------------------------------------------
+# Same-server check
+# ---------------------------------------------------------------------------
+
+# Everything a restore of this backup would stop and ask about, worked out
+# without unpacking it or changing anything. A restore started from the
+# control panel can't answer questions, so it only runs when this finds none:
+# a rollback of this server, to a backup with the same domains, which point
+# here. Anything else is a restore for SSH. Returns 0 when it's fine, 3 when not.
+restore_check() {
+    local tarball="${1:-}" listing problems=0
+    check_no() { problems=$((problems + 1)); echo "  no: $1"; }
+    check_ok() { echo "  ok: $1"; }
+    from_backup() { tar -xzOf "$tarball" --occurrence=1 "aiostreams/$1" 2>/dev/null || true; }
+
+    echo "Checking $tarball for a same-server restore. Nothing is changed."
+    if [[ -z "$tarball" || ! -f "$tarball" ]]; then
+        check_no "File not found: ${tarball:-(none given)}."
+        return 3
+    fi
+    if ! listing=$(tar -tzf "$tarball" 2>/dev/null); then
+        check_no "It couldn't be read as a .tar.gz archive. It may be damaged or incomplete."
+        return 3
+    fi
+    if ! grep -qx 'aiostreams/docker-compose.yml' <<< "$listing"; then
+        check_no "It isn't a backup made by these scripts (no aiostreams/docker-compose.yml inside)."
+        return 3
+    fi
+    local tag info_text
+    info_text=$(from_backup backup-info)
+    tag=$(grep -m1 -oP '^aiostreams_tag=\K\S+' <<< "$info_text" || true)
+    [[ -n "$tag" ]] && check_ok "It holds AIOStreams $tag."
+
+    if [[ -n "$(backup_old_ref "$tarball")" ]]; then
+        check_no "It's from before October 2026, so it has to go through the migrate-to-opt restore over SSH."
+    fi
+    if [[ ! -f "$COMPOSE_FILE" ]]; then
+        check_no "There's no current install in $INSTALL_DIR to roll back."
+    fi
+    if ! require_cmd docker || ! docker compose version >/dev/null 2>&1; then
+        check_no "Docker or its Compose plugin isn't available."
+    fi
+
+    local domain current ip caddyfile
+    caddyfile=$(from_backup Caddyfile)
+    domain=$(head -n1 <<< "$caddyfile" | awk '{print $1}')
+    current=$(head -n1 "$CADDYFILE" 2>/dev/null | awk '{print $1}')
+    find_public_ip
+    if [[ -z "$domain" ]]; then
+        check_no "Its Caddyfile names no domain."
+    elif [[ -n "$current" && "${domain,,}" != "${current,,}" ]]; then
+        check_no "Its domain is $domain, but this install uses $current."
+    elif [[ -z "$PUBLIC_IP" ]]; then
+        check_no "This server's own public IP couldn't be found, so DNS can't be checked."
+    else
+        ip=$(resolve_ip "$domain")
+        if [[ "$ip" == "$PUBLIC_IP" ]]; then
+            check_ok "$domain points at this server."
+        else
+            check_no "$domain points at ${ip:-nothing}, not this server ($PUBLIC_IP)."
+        fi
+    fi
+
+    local a id name dir site ctr bdomain cdomain
+    for a in "${ADDONS[@]}"; do
+        IFS='|' read -r id name dir site ctr <<< "$a"
+        grep -qx "aiostreams/$dir/config" <<< "$listing" || continue
+        bdomain=$(from_backup "$dir/config")
+        bdomain=$(grep -m1 -oP "^DOMAIN='?\K[^'\s]+" <<< "$bdomain" || true)
+        [[ -n "$bdomain" ]] || continue
+        cdomain=$(addon_domain "$dir")
+        if [[ -n "$cdomain" && "${bdomain,,}" != "${cdomain,,}" ]]; then
+            check_no "$name: it uses $bdomain, but this install uses $cdomain."
+        elif [[ -n "$PUBLIC_IP" && "$(resolve_ip "$bdomain")" != "$PUBLIC_IP" ]]; then
+            check_no "$name: $bdomain doesn't point at this server."
+        else
+            check_ok "$name: $bdomain points at this server."
+        fi
+    done
+
+    # The restore asks before starting AIOStreams without its VPN. Read into a
+    # variable first: grep -q quitting early would SIGPIPE tar under pipefail.
+    local bcompose
+    bcompose=$(from_backup docker-compose.yml)
+    if grep -qx 'aiostreams/vpn-state/active' <<< "$listing" \
+        && ! grep -q 'container_name: gluetun' <<< "$bcompose"; then
+        check_no "Its VPN was switched off, and a restore asks before starting AIOStreams without it."
+    fi
+
+    # Room for the unpacked backup next to the current install, which is
+    # moved aside rather than deleted. Unpacked is usually about 4 to 5 times
+    # the archive.
+    local need_mb free_mb
+    need_mb=$(( $(stat -c %s "$tarball") * 6 / 1048576 + 50 ))
+    free_mb=$(df -Pm "$(dirname "$INSTALL_DIR")" 2>/dev/null | awk 'NR==2 {print $4}')
+    if [[ -n "$free_mb" ]] && (( free_mb < need_mb )); then
+        check_no "Only ${free_mb} MB is free in $(dirname "$INSTALL_DIR"), and the restore needs about ${need_mb} MB."
+    fi
+
+    if (( problems )); then
+        echo "Result: not a same-server restore. Restore it over SSH instead:"
+        echo "  sudo bash $INSTALL_DIR/setup-aiostreams.sh restore $tarball"
+        return 3
+    fi
+    echo "Result: OK, it can be restored here without questions."
+    return 0
+}
+
 # ---------------------------------------------------------------------------
 # Restore
 # ---------------------------------------------------------------------------
+
+# Set by "restore --same-server": no questions, every answer is the one the
+# check above already established (move the current install aside, keep the
+# domains). stdin is closed too, so a question nobody expected can't wait.
+UNATTENDED=false
 
 do_restore() {
     local tarball="${1:-}"
@@ -717,9 +853,7 @@ do_restore() {
     # add-on and panel settings, which only work there. The migrate-to-opt
     # version restores those into /opt; send it there before changing anything.
     local old_ref
-    old_ref=$(tar -xzOf "$tarball" --exclude='aiostreams/data' --wildcards --no-anchored \
-            '*.yml' '*.yaml' '*.caddy' '*.env' 'config' 2>/dev/null \
-        | grep -m1 -oE '/(root|home/[^/[:space:]"]+)/aiostreams([/:"[:space:]]|$)' || true)
+    old_ref=$(backup_old_ref "$tarball")
     if [[ -n "$old_ref" ]]; then
         echo ""
         warn "This backup is from before October 2026, when installs lived in /root/aiostreams."
@@ -779,7 +913,12 @@ do_restore() {
             warn "Its add-ons are stopped and removed first ($addons_now)."
             warn "The backup's own add-ons are brought back afterwards."
         fi
-        read -rp "Move the current install aside and continue? [y/N]: " C
+        if $UNATTENDED; then
+            C=y
+            echo "Moving the current install aside (same-server restore)."
+        else
+            read -rp "Move the current install aside and continue? [y/N]: " C
+        fi
         if [[ ! "$C" =~ ^[Yy]$ ]]; then
             echo "Restore cancelled."
             return 0
@@ -925,7 +1064,11 @@ do_restore() {
                 [[ -n "$script" ]] && { bash "$script" start-relay < /dev/null || true; } ;;
             panel)
                 if in_panel_terminal; then
-                    summary+=("$name$where: press Restart panel (Terminal tab) so it picks up the restored install.")
+                    if $UNATTENDED; then
+                        summary+=("$name$where: restart it (Restart panel) so it picks up the restored install.")
+                    else
+                        summary+=("$name$where: press Restart panel (Terminal tab) so it picks up the restored install.")
+                    fi
                     continue
                 fi
                 script="$INSTALL_DIR/control-panel/setup-ui.sh"
@@ -1033,8 +1176,24 @@ case "${1:-}" in
         exit 0
         ;;
     restore)
-        do_restore "${2:-}"
-        exit 0
+        case "${2:-}" in
+            --check)
+                if restore_check "${3:-}"; then exit 0; else exit 3; fi
+                ;;
+            --same-server)
+                if ! restore_check "${3:-}"; then
+                    echo "Nothing was changed."
+                    exit 3
+                fi
+                UNATTENDED=true
+                do_restore "${3:-}" < /dev/null
+                exit 0
+                ;;
+            *)
+                do_restore "${2:-}"
+                exit 0
+                ;;
+        esac
         ;;
     "")
         ;;

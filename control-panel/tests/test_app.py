@@ -294,3 +294,32 @@ def test_backup_builds_are_read_in_the_background_and_kept(client):
         assert calls == []                                                   # nothing read twice
     finally:
         main.backend.backup_build = real
+
+
+def test_restore_action_is_same_server_and_marks_itself_as_from_the_panel():
+    a = actions.build_restore("/root/aiostreams-backup-20261012-010000.tar.gz")
+    assert a.args == ("restore", "--same-server", "/root/aiostreams-backup-20261012-010000.tar.gz")
+    assert "AIOS_UI_TERMINAL=1" in a.env and a.stdin == ""
+
+
+def test_restore_check_endpoint(client):
+    login(client)
+    names = [b["name"] for b in client.get("/api/backups").json()]
+    good = client.get(f"/api/backups/{names[0]}/restore-check").json()
+    assert good["ok"] is True and good["notes"]
+    bad = client.get("/api/backups/aiostreams-backup-20260914-094407.tar.gz/restore-check").json()
+    assert bad["ok"] is False and any("domain" in r for r in bad["reasons"])
+    assert client.get("/api/backups/notabackup/restore-check").status_code == 400
+    assert client.get("/api/backups/aiostreams-backup-19990101-000000.tar.gz/restore-check").status_code == 404
+
+
+def test_restore_needs_the_typed_word_and_a_real_backup(client):
+    login(client)
+    name = client.get("/api/backups").json()[0]["name"]
+    assert client.post("/api/actions/stack.restore", json={"params": {"name": name}}).status_code == 400
+    assert client.post("/api/actions/stack.restore", json={"params": {"name": "../../etc/passwd", "confirm": "restore"}}).status_code == 400
+    assert client.post("/api/actions/stack.restore", json={"params": {"name": "aiostreams-backup-19990101-000000.tar.gz", "confirm": "restore"}}).status_code == 404
+    r = client.post("/api/actions/stack.restore", json={"params": {"name": name, "confirm": "Restore "}})
+    assert r.status_code == 200
+    j = wait_job(client, r.json()["id"])
+    assert j["code"] == 0 and j["action"] == "stack.restore"

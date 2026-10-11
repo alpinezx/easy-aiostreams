@@ -15,8 +15,8 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Stre
 from fastapi.staticfiles import StaticFiles
 
 from . import auth, config, releases, terminal
-from .actions import BadAction, resolve
-from .stack import RESTARTABLE
+from .actions import BadAction, build_restore, resolve
+from .stack import BACKUP_NAME, RESTARTABLE, backup_path
 
 if config.DEMO:
     from .demo import DemoBackend
@@ -271,6 +271,22 @@ async def delete_set_aside(name: str, user: str = Depends(current_user)):
     return {"ok": True}
 
 
+async def _backup_item(name: str) -> dict:
+    if not BACKUP_NAME.fullmatch(name):
+        raise HTTPException(400, "Not a backup file name.")
+    item = next((b for b in await asyncio.to_thread(backend.backups) if b["name"] == name), None)
+    if not item:
+        raise HTTPException(404, "That backup isn't on the server any more.")
+    return item
+
+
+@app.get("/api/backups/{name}/restore-check")
+async def restore_check(name: str, user: str = Depends(current_user)):
+    """Whether this backup restores here without questions. Changes nothing."""
+    item = await _backup_item(name)
+    return await asyncio.to_thread(backend.restore_check, item)
+
+
 @app.put("/api/backups/{name}/meta")
 async def backup_meta(name: str, request: Request, user: str = Depends(current_user)):
     try:
@@ -513,12 +529,19 @@ async def run_action(action_id: str, request: Request, user: str = Depends(curre
     except Exception:
         body = {}
     params = body.get("params") if isinstance(body, dict) else None
-    try:
-        action = resolve(action_id, params if isinstance(params, dict) else None)
-    except BadAction as e:
-        raise HTTPException(400, str(e))
+    params = params if isinstance(params, dict) else None
+    if action_id == "stack.restore":
+        # Same-server only: the script checks again and refuses rather than asks.
+        if str((params or {}).get("confirm", "")).strip().lower() != "restore":
+            raise HTTPException(400, "Type restore to confirm.")
+        action = build_restore(backup_path(await _backup_item(str((params or {}).get("name", "")))))
+    else:
+        try:
+            action = resolve(action_id, params)
+        except BadAction as e:
+            raise HTTPException(400, str(e))
     st = await asyncio.to_thread(backend.available_actions) if hasattr(backend, "available_actions") else None
-    if st is not None and not next((a["available"] for a in st if a["id"] == action.id), False):
+    if st is not None and action.id != "stack.restore" and not next((a["available"] for a in st if a["id"] == action.id), False):
         raise HTTPException(400, "That action isn't set up on this server.")
     after = None
     if action.id == "stack.update" and (params or {}).get("backup", True):

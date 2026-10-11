@@ -71,6 +71,40 @@ async function copy(text, okMsg) {
   try { await navigator.clipboard.writeText(text); toast(okMsg); } catch (_) { toast(text); }
 }
 
+// A same-server rollback. The check runs first (it changes nothing); anything it finds means the
+// restore needs answers only SSH can give, so the panel refuses and offers the SSH command instead.
+async function startRestore(it, restoreCmd, btn) {
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = "Checking…";
+  let res;
+  try { res = await api(`/api/backups/${encodeURIComponent(it.name)}/restore-check`); }
+  catch (e) { toast(e.message || "Couldn't check that backup.", true); return; }
+  finally { btn.disabled = false; btn.textContent = label; }
+  if (!res.ok) {
+    const copyIt = await ask({ title: "Restore this one over SSH",
+      body: "The panel only restores a backup of this same server, with the same domains, pointing here. This one needs answers only you can give over SSH:",
+      options: { el: h("ul", { class: "check-list" }, ...res.reasons.map((r) => h("li", { text: r }))), read: () => true },
+      confirmLabel: "Copy SSH restore command" });
+    if (copyIt) copy(restoreCmd, "Copied. Paste it into an SSH session.");
+    return;
+  }
+  const build = it.build ? `, AIOStreams ${tagLabel(it.build.tag)}` : "";
+  const input = h("input", { class: "input", type: "text", autocomplete: "off", spellcheck: "false", placeholder: "restore", "aria-label": "Type restore to confirm" });
+  const el = h("div", { class: "opts" },
+    h("ul", { class: "check-list ok" }, ...res.notes.map((n) => h("li", { text: n }))),
+    h("p", { class: "dim small", text: "This restore's own output won't stay in Activity afterwards: that list is part of what gets rolled back." }),
+    input);
+  const ok = await ask({ title: "Roll this server back?", danger: true, confirmLabel: "Restore",
+    body: `Restores ${it.name} (made ${ago(it.mtime)}${build}). The current install is moved aside, not deleted. AIOStreams restarts, so streams stop for a minute or two, and the panel restarts at the end. Type restore to confirm.`,
+    options: { el, gate: input, word: "restore", read: () => true } });
+  if (!ok) return;
+  try {
+    const job = await api("/api/actions/stack.restore", { method: "POST", body: JSON.stringify({ params: { name: it.name, confirm: "restore" } }) });
+    openJob(job.id);
+    window.dispatchEvent(new CustomEvent("job-started"));
+  } catch (e) { toast(e.message || "Couldn't start the restore.", true); }
+}
+
 async function saveMeta(it, patch) {
   try { await api(`/api/backups/${encodeURIComponent(it.name)}/meta`, { method: "PUT", body: JSON.stringify(patch) }); return true; }
   catch (e) { toast(e.message || "Couldn't save that.", true); return false; }
@@ -113,6 +147,9 @@ function backupRow(it, cmd, restore, status) {
         it.locked ? h("span", { class: "lock-tag", text: "Locked" }) : null),
       h("div", { class: "when", text: `${fmtBytes(it.size)}, made ${ago(it.mtime)}, saved in ${it.dirs.join(" and ")}` })),
     h("div", { class: "btns" },
+      h("button", { class: "btn small", type: "button", text: "Restore", disabled: !!status.busy,
+        title: "Roll this server back to this backup, after checking it's safe to do from here",
+        onclick: (e) => startRestore(it, restore, e.currentTarget) }),
       h("button", { class: "btn small", type: "button", text: "Copy restore command", onclick: () => copy(restore, "Copied. Paste it into the Terminal tab or an SSH session to restore from this backup.") }),
       h("button", { class: "btn small", type: "button", text: "Copy scp command", onclick: () => copy(cmd, "Copied. Replace YOUR_SERVER with your server's address.") }),
       h("button", { class: "btn small", type: "button", text: it.locked ? "Unlock" : "Lock", "aria-pressed": String(!!it.locked), onclick: async () => {

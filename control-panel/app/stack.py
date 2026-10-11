@@ -29,6 +29,25 @@ _BUILD_VERSION = re.compile(r"\d+\.\d+\.\d+")
 _BUILD_TAG = re.compile(r"v\d+\.\d+\.\d+|\d{4}\.\d\d\.\d\d\.\d{4}-nightly")
 
 
+def backup_path(b: dict) -> str:
+    """Where to restore a backup from: root's copy, not a login user's."""
+    d = next((d for d in b["dirs"] if not d.startswith(HOMES_DIR + "/")), b["dirs"][0])
+    return f"{d}/{b['name']}"
+
+
+def parse_restore_check(out: str, code: int) -> dict:
+    """setup-backup.sh restore --check prints '  ok: ...' and '  no: ...' lines
+    and a 'Result:' line. One from before the check existed prints none."""
+    lines = [re.sub(r"\x1b\[[0-9;]*m", "", l) for l in out.splitlines()]
+    if not any(l.startswith("Result:") for l in lines):
+        return {"ok": False, "notes": [], "reasons": [
+            "This server's setup-backup.sh is from before restores could start here. "
+            "Update it on the Terminal tab (AIOStreams menu, Update), then try again."]}
+    reasons = [l.strip()[4:] for l in lines if l.strip().startswith("no: ")]
+    notes = [l.strip()[4:] for l in lines if l.strip().startswith("ok: ")]
+    return {"ok": code == 0 and not reasons, "reasons": reasons, "notes": notes}
+
+
 def parse_backup_info(text: str) -> dict | None:
     kv = dict(l.split("=", 1) for l in text.splitlines() if "=" in l and not l.startswith("#"))
     v, t = kv.get("aiostreams_version", "").strip(), kv.get("aiostreams_tag", "").strip()
@@ -438,6 +457,19 @@ class Backend:
                            capture_output=True, text=True, timeout=180)
         return parse_backup_info(r.stdout) if r.returncode == 0 else None
 
+    def restore_check(self, b: dict) -> dict:
+        """Asks setup-backup.sh whether this backup restores here without
+        questions (restore --check). Changes nothing."""
+        cmd = ["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "env", "-i",
+               f"HOME={self.home}", f"PATH={HOST_PATH}", "TERM=dumb", "LANG=C.UTF-8",
+               "bash", str(config.INSTALL_DIR / "setup-aiostreams.sh"), "restore", "--check", backup_path(b)]
+        try:
+            r = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=180)
+            out = r.stdout + r.stderr
+        except subprocess.TimeoutExpired:
+            return {"ok": False, "reasons": ["The check took too long."], "notes": []}
+        return parse_restore_check(out, r.returncode)
+
     def delete_backup(self, name: str) -> list[str]:
         """Remove every copy of one backup. Only a name that backups() just
         found is accepted, and only in the folders it was found in."""
@@ -574,7 +606,7 @@ class Backend:
             d=shlex.quote(str(config.INSTALL_DIR)), s=shlex.quote(action.script),
             a=" ".join(shlex.quote(x) for x in action.args))
         cmd = ["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "env", "-i",
-               f"HOME={self.home}", f"PATH={HOST_PATH}", "TERM=dumb", "LANG=C.UTF-8",
+               f"HOME={self.home}", f"PATH={HOST_PATH}", "TERM=dumb", "LANG=C.UTF-8", *action.env,
                "bash", "-c", inner]
         # Pseudo-terminal for stdin only (stdout stays a pipe so docker compose
         # prints plain progress, not cursor-movement escapes). Echo is off so
