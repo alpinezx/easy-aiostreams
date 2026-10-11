@@ -20,7 +20,7 @@ What it does:
 - Moves everything to `/opt/aiostreams`, and points the add-ons, systemd units and control panel at the new path
 - Starts back up whatever was running
 
-Afterwards `/root/aiostreams` and your `~/aiostreams` become shortcuts to the new folder. Your old `~/aiostreams` is removed only if it held nothing but identical copies of the scripts; otherwise it's renamed to `~/aiostreams.old-<time>`.
+Afterwards `/root/aiostreams` and your `~/aiostreams` become shortcuts to the new folder. Your old `~/aiostreams` is removed only if it held nothing but copies of the scripts (an older `setup-aiostreams.sh` counts, since the new one replaces it); otherwise it's renamed to `~/aiostreams.old-<time>`.
 
 To put everything back the way it was:
 

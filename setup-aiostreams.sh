@@ -1102,7 +1102,8 @@ in_panel_terminal() {
 # /opt layout only. Gives root, and the sudo user running this, a
 # ~/aiostreams that is just a link to the install folder, so 'cd ~/aiostreams'
 # and every older doc keep working. A real ~/aiostreams folder from before is
-# removed when all it holds is identical copies of these scripts; anything
+# removed when all it holds is identical copies of these scripts (or a
+# setup-aiostreams.sh from before /opt, which this version replaces); anything
 # else in it means it is renamed to ~/aiostreams.old-<time> instead, so
 # nothing is ever deleted that isn't already in the install folder.
 link_install_shortcuts() {
@@ -1135,6 +1136,12 @@ link_install_shortcuts() {
                     cp -- "$link/$name" "$INSTALL_DIR/$name" && chmod 755 "$INSTALL_DIR/$name"
                 fi
                 if cmp -s "$link/$name" "$INSTALL_DIR/$name"; then
+                    rm -f -- "$link/$name"
+                elif [[ "$name" == "setup-aiostreams.sh" ]] && ! grep -q "$OPT_INSTALL_DIR" "$link/$name" 2>/dev/null; then
+                    # A release from before the move to /opt. It never matches:
+                    # running this version synced itself into the install folder
+                    # first, replacing that same old copy. So it's superseded,
+                    # not a change of the person's own worth keeping.
                     rm -f -- "$link/$name"
                 else
                     differ+=("$name")
