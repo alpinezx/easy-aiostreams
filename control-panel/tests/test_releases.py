@@ -70,6 +70,14 @@ def test_failed_refresh_keeps_the_last_list(monkeypatch):
     assert [r["tag"] for r in out["releases"]] == ["v2.35.9"] and out["error"] == "Couldn't reach GitHub."
 
 
+def test_notes_are_kept_and_capped(monkeypatch):
+    big = {**rel("v2.35.9"), "body": "x" * (releases.BODY_MAX + 500)}
+    none = {**rel("v2.35.8"), "body": None}
+    monkeypatch.setattr(releases.requests, "get", fake_get([[big, none]], []))
+    out = releases.get()["releases"]
+    assert len(out[0]["body"]) == releases.BODY_MAX and out[1]["body"] == ""
+
+
 def test_non_github_links_are_dropped(monkeypatch):
     bad = {**rel("v2.35.9"), "html_url": "javascript:alert(1)"}
     monkeypatch.setattr(releases.requests, "get", fake_get([[bad]], []))

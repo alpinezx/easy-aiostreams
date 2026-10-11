@@ -1,14 +1,9 @@
 import { $, h, clear, setText, fmtDur, fmtBytes, api, toast, ago } from "./util.js";
 import { runAction, openJob, rebootServer, restartService } from "./actions.js";
+import { cmpVer, openReleases } from "./releases.js";
 
 // ---------------- update check ----------------
 let rel = null, relLoading = false, relAsked = false, lastSt = null;
-
-function cmpVer(a, b) {
-  const pa = a.replace(/^v/, "").split(".").map(Number), pb = b.replace(/^v/, "").split(".").map(Number);
-  for (let i = 0; i < 3; i++) if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) - (pb[i] || 0);
-  return 0;
-}
 
 function newerThan(version) {
   return rel ? rel.releases.filter((r) => cmpVer(r.tag, version) > 0) : [];
@@ -47,15 +42,18 @@ function updateBits(st) {
       const top = newer[0], n = newer.length;
       const count = n >= rel.keep && n === rel.releases.length ? `${n}+` : `${n}`;
       const when = top.published ? `, released ${ago(Date.parse(top.published) / 1000)}` : "";
-      const title = `${count} release${n === 1 ? "" : "s"} behind${when}. Use Update to get it. ${checked}`;
-      chip = top.url
-        ? h("a", { class: "chip warn", href: top.url, target: "_blank", rel: "noopener noreferrer", title, text: `${top.tag} available` })
-        : h("span", { class: "chip warn", title, text: `${top.tag} available` });
+      const title = `${count} release${n === 1 ? "" : "s"} behind${when}. Click for what's new; use Update to get it. ${checked}`;
+      chip = h("button", { class: "chip warn", type: "button", title, text: `${top.tag} available`,
+        onclick: () => openReleases(rel, st.version) });
     }
   }
-  const btn = h("button", { class: "btn small", type: "button", text: relLoading ? "Checking…" : "Check now",
-    disabled: relLoading, title: "Ask GitHub for the latest AIOStreams release now", onclick: () => loadReleases(true) });
-  return [chip, btn];
+  const tail = [h("button", { class: "btn small", type: "button", text: relLoading ? "Checking…" : "Check now",
+    disabled: relLoading, title: "Ask GitHub for the latest AIOStreams release now", onclick: () => loadReleases(true) })];
+  if (rel && rel.releases.length) {
+    tail.push(h("button", { class: "btn small", type: "button", text: "All releases",
+      title: "What changed in each AIOStreams release", onclick: () => openReleases(rel, st.version) }));
+  }
+  return [chip, tail];
 }
 
 const RESTARTABLE = new Set(["aiostreams", "mediaflow", "webhook"]);
@@ -113,7 +111,7 @@ function hero(st) {
       title: `Opens https://${st.domain} in a new tab` }, "Open AIOStreams", h("span", { "aria-hidden": "true", text: "\u2197" })));
     if (st.channel) meta.append(h("span", { class: "chip", text: `AIOStreams ${st.channel === "nightly" ? "nightly" : "latest"}`,
       title: st.channel === "nightly" ? "AIOStreams' nightly builds (Docker tag: nightly). Switch with Update." : "AIOStreams' stable releases (Docker tag: latest). Switch with Update." }));
-    const [updChip, updBtn] = updateBits(st);
+    const [updChip, updTail] = updateBits(st);
     if (st.version) meta.append(h("span", { class: "chip", title: "The AIOStreams version running now", text: `v${st.version}` }));
     if (updChip) meta.append(updChip);
     // Only mention the VPN if it was ever set up. "off" means it was installed and switched off.
@@ -125,7 +123,7 @@ function hero(st) {
     } else if (st.cert) {
       meta.append(h("span", { class: "chip warn", text: "Couldn't check HTTPS certificate" }));
     }
-    if (updBtn) meta.append(updBtn);
+    if (updTail) meta.append(...updTail);
     el.append(meta);
 
     const bar = h("div", { class: "toolbar" });

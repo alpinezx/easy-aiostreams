@@ -136,8 +136,7 @@ h1.headline {
 .chip.ok { color: var(--ok); background: var(--ok-soft); border-color: transparent; }
 .chip.warn { color: var(--warn); background: var(--warn-soft); border-color: transparent; }
 .chip.bad { color: var(--bad); background: var(--bad-soft); border-color: transparent; }
-a.chip { text-decoration: none; }
-a.chip:hover { text-decoration: underline; }
+button.chip:hover { text-decoration: underline; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; align-items: center; }
 .busy-note { color: var(--dim); font-size: .92rem; display: inline-flex; gap: 8px; align-items: center; }
 
@@ -278,6 +277,29 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .drawer-head .x { margin-left: auto; }
 .drawer .term { flex: 1; height: auto; border: 0; border-radius: 0; margin: 0; }
 .drawer-foot { padding: 12px 20px; border-top: 1px solid var(--line-soft); display: flex; gap: 10px; align-items: center; }
+.drawer-foot a { font-size: .9rem; }
+
+/* ---------- releases drawer ---------- */
+.rel-list { flex: 1; overflow: auto; padding: 14px 20px; display: grid; gap: 10px; align-content: start; }
+.rel { border: 1px solid var(--line-soft); border-radius: var(--radius); background: var(--raised); }
+.rel > summary { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; list-style: none; }
+.rel > summary::-webkit-details-marker { display: none; }
+.rel > summary::after { content: "\25BE"; color: var(--dim); transition: transform .12s; }
+.rel[open] > summary::after { transform: rotate(180deg); }
+.rel > summary:hover { background: var(--hover); border-radius: var(--radius); }
+.rel-tag { font-weight: 600; }
+.rel-when { margin-left: auto; color: var(--faint); font-size: .86rem; }
+.rel-body { padding: 2px 16px 14px; font-size: .92rem; line-height: 1.55; overflow-wrap: anywhere; }
+.rel-body h4, .rel-body h5 { margin: 14px 0 6px; font-size: .98rem; font-weight: 650; }
+.rel-body h5 { font-size: .92rem; }
+.rel-body > :first-child { margin-top: 4px; }
+.rel-body p { margin: 6px 0; }
+.rel-body ul { margin: 4px 0; padding-left: 20px; }
+.rel-body li { margin: 3px 0; }
+.rel-body code { font-family: var(--mono); font-size: .84em; background: var(--hover); padding: 1px 5px; border-radius: 5px; }
+.rel-body pre { background: var(--hover); padding: 10px 12px; border-radius: 8px; overflow: auto; }
+.rel-body pre code { background: none; padding: 0; }
+.rel-body .rel-gh { font-size: .86rem; margin-top: 12px; }
 .result { font-weight: 600; }
 .result.ok { color: var(--ok); } .result.bad { color: var(--bad); }
 .spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); animation: spin .8s linear infinite; display: inline-block; }
