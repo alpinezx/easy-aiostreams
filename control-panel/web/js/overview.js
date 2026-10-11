@@ -111,8 +111,11 @@ function hero(st) {
     const meta = h("div", { class: "hero-meta" });
     if (st.domain) meta.append(h("a", { class: "btn small open-site", href: `https://${st.domain}`, target: "_blank", rel: "noopener noreferrer",
       title: `Opens https://${st.domain} in a new tab` }, "Open AIOStreams", h("span", { "aria-hidden": "true", text: "\u2197" })));
-    if (st.channel) meta.append(h("span", { class: "chip", text: st.channel === "nightly" ? "Nightly build" : "Stable build" }));
-    if (st.version) meta.append(h("span", { class: "chip", title: "The AIOStreams version running now", text: `v${st.version}` }), ...updateBits(st));
+    if (st.channel) meta.append(h("span", { class: "chip", text: `AIOStreams ${st.channel === "nightly" ? "nightly" : "latest"}`,
+      title: st.channel === "nightly" ? "AIOStreams' nightly builds (Docker tag: nightly). Switch with Update." : "AIOStreams' stable releases (Docker tag: latest). Switch with Update." }));
+    const [updChip, updBtn] = updateBits(st);
+    if (st.version) meta.append(h("span", { class: "chip", title: "The AIOStreams version running now", text: `v${st.version}` }));
+    if (updChip) meta.append(updChip);
     // Only mention the VPN if it was ever set up. "off" means it was installed and switched off.
     if (st.vpn === "on") meta.append(h("span", { class: "chip ok", text: "VPN on" }));
     if (st.vpn === "off") meta.append(h("span", { class: "chip warn", title: "The VPN is installed but switched off, so traffic leaves from this server's own IP address.", text: "VPN off" }));
@@ -122,6 +125,7 @@ function hero(st) {
     } else if (st.cert) {
       meta.append(h("span", { class: "chip warn", text: "Couldn't check HTTPS certificate" }));
     }
+    if (updBtn) meta.append(updBtn);
     el.append(meta);
 
     const bar = h("div", { class: "toolbar" });
