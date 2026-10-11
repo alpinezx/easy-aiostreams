@@ -988,6 +988,31 @@ do_restore() {
         rm -f "$INSTALL_DIR/mediaflow-state/was-active-at-backup"
     fi
 
+    # The add-on scripts above came out of the backup. From an old-layout
+    # server they still work out their folder as /root/aiostreams, so they
+    # just wrote that path back into their compose files and the watchdog
+    # unit. Point everything at the install folder again, and recreate any
+    # add-on whose compose file changed so its mounts use the real path.
+    if [[ "$INSTALL_DIR" == "$OPT_INSTALL_DIR" ]]; then
+        local old_root rf recreate=()
+        for old_root in "$ROOT_HOME/aiostreams" "/root/aiostreams"; do
+            rewrite_install_paths "$old_root" "$INSTALL_DIR" "$INSTALL_DIR"
+            for rf in "${REWRITTEN_FILES[@]}"; do
+                case "$rf" in
+                    "$INSTALL_DIR"/mediaflow-state/docker-compose.yml|"$INSTALL_DIR"/webhook-relay-state/docker-compose.yml)
+                        [[ " ${recreate[*]} " == *" $(dirname "$rf") "* ]] || recreate+=("$(dirname "$rf")") ;;
+                esac
+            done
+        done
+        systemctl daemon-reload >/dev/null 2>&1 || true
+        for rf in "${recreate[@]}"; do
+            if docker compose -f "$rf/docker-compose.yml" ps -q 2>/dev/null | grep -q .; then
+                (cd "$rf" && docker compose -f docker-compose.yml up -d >/dev/null 2>&1) || \
+                    warn "Couldn't recreate the add-on in $rf with the new path. It still works through the /root/aiostreams link."
+            fi
+        done
+    fi
+
     info "Restore complete!"
     echo ""
     echo "Because the SECRET_KEY and data came over intact, every existing user config"
