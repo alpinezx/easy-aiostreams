@@ -98,12 +98,26 @@ export function render(st, goLogs) {
   hero(st); path(st); rows(st, goLogs); side(st);
 }
 
+// "off" means the VPN was installed and switched off; "none" means it never was.
+function vpnChip(st, text) {
+  return st.vpn === "on"
+    ? h("span", { class: "chip ok", text })
+    : h("span", { class: "chip warn", title: "The VPN is installed but switched off, so traffic leaves from this server's own IP address.", text });
+}
+
+function certChip(st, long) {
+  if (!st.cert.ok) return h("span", { class: "chip warn", text: long ? "Couldn't check HTTPS certificate" : "Couldn't check" });
+  const d = st.cert.days_left;
+  return h("span", { class: "chip " + (d < 7 ? "bad" : d < 21 ? "warn" : "ok"), title: st.cert.host ? `For ${st.cert.host}. Caddy renews it by itself.` : null,
+    text: long ? `HTTPS certificate good for ${d} days` : `${d} days left` });
+}
+
 // ---------------- hero ----------------
 function hero(st) {
   const avail = Object.fromEntries(st.actions.map((a) => [a.id, a]));
   const aio = st.services.find((s) => s.key === "aiostreams");
   const key = [st.overall, st.headline, st.domain, st.channel, st.version, st.vpn, !!st.busy, aio && aio.state,
-    st.cert && st.cert.days_left, st.installed, st.docker_ok, relLoading, rel && rel.checked_at, rel && rel.error].join("|");
+    st.cert && st.cert.ok, st.cert && st.cert.days_left, st.installed, st.docker_ok, relLoading, rel && rel.checked_at, rel && rel.error].join("|");
   rebuild("#hero", key, (el) => {
     el.append(h("div", { class: "hero-head", "aria-live": "polite" },
       h("span", { class: "lamp", dataset: { s: st.overall }, "aria-hidden": "true" }),
@@ -116,16 +130,10 @@ function hero(st) {
     const [updChip, updTail] = updateBits(st);
     if (st.version) meta.append(h("span", { class: "chip", title: "The AIOStreams version running now", text: `v${st.version}` }));
     if (updChip) meta.append(updChip);
-    // Only mention the VPN if it was ever set up. "off" means it was installed and switched off.
-    if (st.vpn === "on") meta.append(h("span", { class: "chip ok", text: "VPN on" }));
-    if (st.vpn === "off") meta.append(h("span", { class: "chip warn", title: "The VPN is installed but switched off, so traffic leaves from this server's own IP address.", text: "VPN off" }));
-    if (st.cert && st.cert.ok) {
-      const d = st.cert.days_left;
-      meta.append(h("span", { class: "chip " + (d < 7 ? "bad" : d < 21 ? "warn" : "ok"), text: `HTTPS certificate good for ${d} days` }));
-    } else if (st.cert) {
-      meta.append(h("span", { class: "chip warn", text: "Couldn't check HTTPS certificate" }));
-    }
     if (updTail) meta.append(...updTail);
+    // VPN and certificate live in This server; they come up here, after the AIOStreams items, only when they need attention.
+    if (st.vpn === "off") meta.append(vpnChip(st, "VPN off"));
+    if (st.cert && (!st.cert.ok || st.cert.days_left < 21)) meta.append(certChip(st, true));
     el.append(meta);
 
     const bar = h("div", { class: "toolbar" });
@@ -284,7 +292,11 @@ function side(st) {
   if (hs.load) host.append(meter("Load", (hs.load[0] / (hs.cpus || 1)) * 100, `${hs.load[0].toFixed(2)} on ${hs.cpus} CPU${hs.cpus > 1 ? "s" : ""}`));
   if (hs.mem_total) host.append(meter("Memory", (hs.mem_used / hs.mem_total) * 100, `${fmtBytes(hs.mem_used)} of ${fmtBytes(hs.mem_total)}`));
   if (hs.disk_total) host.append(meter("Disk", (hs.disk_used / hs.disk_total) * 100, `${fmtBytes(hs.disk_used)} of ${fmtBytes(hs.disk_total)}`));
-  if (hs.uptime != null) host.append(h("dl", { class: "kv" }, h("dt", { text: "Up for" }), h("dd", { text: fmtDur(hs.uptime) })));
+  const kv = h("dl", { class: "kv" });
+  if (hs.uptime != null) kv.append(h("dt", { text: "Up for" }), h("dd", { text: fmtDur(hs.uptime) }));
+  if (st.cert) kv.append(h("dt", { text: "HTTPS certificate" }), h("dd", {}, certChip(st, false)));
+  if (st.vpn === "on" || st.vpn === "off") kv.append(h("dt", { text: "VPN" }), h("dd", {}, vpnChip(st, st.vpn === "on" ? "On" : "Off")));
+  if (kv.childElementCount) host.append(kv);
   host.append(h("button", { class: "btn small danger reboot", type: "button", text: "Reboot server", onclick: rebootServer }));
   el.append(host);
 
