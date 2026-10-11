@@ -1,5 +1,9 @@
 import { $, h, clear, api, ago, fmtBytes, toast } from "./util.js";
 import { openJob, runAction, ask } from "./actions.js";
+import { tagLabel } from "./releases.js";
+
+// The panel reads each backup's build in the background; look again a few times while it does.
+let buildTimer = null, buildTries = 0;
 
 export async function showActivity() {
   const box = $("#jobs"); clear(box);
@@ -40,6 +44,13 @@ export async function showBackups(status) {
   b.onclick = () => runAction(act);
   showSetAsides().catch(() => {});
   const items = await api("/api/backups");
+  clearTimeout(buildTimer);
+  if (items.some((it) => it.build_pending) && buildTries < 10) {
+    buildTries++;
+    buildTimer = setTimeout(() => { if (!$("#view-backups").hidden) showBackups(status).catch(() => {}); }, 3000);
+  } else {
+    buildTries = 0;
+  }
   if (!items.length) {
     box.append(h("p", { class: "empty", text: "No backups on this server yet. Use Back up now to make one." }));
     box.lastChild.style.padding = "18px 16px";
@@ -97,7 +108,9 @@ function backupRow(it, cmd, restore, status) {
 
   return h("div", { class: "item bk" + (it.locked ? " locked" : "") },
     h("span", {},
-      h("div", { class: "what mono" }, it.name, it.locked ? h("span", { class: "lock-tag", text: "Locked" }) : null),
+      h("div", { class: "what mono" }, it.name,
+        it.build ? h("span", { class: "build-tag", title: `AIOStreams ${it.build.version}, ${it.build.tag.endsWith("-nightly") ? "nightly build" : "stable release"} ${it.build.tag}`, text: tagLabel(it.build.tag) }) : null,
+        it.locked ? h("span", { class: "lock-tag", text: "Locked" }) : null),
       h("div", { class: "when", text: `${fmtBytes(it.size)}, made ${ago(it.mtime)}, saved in ${it.dirs.join(" and ")}` })),
     h("div", { class: "btns" },
       h("button", { class: "btn small", type: "button", text: "Copy restore command", onclick: () => copy(restore, "Copied. Paste it into the Terminal tab or an SSH session to restore from this backup.") }),

@@ -77,3 +77,13 @@ restored through `migrate-to-opt`; `dev`'s restore refusing a pre-October
 backup, restoring over a running install, and restoring onto a rebuilt droplet
 with every domain wrong (main domain and all three add-ons moved during the
 restore). Merged as PR #11.
+
+Later the same day: a backup from the version that records the AIOStreams
+build in `backup-info` and sorts the archive (`backup-info` read in 0.01s),
+restored over a running install with the control panel stopped, rebuilt and
+reported running again.
+
+Lesson from that evening: nightly can migrate AIOStreams' database past what
+stable understands ("Database is at migration 46 but this build only knows up
+to 42"), and stable then restart-loops. Switching back with Update can't fix
+it; restoring the backup made before the switch to nightly does.

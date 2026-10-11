@@ -137,7 +137,22 @@ do_backup() {
     fi
     # Tells a restore which of the markers above this backup can have.
     # Format 2 added the panel's, format 3 the webhook's reboot notification.
-    printf '# Written by setup-backup.sh with each backup.\nformat=3\n' > "$INSTALL_DIR/backup-info"
+    # The AIOStreams build is only there for the control panel to show on the
+    # backup; a restore doesn't act on it, so it doesn't change the format.
+    # Read now, before AIOStreams is paused below. Its image is distroless,
+    # with node at /nodejs/bin/node; plain node covers older images.
+    local build="" node
+    for node in /nodejs/bin/node node; do
+        build=$(docker exec aiostreams "$node" -p \
+            "const m=require('/app/resources/metadata.json');m.version+' '+m.tag" 2>/dev/null) && break
+        build=""
+    done
+    {
+        printf '# Written by setup-backup.sh with each backup.\nformat=3\n'
+        if [[ "$build" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\ (v[0-9]+\.[0-9]+\.[0-9]+|[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]{4}-nightly)$ ]]; then
+            printf 'aiostreams_version=%s\naiostreams_tag=%s\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+        fi
+    } > "$INSTALL_DIR/backup-info"
 
     if [[ -d "$INSTALL_DIR/vpn-state" ]]; then
         local conf_stage_dir="$INSTALL_DIR/vpn-state/original-confs"
@@ -192,7 +207,9 @@ do_backup() {
         echo "Pausing AIOStreams while the backup is written, so its database is copied cleanly..."
     fi
     started=$SECONDS
-    if ( umask 077; tar --warning=no-file-changed --exclude="$(basename "$INSTALL_DIR")/caddy-logs" \
+    # Sorted, so backup-info sits near the start and the panel can read it
+    # without unpacking the whole archive.
+    if ( umask 077; tar --warning=no-file-changed --sort=name --exclude="$(basename "$INSTALL_DIR")/caddy-logs" \
             -czf "$out" -C "$(dirname "$INSTALL_DIR")" "$(basename "$INSTALL_DIR")" ); then
         tar_status=0
     else

@@ -314,3 +314,30 @@ def test_version_none_when_stopped_or_unreadable(tmp_path, monkeypatch):
     b._version_cache = ("", (None, None))
     st = b.status()
     assert st["version"] is None and st["build_tag"] is None
+
+
+def test_parse_backup_info_reads_only_well_formed_builds():
+    ok = "# Written by setup-backup.sh\nformat=3\naiostreams_version=2.35.9\naiostreams_tag=v2.35.9\n"
+    assert stack.parse_backup_info(ok) == {"version": "2.35.9", "tag": "v2.35.9"}
+    nightly = "format=3\naiostreams_version=2.35.9\naiostreams_tag=2026.10.11.1908-nightly\n"
+    assert stack.parse_backup_info(nightly)["tag"] == "2026.10.11.1908-nightly"
+    assert stack.parse_backup_info("format=3\n") is None                                   # before builds were recorded
+    assert stack.parse_backup_info("aiostreams_version=2.35.9\naiostreams_tag=<b>x</b>\n") is None
+    assert stack.parse_backup_info("") is None
+
+
+def test_backup_build_asks_tar_for_backup_info_only(monkeypatch):
+    calls = []
+    def run(cmd, **kw):
+        calls.append(cmd)
+        return SimpleNamespace(returncode=0, stdout="format=3\naiostreams_version=2.35.9\naiostreams_tag=v2.35.9\n")
+    monkeypatch.setattr(stack.subprocess, "run", run)
+    monkeypatch.setattr(config, "INSTALL_DIR", pathlib.Path("/opt/aiostreams"))
+    b = stack.Backend.__new__(stack.Backend)
+    got = b.backup_build({"name": "aiostreams-backup-20261012-010000.tar.gz", "dirs": ["/root", "/home/ubuntu"]})
+    assert got == {"version": "2.35.9", "tag": "v2.35.9"}
+    cmd = calls[0]
+    assert cmd[cmd.index("--") + 1:] == ["tar", "-xzOf", "/root/aiostreams-backup-20261012-010000.tar.gz",
+                                         "--occurrence=1", "aiostreams/backup-info"]
+    monkeypatch.setattr(stack.subprocess, "run", lambda cmd, **kw: SimpleNamespace(returncode=2, stdout=""))
+    assert b.backup_build({"name": "x.tar.gz", "dirs": ["/root"]}) is None
