@@ -25,6 +25,16 @@ from .actions import SCRIPTS, Action
 
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 BACKUP_NAME = re.compile(r"aiostreams-backup-[0-9A-Za-z._-]+\.tar\.gz")
+_BUILD_VERSION = re.compile(r"\d+\.\d+\.\d+")
+_BUILD_TAG = re.compile(r"v\d+\.\d+\.\d+|\d{4}\.\d\d\.\d\d\.\d{4}-nightly")
+
+
+def parse_backup_info(text: str) -> dict | None:
+    kv = dict(l.split("=", 1) for l in text.splitlines() if "=" in l and not l.startswith("#"))
+    v, t = kv.get("aiostreams_version", "").strip(), kv.get("aiostreams_tag", "").strip()
+    if _BUILD_VERSION.fullmatch(v) and _BUILD_TAG.fullmatch(t):
+        return {"version": v, "tag": t}
+    return None
 SET_ASIDE_NAME = re.compile(r"aiostreams\.pre-restore-(\d{8}-\d{6})")
 HOMES_DIR = "/home"      # where other users keep their convenience copy (tests point this elsewhere)
 HOST_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -417,6 +427,16 @@ class Backend:
             except ValueError:
                 continue
         return sorted(found.values(), key=lambda b: b["mtime"], reverse=True)
+
+    def backup_build(self, b: dict) -> dict | None:
+        """The AIOStreams build a backup holds, from its backup-info, or None
+        when it doesn't say (made before setup-backup.sh recorded it). Backups
+        are written sorted, so tar finds backup-info near the start and stops."""
+        path = f"{b['dirs'][0]}/{b['name']}"
+        r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "tar", "-xzOf", path,
+                            "--occurrence=1", f"{config.INSTALL_DIR.name}/backup-info"],
+                           capture_output=True, text=True, timeout=180)
+        return parse_backup_info(r.stdout) if r.returncode == 0 else None
 
     def delete_backup(self, name: str) -> list[str]:
         """Remove every copy of one backup. Only a name that backups() just

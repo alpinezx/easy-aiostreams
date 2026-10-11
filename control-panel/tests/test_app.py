@@ -267,3 +267,30 @@ def test_set_aside_endpoints(client):
     assert client.delete("/api/set-asides/" + name).json()["ok"]
     assert client.get("/api/set-asides").json() == []
     assert client.delete("/api/set-asides/" + name).status_code == 404
+
+
+def test_backup_builds_are_read_in_the_background_and_kept(client):
+    from app import main
+    login(client)
+    first = client.get("/api/backups").json()
+    assert all(b["build_pending"] and b["build"] is None for b in first)
+    deadline = time.time() + 15
+    while time.time() < deadline:
+        rows = client.get("/api/backups").json()
+        if not any(b["build_pending"] for b in rows):
+            break
+        time.sleep(0.2)
+    by = {b["name"]: b["build"] for b in rows}
+    assert by["aiostreams-backup-20261007-031500.tar.gz"] == {"version": "2.35.9", "tag": "2026.10.06.2045-nightly"}
+    assert by["aiostreams-backup-20260930-221042.tar.gz"] is None          # made before builds were recorded
+    cached = json.loads((config.STATE_DIR / "backup-builds.json").read_text())
+    assert set(cached) == set(by)
+    calls = []
+    real = main.backend.backup_build
+    main.backend.backup_build = lambda b: calls.append(b) or real(b)
+    try:
+        client.get("/api/backups")
+        time.sleep(0.5)
+        assert calls == []                                                   # nothing read twice
+    finally:
+        main.backend.backup_build = real

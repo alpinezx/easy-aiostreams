@@ -178,12 +178,79 @@ def save_meta(data: dict) -> None:
     tmp.replace(_meta_path())
 
 
+# The AIOStreams build each backup holds, read out of the tarball once, in the
+# background, and kept with the panel's state. Keyed by name and size, so a
+# file replaced under the same name is read again.
+_builds_lock = threading.Lock()
+_builds_busy = False
+
+
+def _builds_path() -> Path:
+    return config.STATE_DIR / "backup-builds.json"
+
+
+def load_builds() -> dict:
+    try:
+        data = json.loads(_builds_path().read_text())
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _save_builds(data: dict) -> None:
+    tmp = _builds_path().with_suffix(".tmp")
+    tmp.write_text(json.dumps(data))
+    tmp.replace(_builds_path())
+
+
+def _read_builds(todo: list[dict]) -> None:
+    global _builds_busy
+    try:
+        for b in todo:
+            try:
+                build = backend.backup_build(b)
+            except Exception:
+                continue        # not saved, so the next listing tries again
+            with _builds_lock:
+                cache = load_builds()
+                cache[b["name"]] = {"size": b["size"], "build": build}
+                try:
+                    _save_builds(cache)
+                except OSError:
+                    pass
+    finally:
+        with _builds_lock:
+            _builds_busy = False
+
+
+def builds_for(items: list[dict]) -> tuple[dict, set]:
+    """Known builds by name, and the names still being read."""
+    global _builds_busy
+    with _builds_lock:
+        cache = load_builds()
+        names = {b["name"] for b in items}
+        if set(cache) - names:
+            cache = {k: v for k, v in cache.items() if k in names}
+            try:
+                _save_builds(cache)
+            except OSError:
+                pass
+        todo = [b for b in items if cache.get(b["name"], {}).get("size") != b["size"]]
+        if todo and not _builds_busy:
+            _builds_busy = True
+            threading.Thread(target=_read_builds, args=(todo,), daemon=True).start()
+    known = {k: v["build"] for k, v in cache.items() if k not in {b["name"] for b in todo}}
+    return known, {b["name"] for b in todo}
+
+
 @app.get("/api/backups")
 async def backups(user: str = Depends(current_user)):
     items = await asyncio.to_thread(backend.backups)
     meta = load_meta()
+    known, pending = builds_for(items)
     return [{**b, "locked": bool(meta.get(b["name"], {}).get("locked")),
-             "note": str(meta.get(b["name"], {}).get("note", ""))} for b in items]
+             "note": str(meta.get(b["name"], {}).get("note", "")),
+             "build": known.get(b["name"]), "build_pending": b["name"] in pending} for b in items]
 
 
 @app.get("/api/set-asides")

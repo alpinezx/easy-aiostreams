@@ -147,6 +147,14 @@ class DemoBackend:
                 {"name": "aiostreams-backup-20260930-221042.tar.gz", "size": 4_790_114, "mtime": now - 9 * 86400, "dirs": ["/root", "/home/ubuntu"]},
                 {"name": "aiostreams-backup-20260914-094407.tar.gz", "size": 4_611_802, "mtime": now - 25 * 86400, "dirs": ["/root"]}]
 
+    def backup_build(self, b: dict) -> dict | None:
+        time.sleep(0.3)
+        if b["name"].startswith("aiostreams-backup-202609"):
+            return None     # made before backups recorded their build
+        if b["name"] == "aiostreams-backup-20261007-031500.tar.gz":
+            return {"version": "2.35.9", "tag": "2026.10.06.2045-nightly"}
+        return {"version": "2.35.9", "tag": "v2.35.9"}
+
     def log_stream(self, container: str, tail: int) -> FakeStream:
         return FakeStream(container, 0 if container in self._cleared_logs else tail)
 
