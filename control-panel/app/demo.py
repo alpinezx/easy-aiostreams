@@ -64,6 +64,7 @@ class DemoBackend:
         self._gone: set[str] = set()
         self._cleared_logs: set[str] = set()
         self.vpn = os.environ.get("UI_DEMO_VPN", "on")   # on | off | none, to preview the header chip
+        self.channel = os.environ.get("UI_DEMO_CHANNEL", "latest")   # latest | nightly
         self.running = {"caddy": True, "gluetun": True, "aiostreams": True, "mediaflow-proxy-light": True, "aios-webhook-relay": True}
         if scenario == "down":
             self.running["aiostreams"] = False
@@ -101,7 +102,8 @@ class DemoBackend:
         else:
             overall, headline = "ok", "Everything is up"
         return {
-            "installed": True, "docker_ok": True, "domain": "streams.example.com", "channel": "latest", "version": "2.35.9",
+            "installed": True, "docker_ok": True, "domain": "streams.example.com", "channel": self.channel, "version": "2.35.9",
+            "build_tag": time.strftime("%Y.%m.%d.%H%M-nightly", time.gmtime(time.time() - 30 * 3600)) if self.channel == "nightly" else "v2.35.9",
             "vpn": self.vpn, "install_dir": "/opt/aiostreams", "user_copy": self.user_copy(),
             "scripts": [{"id": i, "label": l, "file": f, "present": i in ("aiostreams", "backup", "mediaflow", "webhook")} for i, l, f in SCRIPTS], "overall": overall, "headline": headline, "services": services,
             "watchdog": {"configured": True, "running": True, "last_check": "09 Oct 2026, 16:02:11 UTC OK", "alert_state": "up"},

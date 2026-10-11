@@ -1,58 +1,73 @@
 import { $, h, clear, setText, fmtDur, fmtBytes, api, toast, ago } from "./util.js";
 import { runAction, openJob, rebootServer, restartService } from "./actions.js";
-import { cmpVer, openReleases, remember } from "./releases.js";
+import { openReleases, remember, behind } from "./releases.js";
 
 // ---------------- update check ----------------
-let rel = null, relLoading = false, relAsked = false, lastSt = null;
+let rel = null, relLoading = false, relFor = null, lastSt = null;
 
-function newerThan(version) {
-  return rel ? rel.releases.filter((r) => cmpVer(r.tag, version) > 0) : [];
+const relChannel = (st) => (st.channel === "nightly" ? "nightly" : "stable");
+
+// The release tag of the build actually running. A nightly is only known by the tag in its metadata.json.
+function runningTag(st) {
+  if (!st.version) return null;
+  const t = st.build_tag || "";
+  if (relChannel(st) === "nightly") return t.endsWith("-nightly") ? t : null;
+  return t.startsWith("v") ? t : `v${st.version}`;
 }
 
 async function loadReleases(force) {
+  const chan = relFor;
   relLoading = true;
   if (lastSt) hero(lastSt);
-  try { rel = await api(`/api/aiostreams-releases${force ? "?force=1" : ""}`); }
-  catch (e) { rel = { releases: [], error: e.message }; }
+  let got;
+  try { got = await api(`/api/aiostreams-releases?channel=${chan}${force ? "&force=1" : ""}`); }
+  catch (e) { got = { channel: chan, releases: [], error: e.message }; }
+  if (chan !== relFor) return;      // the build channel changed while this was out
+  rel = got;
   relLoading = false;
-  if (lastSt) remember(lastSt.channel !== "nightly" ? rel : null, lastSt.version);
+  const running = lastSt && runningTag(lastSt);
+  remember(rel, running);
   if (lastSt) hero(lastSt);
-  if (force && lastSt && lastSt.version) {
-    const n = newerThan(lastSt.version);
+  if (force && running) {
+    const { newer } = behind(rel, running);
+    const nightly = chan === "nightly";
     if (!rel.releases.length) toast(`Couldn't check for updates. ${rel.error || ""}`.trim(), true);
-    else toast(n.length ? `${n[0].tag} is available.` : `v${lastSt.version} is the latest release.`);
+    else if (newer.length) toast(nightly ? "A newer nightly is out." : `${newer[0].tag} is available.`);
+    else toast(nightly ? "You're on the newest nightly." : `${running} is the latest release.`);
   }
 }
 
 function updateBits(st) {
   if (!st.version) return [];
-  if (st.channel === "nightly") {
-    return [h("span", { class: "chip", title: "Nightly builds aren't numbered releases, so there's nothing to compare yet.", text: "Not checked on nightly" })];
+  const running = runningTag(st);
+  if (!running) {
+    return [h("span", { class: "chip warn", text: "Couldn't tell which nightly is running",
+      title: "The running image has no nightly tag in its metadata, so there's nothing to compare. An Update usually fixes it." }), []];
   }
+  const nightly = relChannel(st) === "nightly";
   let chip;
   if (!rel) {
     chip = h("span", { class: "chip", text: "Checking for updates…" });
   } else if (!rel.releases.length) {
-    chip = h("span", { class: "chip warn", title: rel.error || "GitHub listed no stable releases.", text: "Couldn't check for updates" });
+    chip = h("span", { class: "chip warn", title: rel.error || "GitHub listed no releases for this channel.", text: "Couldn't check for updates" });
   } else {
-    const newer = newerThan(st.version);
+    const { newer, count } = behind(rel, running);
     const checked = rel.checked_at ? `Checked ${ago(rel.checked_at)} against AIOStreams' GitHub releases.` : "";
     if (!newer.length) {
       chip = h("span", { class: "chip ok", title: checked, text: "Up to date" });
     } else {
-      const top = newer[0], n = newer.length;
-      const count = n >= rel.keep && n === rel.releases.length ? `${n}+` : `${n}`;
-      const when = top.published ? `, released ${ago(Date.parse(top.published) / 1000)}` : "";
-      const title = `${count} release${n === 1 ? "" : "s"} behind${when}. Click for what's new; use Update to get it. ${checked}`;
-      chip = h("button", { class: "chip warn", type: "button", title, text: `${top.tag} available`,
-        onclick: () => openReleases(rel, st.version) });
+      const top = newer[0];
+      const when = top.published ? `, newest released ${ago(Date.parse(top.published) / 1000)}` : "";
+      const title = `${count} behind${when}. Click for what's new; use Update to get it. ${checked}`;
+      chip = h("button", { class: "chip warn", type: "button", title, text: nightly ? "Newer nightly available" : `${top.tag} available`,
+        onclick: () => openReleases(rel, running) });
     }
   }
   const tail = [h("button", { class: "btn small", type: "button", text: relLoading ? "Checking…" : "Check now",
-    disabled: relLoading, title: "Ask GitHub for the latest AIOStreams release now", onclick: () => loadReleases(true) })];
+    disabled: relLoading, title: `Ask GitHub for the latest AIOStreams ${nightly ? "nightly" : "release"} now`, onclick: () => loadReleases(true) })];
   if (rel && rel.releases.length) {
     tail.push(h("button", { class: "btn small", type: "button", text: "All releases",
-      title: "What changed in each AIOStreams release", onclick: () => openReleases(rel, st.version) }));
+      title: `What changed in each AIOStreams ${nightly ? "nightly build" : "release"}`, onclick: () => openReleases(rel, running) }));
   }
   return [chip, tail];
 }
@@ -93,8 +108,8 @@ export function record(st) {
 export function render(st, goLogs) {
   window.__channel = st.channel;
   lastSt = st;
-  if (!relAsked && st.version && st.channel !== "nightly") { relAsked = true; loadReleases(false); }
-  remember(st.channel !== "nightly" ? rel : null, st.version);
+  if (st.version && relFor !== relChannel(st)) { relFor = relChannel(st); rel = null; loadReleases(false); }
+  remember(rel, runningTag(st));
   hero(st); path(st); rows(st, goLogs); side(st);
 }
 
@@ -116,7 +131,7 @@ function certChip(st, long) {
 function hero(st) {
   const avail = Object.fromEntries(st.actions.map((a) => [a.id, a]));
   const aio = st.services.find((s) => s.key === "aiostreams");
-  const key = [st.overall, st.headline, st.domain, st.channel, st.version, st.vpn, !!st.busy, aio && aio.state,
+  const key = [st.overall, st.headline, st.domain, st.channel, st.version, st.build_tag, st.vpn, !!st.busy, aio && aio.state,
     st.cert && st.cert.ok, st.cert && st.cert.days_left, st.installed, st.docker_ok, relLoading, rel && rel.checked_at, rel && rel.error].join("|");
   rebuild("#hero", key, (el) => {
     el.append(h("div", { class: "hero-head", "aria-live": "polite" },
@@ -128,7 +143,9 @@ function hero(st) {
     if (st.channel) meta.append(h("span", { class: "chip", text: `AIOStreams ${st.channel === "nightly" ? "nightly" : "latest"}`,
       title: st.channel === "nightly" ? "AIOStreams' nightly builds (Docker tag: nightly). Switch with Update." : "AIOStreams' stable releases (Docker tag: latest). Switch with Update." }));
     const [updChip, updTail] = updateBits(st);
-    if (st.version) meta.append(h("span", { class: "chip", title: "The AIOStreams version running now", text: `v${st.version}` }));
+    const nightlyTag = relChannel(st) === "nightly" && runningTag(st);
+    if (st.version) meta.append(h("span", { class: "chip", text: nightlyTag ? `v${st.version} · ${nightlyTag.slice(0, -8)}` : `v${st.version}`,
+      title: nightlyTag ? `The AIOStreams version running now, and the nightly build it came from (${nightlyTag})` : "The AIOStreams version running now" }));
     if (updChip) meta.append(updChip);
     if (updTail) meta.append(...updTail);
     // VPN and certificate live in This server; they come up here, after the AIOStreams items, only when they need attention.

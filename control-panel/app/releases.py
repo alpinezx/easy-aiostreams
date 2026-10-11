@@ -1,6 +1,6 @@
-"""Stable AIOStreams releases from GitHub, the same list AIOStreams' own
-dashboard reads. Kept for a few hours: GitHub allows 60 unauthenticated
-requests an hour per IP."""
+"""AIOStreams releases from GitHub, the same list AIOStreams' own dashboard
+reads: stable tags (v2.35.9) or nightly ones (2026.10.10.1200-nightly). Kept
+for a few hours: GitHub allows 60 unauthenticated requests an hour per IP."""
 from __future__ import annotations
 
 import re
@@ -17,22 +17,27 @@ MAX_PAGES = 5
 KEEP = 20
 BODY_MAX = 20000
 STABLE = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
+# Not the desktop app's "desktop-nightly".
+NIGHTLY = re.compile(r"^\d{4}\.\d{2}\.\d{2}\.\d{4}-nightly$")
+CHANNELS = ("stable", "nightly")
 
 _lock = threading.Lock()
-_cache: dict = {"at": 0.0, "releases": None, "error": None}
+_cache: dict = {}
 
 
 class CheckFailed(Exception):
     pass
 
 
-def _key(tag: str) -> tuple[int, ...]:
-    return tuple(int(x) for x in STABLE.match(tag).groups())
+def _key(tag: str, channel: str):
+    # Nightly tags are timestamps, so sorting them as text is chronological.
+    return tuple(int(x) for x in STABLE.match(tag).groups()) if channel == "stable" else tag
 
 
-def _fetch() -> list[dict]:
+def _fetch(channel: str) -> list[dict]:
+    wanted = STABLE if channel == "stable" else NIGHTLY
     found = []
-    # Nightlies far outnumber stable releases, so a page can hold only a few.
+    # Nightlies far outnumber stable releases, so a page can hold only a few stable ones.
     for page in range(1, MAX_PAGES + 1):
         r = requests.get(URL, params={"per_page": 100, "page": page}, timeout=10,
                          headers={"Accept": "application/vnd.github+json", "User-Agent": "easy-aiostreams-panel"})
@@ -42,7 +47,7 @@ def _fetch() -> list[dict]:
             raise CheckFailed(f"GitHub answered {r.status_code}.")
         for rel in r.json():
             tag = str(rel.get("tag_name") or "")
-            if rel.get("draft") or not STABLE.match(tag):
+            if rel.get("draft") or not wanted.match(tag):
                 continue
             url = str(rel.get("html_url") or "")
             found.append({"tag": tag, "published": rel.get("published_at"),
@@ -50,34 +55,45 @@ def _fetch() -> list[dict]:
                           "body": str(rel.get("body") or "")[:BODY_MAX]})
         if len(found) >= KEEP or 'rel="next"' not in r.headers.get("link", ""):
             break
-    found.sort(key=lambda x: _key(x["tag"]), reverse=True)
+    found.sort(key=lambda x: _key(x["tag"], channel), reverse=True)
     return found[:KEEP]
 
 
-def get(force: bool = False) -> dict:
+def get(force: bool = False, channel: str = "stable") -> dict:
+    if channel not in CHANNELS:
+        raise ValueError(channel)
     with _lock:
+        c = _cache.setdefault(channel, {"at": 0.0, "releases": None, "error": None})
         now = time.time()
-        age = now - _cache["at"]
-        never = _cache["releases"] is None and _cache["error"] is None
-        due = age > (RETRY if _cache["error"] else FRESH)
+        age = now - c["at"]
+        never = c["releases"] is None and c["error"] is None
+        due = age > (RETRY if c["error"] else FRESH)
         if never or due or (force and age > FORCE_GAP):
             try:
-                _cache["releases"] = _fetch()
-                _cache["error"] = None
+                c["releases"] = _fetch(channel)
+                c["error"] = None
             except CheckFailed as e:
-                _cache["error"] = str(e)
+                c["error"] = str(e)
             except Exception:
-                _cache["error"] = "Couldn't reach GitHub."
-            _cache["at"] = now
-        return {"checked_at": _cache["at"], "releases": _cache["releases"] or [], "error": _cache["error"], "keep": KEEP}
+                c["error"] = "Couldn't reach GitHub."
+            c["at"] = now
+        return {"channel": channel, "checked_at": c["at"], "releases": c["releases"] or [], "error": c["error"], "keep": KEEP}
 
 
-def demo() -> dict:
+def demo(channel: str = "stable") -> dict:
+    now = time.time()
+    if channel == "nightly":
+        def stamp(hours_ago):
+            return time.strftime("%Y.%m.%d.%H%M-nightly", time.gmtime(now - hours_ago * 3600))
+        tags = [(stamp(h), time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - h * 3600))) for h in (0.2, 5, 30, 54)]
+        body = "## {v}\n\n* **jellyfin:** page Next Up through up to 200 recent shows ([4f51dc1](https://github.com/Viren070/AIOStreams/commit/4f51dc1))\n* **core:** keep busy instances responsive\n"
+        rels = [{"tag": t, "published": p, "url": f"https://github.com/Viren070/AIOStreams/releases/tag/{t}", "body": body.format(v=t)} for t, p in tags]
+        return {"channel": channel, "checked_at": now, "error": None, "keep": KEEP, "releases": rels}
     tags = [("v2.36.1", "2026-10-10T12:00:00Z"), ("v2.36.0", "2026-10-07T12:00:00Z"), ("v2.35.9", "2026-10-03T12:00:00Z")]
     body = ("## [{v}](https://github.com/Viren070/AIOStreams/compare/v2.35.8...v{v}) ({d})\n\n### Features\n\n"
             "* **jellyfin:** add watchlisted shows and films to Upcoming ([7814d09](https://github.com/Viren070/AIOStreams/commit/7814d09))\n"
             "* **watch-state:** read `airsAt` on pulled next episodes\n\n### Bug Fixes\n\n"
             "* **desktop:** load a bundled vulkan-1.dll when Windows has none\n")
-    return {"checked_at": time.time(), "error": None, "keep": KEEP,
+    return {"channel": channel, "checked_at": now, "error": None, "keep": KEEP,
             "releases": [{"tag": t, "published": p, "url": f"https://github.com/Viren070/AIOStreams/releases/tag/{t}",
                           "body": body.format(v=t[1:], d=p[:10])} for t, p in tags]}

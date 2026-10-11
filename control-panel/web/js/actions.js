@@ -61,7 +61,7 @@ export async function runAction(act, params) {
       onNightly ? null : h("option", { value: "nightly", text: "Switch to nightly" }));
     // "See what's new" swaps the dialog for the releases drawer; Update is one click away after.
     let wantNotes = false;
-    const notes = onStable ? whatsNewLine(() => { wantNotes = true; $("#dialog .btns .btn:not(.primary)").click(); }) : null;
+    const notes = whatsNewLine(() => { wantNotes = true; $("#dialog .btns .btn:not(.primary)").click(); });
     const el = h("div", { class: "opts" },
       notes,
       h("label", { class: "check" }, backup, h("span", { text: "Back up first" })),

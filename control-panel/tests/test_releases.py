@@ -19,7 +19,7 @@ def rel(tag, draft=False):
 
 @pytest.fixture(autouse=True)
 def fresh_cache(monkeypatch):
-    monkeypatch.setattr(releases, "_cache", {"at": 0.0, "releases": None, "error": None})
+    monkeypatch.setattr(releases, "_cache", {})
 
 
 def fake_get(pages, calls):
@@ -48,7 +48,7 @@ def test_answer_is_cached_and_force_is_throttled(monkeypatch):
     releases.get()
     releases.get(force=True)
     assert calls == [1]
-    releases._cache["at"] -= releases.FORCE_GAP + 1
+    releases._cache["stable"]["at"] -= releases.FORCE_GAP + 1
     releases.get(force=True)
     assert calls == [1, 1]
 
@@ -62,7 +62,7 @@ def test_rate_limit_is_reported(monkeypatch):
 def test_failed_refresh_keeps_the_last_list(monkeypatch):
     monkeypatch.setattr(releases.requests, "get", fake_get([[rel("v2.35.9")]], []))
     releases.get()
-    releases._cache["at"] -= releases.FRESH + 1
+    releases._cache["stable"]["at"] -= releases.FRESH + 1
     def boom(*a, **k):
         raise OSError("no network")
     monkeypatch.setattr(releases.requests, "get", boom)
@@ -76,6 +76,30 @@ def test_notes_are_kept_and_capped(monkeypatch):
     monkeypatch.setattr(releases.requests, "get", fake_get([[big, none]], []))
     out = releases.get()["releases"]
     assert len(out[0]["body"]) == releases.BODY_MAX and out[1]["body"] == ""
+
+
+def test_nightly_channel_keeps_only_server_nightlies_newest_first(monkeypatch):
+    pages = [[rel("v2.36.0"), rel("2026.10.09.0800-nightly"), rel("desktop-nightly"),
+              rel("2026.10.10.1200-nightly"), rel("2026.10.08.2300-nightly", draft=True)]]
+    monkeypatch.setattr(releases.requests, "get", fake_get(pages, []))
+    out = releases.get(channel="nightly")
+    assert [r["tag"] for r in out["releases"]] == ["2026.10.10.1200-nightly", "2026.10.09.0800-nightly"]
+    assert out["channel"] == "nightly"
+
+
+def test_channels_are_cached_separately(monkeypatch):
+    calls = []
+    pages = [[rel("v2.35.9"), rel("2026.10.10.1200-nightly")]]
+    monkeypatch.setattr(releases.requests, "get", fake_get(pages, calls))
+    assert releases.get()["releases"][0]["tag"] == "v2.35.9"
+    assert releases.get(channel="nightly")["releases"][0]["tag"] == "2026.10.10.1200-nightly"
+    releases.get(); releases.get(channel="nightly")
+    assert calls == [1, 1]
+
+
+def test_unknown_channel_is_refused():
+    with pytest.raises(ValueError):
+        releases.get(channel="dev")
 
 
 def test_non_github_links_are_dropped(monkeypatch):
