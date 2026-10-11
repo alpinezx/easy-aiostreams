@@ -255,6 +255,10 @@ do_backup() {
 # Restore helpers
 # ---------------------------------------------------------------------------
 
+# Set when the person moves the main domain during a restore, so the
+# summary doesn't promise that installed addons keep working.
+RESTORE_OLD_DOMAIN=""
+
 check_restored_domain_dns() {
     [[ -f "$CADDYFILE" ]] || return 0   # nothing to check against
     local domain
@@ -350,6 +354,7 @@ check_restored_domain_dns() {
                     warn "Domain can only contain letters, numbers, dots, and hyphens (e.g. streams.example.com)."
                     continue
                 fi
+                [[ -n "$RESTORE_OLD_DOMAIN" ]] || RESTORE_OLD_DOMAIN="$domain"
                 sed -i "1s/.*/${new_domain} {/" "$CADDYFILE"
                 # Compose file's BASE_URL must match too, or the VPN toggle
                 # script would regenerate the Caddyfile from the old domain.
@@ -935,8 +940,18 @@ do_restore() {
 
     info "Restore complete!"
     echo ""
-    echo "The SECRET_KEY and data came over intact, so every existing user config"
-    echo "and installed Stremio manifest URL keeps working."
+    local main_now
+    main_now=$(head -n1 "$CADDYFILE" 2>/dev/null | awk '{print $1}')
+    if [[ -n "$RESTORE_OLD_DOMAIN" && "$RESTORE_OLD_DOMAIN" != "$main_now" ]]; then
+        echo "The SECRET_KEY and data came over intact, so every user config is here."
+        echo "But the domain changed from $RESTORE_OLD_DOMAIN to $main_now, and addons"
+        echo "installed from the old address won't follow it. Log in at"
+        echo "https://$main_now, open each config and install it in your Stremio"
+        echo "client again from there, then remove the old one."
+    else
+        echo "The SECRET_KEY and data came over intact, so every existing user config"
+        echo "and installed Stremio manifest URL keeps working."
+    fi
     if grep -q 'container_name: gluetun' "$COMPOSE_FILE" 2>/dev/null; then
         if [[ -f /etc/systemd/system/aiostreams-vpn-boot.service ]]; then
             summary=("VPN: on, and its boot-safety hook is installed, so AIOStreams comes back after a reboot." "${summary[@]}")
@@ -951,9 +966,15 @@ do_restore() {
         done
     fi
     echo ""
-    echo "If this is a new server, keep the old one running until you've logged into"
-    echo "AIOStreams here and played one stream from a device that already had the"
-    echo "addon installed. It's your rollback."
+    if [[ -n "$RESTORE_OLD_DOMAIN" && "$RESTORE_OLD_DOMAIN" != "$main_now" ]]; then
+        echo "If this is a new server, keep the old one running until you've logged in at"
+        echo "https://$main_now, installed the addon from there on one device and played a"
+        echo "stream. It's your rollback."
+    else
+        echo "If this is a new server, keep the old one running until you've logged into"
+        echo "AIOStreams here and played one stream from a device that already had the"
+        echo "addon installed. It's your rollback."
+    fi
     return 0
 }
 

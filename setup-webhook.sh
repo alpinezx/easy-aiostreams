@@ -450,6 +450,39 @@ valid_domain() {
     [[ "$1" =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+$ ]]
 }
 
+# Checks that a subdomain someone just typed points at this server, the way
+# the main installer and the control panel do. Without it a typo, or an A
+# record not made yet, is accepted and the HTTPS certificate fails later
+# with no word why. Returns 0 to go ahead, 1 to ask for another subdomain.
+# Never blocks: no keyboard, or no way to learn this server's IP, means go.
+check_subdomain_dns() {
+    local domain="$1" ip="" dns svc choice
+    for svc in https://ifconfig.me https://icanhazip.com https://ipinfo.io/ip; do
+        ip=$(curl -fs4 --max-time 4 "$svc" 2>/dev/null | tr -d ' \n') && [[ -n "$ip" ]] && break
+    done
+    [[ -n "$ip" ]] || return 0
+    while true; do
+        dns=$(getent ahostsv4 "$domain" 2>/dev/null | awk '{ print $1; exit }' || true)
+        if [[ "$dns" == "$ip" ]]; then
+            echo "$domain -> $ip, matches this server."
+            return 0
+        fi
+        warn "$domain resolves to ${dns:-nothing}, but this server is $ip."
+        warn "HTTPS won't work for it until its A record points here."
+        [[ -t 0 ]] || return 0
+        echo "  1) Re-check (after fixing the A record)"
+        echo "  2) Enter a different subdomain"
+        echo "  3) Use it anyway (the certificate follows once DNS points here)"
+        read -rp "Choice [1-3]: " choice || return 0
+        case "$choice" in
+            1) continue ;;
+            2) return 1 ;;
+            3) return 0 ;;
+            *) warn "Not a valid choice." ;;
+        esac
+    done
+}
+
 valid_emoji() {
     [[ -n "$1" && "$1" != *"'"* && ! "$1" =~ [[:space:]] ]]
 }
@@ -500,6 +533,7 @@ do_configure() {
             warn "That's your MediaFlow Proxy subdomain. The relay needs its own subdomain."
             continue
         fi
+        check_subdomain_dns "$domain" || continue
         break
     done
 
