@@ -136,6 +136,8 @@ h1.headline {
 .chip.ok { color: var(--ok); background: var(--ok-soft); border-color: transparent; }
 .chip.warn { color: var(--warn); background: var(--warn-soft); border-color: transparent; }
 .chip.bad { color: var(--bad); background: var(--bad-soft); border-color: transparent; }
+a.chip { text-decoration: none; }
+a.chip:hover { text-decoration: underline; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; align-items: center; }
 .busy-note { color: var(--dim); font-size: .92rem; display: inline-flex; gap: 8px; align-items: center; }
 

@@ -1,5 +1,62 @@
-import { $, h, clear, setText, fmtDur, fmtBytes } from "./util.js";
+import { $, h, clear, setText, fmtDur, fmtBytes, api, toast, ago } from "./util.js";
 import { runAction, openJob, rebootServer, restartService } from "./actions.js";
+
+// ---------------- update check ----------------
+let rel = null, relLoading = false, relAsked = false, lastSt = null;
+
+function cmpVer(a, b) {
+  const pa = a.replace(/^v/, "").split(".").map(Number), pb = b.replace(/^v/, "").split(".").map(Number);
+  for (let i = 0; i < 3; i++) if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) - (pb[i] || 0);
+  return 0;
+}
+
+function newerThan(version) {
+  return rel ? rel.releases.filter((r) => cmpVer(r.tag, version) > 0) : [];
+}
+
+async function loadReleases(force) {
+  relLoading = true;
+  if (lastSt) hero(lastSt);
+  try { rel = await api(`/api/aiostreams-releases${force ? "?force=1" : ""}`); }
+  catch (e) { rel = { releases: [], error: e.message }; }
+  relLoading = false;
+  if (lastSt) hero(lastSt);
+  if (force && lastSt && lastSt.version) {
+    const n = newerThan(lastSt.version);
+    if (!rel.releases.length) toast(`Couldn't check for updates. ${rel.error || ""}`.trim(), true);
+    else toast(n.length ? `${n[0].tag} is available.` : `v${lastSt.version} is the latest release.`);
+  }
+}
+
+function updateBits(st) {
+  if (!st.version) return [];
+  if (st.channel === "nightly") {
+    return [h("span", { class: "chip", title: "Nightly builds aren't numbered releases, so there's nothing to compare yet.", text: "Not checked on nightly" })];
+  }
+  let chip;
+  if (!rel) {
+    chip = h("span", { class: "chip", text: "Checking for updates…" });
+  } else if (!rel.releases.length) {
+    chip = h("span", { class: "chip warn", title: rel.error || "GitHub listed no stable releases.", text: "Couldn't check for updates" });
+  } else {
+    const newer = newerThan(st.version);
+    const checked = rel.checked_at ? `Checked ${ago(rel.checked_at)} against AIOStreams' GitHub releases.` : "";
+    if (!newer.length) {
+      chip = h("span", { class: "chip ok", title: checked, text: "Up to date" });
+    } else {
+      const top = newer[0], n = newer.length;
+      const count = n >= rel.keep && n === rel.releases.length ? `${n}+` : `${n}`;
+      const when = top.published ? `, released ${ago(Date.parse(top.published) / 1000)}` : "";
+      const title = `${count} release${n === 1 ? "" : "s"} behind${when}. Use Update to get it. ${checked}`;
+      chip = top.url
+        ? h("a", { class: "chip warn", href: top.url, target: "_blank", rel: "noopener noreferrer", title, text: `${top.tag} available` })
+        : h("span", { class: "chip warn", title, text: `${top.tag} available` });
+    }
+  }
+  const btn = h("button", { class: "btn small quiet", type: "button", text: relLoading ? "Checking…" : "Check now",
+    disabled: relLoading, title: "Ask GitHub for the latest AIOStreams release now", onclick: () => loadReleases(true) });
+  return [chip, btn];
+}
 
 const RESTARTABLE = new Set(["aiostreams", "mediaflow", "webhook"]);
 const hist = {};          // cpu history per service, for the sparklines
@@ -36,6 +93,8 @@ export function record(st) {
 
 export function render(st, goLogs) {
   window.__channel = st.channel;
+  lastSt = st;
+  if (!relAsked && st.version && st.channel !== "nightly") { relAsked = true; loadReleases(false); }
   hero(st); path(st); rows(st, goLogs); side(st);
 }
 
@@ -44,7 +103,7 @@ function hero(st) {
   const avail = Object.fromEntries(st.actions.map((a) => [a.id, a]));
   const aio = st.services.find((s) => s.key === "aiostreams");
   const key = [st.overall, st.headline, st.domain, st.channel, st.version, st.vpn, !!st.busy, aio && aio.state,
-    st.cert && st.cert.days_left, st.installed, st.docker_ok].join("|");
+    st.cert && st.cert.days_left, st.installed, st.docker_ok, relLoading, rel && rel.checked_at, rel && rel.error].join("|");
   rebuild("#hero", key, (el) => {
     el.append(h("div", { class: "hero-head", "aria-live": "polite" },
       h("span", { class: "lamp", dataset: { s: st.overall }, "aria-hidden": "true" }),
@@ -53,7 +112,7 @@ function hero(st) {
     if (st.domain) meta.append(h("a", { class: "btn small open-site", href: `https://${st.domain}`, target: "_blank", rel: "noopener noreferrer",
       title: `Opens https://${st.domain} in a new tab` }, "Open AIOStreams", h("span", { "aria-hidden": "true", text: "\u2197" })));
     if (st.channel) meta.append(h("span", { class: "chip", text: st.channel === "nightly" ? "Nightly build" : "Stable build" }));
-    if (st.version) meta.append(h("span", { class: "chip", title: "The AIOStreams version running now", text: `v${st.version}` }));
+    if (st.version) meta.append(h("span", { class: "chip", title: "The AIOStreams version running now", text: `v${st.version}` }), ...updateBits(st));
     // Only mention the VPN if it was ever set up. "off" means it was installed and switched off.
     if (st.vpn === "on") meta.append(h("span", { class: "chip ok", text: "VPN on" }));
     if (st.vpn === "off") meta.append(h("span", { class: "chip warn", title: "The VPN is installed but switched off, so traffic leaves from this server's own IP address.", text: "VPN off" }));
