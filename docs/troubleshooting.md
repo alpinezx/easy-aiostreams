@@ -46,7 +46,7 @@ A quick-reference list pulled from the advanced guides' own troubleshooting sect
 9. **Restored fine, but the VPN layer doesn't come back.** It's only included in the backup if the [VPN layer](./advanced/vpn-setup.md) was already set up on the old server before the backup was taken.
    → [Backup & Restore: Troubleshooting](./advanced/backup-restore.md#troubleshooting)
 
-10. **Restored under a new domain, but the webhook relay's URL still points at the old one.** Expected, not a bug, only the main domain rewrites automatically during a restore.
+10. **Restored under a new domain, and an add-on still uses its old subdomain.** The restore asked and you kept it. Point its DNS here, or move it with the add-on's own Reconfigure option.
     → [Backup & Restore: Troubleshooting](./advanced/backup-restore.md#troubleshooting)
 
 11. **Watchdog never alerts during a real outage.** Confirm the timer is active (`sudo systemctl status aiostreams-watchdog.timer`) and check the journal for the last check attempts.

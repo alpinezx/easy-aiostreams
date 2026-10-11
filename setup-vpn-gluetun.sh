@@ -56,20 +56,16 @@ fi
 OPT_INSTALL_DIR="/opt/aiostreams"
 INSTALL_DIR="$OPT_INSTALL_DIR"
 
-# Installs made before October 2026 live in root's home instead. These
-# scripts don't work with that layout: stop rather than mistake the server
-# for one without an install. setup-aiostreams.sh offers the move.
-for _old in "$(getent passwd root 2>/dev/null | cut -d: -f6)/aiostreams" "${HOME:-/root}/aiostreams"; do
-    if [[ "$_old" == /*/aiostreams && "$_old" != "$INSTALL_DIR" && ! -L "$_old" \
-        && -f "$_old/docker-compose.yml" && ! -f "$INSTALL_DIR/docker-compose.yml" ]]; then
-        echo "This server's AIOStreams install is still in $_old, where installs made"
-        echo "before October 2026 live. It now belongs in $INSTALL_DIR. To move it, run:"
-        echo "  sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-aiostreams.sh -o $_old/setup-aiostreams.sh"
-        echo "  sudo bash $_old/setup-aiostreams.sh"
-        echo "or follow https://github.com/alpinezx/easy-aiostreams/tree/migrate-to-opt"
-        exit 1
-    fi
-done
+# Installs made before October 2026 live in /root/aiostreams instead, and
+# these scripts don't work with that layout. Stop rather than mistake the
+# server for one without an install.
+_old="$(getent passwd root 2>/dev/null | cut -d: -f6)/aiostreams"
+if [[ -f "$_old/docker-compose.yml" && ! -L "$_old" && ! -f "$INSTALL_DIR/docker-compose.yml" ]]; then
+    echo "This server's AIOStreams install is in $_old, from before October 2026."
+    echo "These scripts only work with $INSTALL_DIR. Move it first:"
+    echo "  https://github.com/alpinezx/easy-aiostreams/tree/migrate-to-opt"
+    exit 1
+fi
 unset _old
 COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"
 CADDYFILE="$INSTALL_DIR/Caddyfile"

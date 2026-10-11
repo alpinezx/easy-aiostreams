@@ -55,7 +55,7 @@ So: pull a new `setup-webhook.sh`, then hit **Start** (keeps existing config) or
 
 The relay's config, token, and code all live under `/opt/aiostreams/webhook-relay-state/`, a plain subfolder of the main install, so a normal `setup-aiostreams.sh` backup captures it automatically with no extra step. Restoring onto the same server, or a new server under the **same** domain, brings the relay back exactly as it was, no action needed.
 
-**One gap worth knowing:** restoring under a genuinely *different* domain rewrites the main site's domain automatically (that's `check_restored_domain_dns` in `setup-aiostreams.sh`), but does not touch the relay's own subdomain, since it isn't necessarily derived from the main domain and there's no safe way to guess a replacement. After that kind of restore, the relay comes back up pointed at its old subdomain until you manually run **Reconfigure** here. Full details → [Backup & Restore advanced guide](./backup-restore.md#migrating-to-a-new-server).
+**Restoring under a different domain:** the restore checks the relay's subdomain against the new server, whether or not the relay was running, and offers to move it to another subdomain on the spot. If you do, the summary prints the new webhook URL to paste into the sites that send to it. Full details → [Backup & Restore advanced guide](./backup-restore.md#add-ons-on-restore).
 
 ---
 

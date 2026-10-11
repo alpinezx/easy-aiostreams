@@ -263,7 +263,7 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .scrim { position: fixed; inset: 0; background: rgba(5, 4, 10, .55); z-index: 40; }
 .scrim[hidden] { display: none; }
 .drawer {
-  position: fixed; z-index: 41; top: 0; right: 0; bottom: 0; width: min(560px, 100vw);
+  position: fixed; z-index: 41; top: 0; right: 0; bottom: 0; width: min(720px, 100vw);
   background: var(--bg); border-left: 1px solid var(--line); display: flex; flex-direction: column;
   box-shadow: -24px 0 60px rgba(0, 0, 0, .35); animation: slide .18s ease-out;
 }

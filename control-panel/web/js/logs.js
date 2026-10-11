@@ -9,6 +9,7 @@ const NOISE = [
   /aborting with incomplete response.*"error":"[^"]*context canceled"/,   // a browser left a live page (event stream)
   /aborting with incomplete response.*"error":"writing: /,   // the viewer's player or browser hung up mid-transfer (skip, seek, stop)
   /aborting with incomplete response.*"uri":"\/api\/v1\/dashboard\/[^"]*\/stream".*"error":"reading: unexpected EOF"/,   // AIOStreams restarted under an open dashboard page
+  /dial tcp [0-9.]+:3000: connect: connection refused.*"uri":"\/api\/v1\/dashboard\/[^"]*\/stream"/,   // an open dashboard page reconnecting while AIOStreams starts
   /exiting; byeee/,                                          // Caddy stopping for a restart
   /shutting down apps, then terminating/,
   /servers shutting down with eternal grace period/,

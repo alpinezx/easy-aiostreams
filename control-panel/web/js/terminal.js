@@ -390,6 +390,7 @@ let helpKey = null;
 const RAW_BASE = "https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/";
 const FALLBACK = [
   { label: "AIOStreams menu", file: "setup-aiostreams.sh", present: true },
+  { label: "Backup & restore", file: "setup-backup.sh", present: false },
   { label: "VPN (Gluetun)", file: "setup-vpn-gluetun.sh", present: false },
   { label: "MediaFlow Proxy", file: "setup-mediaflow.sh", present: false },
   { label: "Phone alerts", file: "setup-watchdog.sh", present: false },
@@ -419,7 +420,7 @@ function buildHelp(status, force) {
       : "The terminal is a root shell on the server, so these run as they would over SSH. Source and docs: ",
       h("a", { href: REPO, target: "_blank", rel: "noopener noreferrer", text: "github.com/alpinezx/easy-aiostreams" }), "."),
     h("h4", { text: "Scripts" }),
-    h("p", { class: "dim", text: "Only the AIOStreams script comes with the install. The others are separate downloads. A green dot means the script is on this server; an orange Get and run means it is not yet, and Copy gives a command that downloads it and then runs it." }),
+    h("p", { class: "dim", text: "The AIOStreams script comes with the install, and the backup script arrives with the first backup. The others are separate downloads. A green dot means the script is on this server; an orange Get and run means it is not yet, and Copy gives a command that downloads it and then runs it." }),
     h("p", { class: "dim", text: "Update fetches the newest version of a script you already have from GitHub, without running it." }),
     h("p", { class: "dim", text: `Scripts live in ${dir}${uc ? ` (${uc.dir} is a shortcut to it)` : ""}. Only root can change files there: to edit a script over SFTP, connect as root.` }),
     h("ul", { class: "cmds" }, ...rows),
