@@ -1192,10 +1192,15 @@ do_restore() {
     fi
     if $webhook_relay_was_active_at_backup; then
         if $webhook_relay_reinstalled_during_restore; then
-            echo "  - Webhook relay: it was running before the backup, so the container is back"
-            echo "    up with the same subdomain/token/ntfy topic — nothing else needed. If this"
-            echo "    is a NEW server, remember its subdomain also needs its own DNS A record"
-            echo "    pointed here, same as the main domain above."
+            if [[ " ${RESTORE_ADDON_DNS_PENDING[*]} " == *"Webhook relay|"* ]]; then
+                echo "  - Webhook relay: back up with the same token and ntfy topic, but its"
+                echo "    subdomain isn't pointing here yet (see 'Still to fix' above)."
+            else
+                echo "  - Webhook relay: it was running before the backup, so the container is back"
+                echo "    up with the same subdomain/token/ntfy topic — nothing else needed. If this"
+                echo "    is a NEW server, remember its subdomain also needs its own DNS A record"
+                echo "    pointed here, same as the main domain above."
+            fi
         else
             echo "  - Webhook relay: it was running before the backup, but could NOT be"
             echo "    restarted automatically (setup-webhook.sh wasn't found in $INSTALL_DIR"
@@ -1205,10 +1210,15 @@ do_restore() {
     fi
     if $mediaflow_was_active_at_backup; then
         if $mediaflow_reinstalled_during_restore; then
-            echo "  - MediaFlow Proxy Light: it was running before the backup, so it's back up"
-            echo "    with the same subdomain/password — nothing else needed. If this is a NEW"
-            echo "    server, remember its subdomain also needs its own DNS A record pointed"
-            echo "    here, same as the main domain above."
+            if [[ " ${RESTORE_ADDON_DNS_PENDING[*]} " == *"MediaFlow Proxy Light|"* ]]; then
+                echo "  - MediaFlow Proxy Light: back up with the same password, but its"
+                echo "    subdomain isn't pointing here yet (see 'Still to fix' above)."
+            else
+                echo "  - MediaFlow Proxy Light: it was running before the backup, so it's back up"
+                echo "    with the same subdomain/password — nothing else needed. If this is a NEW"
+                echo "    server, remember its subdomain also needs its own DNS A record pointed"
+                echo "    here, same as the main domain above."
+            fi
         else
             echo "  - MediaFlow Proxy Light: it was running before the backup, but could NOT be"
             echo "    restarted automatically (setup-mediaflow.sh wasn't found in $INSTALL_DIR"
@@ -1226,9 +1236,15 @@ do_restore() {
         echo "    same convenience copy you had on the old server (the real copy that"
         echo "    actually runs the install lives in $INSTALL_DIR)."
     fi
-    echo "  - Verify by logging into the AIOStreams page and playing one stream from a"
-    echo "    device that already had the addon installed. Keep the old server running"
-    echo "    until that works. It's your rollback."
+    if [[ -n "$RESTORE_OLD_DOMAIN" ]]; then
+        echo "  - Verify by logging in at https://$(head -n1 "$CADDYFILE" | awk '{print $1}'), installing the addon"
+        echo "    from there on one device and playing a stream. Keep the old server running"
+        echo "    until that works. It's your rollback."
+    else
+        echo "  - Verify by logging into the AIOStreams page and playing one stream from a"
+        echo "    device that already had the addon installed. Keep the old server running"
+        echo "    until that works. It's your rollback."
+    fi
 }
 
 # ---------------------------------------------------------------------------
