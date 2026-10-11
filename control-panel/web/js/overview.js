@@ -53,7 +53,7 @@ function updateBits(st) {
         : h("span", { class: "chip warn", title, text: `${top.tag} available` });
     }
   }
-  const btn = h("button", { class: "btn small quiet", type: "button", text: relLoading ? "Checking…" : "Check now",
+  const btn = h("button", { class: "btn small", type: "button", text: relLoading ? "Checking…" : "Check now",
     disabled: relLoading, title: "Ask GitHub for the latest AIOStreams release now", onclick: () => loadReleases(true) });
   return [chip, btn];
 }
