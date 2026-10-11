@@ -88,6 +88,9 @@ def build_update(backup: bool, channel: str | None) -> Action:
         raise BadAction("backup must be true or false")
     if channel not in (None, "latest", "nightly"):
         raise BadAction("channel must be latest or nightly")
+    # Nightly can migrate AIOStreams' database past what stable understands; the backup is the way back.
+    if channel == "nightly" and not backup:
+        raise BadAction("Switching to nightly needs Back up first: that backup is the way back to stable.")
     answers = ["5", "1" if backup else "2"]
     if backup:
         answers.append("")   # Enter at "Continue now that you've read this..." after the backup

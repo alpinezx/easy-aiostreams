@@ -116,6 +116,50 @@ def test_update_stdin_sequences():
     assert actions.build_update(False, None).stdin == "5\n2\nN\nN\n10\n"
     assert actions.build_update(True, "nightly").stdin == "5\n1\n\ny\n2\ny\nN\n10\n"
     assert actions.build_update(False, "latest").stdin == "5\n2\ny\n1\ny\nN\n10\n"
+    with pytest.raises(actions.BadAction):
+        actions.build_update(False, "nightly")       # the backup is the way back to stable
+
+
+def wait_job(client, jid, secs=20):
+    deadline = time.time() + secs
+    while time.time() < deadline:
+        j = client.get(f"/api/jobs/{jid}").json()
+        if j["ended"]:
+            return j
+        time.sleep(0.2)
+    raise AssertionError("job didn't finish")
+
+
+@pytest.mark.parametrize("params,note", [
+    ({"backup": True, "channel": "nightly"}, "Before switching stable → nightly (was v2.35.9)"),
+    ({"backup": True}, "Before updating from v2.35.9"),
+])
+def test_update_notes_the_backup_it_makes(client, params, note):
+    login(client)
+    before = {b["name"] for b in client.get("/api/backups").json()}
+    jid = client.post("/api/actions/stack.update", json={"params": params}).json()["id"]
+    assert wait_job(client, jid)["code"] == 0
+    new = [b for b in client.get("/api/backups").json() if b["name"] not in before]
+    assert len(new) == 1 and new[0]["note"] == note
+
+
+def test_update_without_backup_notes_nothing_and_nightly_needs_one(client):
+    login(client)
+    assert client.post("/api/actions/stack.update", json={"params": {"backup": False, "channel": "nightly"}}).status_code == 400
+    names = lambda: [(b["name"], b["note"]) for b in client.get("/api/backups").json()]
+    before = names()
+    jid = client.post("/api/actions/stack.update", json={"params": {"backup": False}}).json()["id"]
+    wait_job(client, jid)
+    assert names() == before
+
+
+def test_update_note_wording():
+    from app.main import update_note
+    nightly = {"channel": "nightly", "version": "2.35.9", "build_tag": "2026.10.11.1908-nightly"}
+    assert update_note(nightly, {"channel": "latest"}) == "Before switching nightly → stable (was nightly 2026.10.11.1908)"
+    assert update_note(nightly, {}) == "Before updating from nightly 2026.10.11.1908"
+    assert update_note({"channel": "latest", "version": "2.35.9"}, {"channel": "latest"}) == "Before updating from v2.35.9"
+    assert update_note({"channel": "latest"}, {}) == "Before updating"
 
 
 def test_password_hash_roundtrip():

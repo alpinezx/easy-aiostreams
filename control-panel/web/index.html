@@ -88,7 +88,11 @@
 
   <section class="view" id="view-backups" aria-label="Backup and Restore" hidden>
     <div class="view-head"><h2>Backup &amp; Restore</h2><button class="btn primary" id="backup-now" type="button">Back up now</button></div>
-    <p class="note"><b>Copy backups off this server.</b> Each one holds your SECRET_KEY, your logins and, if you use one, your VPN private key, so keep them somewhere private. Restoring replaces your whole install, including this panel's own files. Run it from the Terminal tab if you switched that on, or over SSH. Afterwards, use Restart panel below.</p>
+    <div class="note">
+      <p><b>Copy backups off this server.</b> Each one holds your SECRET_KEY, your logins and, if you use one, your VPN private key, so keep them somewhere private.</p>
+      <p><b>Restoring here rolls this server back</b> to one of these backups, replacing the whole install, including this panel's own files. Use Copy restore command and run it over SSH, or from the Terminal tab if you switched that on (then press Restart panel below afterwards).</p>
+      <p><b>Moving to a new server</b> or a new domain is done over SSH on the new server, with <code class="mono">sudo bash setup-aiostreams.sh restore &lt;file&gt;</code>. See the <a href="https://github.com/alpinezx/easy-aiostreams/blob/main/docs/basic/backup-restore.md" target="_blank" rel="noopener noreferrer">backup guide</a>.</p>
+    </div>
     <div class="list" id="backups"></div>
     <div id="set-asides" hidden>
       <h3 class="sub-head">Set aside by restores</h3>

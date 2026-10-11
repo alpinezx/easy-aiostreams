@@ -388,7 +388,7 @@ class Jobs:
                 return i
         return None
 
-    def start(self, action, params) -> dict:
+    def start(self, action, params, after=None) -> dict:
         with self.lock:
             if self.current_id():
                 raise HTTPException(409, "Another action is still running. Wait for it to finish.")
@@ -400,10 +400,10 @@ class Jobs:
             while len(self.order) > self.KEEP + 5:
                 old = self.order.pop(0)
                 self.items.pop(old, None)
-        threading.Thread(target=self._run, args=(job, action), daemon=True).start()
+        threading.Thread(target=self._run, args=(job, action, after), daemon=True).start()
         return job
 
-    def _run(self, job, action):
+    def _run(self, job, action, after=None):
         def emit(line: str):
             if len(job["lines"]) < self.MAX_LINES:
                 job["lines"].append({"k": classify(line), "t": line})
@@ -412,6 +412,11 @@ class Jobs:
         except Exception as e:
             emit(f"XX Couldn't run this action: {type(e).__name__}: {e}")
             code = 1
+        if after:
+            try:
+                after()
+            except Exception:
+                pass
         job["code"] = code
         job["ended"] = time.time()
         global _status_cache
@@ -448,8 +453,44 @@ async def run_action(action_id: str, request: Request, user: str = Depends(curre
     st = await asyncio.to_thread(backend.available_actions) if hasattr(backend, "available_actions") else None
     if st is not None and not next((a["available"] for a in st if a["id"] == action.id), False):
         raise HTTPException(400, "That action isn't set up on this server.")
-    job = jobs.start(action, params)
+    after = None
+    if action.id == "stack.update" and (params or {}).get("backup", True):
+        status_now = _status_cache[1] if _status_cache else await asyncio.to_thread(backend.status)
+        before = {b["name"] for b in await asyncio.to_thread(backend.backups)}
+        note = update_note(status_now, params or {})
+        after = lambda: label_new_backups(before, note)
+    job = jobs.start(action, params, after)
     return jobs.summary(job)
+
+
+def _build_label(st: dict) -> str | None:
+    tag = st.get("build_tag") or (f"v{st['version']}" if st.get("version") else None)
+    return f"nightly {tag[:-8]}" if tag and tag.endswith("-nightly") else tag
+
+
+def update_note(st: dict, params: dict) -> str:
+    """What the backup an Update makes first was taken before, for its note."""
+    label = _build_label(st)
+    was = f" (was {label})" if label else ""
+    now_ch = "nightly" if st.get("channel") == "nightly" else "stable"
+    target = params.get("channel")
+    if target and target != st.get("channel"):
+        return f"Before switching {now_ch} → {'nightly' if target == 'nightly' else 'stable'}{was}"
+    return f"Before updating from {label}" if label else "Before updating"
+
+
+def label_new_backups(before: set, note: str) -> None:
+    """Notes the backups that appeared since `before`, leaving any note already there."""
+    new = [b["name"] for b in backend.backups() if b["name"] not in before]
+    if not new:
+        return
+    with _meta_lock:
+        meta = load_meta()
+        for name in new:
+            cur = meta.setdefault(name, {})
+            if not cur.get("note"):
+                cur["note"] = note[:NOTE_MAX]
+        save_meta(meta)
 
 
 @app.get("/api/jobs")
