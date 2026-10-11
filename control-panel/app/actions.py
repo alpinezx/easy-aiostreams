@@ -120,11 +120,11 @@ def catalog() -> list[Action]:
 
 
 # The stack's scripts, in the order the Terminal tab lists them. Only the first
-# is always there; the others are downloaded on their own (setup-backup.sh on
-# the first backup), so the panel checks.
+# is always there; the others are downloaded on their own, so the panel checks.
+# setup-backup.sh isn't listed: the AIOStreams menu runs it (options 7 and 8)
+# and the Terminal tab updates it together with setup-aiostreams.sh.
 SCRIPTS = [
     ("aiostreams", "AIOStreams menu", "setup-aiostreams.sh"),
-    ("backup", "Backup & restore", "setup-backup.sh"),
     ("vpn", "VPN (Gluetun)", "setup-vpn-gluetun.sh"),
     ("mediaflow", "MediaFlow Proxy", "setup-mediaflow.sh"),
     ("watchdog", "Phone alerts", "setup-watchdog.sh"),

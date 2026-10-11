@@ -105,7 +105,7 @@ class DemoBackend:
             "installed": True, "docker_ok": True, "domain": "streams.example.com", "channel": self.channel, "version": "2.35.9",
             "build_tag": time.strftime("%Y.%m.%d.%H%M-nightly", time.gmtime(time.time() - 30 * 3600)) if self.channel == "nightly" else "v2.35.9",
             "vpn": self.vpn, "install_dir": "/opt/aiostreams", "user_copy": self.user_copy(),
-            "scripts": [{"id": i, "label": l, "file": f, "present": i in ("aiostreams", "backup", "mediaflow", "webhook")} for i, l, f in SCRIPTS], "overall": overall, "headline": headline, "services": services,
+            "scripts": [{"id": i, "label": l, "file": f, "present": i in ("aiostreams", "mediaflow", "webhook")} for i, l, f in SCRIPTS], "overall": overall, "headline": headline, "services": services,
             "watchdog": {"configured": True, "running": True, "last_check": "09 Oct 2026, 16:02:11 UTC OK", "alert_state": "up"},
             "host": {"cpus": 2, "load": [0.21, 0.34, 0.29], "mem_total": 4 * GB, "mem_used": int(1.6 * GB),
                      "uptime": 41 * 86400 + 3 * 3600, "disk_total": 80 * GB, "disk_used": 23 * GB},
