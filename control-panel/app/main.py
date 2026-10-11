@@ -14,7 +14,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, W
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, config, terminal
+from . import auth, config, releases, terminal
 from .actions import BadAction, resolve
 from .stack import RESTARTABLE
 
@@ -144,6 +144,13 @@ async def status(user: str = Depends(current_user)):
     data = dict(_status_cache[1])
     data["busy"] = jobs.current_id()
     return data
+
+
+@app.get("/api/aiostreams-releases")
+async def aiostreams_releases(force: bool = False, user: str = Depends(current_user)):
+    if config.DEMO:
+        return releases.demo()
+    return await asyncio.to_thread(releases.get, force)
 
 
 # Lock + note per backup, kept in the panel's own state (so it rides along in backups).
