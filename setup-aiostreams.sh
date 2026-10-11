@@ -450,6 +450,12 @@ remove_addons_on_uninstall() {
     fi
 }
 
+# Set by check_restored_domain_dns when the person picks a different domain,
+# and by check_restored_addon_dns for add-on domains still not pointing here.
+# The restore's closing summary reads both.
+RESTORE_OLD_DOMAIN=""
+RESTORE_ADDON_DNS_PENDING=()
+
 check_restored_domain_dns() {
     [[ -f "$CADDYFILE" ]] || return 0   # nothing to check against
     local domain
@@ -545,6 +551,7 @@ check_restored_domain_dns() {
                     warn "Domain can only contain letters, numbers, dots, and hyphens (e.g. streams.example.com)."
                     continue
                 fi
+                [[ -n "$RESTORE_OLD_DOMAIN" ]] || RESTORE_OLD_DOMAIN="$domain"
                 sed -i "1s/.*/${new_domain} {/" "$CADDYFILE"
                 # Compose file's BASE_URL must match too, or the VPN toggle
                 # script would regenerate the Caddyfile from the old domain.
@@ -562,6 +569,116 @@ check_restored_domain_dns() {
             5)
                 error "Restore aborted. Fix DNS (or the domain) and re-run restore when ready."
                 return 1
+                ;;
+            *)
+                warn "Not a valid choice."
+                continue
+                ;;
+        esac
+    done
+}
+
+# The add-ons each have their own subdomain, kept in their config file, and
+# a restore starts them on it. check_restored_domain_dns only covers the main
+# domain, so without this a MediaFlow or webhook subdomain still pointing at
+# the old server starts silently and never gets its HTTPS certificate.
+# Changing an add-on's subdomain is its own Reconfigure's job (MediaFlow's
+# also has to be pasted into AIOStreams' dashboard), so this only offers to
+# wait for DNS, and otherwise says what to fix afterwards.
+check_restored_addon_dns() {
+    local -a names=() domains=()
+    local state label d
+    for state in mediaflow-state webhook-relay-state; do
+        [[ -f "$INSTALL_DIR/$state/config" ]] || continue
+        d=$(grep -hoP "^DOMAIN='?\K[^'\s]+" "$INSTALL_DIR/$state/config" 2>/dev/null || true)
+        [[ -n "$d" ]] || continue
+        case "$state" in
+            mediaflow-state)     label="MediaFlow Proxy Light" ;;
+            webhook-relay-state) label="Webhook relay" ;;
+        esac
+        names+=("$label"); domains+=("$d")
+    done
+    (( ${#domains[@]} > 0 )) || return 0
+
+    local public_ip svc
+    public_ip=""
+    for svc in "https://ifconfig.me" "https://icanhazip.com" "https://ipinfo.io/ip"; do
+        public_ip=$(curl -fs4 --max-time 4 "$svc" 2>/dev/null | tr -d ' \n') && [[ -n "$public_ip" ]] && break
+    done
+    [[ -n "$public_ip" ]] || return 0   # main check already warned about this
+
+    local retry_interval="${DNS_RETRY_INTERVAL:-15}"
+    local retry_max="${DNS_RETRY_MAX:-600}"
+    local -a bad=()
+    local i ip waited CHOICE
+
+    addon_dns_mismatches() {
+        bad=()
+        for i in "${!domains[@]}"; do
+            ip=$(getent ahostsv4 "${domains[$i]}" 2>/dev/null | awk '{ print $1 }' | head -n1 || true)
+            [[ "$ip" == "$public_ip" ]] || bad+=("$i:${ip:-<not resolving>}")
+        done
+    }
+
+    while true; do
+        echo ""
+        echo "Checking DNS for the add-on subdomains..."
+        addon_dns_mismatches
+        if (( ${#bad[@]} == 0 )); then
+            for i in "${!domains[@]}"; do
+                echo "${names[$i]}: ${domains[$i]} -> $public_ip, matches this server."
+            done
+            return 0
+        fi
+
+        echo ""
+        alert "ADD-ON SUBDOMAIN MISMATCH"
+        local entry
+        for entry in "${bad[@]}"; do
+            i="${entry%%:*}"
+            alert "${names[$i]}: ${domains[$i]} resolves to ${entry#*:}, but THIS server is $public_ip."
+        done
+        warn "Those add-ons will start, but can't get an HTTPS certificate until this is fixed."
+        if [[ ! -t 0 ]]; then
+            for entry in "${bad[@]}"; do
+                i="${entry%%:*}"
+                RESTORE_ADDON_DNS_PENDING+=("${names[$i]}|${domains[$i]}")
+            done
+            return 0
+        fi
+        echo ""
+        echo "What would you like to do?"
+        echo "  1) Re-check DNS now (do this after updating the A records)"
+        echo "  2) Wait and auto-retry every ${retry_interval}s (up to $((retry_max/60)) min) while DNS propagates"
+        echo "  3) Continue, and fix them afterwards (the summary at the end says how)"
+        echo "  4) Abort restore"
+        read -rp "Choice [1-4]: " CHOICE
+
+        case "$CHOICE" in
+            1)
+                continue
+                ;;
+            2)
+                echo "Waiting for DNS to propagate (checking every ${retry_interval}s)... Ctrl+C to stop waiting."
+                waited=0
+                while (( waited < retry_max )); do
+                    sleep "$retry_interval"
+                    waited=$((waited + retry_interval))
+                    addon_dns_mismatches
+                    echo "  [${waited}s] ${#bad[@]} subdomain(s) still not pointing here"
+                    (( ${#bad[@]} == 0 )) && break
+                done
+                continue
+                ;;
+            3)
+                for entry in "${bad[@]}"; do
+                    i="${entry%%:*}"
+                    RESTORE_ADDON_DNS_PENDING+=("${names[$i]}|${domains[$i]}")
+                done
+                return 0
+                ;;
+            4)
+                error "Restore aborted. Fix the add-on subdomains' DNS and re-run restore when ready."
                 ;;
             *)
                 warn "Not a valid choice."
@@ -840,6 +957,7 @@ do_restore() {
     fi
 
     check_restored_domain_dns
+    check_restored_addon_dns
 
     ensure_shared_network
     ensure_caddy_dropin_dir   # no-op on current backups; creates it for pre-drop-in ones
@@ -1015,9 +1133,34 @@ do_restore() {
 
     info "Restore complete!"
     echo ""
-    echo "Because the SECRET_KEY and data came over intact, every existing user config"
-    echo "and installed Stremio manifest URL keeps working, nothing to recreate."
+    if [[ -n "$RESTORE_OLD_DOMAIN" ]]; then
+        local new_domain_now
+        new_domain_now=$(head -n1 "$CADDYFILE" | awk '{print $1}')
+        echo "The SECRET_KEY and data came over intact, so every user config is here."
+        echo "But the domain changed from $RESTORE_OLD_DOMAIN to $new_domain_now, and"
+        echo "addons installed from the old address won't follow it. Log in at"
+        echo "https://$new_domain_now, open each config and install it in your Stremio"
+        echo "client again from there, then remove the old one."
+    else
+        echo "Because the SECRET_KEY and data came over intact, every existing user config"
+        echo "and installed Stremio manifest URL keeps working, nothing to recreate."
+    fi
     echo ""
+    if (( ${#RESTORE_ADDON_DNS_PENDING[@]} > 0 )); then
+        local pending
+        alert "Still to fix: add-on subdomains not pointing at this server"
+        for pending in "${RESTORE_ADDON_DNS_PENDING[@]}"; do
+            echo "  - ${pending%%|*}: ${pending#*|}"
+        done
+        echo "  Either point each one's A record at this server's IP (Caddy picks the"
+        echo "  certificate up by itself once it resolves), or move it to a subdomain"
+        echo "  that does with that add-on's Reconfigure option:"
+        echo "    sudo bash $INSTALL_DIR/setup-mediaflow.sh   (then paste the new Public"
+        echo "      URL into AIOStreams' dashboard, Proxy settings, option 6 shows it)"
+        echo "    sudo bash $INSTALL_DIR/setup-webhook.sh     (then give the new webhook"
+        echo "      URL to the site that sends to it)"
+        echo ""
+    fi
     echo "If this is a NEW server (new IP), remember:"
     echo "  - Update the DNS A record for the domain to point at THIS server's IP."
     echo "  - Caddy re-issues HTTPS certificates automatically once DNS resolves here"
