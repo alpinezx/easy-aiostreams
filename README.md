@@ -30,14 +30,24 @@ sudo bash /opt/aiostreams/setup-aiostreams.sh migrate undo
 
 ## Restore a pre-October 2026 backup onto a new server
 
-Use this version for that restore too. It puts the backup in `/opt/aiostreams` and points its add-ons there. The last line then puts the current script from the main branch in place:
+Use this version for that restore too. It puts the backup in `/opt/aiostreams` and points its add-ons there:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/migrate-to-opt/setup-aiostreams.sh -o ~/setup-aiostreams-migrate.sh
 sudo bash ~/setup-aiostreams-migrate.sh restore aiostreams-backup-YYYYMMDD-HHMMSS.tar.gz
 rm ~/setup-aiostreams-migrate.sh
-sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-aiostreams.sh -o /opt/aiostreams/setup-aiostreams.sh
 ```
+
+Then replace every script in the folder with the current one from the main branch. The ones that came out of the backup are from before the move, and would put the old path back the next time you use them:
+
+```bash
+cd /opt/aiostreams
+for s in setup-*.sh; do
+  sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/$s -o $s
+done
+```
+
+The webhook relay's reboot notification isn't part of a backup. If you had it on, turn it back on with `sudo bash /opt/aiostreams/setup-webhook.sh`, option 7.
 
 If you're moving to a new server, remember to update your domain's A record afterwards. The [backup & restore guide](https://github.com/alpinezx/easy-aiostreams/blob/main/docs/basic/backup-restore.md) on main covers that.
 
