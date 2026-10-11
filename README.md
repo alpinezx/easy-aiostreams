@@ -160,7 +160,7 @@ If you suspect it's not your setup at all, check, [Stremio Status](https://statu
 
 ## Other Scripts
 
-Want a system-wide VPN layer, phone alerts if your VPN tunnel, AIOStreams or MediaFlow goes down, to turn a third-party site's webhook option into a phone alert, a lighter alternative proxy if scrubbing/seeking spikes your VPS's CPU, or a web control panel (beta) to manage it all from your browser? Those live in their own standalone scripts, see [Other Scripts](./docs/other-scripts.md)
+Want a web control panel (beta) to manage it all from your browser, a system-wide VPN layer, phone alerts if your VPN tunnel, AIOStreams or MediaFlow goes down, to turn a third-party site's webhook option into a phone alert, or a lighter alternative proxy if scrubbing/seeking spikes your VPS's CPU? Those live in their own standalone scripts, see [Other Scripts](./docs/other-scripts.md)
 
 For bugs in the script itself: [open an issue](https://github.com/alpinezx/easy-aiostreams/issues). For setup questions not covered here or in the linked guides, check out these Reddit threads: [r/streamioaddons](https://www.reddit.com/r/StremioAddons/comments/1vo6a5q/self_hosted_aiostreams_easy_install_script/), [r/nuvioaddons](https://www.reddit.com/r/nuvioaddons/comments/1vsud3b/self_hosted_aiostreams_easy_install_script_nuvio/)
 
