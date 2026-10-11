@@ -259,6 +259,8 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .view-head .btn { margin-left: auto; }
 .note { background: var(--ok-soft); border-radius: 12px; padding: 12px 16px; color: var(--text); margin: 0 0 16px; font-size: .94rem; }
 .note b { font-weight: 650; }
+.note p { margin: 0; }
+.note p + p { margin-top: 8px; }
 
 /* ---------- drawer (live output) ---------- */
 .scrim { position: fixed; inset: 0; background: rgba(5, 4, 10, .55); z-index: 40; }
@@ -321,6 +323,8 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .check { display: flex; gap: 10px; align-items: center; }
 .check input { width: 18px; height: 18px; accent-color: var(--accent); }
 .dialog .btns { display: flex; justify-content: flex-end; gap: 8px; }
+.dialog .switch-warn { margin: 0; padding: 10px 12px; border-radius: 9px; background: var(--warn-soft); color: var(--text); font-size: .9rem; }
+.dialog .switch-warn[hidden] { display: none; }
 .dialog .whats-new { margin: 0; padding: 10px 12px; border-radius: 9px; background: var(--hover); color: var(--text); font-size: .92rem; }
 .linkish { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
 

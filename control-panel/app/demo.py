@@ -65,6 +65,7 @@ class DemoBackend:
         self._cleared_logs: set[str] = set()
         self.vpn = os.environ.get("UI_DEMO_VPN", "on")   # on | off | none, to preview the header chip
         self.channel = os.environ.get("UI_DEMO_CHANNEL", "latest")   # latest | nightly
+        self._made: list[dict] = []    # backups "made" by demo actions, newest first
         self.running = {"caddy": True, "gluetun": True, "aiostreams": True, "mediaflow-proxy-light": True, "aios-webhook-relay": True}
         if scenario == "down":
             self.running["aiostreams"] = False
@@ -142,7 +143,7 @@ class DemoBackend:
         return [b for b in self._all_backups(now) if b["name"] not in self._gone]
 
     def _all_backups(self, now):
-        return [{"name": "aiostreams-backup-20261007-031500.tar.gz", "size": 4_812_330, "mtime": now - 2 * 86400, "dirs": ["/root", "/home/ubuntu"]},
+        return self._made + [{"name": "aiostreams-backup-20261007-031500.tar.gz", "size": 4_812_330, "mtime": now - 2 * 86400, "dirs": ["/root", "/home/ubuntu"]},
                 {"name": "aiostreams-backup-20260930-221042.tar.gz", "size": 4_790_114, "mtime": now - 9 * 86400, "dirs": ["/root", "/home/ubuntu"]},
                 {"name": "aiostreams-backup-20260914-094407.tar.gz", "size": 4_611_802, "mtime": now - 25 * 86400, "dirs": ["/root"]}]
 
@@ -168,6 +169,9 @@ class DemoBackend:
             emit(t)
             time.sleep(d)
         say(f"==> {action.running} (demo mode, nothing really runs)")
+        if action.id == "stack.backup" or (action.id == "stack.update" and action.stdin.startswith("5\n1\n")):
+            name = time.strftime("aiostreams-backup-%Y%m%d-%H%M%S.tar.gz")
+            self._made.insert(0, {"name": name, "size": 4_830_112, "mtime": int(time.time()), "dirs": ["/root", "/home/ubuntu"]})
         if action.id == "stack.update":
             for l in ["Update AIOStreams:", "Current build channel: latest", "Updating AIOStreams (pull + recreate)...",
                       " Container gluetun  Running", " Image viren070/aiostreams:latest  Pulling", " Image viren070/aiostreams:latest  Pulled",

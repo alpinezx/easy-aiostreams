@@ -62,10 +62,35 @@ export async function runAction(act, params) {
     // "See what's new" swaps the dialog for the releases drawer; Update is one click away after.
     let wantNotes = false;
     const notes = whatsNewLine(() => { wantNotes = true; $("#dialog .btns .btn:not(.primary)").click(); });
+    // Nightly can migrate AIOStreams' database past what stable understands, and stable then won't start.
+    // The way back is the backup taken before the switch to nightly, which Update notes as such.
+    let wayBack = null;
+    if (onNightly) {
+      try {
+        const list = await api("/api/backups");
+        wayBack = list.filter((b) => (b.note || "").startsWith("Before switching stable → nightly"))
+          .sort((a, b) => b.mtime - a.mtime)[0] || null;
+      } catch (_) {}
+    }
+    const warn = h("p", { class: "switch-warn", hidden: true });
+    sel.addEventListener("change", () => {
+      backup.disabled = sel.value === "nightly";
+      if (sel.value === "nightly") {
+        backup.checked = true;
+        warn.textContent = "Nightly can upgrade AIOStreams' database, and once it has, stable won't start on it any more. "
+          + "The way back to stable is then restoring the backup this makes now, so Back up first stays on for this switch.";
+      } else if (sel.value === "latest") {
+        warn.textContent = "This works if nightly hasn't upgraded AIOStreams' database. If it has, stable refuses to start and keeps "
+          + "restarting (its log says \"Database is at migration ...\"). The safe way back is restoring the backup made before "
+          + "you switched to nightly" + (wayBack ? `: ${wayBack.name} on the Backup & Restore tab.` : ", from the Backup & Restore tab.");
+      }
+      warn.hidden = !sel.value;
+    });
     const el = h("div", { class: "opts" },
       notes,
       h("label", { class: "check" }, backup, h("span", { text: "Back up first" })),
-      h("label", { class: "field" }, h("span", { text: "Build channel" }), sel));
+      h("label", { class: "field" }, h("span", { text: "Build channel" }), sel),
+      warn);
     const res = await ask({
       title: "Update or switch build",
       body: "Pulls the newest image and recreates the container. Streams stop loading for a minute or so.",
