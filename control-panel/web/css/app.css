@@ -321,6 +321,8 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .check { display: flex; gap: 10px; align-items: center; }
 .check input { width: 18px; height: 18px; accent-color: var(--accent); }
 .dialog .btns { display: flex; justify-content: flex-end; gap: 8px; }
+.dialog .whats-new { margin: 0; padding: 10px 12px; border-radius: 9px; background: var(--hover); color: var(--text); font-size: .92rem; }
+.linkish { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
 
 /* ---------- toast ---------- */
 .toasts { position: fixed; z-index: 60; left: 50%; bottom: 20px; transform: translateX(-50%); display: grid; gap: 8px; width: min(420px, calc(100vw - 32px)); pointer-events: none; }

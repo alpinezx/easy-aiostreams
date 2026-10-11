@@ -1,4 +1,5 @@
 import { $, h, clear, api, toast, fmtDur } from "./util.js";
+import { openKnown, whatsNewLine } from "./releases.js";
 
 // ---------- modal dialog ----------
 let lastFocus = null;
@@ -58,7 +59,11 @@ export async function runAction(act, params) {
       h("option", { value: "", text: `Stay on ${onStable ? "stable" : channelNow}` }),
       onStable ? null : h("option", { value: "latest", text: "Switch to stable" }),
       onNightly ? null : h("option", { value: "nightly", text: "Switch to nightly" }));
+    // "See what's new" swaps the dialog for the releases drawer; Update is one click away after.
+    let wantNotes = false;
+    const notes = onStable ? whatsNewLine(() => { wantNotes = true; $("#dialog .btns .btn:not(.primary)").click(); }) : null;
     const el = h("div", { class: "opts" },
+      notes,
       h("label", { class: "check" }, backup, h("span", { text: "Back up first" })),
       h("label", { class: "field" }, h("span", { text: "Build channel" }), sel));
     const res = await ask({
@@ -66,6 +71,7 @@ export async function runAction(act, params) {
       body: "Pulls the newest image and recreates the container. Streams stop loading for a minute or so.",
       confirmLabel: "Update", options: { el, read: () => ({ backup: backup.checked, channel: sel.value || null }) },
     });
+    if (wantNotes) { openKnown(); return; }
     if (!res) return;
     if (res.channel && res.channel === channelNow) res.channel = null;
     params = res;

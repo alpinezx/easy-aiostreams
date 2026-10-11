@@ -2,6 +2,26 @@ import { $, h, clear } from "./util.js";
 import { renderMarkdown } from "./md.js";
 
 let lastFocus = null;
+let known = null;
+
+export function remember(rel, version) {
+  known = rel && rel.releases.length && version ? { rel, version } : null;
+}
+
+export function openKnown() {
+  if (known) openReleases(known.rel, known.version);
+}
+
+// One line for the Update dialog, or null when there's no check to go on.
+export function whatsNewLine(onOpen) {
+  if (!known) return null;
+  const newer = known.rel.releases.filter((r) => cmpVer(r.tag, known.version) > 0);
+  const text = newer.length
+    ? `${newer[0].tag} is out, ${newer.length} release${newer.length === 1 ? "" : "s"} newer than your v${known.version}. `
+    : `You're on the latest release, v${known.version}. `;
+  return h("p", { class: "whats-new" }, text,
+    h("button", { class: "linkish", type: "button", text: newer.length ? "See what's new" : "See release notes", onclick: onOpen }));
+}
 
 export function cmpVer(a, b) {
   const pa = a.replace(/^v/, "").split(".").map(Number), pb = b.replace(/^v/, "").split(".").map(Number);
@@ -36,13 +56,14 @@ export function openReleases(rel, version) {
   rel.releases.forEach((r, i) => {
     const c = cmpVer(r.tag, version);
     const body = h("div", { class: "rel-body" });
-    const d = h("details", { class: "rel", open: i === 0 },
+    const open = i === 0 || c > 0;
+    const d = h("details", { class: "rel", open },
       h("summary", {},
         h("span", { class: "rel-tag", text: r.tag }),
         c === 0 ? h("span", { class: "chip ok", text: "Running" }) : c > 0 ? h("span", { class: "chip warn", text: "New" }) : null,
         h("span", { class: "rel-when", text: r.published ? new Date(r.published).toLocaleDateString() : "" })),
       body);
-    if (i === 0) fill(body, r);
+    if (open) fill(body, r);
     d.addEventListener("toggle", () => { if (d.open) fill(body, r); });
     list.append(d);
   });

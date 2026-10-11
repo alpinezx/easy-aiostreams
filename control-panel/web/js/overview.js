@@ -1,6 +1,6 @@
 import { $, h, clear, setText, fmtDur, fmtBytes, api, toast, ago } from "./util.js";
 import { runAction, openJob, rebootServer, restartService } from "./actions.js";
-import { cmpVer, openReleases } from "./releases.js";
+import { cmpVer, openReleases, remember } from "./releases.js";
 
 // ---------------- update check ----------------
 let rel = null, relLoading = false, relAsked = false, lastSt = null;
@@ -15,6 +15,7 @@ async function loadReleases(force) {
   try { rel = await api(`/api/aiostreams-releases${force ? "?force=1" : ""}`); }
   catch (e) { rel = { releases: [], error: e.message }; }
   relLoading = false;
+  if (lastSt) remember(lastSt.channel !== "nightly" ? rel : null, lastSt.version);
   if (lastSt) hero(lastSt);
   if (force && lastSt && lastSt.version) {
     const n = newerThan(lastSt.version);
@@ -93,6 +94,7 @@ export function render(st, goLogs) {
   window.__channel = st.channel;
   lastSt = st;
   if (!relAsked && st.version && st.channel !== "nightly") { relAsked = true; loadReleases(false); }
+  remember(st.channel !== "nightly" ? rel : null, st.version);
   hero(st); path(st); rows(st, goLogs); side(st);
 }
 
