@@ -2,9 +2,15 @@
 
 ## How changes get made
 
-Every change is tested on a real server before it's merged. When asking for a
-test, give one step at a time, with the commands in code blocks and what each
-should print. No em dashes in docs, script output or commit messages.
+Every code change is tested on a real server before it's merged. When asking
+for a test, give one step at a time, with the commands in code blocks and what
+each should print. No em dashes in docs, script output or commit messages.
+
+Documentation (README, `docs/`, this file) and comment-only edits to code
+don't need a server test, as long as no behaviour changes. Go through `dev` and
+a PR to `main` as usual. Two limits: a `#` line inside a heredoc is written
+into the generated file, so it counts as code; and run `bash -n` on any edited
+`.sh` file to catch a broken quote or block.
 
 ## Branches
 
