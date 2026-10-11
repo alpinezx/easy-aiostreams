@@ -15,6 +15,7 @@ RETRY = 10 * 60
 FORCE_GAP = 60
 MAX_PAGES = 5
 KEEP = 20
+BODY_MAX = 20000
 STABLE = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
 
 _lock = threading.Lock()
@@ -45,7 +46,8 @@ def _fetch() -> list[dict]:
                 continue
             url = str(rel.get("html_url") or "")
             found.append({"tag": tag, "published": rel.get("published_at"),
-                          "url": url if url.startswith("https://github.com/") else None})
+                          "url": url if url.startswith("https://github.com/") else None,
+                          "body": str(rel.get("body") or "")[:BODY_MAX]})
         if len(found) >= KEEP or 'rel="next"' not in r.headers.get("link", ""):
             break
     found.sort(key=lambda x: _key(x["tag"]), reverse=True)
@@ -72,5 +74,10 @@ def get(force: bool = False) -> dict:
 
 def demo() -> dict:
     tags = [("v2.36.1", "2026-10-10T12:00:00Z"), ("v2.36.0", "2026-10-07T12:00:00Z"), ("v2.35.9", "2026-10-03T12:00:00Z")]
+    body = ("## [{v}](https://github.com/Viren070/AIOStreams/compare/v2.35.8...v{v}) ({d})\n\n### Features\n\n"
+            "* **jellyfin:** add watchlisted shows and films to Upcoming ([7814d09](https://github.com/Viren070/AIOStreams/commit/7814d09))\n"
+            "* **watch-state:** read `airsAt` on pulled next episodes\n\n### Bug Fixes\n\n"
+            "* **desktop:** load a bundled vulkan-1.dll when Windows has none\n")
     return {"checked_at": time.time(), "error": None, "keep": KEEP,
-            "releases": [{"tag": t, "published": p, "url": f"https://github.com/Viren070/AIOStreams/releases/tag/{t}"} for t, p in tags]}
+            "releases": [{"tag": t, "published": p, "url": f"https://github.com/Viren070/AIOStreams/releases/tag/{t}",
+                          "body": body.format(v=t[1:], d=p[:10])} for t, p in tags]}
