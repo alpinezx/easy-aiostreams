@@ -103,7 +103,25 @@ backup; `restore --same-server` refusing a copy with its main domain changed
 refusal; a real restore started from the panel, which left the panel running,
 finished on Restore finished, and came back after Restart panel.
 
-Lesson from that evening: nightly can migrate AIOStreams' database past what
+## Tested on 12 October 2026
+
+A restore run as plain root (`sudo env -u SUDO_USER -u SUDO_UID -u SUDO_GID
+...`) leaving `/opt/aiostreams` at `root:ubuntu 750`; the Scripts tab's Run in
+terminal typing commands into the panel's shell; and the panel updating
+itself three times from `dev` (0.9.0 to 1.0.0, then 1.0.1, then 1.0.2) through
+its own Update button, each reloading by itself. Merged as PRs #24 to #26.
+
+Testing the panel's Update from `dev`: build it with a lower `VERSION` by hand
+and `sudo AIOS_UI_BRANCH=dev bash setup-ui.sh rebuild`; afterwards, rebuild
+once without `AIOS_UI_BRANCH` to point it back at `main`. GitHub's raw files
+are cached for about 5 minutes after a push, so wait before Check now.
+
+Docs screenshots in `docs/images/control-panel/` come from the panel's demo
+mode (`UI_DEMO=1`, `streams.example.com`), never a real install.
+
+## Lessons
+
+Lesson from 11 October: nightly can migrate AIOStreams' database past what
 stable understands ("Database is at migration 46 but this build only knows up
 to 42"), and stable then restart-loops. Switching back with Update can't fix
 it; restoring the backup made before the switch to nightly does.
