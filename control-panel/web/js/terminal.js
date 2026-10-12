@@ -90,7 +90,7 @@ function gate(message, info) {
     asSel.value = shellAs();
     asNote = h("p", { class: "dim term-as-note" });
     const sync = () => { asNote.textContent = asSel.value === "root"
-      ? `Not recommended while ${uc.user} is available. Scripts you run by hand as root (a restore, or a backup from the script's menu) won't update ${uc.dir} or put copies in ${uc.user}'s home. The panel's own buttons and the copy commands above still do.`
+      ? `Not recommended while ${uc.user} is available. A backup you make here as root is only saved in /root, with no copy in ${uc.user}'s home to scp. The panel's own buttons and the copy commands above still act as ${uc.user}.`
       : sudoNote(uc); };
     asSel.addEventListener("change", () => { setShellAs(asSel.value); sync(); buildHelp(lastStatus, true); });
     sync();
