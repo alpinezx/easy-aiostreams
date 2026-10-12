@@ -10,7 +10,7 @@ import time
 import requests
 
 URL = "https://api.github.com/repos/viren070/aiostreams/releases"
-FRESH = 6 * 3600
+FRESH = 3 * 3600
 RETRY = 10 * 60
 FORCE_GAP = 60
 MAX_PAGES = 5
