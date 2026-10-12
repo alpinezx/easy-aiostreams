@@ -14,7 +14,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, W
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, config, releases, scriptsync, terminal
+from . import auth, config, panelupdate, releases, scriptsync, terminal
 from .actions import SCRIPTS, BadAction, build_restore, resolve
 from .stack import BACKUP_NAME, RESTARTABLE, backup_path
 
@@ -126,7 +126,7 @@ async def logout(response: Response):
 
 @app.get("/api/me")
 async def me(user: str = Depends(current_user)):
-    return {"user": user, "demo": config.DEMO, "terminal": terminal.enabled()}
+    return {"user": user, "demo": config.DEMO, "terminal": terminal.enabled(), "version": config.VERSION}
 
 
 # ---- status --------------------------------------------------------------
@@ -144,6 +144,37 @@ async def status(user: str = Depends(current_user)):
     data = dict(_status_cache[1])
     data["busy"] = jobs.current_id()
     return data
+
+
+@app.get("/api/panel/version")
+async def panel_version(force: bool = False, user: str = Depends(current_user)):
+    """This panel's version, the newest on its update branch, and how the last update went."""
+    if config.DEMO:
+        return {**panelupdate.demo_latest(), "running": False, "last": None}
+    info = await asyncio.to_thread(panelupdate.latest, force)
+    running = await asyncio.to_thread(panelupdate.running)
+    return {**info, "running": running, "last": await asyncio.to_thread(panelupdate.last_update)}
+
+
+@app.post("/api/panel/update")
+async def panel_update(request: Request, user: str = Depends(current_user)):
+    """Downloads the newest panel and rebuilds it, from outside this container."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict) or str(body.get("confirm", "")).strip().lower() != "update":
+        raise HTTPException(400, "Type update to confirm.")
+    if jobs.current_id():
+        raise HTTPException(409, "An action is still running. Wait for it to finish first.")
+    if config.DEMO:
+        return {"ok": True, "demo": True}
+    try:
+        await asyncio.to_thread(panelupdate.start)
+    except RuntimeError as e:
+        raise HTTPException(409, str(e))
+    terminal.log(f"panel update started by {user} from {client_ip(request)}")
+    return {"ok": True}
 
 
 @app.get("/api/scripts/compare")

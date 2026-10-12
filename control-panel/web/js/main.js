@@ -67,6 +67,8 @@ async function tick() {
 async function boot() {
   const me = await api("/api/me");
   $("#who").textContent = me.user;
+  scripts.versionChip(me.version);
+  scripts.loadPanelVersion(false);      // the header chip turns amber when there's an update
   $("#demo").hidden = !me.demo;
   terminalOn = !!me.terminal;
   $("#tab-terminal").hidden = !terminalOn;

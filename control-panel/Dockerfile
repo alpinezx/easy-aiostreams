@@ -9,6 +9,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY app app
 COPY web web
+# The version this image was built from, so the panel reports what's running, not what's on disk.
+COPY VERSION .
 ENV PYTHONUNBUFFERED=1
 EXPOSE 8080
 # No port is published to the host; only Caddy reaches this over the shared Docker network.

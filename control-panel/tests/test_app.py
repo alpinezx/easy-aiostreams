@@ -333,3 +333,15 @@ def test_scripts_compare_endpoint_covers_every_script_and_the_backup_one(client)
     assert out["files"]["setup-mediaflow.sh"]["differs"] is True
     client.post("/api/logout"); client.cookies.clear()
     assert client.get("/api/scripts/compare").status_code == 401
+
+
+def test_panel_version_and_update_endpoints(client):
+    login(client)
+    me = client.get("/api/me").json()
+    assert me["version"] == config.VERSION
+    v = client.get("/api/panel/version").json()
+    assert v["current"] == config.VERSION and v["latest"] == "1.1.0" and "running" in v
+    assert client.post("/api/panel/update", json={}).status_code == 400
+    assert client.post("/api/panel/update", json={"confirm": "Update "}).json() == {"ok": True, "demo": True}
+    client.post("/api/logout"); client.cookies.clear()
+    assert client.post("/api/panel/update", json={"confirm": "update"}).status_code == 401
