@@ -280,7 +280,9 @@ function rows(st, goLogs) {
     if (!row) continue;
     const sx = stateOf(s);
     const up = uptime(s);
-    setText(row, "[data-w]", (STATE_WORD[sx] || sx) + (up ? ` for ${up}` : "") + (s.restarts ? `, restarted ${s.restarts}×` : ""));
+    // "Up for 27m" rather than "Running for 27m": short enough to stay on one line.
+    const word = sx === "running" && up ? `Up for ${up}` : (STATE_WORD[sx] || sx) + (up ? ` for ${up}` : "");
+    setText(row, "[data-w]", word + (s.restarts ? `, restarted ${s.restarts}×` : ""));
     setText(row, "[data-img]", s.image || "");
     setText(row, "[data-cpu]", s.state === "running" && s.cpu != null ? `${s.cpu}%` : "");
     setText(row, "[data-mem]", s.state === "running" && s.mem != null ? fmtBytes(s.mem) : "");

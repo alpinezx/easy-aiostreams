@@ -80,11 +80,13 @@ a { color: var(--accent); }
 }
 .bar-in {
   max-width: 1180px; margin: 0 auto; padding: 0 var(--gutter);
-  height: 56px; display: flex; align-items: center; gap: 28px;
+  height: 56px; display: flex; align-items: center; gap: 22px;
 }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 1.05rem; letter-spacing: -.01em; text-decoration: none; color: var(--text); }
 .brand svg { width: 26px; height: 26px; }
-.tabs { display: flex; gap: 2px; margin-right: auto; min-width: 0; }
+/* Squeezed (a long username, a narrow window, browser zoom), the tabs scroll sideways rather than run into what's next to them. */
+.tabs { display: flex; gap: 2px; margin-right: auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
 .tab {
   white-space: nowrap; border: 0; background: none; padding: 8px 12px; border-radius: 8px;
   color: var(--dim); font-weight: 500; text-decoration: none;
@@ -92,7 +94,6 @@ a { color: var(--accent); }
 .tab:hover { color: var(--text); background: var(--hover); }
 .tab[aria-current="page"] { color: var(--text); background: var(--hover); box-shadow: inset 0 -2px 0 var(--accent); }
 .bar-end { flex: none; display: flex; align-items: center; gap: 10px; }
-.who { color: var(--faint); font-size: .86rem; }
 .demo-flag { background: var(--warn-soft); color: var(--warn); border-radius: 999px; padding: 2px 10px; font-size: .8rem; font-weight: 600; }
 
 main { max-width: 1180px; margin: 0 auto; padding: 28px var(--gutter) 96px; }
@@ -362,7 +363,7 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 }
 @media (max-width: 720px) {
   .bar-in { gap: 10px; }
-  .who, .demo-flag { display: none; }
+  .demo-flag { display: none; }
   .tabs { overflow-x: auto; scrollbar-width: none; }
   .brand span { display: none; }
   .chain { flex-direction: column; align-items: stretch; }
@@ -412,6 +413,7 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .veil-box { text-align: center; padding: 28px 32px; background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius); max-width: 420px; }
 .veil-box h3 { margin: 0 0 8px; }
 .veil-box p { margin: 0; }
+.veil-box .veil-log { text-align: left; margin: 12px 0; max-height: 240px; overflow: auto; padding: 10px 12px; background: var(--sunk); border-radius: 8px; font-family: var(--mono); font-size: .76rem; white-space: pre-wrap; }
 .dialog .input { margin: 4px 0 6px; }
 .term-bar-btns { display: flex; gap: 4px; }
 
@@ -426,6 +428,18 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .scripts-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
 .scripts-foot .btn { margin-left: auto; }
 .chip.small-chip { font-size: .74rem; padding: 1px 8px; }
+/* The panel's version, next to its name in the header, and its row on the Scripts tab */
+.ver-chip { font-size: .74rem; padding: 1px 8px; text-decoration: none; margin-left: -4px; white-space: nowrap; }
+.ver-chip:hover { color: var(--text); }
+/* Only where the header has room, like "Control Panel" next to the name. The Scripts tab shows it at every width. */
+@media (max-width: 1280px) { .ver-chip { display: none !important; } }
+.panel-ver { margin-bottom: 14px; display: grid; gap: 10px; }
+.panel-ver-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.panel-ver-head h3 { margin: 0; }
+.panel-ver-head .btns { margin-left: auto; display: flex; gap: 8px; }
+.panel-ver p { margin: 0; font-size: .9rem; }
+.panel-ver details summary { cursor: pointer; font-size: .88rem; color: var(--dim); }
+.panel-ver pre { margin: 8px 0 0; max-height: 260px; overflow: auto; padding: 10px 12px; background: var(--sunk); border-radius: 8px; font-family: var(--mono); font-size: .78rem; line-height: 1.5; white-space: pre-wrap; }
 .btn-spacer { visibility: hidden; pointer-events: none; }
 @media (max-width: 720px) { .btn-spacer { display: none; } }
 .term-scripts-hint { margin: -6px 0 14px; font-size: .9rem; }

@@ -2,6 +2,7 @@
 // GitHub's main, and the commands to run or update them, over SSH or in the panel's terminal.
 import { $, h, api, clear, toast, ago } from "./util.js";
 import { shellAs, runInTerminal } from "./terminal.js";
+import { ask } from "./actions.js";
 
 const REPO = "https://github.com/alpinezx/easy-aiostreams";
 const GUIDE = `${REPO}/blob/main/docs/basic/control-panel.md`;
@@ -19,6 +20,103 @@ const UPDATE_WITH = { aiostreams: ["setup-backup.sh"] };
 
 let cmp = null, cmpLoading = false, cmpAsked = false, last = null;
 
+// ---------------- the panel's own version and update ----------------
+let ver = null, verLoading = false;
+
+export async function loadPanelVersion(force) {
+  verLoading = true;
+  if (last) render();
+  try { ver = await api(`/api/panel/version${force ? "?force=1" : ""}`); }
+  catch (e) { ver = { ...(ver || {}), latest: null, newer: false, error: e.message }; }
+  verLoading = false;
+  versionChip();
+  if (last) render();
+  if (force) toast(ver.error ? `Couldn't check. ${ver.error}` : ver.newer ? `Control panel ${ver.latest} is available.` : "The control panel is up to date.", !!ver.error);
+}
+
+export function versionChip(current) {
+  const chip = $("#panel-version");
+  const cur = current || (ver && ver.current);
+  if (!chip || !cur) return;
+  chip.hidden = false;
+  const newer = ver && ver.newer;
+  chip.className = "chip ver-chip" + (newer ? " warn" : "");
+  // Kept short: the header has little room. The tooltip and the Scripts tab name the new version.
+  chip.textContent = newer ? `v${cur} ↑` : `v${cur}`;
+  chip.title = newer ? `Control panel ${ver.latest} is available. Update it on the Scripts tab.` : "The control panel's version. Updates are on the Scripts tab.";
+}
+
+function panelSection() {
+  const v = ver || {};
+  const branch = v.branch && v.branch !== "main" ? ` (${v.branch} branch, for testing)` : "";
+  let state;
+  if (verLoading && !ver) state = h("span", { class: "chip", text: "Checking…" });
+  else if (v.running) state = h("span", { class: "chip warn", text: "Updating…" });
+  else if (v.newer) state = h("span", { class: "chip warn", text: `${v.latest} available` });
+  else if (v.latest) state = h("span", { class: "chip ok", text: "Up to date" });
+  else if (v.error) state = h("span", { class: "chip warn", title: v.error, text: "Couldn't check" });
+  const checked = v.checked_at ? `Checked against GitHub${branch} ${ago(v.checked_at)}.` : "";
+  const lastLine = v.last
+    ? h("details", {}, h("summary", { text: `Last update ${ago(v.last.at)}: ${v.last.ok ? "finished" : "didn't finish"}. Show its output` }),
+        h("pre", { text: v.last.tail.join("\n") }))
+    : null;
+  return h("section", { class: "panel panel-ver" },
+    h("div", { class: "panel-ver-head" },
+      h("h3", { text: "Control panel" }),
+      v.current ? h("span", { class: "chip", text: `v${v.current}` }) : null,
+      state,
+      h("span", { class: "btns" },
+        h("button", { class: "btn small", type: "button", text: verLoading ? "Checking…" : "Check now", disabled: verLoading,
+          onclick: () => loadPanelVersion(true) }),
+        v.newer && !v.running ? h("button", { class: "btn small primary", type: "button", text: `Update to ${v.latest}`, onclick: () => updatePanel(v) }) : null)),
+    h("p", { class: "dim", text: `${checked} Updating downloads the new panel from GitHub and rebuilds it; it's away for about a minute and AIOStreams isn't touched.`.trim() }),
+    lastLine);
+}
+
+async function updatePanel(v) {
+  const ok = await ask({ title: `Update the control panel to ${v.latest}?`, confirmLabel: "Update",
+    body: "It downloads the new version from GitHub and rebuilds the panel. The panel is away for about a minute and this page reloads by itself. AIOStreams and your add-ons aren't touched." });
+  if (!ok) return;
+  let res;
+  try { res = await api("/api/panel/update", { method: "POST", body: JSON.stringify({ confirm: "update" }) }); }
+  catch (e) { toast(e.message || "Couldn't start the update.", true); return; }
+  if (res.demo) { toast("Demo mode: nothing was updated."); return; }
+  waitForNewPanel(v.current);
+}
+
+// The update runs outside the panel and replaces it. Wait for the new one to answer, or for the
+// update's own log to say it stopped, whichever comes first.
+function waitForNewPanel(oldVersion) {
+  const note = h("p", { class: "dim", text: "Downloading and rebuilding. This page reloads when the new version answers." });
+  const box = h("div", { class: "veil-box" }, h("h3", { text: "Updating the control panel" }), note);
+  const veil = h("div", { class: "veil", role: "alert" }, box);
+  document.body.append(veil);
+  const started = Date.now() / 1000;
+  let wasDown = false;
+  const poll = async () => {
+    let j = null;
+    try {
+      const r = await fetch("/api/panel/version", { credentials: "same-origin", cache: "no-store", headers: { "X-UI-Request": "1" } });
+      if (r.ok) j = await r.json(); else wasDown = true;
+    } catch (_) { wasDown = true; }
+    if (j) {
+      if (j.current !== oldVersion || (wasDown && !j.running)) { location.reload(); return; }
+      if (!j.running && j.last && j.last.at >= started - 5 && !j.last.ok) {
+        note.textContent = "The update stopped before the new panel was built. Nothing was changed. Its output:";
+        box.append(h("pre", { class: "veil-log", text: j.last.tail.join("\n") }),
+          h("button", { class: "btn small", type: "button", text: "Close", onclick: () => { veil.remove(); loadPanelVersion(false); } }));
+        return;
+      }
+    }
+    if (Date.now() / 1000 - started > 900) {
+      note.textContent = "Taking longer than usual. Over SSH, /opt/aiostreams/ui-state/last-update.log shows how far it got.";
+      return;
+    }
+    setTimeout(poll, 3000);
+  };
+  setTimeout(poll, 4000);
+}
+
 async function loadCompare(force) {
   cmpLoading = true;
   if (last) render();
@@ -32,6 +130,7 @@ async function loadCompare(force) {
 export function show(status, terminalOn) {
   last = { status, terminalOn };
   if (!cmpAsked) { cmpAsked = true; loadCompare(false); }
+  if (!ver && !verLoading) loadPanelVersion(false);
   render();
 }
 
@@ -94,6 +193,7 @@ function render() {
     : !cmp ? "" : cmp.error ? `Couldn't compare with GitHub: ${cmp.error}`
     : `Compared with GitHub's main branch ${ago(cmp.checked_at)}.`;
 
+  box.append(panelSection());
   if (!terminalOn) {
     box.append(h("p", { class: "note" }, "Run in terminal needs the panel's web terminal, which is switched off. Switch it on with setup-ui.sh over SSH (see the ",
       h("a", { href: GUIDE, target: "_blank", rel: "noopener noreferrer", text: "control panel guide" }), "). Copy and Update work either way."));

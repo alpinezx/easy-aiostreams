@@ -97,6 +97,7 @@ services:
       - UI_INSTALL_DIR=${INSTALL_DIR}
       - UI_ROOT_HOME=${ROOT_HOME}
       - UI_STATE_DIR=/state
+      - UI_UPDATE_BRANCH=${PANEL_BRANCH}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${INSTALL_DIR}:${INSTALL_DIR}:ro
@@ -326,11 +327,17 @@ do_stop() {
 
 # Menu option 4. Downloads the newest control-panel folder from GitHub into
 # $PANEL_DIR (unless told not to), then rebuilds. A download that fails or
-# looks wrong changes nothing.
+# looks wrong changes nothing. "yes" skips the question: the panel's own
+# Update button runs it that way, through systemd-run, so it isn't inside the
+# panel container it replaces.
 do_update() {
     refuse_in_terminal && return
     local C tmp
-    read -rp "Download the newest version from GitHub first? [Y/n] (n = just rebuild from the files already here): " C
+    if [[ "${1:-}" == yes ]]; then
+        C=y
+    else
+        read -rp "Download the newest version from GitHub first? [Y/n] (n = just rebuild from the files already here): " C
+    fi
     if [[ "$C" =~ ^[Nn] ]]; then
         do_rebuild
         return
@@ -341,7 +348,8 @@ do_update() {
         || [[ ! -f "$tmp/control-panel/app/main.py" || ! -f "$tmp/control-panel/setup-ui.sh" ]]; then
         rm -rf "$tmp"
         warn "Couldn't download it. Nothing was changed; the panel keeps running as it is."
-        return
+        [[ "${1:-}" == yes ]] && return 1
+        return 0
     fi
     # Swap the code in. Only code lives here: settings and login are in ui-state.
     rm -rf "${PANEL_DIR:?}/app" "${PANEL_DIR:?}/web" "${PANEL_DIR:?}/tests"
@@ -403,6 +411,10 @@ do_uninstall() {
 
 if [[ "${1:-}" == "rebuild" && -f "$CONFIG_FILE" ]]; then
     do_rebuild
+    exit 0
+fi
+if [[ "${1:-}" == "update-unattended" && -f "$CONFIG_FILE" ]]; then
+    do_update yes
     exit 0
 fi
 

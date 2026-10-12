@@ -19,3 +19,13 @@ STATE_DIR = Path(os.environ.get("UI_STATE_DIR", "/state"))
 WEB_DIR = Path(os.environ.get("UI_WEB_DIR", str(Path(__file__).resolve().parent.parent / "web")))
 
 SESSION_DAYS = 7
+
+# The panel's own version: VERSION is copied into the image next to app/.
+try:
+    VERSION = (Path(__file__).resolve().parent.parent / "VERSION").read_text().strip() or "unknown"
+except OSError:
+    VERSION = "unknown"
+
+# The branch its Update checks and downloads from. setup-ui.sh sets it from
+# AIOS_UI_BRANCH (main unless testing dev).
+UPDATE_BRANCH = os.environ.get("UI_UPDATE_BRANCH", "main")

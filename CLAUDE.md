@@ -52,6 +52,14 @@ keep their settings in `*-state/` folders inside it, and their Caddy sites in
   stdin closed. Any new question in the restore needs a matching check in
   `restore_check` and an unattended answer, or the panel's restore can't
   handle it.
+- The control panel has a version in `control-panel/VERSION`, copied into its
+  image. Its Update compares that with `VERSION` on GitHub (its update branch:
+  `main`, or `AIOS_UI_BRANCH` at its last rebuild), so **bump `VERSION` in every
+  PR that changes `control-panel/`**: the last number for fixes and wording, the
+  middle one for features. Without a bump, nobody is offered the change. The
+  button runs `setup-ui.sh update-unattended` through `systemd-run`, outside
+  the panel's container (which it replaces), logging to
+  `ui-state/last-update.log`.
 - Anything outside `/opt/aiostreams` (systemd units, fail2ban jails) isn't in a
   backup. A restore has to recreate it from a marker, or the summary has to say
   how to.

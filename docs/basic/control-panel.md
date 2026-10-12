@@ -83,6 +83,8 @@ On a phone it all stacks into one column:
 
 ![The Backup & Restore tab](../images/control-panel/backups.png)
 
+**Scripts.** At the top, the panel's own version, whether GitHub has a newer one, and **Update** (see [Updating the panel](#updating-the-panel)). Below it, every setup script: whether it's on this server, and **Differs from GitHub** when your copy doesn't match the current one. **Copy** gives the command to run it over SSH, **Update** the command to fetch the newest copy, and **Run in terminal** types the command into the panel's terminal for you to check and send with Enter (greyed out while the terminal is off).
+
 **Terminal (optional, off until you switch it on).** A shell on the server in your browser, behind a second key of its own. Handy on a phone. See below.
 
 ---
@@ -97,9 +99,7 @@ Choose **8**, then **1**. It shows a **terminal key** once: save it in your pass
 
 ![Typing the terminal key](../images/control-panel/terminal-key.png)
 
-Above the terminal, **Scripts and GitHub link** has copy buttons for every script: run it, or update it from GitHub.
-
-![The Terminal tab with its list of scripts](../images/control-panel/terminal.png)
+The **Scripts** tab's **Run in terminal** buttons then type a script's command in here for you.
 
 ---
 
@@ -121,13 +121,15 @@ sudo bash /opt/aiostreams/control-panel/setup-ui.sh
 
 ## Updating the panel
 
-Open the menu and choose **4) Update**, then press Enter. It downloads the newest version from GitHub and rebuilds the panel. Your login, unlock link and terminal key stay the same. If the download fails, nothing changes.
+The panel shows its version next to its name (on wide screens) and on the **Scripts** tab, and checks GitHub for a newer one. When there is one, the chip turns amber and the Scripts tab offers **Update to** the new version. It downloads it and rebuilds the panel, which is away for about a minute; the page reloads by itself. AIOStreams isn't touched, and your login, unlock link and terminal key stay the same. If the download fails, nothing changes, and the Scripts tab shows what happened.
+
+Over SSH, the menu's **4) Update** does the same. That's the way to update a panel from before it had its own Update button, or one that won't start:
 
 ```bash
 sudo bash /opt/aiostreams/control-panel/setup-ui.sh
 ```
 
-Do this over SSH, not from the panel's own Terminal tab (rebuilding the panel would cut that terminal off).
+Run that over SSH, not from the panel's own Terminal tab (rebuilding the panel would cut that terminal off). The panel's own Update button doesn't have that problem: it runs the update outside the panel.
 
 ---
 
