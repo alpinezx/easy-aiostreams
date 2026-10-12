@@ -119,6 +119,25 @@ are cached for about 5 minutes after a push, so wait before Check now.
 Docs screenshots in `docs/images/control-panel/` come from the panel's demo
 mode (`UI_DEMO=1`, `streams.example.com`), never a real install.
 
+## Tested on 13 October 2026
+
+Started late on 12 October. The panel updated itself four times from `dev`
+through its own Update button (1.0.2 to 1.0.3, then 1.0.4, 1.0.5 and 1.0.6),
+each reloading by itself. Checked on the server: the shorter Backup & Restore
+tab with backups as separate cards, the Scripts tab's Optional add-ons section
+with grey Not installed, the 3-hour update checks (`sudo docker exec aios-ui
+grep -h "^FRESH" app/panelupdate.py app/releases.py app/scriptsync.py` printed
+`FRESH = 3 * 3600` three times), and no Phone alerts card on a server without
+the watchdog. Merged as PR #30.
+
+When `dev` already has a higher `VERSION` than the panel, there's no need to
+lower it by hand: `sudo AIOS_UI_BRANCH=dev bash setup-ui.sh rebuild` once,
+then Check now and Update for each push.
+
+Docs screenshots refreshed for 1.0.6 (PR #31), with the Demo data chip left
+visible so they don't pass for a real install. Desktop shots are 1366 wide:
+the header hides the version chip at 1280 and below.
+
 ## Lessons
 
 Lesson from 11 October: nightly can migrate AIOStreams' database past what
