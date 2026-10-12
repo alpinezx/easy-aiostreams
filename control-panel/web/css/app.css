@@ -397,7 +397,10 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .bk-note-btn.empty { color: var(--faint); font-size: .84rem; }
 .build-tag { display: inline-block; white-space: nowrap; margin-left: 10px; padding: 1px 8px; border-radius: 999px; font-family: var(--font, inherit); font-size: .72rem; font-weight: 500; color: var(--dim); background: var(--hover); border: 1px solid var(--line-soft); vertical-align: 1px; }
 .lock-tag { display: inline-block; white-space: nowrap; overflow-wrap: normal; margin-left: 10px; padding: 1px 8px; border-radius: 999px; font-family: var(--font, inherit); font-size: .72rem; font-weight: 600; color: var(--accent); background: var(--accent-soft); vertical-align: 1px; }
-.item.bk.locked { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+/* Backups and set-asides: one card each, with a small gap, rather than one joined box. */
+#backups:has(.item), #set-aside-list:has(.item) { display: grid; gap: 8px; border: 0; background: none; overflow: visible; }
+#backups .item.bk, #set-aside-list .item.bk { border: 1px solid var(--line-soft); border-radius: var(--radius); background: var(--raised); }
+.item.bk.locked, #backups .item.bk.locked { background: color-mix(in srgb, var(--accent) 4%, var(--raised)); }
 
 /* ---- logs help ---- */
 .log-help { margin: 0 0 12px; padding: 8px 14px; border: 1px solid var(--line-soft); border-radius: 12px; background: var(--raised); font-size: .88rem; color: var(--dim); }
