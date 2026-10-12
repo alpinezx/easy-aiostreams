@@ -222,6 +222,8 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .kv dt { color: var(--faint); } .kv dd { margin: 0; text-align: right; }
 .kv.host-facts { font-size: .9rem; padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--line-soft); align-items: center; }
 .kv.host-facts dt { color: var(--text); }
+/* A pill's text sits inside its padding; nudge it out so it reads in line with "9h 56m" above. */
+.kv.host-facts dd .chip { margin-right: -3px; }
 .empty { color: var(--dim); font-size: .92rem; margin: 0; }
 
 /* ---------- logs ---------- */
