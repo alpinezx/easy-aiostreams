@@ -424,6 +424,10 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .scripts-panel { font-size: .9rem; }
 .scripts-panel > p { margin: 0 0 10px; }
 .scripts-panel .cmds { margin: 14px 0; }
+.scripts-panel .sub-head { font-size: 15px; font-weight: 600; margin: 22px 0 6px; padding-top: 18px; border-top: 1px solid var(--line-soft); }
+.scripts-panel .addons-note { margin: 0 0 4px; color: var(--text); }
+.scripts-panel .addons-note b { font-weight: 650; }
+.restart-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 16px 0 0; font-size: .9rem; }
 .scripts-panel a { color: var(--accent); }
 .scripts-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
 .scripts-foot .btn { margin-left: auto; }
@@ -467,6 +471,7 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .sdot-tag[data-s="ok"] .sdot { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft), 0 0 8px var(--ok); }
 .sdot-tag[data-s="warn"] { color: var(--warn); }
 .sdot-tag[data-s="warn"] .sdot { background: var(--warn); box-shadow: 0 0 0 3px var(--warn-soft), 0 0 8px var(--warn); }
+.sdot-tag[data-s="off"] { color: var(--faint); font-weight: 500; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* pressed toggle buttons (Follow, Hide known noise, Lock) */
