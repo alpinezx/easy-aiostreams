@@ -12,7 +12,7 @@ from pathlib import Path
 import requests
 
 URL = "https://api.github.com/repos/alpinezx/easy-aiostreams/contents/"
-FRESH = 6 * 3600
+FRESH = 3 * 3600
 RETRY = 10 * 60
 FORCE_GAP = 60
 

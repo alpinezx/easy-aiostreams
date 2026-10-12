@@ -90,9 +90,7 @@
   <section class="view" id="view-backups" aria-label="Backup and Restore" hidden>
     <div class="view-head"><h2>Backup &amp; Restore</h2><button class="btn primary" id="backup-now" type="button">Back up now</button></div>
     <div class="note">
-      <p><b>Copy backups off this server.</b> Each one holds your SECRET_KEY, your logins and, if you use one, your VPN private key, so keep them somewhere private.</p>
-      <p><b>Restoring rolls your AIOStreams setup back</b> to one of these backups: AIOStreams and its configs, Caddy, the add-ons and this panel. Nothing else on the server changes. <b>Restore</b> checks it's safe to do from here first; <b>Copy restore command</b> is for doing it over SSH, or from the Terminal tab (then press Restart panel below afterwards).</p>
-      <p><b>Moving to a new server</b> or a new domain is done over SSH on the new server, with <code class="mono">sudo bash setup-aiostreams.sh restore &lt;file&gt;</code>. See the <a href="https://github.com/alpinezx/easy-aiostreams/blob/main/docs/basic/backup-restore.md" target="_blank" rel="noopener noreferrer">backup guide</a>.</p>
+      <p><b>Backups contain your passwords and keys.</b> Keep a copy somewhere private, off this server. Restore is for rolling this same server back only. Moving to a new server? You can't do that from this control panel. See the <a href="https://github.com/alpinezx/easy-aiostreams/blob/main/docs/basic/backup-restore.md" target="_blank" rel="noopener noreferrer">backup guide</a>.</p>
     </div>
     <div class="list" id="backups"></div>
     <div id="set-asides" hidden>
@@ -100,7 +98,7 @@
       <p class="note">Your setup as it was before a restore, kept so you could roll back. Delete it once the restored setup is working.</p>
       <div class="list" id="set-aside-list"></div>
     </div>
-    <p class="note">After a restore this panel keeps looking at the old folder until it restarts. <button class="btn small" id="restart-panel" type="button">Restart panel</button></p>
+    <p class="dim restart-line">Restored from the Terminal tab? <button class="btn small" id="restart-panel" type="button">Restart panel</button></p>
   </section>
 
   <section class="view" id="view-scripts" aria-label="Scripts" hidden>

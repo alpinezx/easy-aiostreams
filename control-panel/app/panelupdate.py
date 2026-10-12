@@ -15,7 +15,7 @@ import requests
 from . import config
 
 RAW = "https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/{branch}/control-panel/VERSION"
-FRESH = 6 * 3600
+FRESH = 3 * 3600
 RETRY = 10 * 60
 FORCE_GAP = 60
 UNIT = "aios-ui-update"

@@ -320,24 +320,20 @@ function side(st) {
   host.append(h("button", { class: "btn small danger reboot", type: "button", text: "Reboot server", onclick: rebootServer }));
   el.append(host);
 
+  // Phone alerts are an optional add-on: the card only appears once they're set up, so it never
+  // reads as something missing. The Scripts tab lists the add-on for anyone who wants it.
+  if (!w.configured) return;
   const wd = h("section", { class: "panel" }, h("h3", { text: "Phone alerts" }));
-  if (!w.configured) {
-    const hasWatchable = st.vpn === "on" || st.services.some((s) => s.key === "mediaflow");
-    wd.append(h("p", { class: "empty", text: hasWatchable
-      ? "Not set up. Run setup-watchdog.sh over SSH and you'll get a phone alert when something goes down."
-      : "Needs the VPN or MediaFlow Proxy installed first. Neither is set up, so there's nothing for the watchdog to watch yet." }));
-  } else {
-    wd.append(h("dl", { class: "kv" },
-      h("dt", { text: "Watchdog" }), h("dd", {}, h("span", { class: "chip " + (w.running ? "ok" : "warn"), text: w.running ? "Running" : "Stopped" })),
-      h("dt", { text: "Last check" }), h("dd", { class: "mono", text: (w.last_check || "none yet").replace(/\s+(OK|FAIL.*|SKIPPED.*|STOPPED.*)$/, "") }),
-      h("dt", { text: "Result" }), h("dd", { text: ((w.last_check || "").match(/(OK|FAIL.*|SKIPPED.*|STOPPED.*)$/) || ["", "—"])[1].slice(0, 90) })));
-    const btns = h("div", { class: "toolbar" });
-    const id = w.running ? "watchdog.stop" : "watchdog.start";
-    for (const [aid, cls] of [[id, ""], ["watchdog.test", "quiet"]]) {
-      const a = avail[aid];
-      if (a && a.available) btns.append(h("button", { class: `btn small ${cls}`, type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
-    }
-    wd.append(btns);
+  wd.append(h("dl", { class: "kv" },
+    h("dt", { text: "Watchdog" }), h("dd", {}, h("span", { class: "chip " + (w.running ? "ok" : "warn"), text: w.running ? "Running" : "Stopped" })),
+    h("dt", { text: "Last check" }), h("dd", { class: "mono", text: (w.last_check || "none yet").replace(/\s+(OK|FAIL.*|SKIPPED.*|STOPPED.*)$/, "") }),
+    h("dt", { text: "Result" }), h("dd", { text: ((w.last_check || "").match(/(OK|FAIL.*|SKIPPED.*|STOPPED.*)$/) || ["", "—"])[1].slice(0, 90) })));
+  const btns = h("div", { class: "toolbar" });
+  const id = w.running ? "watchdog.stop" : "watchdog.start";
+  for (const [aid, cls] of [[id, ""], ["watchdog.test", "quiet"]]) {
+    const a = avail[aid];
+    if (a && a.available) btns.append(h("button", { class: `btn small ${cls}`, type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
   }
+  wd.append(btns);
   el.append(wd);
 }

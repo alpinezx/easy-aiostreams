@@ -6,6 +6,7 @@ import { ask } from "./actions.js";
 
 const REPO = "https://github.com/alpinezx/easy-aiostreams";
 const GUIDE = `${REPO}/blob/main/docs/basic/control-panel.md`;
+const ADDONS_GUIDE = `${REPO}/blob/main/docs/other-scripts.md`;
 const RAW_BASE = "https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/";
 const FALLBACK = [
   { id: "aiostreams", label: "AIOStreams menu", file: "setup-aiostreams.sh", present: true },
@@ -69,7 +70,7 @@ function panelSection() {
         h("button", { class: "btn small", type: "button", text: verLoading ? "Checking…" : "Check now", disabled: verLoading,
           onclick: () => loadPanelVersion(true) }),
         v.newer && !v.running ? h("button", { class: "btn small primary", type: "button", text: `Update to ${v.latest}`, onclick: () => updatePanel(v) }) : null)),
-    h("p", { class: "dim", text: `${checked} Updating downloads the new panel from GitHub and rebuilds it; it's away for about a minute and AIOStreams isn't touched.`.trim() }),
+    checked ? h("p", { class: "dim", text: checked }) : null,
     lastLine);
 }
 
@@ -142,22 +143,24 @@ function differs(x) {
   return files.some((f) => f.differs);
 }
 
-function copyBtn(text, cmd, msg) {
-  return h("button", { class: "btn small quiet", type: "button", text, onclick: async () => {
+function copyBtn(text, cmd, msg, title) {
+  return h("button", { class: "btn small quiet", type: "button", text, title, onclick: async () => {
     try { await navigator.clipboard.writeText(cmd); toast(msg); } catch (_) { toast(cmd); }
   } });
 }
 
 function row(x, cmd, updateCmd, termOn) {
   const tags = [x.present
-    ? h("span", { class: "sdot-tag", "data-s": "ok", title: "Found on this server" }, h("i", { class: "sdot", "aria-hidden": "true" }), h("span", { class: "sr-only", text: "Found on this server" }))
-    : h("span", { class: "sdot-tag", "data-s": "warn" }, h("i", { class: "sdot", "aria-hidden": "true" }), "Get and run")];
+    ? h("span", { class: "sdot-tag", "data-s": "ok", title: "On this server" }, h("i", { class: "sdot", "aria-hidden": "true" }), h("span", { class: "sr-only", text: "On this server" }))
+    : h("span", { class: "sdot-tag", "data-s": "off", text: "Not installed" })];
   if (x.present && differs(x)) {
     tags.push(h("span", { class: "chip warn small-chip", text: "Differs from GitHub",
       title: "This copy doesn't match the one on GitHub's main branch. Update fetches GitHub's. (Expected while you're testing changes from dev.)" }));
   }
-  const run = h("button", { class: "btn small", type: "button", text: "Run in terminal", disabled: !termOn,
-    title: termOn ? "Types the command into the panel's terminal. Check it, then press Enter." : "Needs the panel's web terminal, which is switched off (see the note above).",
+  const run = h("button", { class: "btn small", type: "button", text: x.present ? "Run in terminal" : "Get and run", disabled: !termOn,
+    title: !termOn ? "Needs the panel's web terminal, which is switched off (see the note above)."
+      : x.present ? "Types the command into the panel's terminal. Check it, then press Enter."
+      : "Types the command into the panel's terminal: it downloads the script, then runs it. Check it, then press Enter.",
     onclick: () => runInTerminal(cmd) });
   return h("li", {},
     h("span", { class: "cmd-label" }, x.label, ...tags),
@@ -165,7 +168,8 @@ function row(x, cmd, updateCmd, termOn) {
     h("span", { class: "cmd-btns" }, run,
       copyBtn("Copy", cmd, "Copied. Paste it into an SSH session or the Terminal tab."),
       // An invisible stand-in keeps the buttons lined up down the list.
-      updateCmd ? copyBtn("Update", updateCmd, "Copied. Paste it into an SSH session or the Terminal tab to fetch the newest version from GitHub.")
+      updateCmd ? copyBtn("Update", updateCmd, "Copied. Paste it into an SSH session or the Terminal tab to fetch the newest version from GitHub.",
+          "Copies a command that fetches the newest version from GitHub, without running it")
         : h("span", { class: "btn small quiet btn-spacer", "aria-hidden": "true", text: "Update" })));
 }
 
@@ -185,13 +189,16 @@ function render() {
     const files = [x.file, ...(UPDATE_WITH[x.id] || [])];
     return `${files.map(fetchTo).join(" && ")} && echo "Updated ${files.join(" and ")}"`;
   };
-  const rows = scripts.map((x) => x.present
+  const rowOf = (x) => x.present
     ? row(x, `sudo bash ${dir}/${x.file}`, updateOf(x), terminalOn)
-    : row(x, `${fetchTo(x.file)} && sudo bash ${dir}/${x.file}`, null, terminalOn));
+    : row(x, `${fetchTo(x.file)} && sudo bash ${dir}/${x.file}`, null, terminalOn);
+  // The AIOStreams script comes with every install; the rest are optional extras, kept apart
+  // so the list doesn't read as a checklist to complete.
+  const core = scripts.filter((x) => x.id === "aiostreams"), addons = scripts.filter((x) => x.id !== "aiostreams");
 
   const checked = cmpLoading ? "Comparing with GitHub…"
     : !cmp ? "" : cmp.error ? `Couldn't compare with GitHub: ${cmp.error}`
-    : `Compared with GitHub's main branch ${ago(cmp.checked_at)}.`;
+    : `Compared with GitHub ${ago(cmp.checked_at)}.`;
 
   box.append(panelSection());
   if (!terminalOn) {
@@ -199,15 +206,14 @@ function render() {
       h("a", { href: GUIDE, target: "_blank", rel: "noopener noreferrer", text: "control panel guide" }), "). Copy and Update work either way."));
   }
   box.append(h("section", { class: "panel scripts-panel" },
-    h("p", { class: "dim", text: "The AIOStreams script comes with the install, and its menu also runs backups and restores (options 7 and 8). The others are separate downloads. A green dot means the script is on this server; an orange Get and run means it is not yet, and its command downloads it and then runs it." }),
-    h("p", { class: "dim", text: "Update fetches the newest version of a script you already have from GitHub, without running it. The AIOStreams menu's Update also fetches the backup script it uses, so the two stay in step." }),
-    h("ul", { class: "cmds" }, ...rows),
+    h("ul", { class: "cmds" }, ...core.map(rowOf)),
+    addons.length ? h("h3", { class: "sub-head", text: "Optional add-ons" }) : null,
+    addons.length ? h("p", { class: "addons-note" }, h("b", { text: "These are optional. Most setups don't need any of them." }),
+      " Read what each one does before adding it: ",
+      h("a", { href: ADDONS_GUIDE, target: "_blank", rel: "noopener noreferrer", text: "Other scripts guide" }), ".") : null,
+    addons.length ? h("ul", { class: "cmds" }, ...addons.map(rowOf)) : null,
     h("div", { class: "scripts-foot" },
       h("span", { class: "dim", text: checked }),
       h("button", { class: "btn small", type: "button", text: cmpLoading ? "Checking…" : "Check now", disabled: cmpLoading,
-        title: "Compare the scripts here with GitHub's main branch now", onclick: () => loadCompare(true) })),
-    h("p", { class: "dim" }, `Scripts live in ${dir}${uc ? ` (${uc.dir} is a shortcut to it)` : ""}. Only root can change files there: to edit a script over SFTP, connect as root. `,
-      asUser ? `These commands use sudo, as ${uc.user} would over SSH. ` : "",
-      "Source and docs: ", h("a", { href: REPO, target: "_blank", rel: "noopener noreferrer", text: "github.com/alpinezx/easy-aiostreams" }), "."),
-    h("p", { class: "dim", text: "To restore a backup, use the Backup & Restore tab." })));
+        title: "Compare the scripts here with GitHub's main branch now", onclick: () => loadCompare(true) }))));
 }
