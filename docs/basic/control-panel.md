@@ -85,6 +85,8 @@ On a phone it all stacks into one column:
 
 **Scripts.** At the top, the panel's own version, whether GitHub has a newer one, and **Update** (see [Updating the panel](#updating-the-panel)). Below it, every setup script: whether it's on this server, and **Differs from GitHub** when your copy doesn't match the current one. **Copy** gives the command to run it over SSH, **Update** the command to fetch the newest copy, and **Run in terminal** types the command into the panel's terminal for you to check and send with Enter (greyed out while the terminal is off).
 
+![The Scripts tab, with the panel's own version and update at the top](../images/control-panel/scripts.png)
+
 **Terminal (optional, off until you switch it on).** A shell on the server in your browser, behind a second key of its own. Handy on a phone. See below.
 
 ---
