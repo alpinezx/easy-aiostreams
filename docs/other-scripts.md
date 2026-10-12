@@ -2,6 +2,10 @@
 
 Optional add-ons on top of the main install. Each is its own standalone script, run whenever you want.
 
+### Control Panel (beta)
+
+- **Rather manage your server from a web page than over SSH?** A private dashboard on its own subdomain: see what's running, start, stop, update and back up with a button, read the logs, and optionally open a terminal from your phone. Locked behind a secret unlock link plus its own login. Run with `control-panel/setup-ui.sh`. → [Basic](./basic/control-panel.md) · [Advanced](./advanced/control-panel.md)
+
 ### VPN Setup
 
 - **Want to use a VPN for addon/scraper unblocking system-wide, instead of managing proxy rules per addon?** Adds a WireGuard VPN via [gluetun](https://github.com/qdm12/gluetun), Docker-isolated, doesn't touch SSH or the host. (This isn't an anonymity setup on its own. See the guide if that's your actual goal.) Run with `setup-vpn-gluetun.sh`. → [Basic](./basic/vpn-setup.md) · [Advanced](./advanced/vpn-setup.md)
@@ -13,10 +17,6 @@ Optional add-ons on top of the main install. Each is its own standalone script, 
 ### Webhook Relay
 
 - **Want to turn a third-party site's "Webhook" notification option into a phone alert?** Gives you a real HTTPS endpoint on your own domain (something webhook fields require but a topic-based service like ntfy doesn't provide on its own), and relays whatever it receives to ntfy. Run with `setup-webhook.sh`. → [Basic](./basic/webhook-relay.md) · [Advanced](./advanced/webhook-relay.md)
-
-### Control Panel (beta)
-
-- **Rather manage your server from a web page than over SSH?** A private dashboard on its own subdomain: see what's running, start, stop, update and back up with a button, read the logs, and optionally open a terminal from your phone. Locked behind a secret unlock link plus its own login. Run with `control-panel/setup-ui.sh`. → [Basic](./basic/control-panel.md) · [Advanced](./advanced/control-panel.md)
 
 ### MediaFlow Proxy
 
