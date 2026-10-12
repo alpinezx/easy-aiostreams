@@ -21,6 +21,7 @@
       <a class="tab" href="#logs" data-view="logs">Logs</a>
       <a class="tab" href="#activity" data-view="activity">Activity</a>
       <a class="tab" href="#backups" data-view="backups">Backup &amp; Restore</a>
+      <a class="tab" href="#scripts" data-view="scripts">Scripts</a>
       <a class="tab" href="#terminal" data-view="terminal" id="tab-terminal" hidden>Terminal</a>
     </nav>
     <div class="bar-end">
@@ -102,9 +103,14 @@
     <p class="note">After a restore this panel keeps looking at the old folder until it restarts. <button class="btn small" id="restart-panel" type="button">Restart panel</button></p>
   </section>
 
+  <section class="view" id="view-scripts" aria-label="Scripts" hidden>
+    <div class="view-head"><h2>Scripts</h2></div>
+    <div id="scripts-root"></div>
+  </section>
+
   <section class="view" id="view-terminal" aria-label="Terminal" hidden>
     <div class="view-head"><h2>Terminal</h2><button class="btn small" id="restart-panel-2" type="button">Restart panel</button></div>
-    <details class="log-help" id="term-help"></details>
+    <p class="dim term-scripts-hint">The commands for the setup scripts are on the <a href="#scripts">Scripts</a> tab, with Run in terminal to type them in here.</p>
     <div id="term-root"></div>
   </section>
 </main>

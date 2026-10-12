@@ -323,3 +323,13 @@ def test_restore_needs_the_typed_word_and_a_real_backup(client):
     assert r.status_code == 200
     j = wait_job(client, r.json()["id"])
     assert j["code"] == 0 and j["action"] == "stack.restore"
+
+
+def test_scripts_compare_endpoint_covers_every_script_and_the_backup_one(client):
+    login(client)
+    out = client.get("/api/scripts/compare").json()
+    assert set(out["files"]) == {"setup-aiostreams.sh", "setup-vpn-gluetun.sh", "setup-mediaflow.sh",
+                                 "setup-watchdog.sh", "setup-webhook.sh", "setup-backup.sh"}
+    assert out["files"]["setup-mediaflow.sh"]["differs"] is True
+    client.post("/api/logout"); client.cookies.clear()
+    assert client.get("/api/scripts/compare").status_code == 401

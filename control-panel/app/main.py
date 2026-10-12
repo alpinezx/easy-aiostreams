@@ -14,8 +14,8 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, W
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, config, releases, terminal
-from .actions import BadAction, build_restore, resolve
+from . import auth, config, releases, scriptsync, terminal
+from .actions import SCRIPTS, BadAction, build_restore, resolve
 from .stack import BACKUP_NAME, RESTARTABLE, backup_path
 
 if config.DEMO:
@@ -144,6 +144,16 @@ async def status(user: str = Depends(current_user)):
     data = dict(_status_cache[1])
     data["busy"] = jobs.current_id()
     return data
+
+
+@app.get("/api/scripts/compare")
+async def scripts_compare(force: bool = False, user: str = Depends(current_user)):
+    """Which of the stack's scripts on this server differ from GitHub's main.
+    setup-backup.sh is included: the AIOStreams menu row updates it too."""
+    files = [f for _, _, f in SCRIPTS] + ["setup-backup.sh"]
+    if config.DEMO:
+        return scriptsync.demo(files)
+    return await asyncio.to_thread(scriptsync.compare, config.INSTALL_DIR, files, force)
 
 
 @app.get("/api/aiostreams-releases")
