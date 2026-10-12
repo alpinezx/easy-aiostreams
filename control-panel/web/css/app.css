@@ -418,6 +418,18 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 /* ---- terminal help ---- */
 .log-help h4 { margin: 14px 0 6px; font-size: .88rem; color: var(--text); }
 .log-help a { color: var(--accent); }
+/* Scripts tab */
+.scripts-panel { font-size: .9rem; }
+.scripts-panel > p { margin: 0 0 10px; }
+.scripts-panel .cmds { margin: 14px 0; }
+.scripts-panel a { color: var(--accent); }
+.scripts-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+.scripts-foot .btn { margin-left: auto; }
+.chip.small-chip { font-size: .74rem; padding: 1px 8px; }
+.btn-spacer { visibility: hidden; pointer-events: none; }
+@media (max-width: 720px) { .btn-spacer { display: none; } }
+.term-scripts-hint { margin: -6px 0 14px; font-size: .9rem; }
+.term-scripts-hint a { color: var(--accent); }
 .cmds { list-style: none; padding: 0; margin: 0 0 6px; display: grid; gap: 6px; }
 .cmds li { display: grid; grid-template-columns: 210px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
 .cmd-label { color: var(--dim); font-size: .84rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

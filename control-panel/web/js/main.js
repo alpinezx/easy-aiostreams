@@ -4,6 +4,7 @@ import * as logs from "./logs.js";
 import { showActivity, showBackups } from "./activity.js";
 import { currentJobId, openJob } from "./actions.js";
 import * as terminal from "./terminal.js";
+import * as scripts from "./scripts.js";
 
 let status = null;
 let view = "overview";
@@ -11,7 +12,7 @@ let pendingLogs = null;
 let lastBusy = null;
 let timer = null;
 
-const VIEWS = ["overview", "logs", "activity", "backups", "terminal"];
+const VIEWS = ["overview", "logs", "activity", "backups", "scripts", "terminal"];
 let terminalOn = false;
 
 function route() {
@@ -30,6 +31,7 @@ function enter() {
   if (view === "activity") showActivity().catch(() => {});
   if (view === "backups") showBackups(status).catch(() => {});
   if (view === "overview") render(status, goLogs);
+  if (view === "scripts") scripts.show(status, terminalOn);
   if (view === "terminal") terminal.show(status);
 }
 

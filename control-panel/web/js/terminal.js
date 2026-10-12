@@ -4,8 +4,6 @@
 import { $, h, api, clear, toast } from "./util.js";
 import { ask } from "./actions.js";
 
-const REPO = "https://github.com/alpinezx/easy-aiostreams";
-
 let term = null, fit = null, sock = null, ro = null;
 let built = false;
 
@@ -25,12 +23,13 @@ export async function restartPanel() {
 
 let remembered = false;
 let lastStatus = null;
+let pendingCmd = null;      // from Run in terminal: typed into the shell once it's open, never sent
 
 // Which user the shell runs as: the login user with a ~/aiostreams shortcut (like SSHing in
 // as them), or root. Remembered on this device.
-function userCopy() { return (lastStatus && lastStatus.user_copy) || null; }
-function shellAs() {
-  const uc = userCopy();
+function userCopy(st = lastStatus) { return (st && st.user_copy) || null; }
+export function shellAs(st = lastStatus) {
+  const uc = userCopy(st);
   let v = null;
   try { v = localStorage.getItem("aios.termAs"); } catch (_) {}
   if (!uc) return "root";
@@ -61,9 +60,24 @@ async function switchUser() {
     body: `This ends the current shell, and anything still running in it, then opens a new one as ${to}.` });
   if (!ok) return;
   setShellAs(to);
-  buildHelp(lastStatus, true);
   closeSocket();
   start();
+}
+
+// Types a command into the shell for the person to check and send with Enter. If the shell
+// isn't open yet (or the terminal is locked), it waits and is typed once the shell opens.
+export function runInTerminal(cmd) {
+  pendingCmd = cmd;
+  if (location.hash !== "#terminal") location.hash = "#terminal";
+  typePending();
+}
+
+function typePending() {
+  if (!pendingCmd || !sock || sock.readyState !== 1) return;
+  sock.send(JSON.stringify({ i: pendingCmd }));
+  pendingCmd = null;
+  toast("Typed into the terminal. Check it, then press Enter to run it.");
+  if (term) term.focus();
 }
 
 async function lockNow(shellGone) {
@@ -90,9 +104,9 @@ function gate(message, info) {
     asSel.value = shellAs();
     asNote = h("p", { class: "dim term-as-note" });
     const sync = () => { asNote.textContent = asSel.value === "root"
-      ? `Not recommended while ${uc.user} is available. A backup you make here as root is only saved in /root, with no copy in ${uc.user}'s home to scp. The panel's own buttons and the copy commands above still act as ${uc.user}.`
+      ? `Not recommended while ${uc.user} is available. A backup you make here as root is only saved in /root, with no copy in ${uc.user}'s home to scp. The panel's own buttons and the Scripts tab's commands still act as ${uc.user}.`
       : sudoNote(uc); };
-    asSel.addEventListener("change", () => { setShellAs(asSel.value); sync(); buildHelp(lastStatus, true); });
+    asSel.addEventListener("change", () => { setShellAs(asSel.value); sync(); });
     sync();
   }
   const form = h("form", { class: "term-gate", onsubmit: async (e) => {
@@ -343,7 +357,8 @@ function open(ticket, idle) {
   ws.binaryType = "arraybuffer";
   sock = ws;
   const send = (o) => { if (ws.readyState === 1) ws.send(JSON.stringify(o)); };
-  ws.onopen = () => { send({ r: [term.cols, term.rows] }); term.focus(); };
+  // A fresh shell needs a moment to print its prompt before a command is typed in.
+  ws.onopen = () => { send({ r: [term.cols, term.rows] }); term.focus(); setTimeout(typePending, 700); };
   ws.onmessage = (ev) => {
     if (typeof ev.data === "string") {
       let m = {}; try { m = JSON.parse(ev.data); } catch (_) {}
@@ -366,78 +381,8 @@ function closeSocketKeepTerm() {
   if (sock) { try { sock.close(); } catch (_) {} sock = null; }
 }
 
-function copyBtn(text, cmd, msg) {
-  return h("button", { class: "btn small quiet", type: "button", text, onclick: async () => {
-    try { await navigator.clipboard.writeText(cmd); toast(msg); } catch (_) { toast(cmd); }
-  } });
-}
-
-function cmdRow(label, cmd, state, updateCmd) {
-  const tag = state === "get"
-    ? h("span", { class: "sdot-tag", "data-s": "warn" }, h("i", { class: "sdot", "aria-hidden": "true" }), "Get and run")
-    : state === "ok"
-      ? h("span", { class: "sdot-tag", "data-s": "ok", title: "Found on this server" }, h("i", { class: "sdot", "aria-hidden": "true" }), h("span", { class: "sr-only", text: "Found on this server" }))
-      : null;
-  return h("li", {},
-    h("span", { class: "cmd-label" }, label, tag),
-    h("code", { class: "mono cmd", text: cmd, title: cmd }),
-    h("span", { class: "cmd-btns" },
-      copyBtn("Copy", cmd, "Copied. Paste it into the terminal."),
-      updateCmd ? copyBtn("Update", updateCmd, "Copied. Paste it into the terminal to fetch the newest version from GitHub.") : null));
-}
-
-let helpKey = null;
-const RAW_BASE = "https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/";
-const FALLBACK = [
-  { id: "aiostreams", label: "AIOStreams menu", file: "setup-aiostreams.sh", present: true },
-  { id: "vpn", label: "VPN (Gluetun)", file: "setup-vpn-gluetun.sh", present: false },
-  { id: "mediaflow", label: "MediaFlow Proxy", file: "setup-mediaflow.sh", present: false },
-  { id: "watchdog", label: "Phone alerts", file: "setup-watchdog.sh", present: false },
-  { id: "webhook", label: "Webhook relay", file: "setup-webhook.sh", present: false },
-];
-// The AIOStreams menu runs backup and restore through setup-backup.sh and only
-// downloads it when it's missing, so its Update refreshes both.
-const UPDATE_WITH = { aiostreams: ["setup-backup.sh"] };
-
-function buildHelp(status, force) {
-  const box = $("#term-help");
-  const dir = (status && status.install_dir) || "/opt/aiostreams";
-  const scripts = (status && status.scripts) || FALLBACK;
-  const uc = status && status.user_copy;
-  const asUser = uc && shellAs() !== "root";
-  const key = [dir, uc ? uc.dir : "", shellAs(), scripts.map((x) => (x.present ? 1 : 0)).join("")].join("|");
-  if (!box || (!force && helpKey === key)) return;
-  helpKey = key;
-  clear(box);
-  // Scripts live in the install folder, which only root can write to, so as the user every step
-  // goes through sudo. Fetch to a temporary name first, so a failed download never leaves a broken script.
-  const fetchCmd = (f) => `curl -fsSL ${RAW_BASE}${f} -o ${f}.new && chmod 755 ${f}.new && mv ${f}.new ${f}`;
-  const fetchTo = (f) => asUser ? `sudo sh -c 'cd ${dir} && ${fetchCmd(f)}'` : `cd ${dir} && ${fetchCmd(f)}`;
-  const updateOf = (x) => {
-    const files = [x.file, ...(UPDATE_WITH[x.id] || [])];
-    return `${files.map(fetchTo).join(" && ")} && echo "Updated ${files.join(" and ")}"`;
-  };
-  const rows = scripts.map((x) => x.present
-    ? cmdRow(x.label, `sudo bash ${dir}/${x.file}`, "ok", updateOf(x))
-    : cmdRow(x.label, `${fetchTo(x.file)} && sudo bash ${dir}/${x.file}`, "get"));
-  box.append(
-    h("summary", { text: "Scripts and GitHub link" }),
-    h("p", {}, asUser ? `The terminal is a shell as ${uc.user}, the same as SSHing in as them, so these run exactly as they would there. Source and docs: `
-      : "The terminal is a root shell on the server, so these run as they would over SSH. Source and docs: ",
-      h("a", { href: REPO, target: "_blank", rel: "noopener noreferrer", text: "github.com/alpinezx/easy-aiostreams" }), "."),
-    h("h4", { text: "Scripts" }),
-    h("p", { class: "dim", text: "The AIOStreams script comes with the install, and its menu also runs backups and restores (options 7 and 8). The others are separate downloads. A green dot means the script is on this server; an orange Get and run means it is not yet, and Copy gives a command that downloads it and then runs it." }),
-    h("p", { class: "dim", text: "Update fetches the newest version of a script you already have from GitHub, without running it. The AIOStreams menu's Update also fetches the backup script it uses, so the two stay in step." }),
-    h("p", { class: "dim", text: `Scripts live in ${dir}${uc ? ` (${uc.dir} is a shortcut to it)` : ""}. Only root can change files there: to edit a script over SFTP, connect as root.` }),
-    h("ul", { class: "cmds" }, ...rows),
-    h("p", { class: "dim", text: "To restore a backup, use Copy restore command on the Backup & Restore tab." }));
-}
-
 export function show(status) {
   lastStatus = status;
-  buildHelp(status);
   if (!built) { built = true; start(); }
-  else { fitBox(); if (fit) { try { fit.fit(); } catch (_) {} } }
+  else { fitBox(); if (fit) { try { fit.fit(); } catch (_) {} } typePending(); }
 }
-// opening or closing the scripts list above moves the terminal down or up
-$("#term-help").addEventListener("toggle", () => fitBox());
