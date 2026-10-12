@@ -306,14 +306,15 @@ function side(st) {
   clear(el);   // small and cheap; its only buttons are the watchdog ones, rebuilt rarely enough below
   const hs = st.host || {};
   const host = h("section", { class: "panel" }, h("h3", { text: "This server" }));
-  if (hs.load) host.append(meter("Load", (hs.load[0] / (hs.cpus || 1)) * 100, `${hs.load[0].toFixed(2)} on ${hs.cpus} CPU${hs.cpus > 1 ? "s" : ""}`));
-  if (hs.mem_total) host.append(meter("Memory", (hs.mem_used / hs.mem_total) * 100, `${fmtBytes(hs.mem_used)} of ${fmtBytes(hs.mem_total)}`));
-  if (hs.disk_total) host.append(meter("Disk", (hs.disk_used / hs.disk_total) * 100, `${fmtBytes(hs.disk_used)} of ${fmtBytes(hs.disk_total)}`));
-  const kv = h("dl", { class: "kv" });
+  // Facts first (what you'd glance at), then the meters, which change all the time.
+  const kv = h("dl", { class: "kv host-facts" });
   if (hs.uptime != null) kv.append(h("dt", { text: "Up for" }), h("dd", { text: fmtDur(hs.uptime) }));
   if (st.cert) kv.append(h("dt", { text: "HTTPS certificate" }), h("dd", {}, certChip(st, false)));
   if (st.vpn === "on" || st.vpn === "off") kv.append(h("dt", { text: "VPN" }), h("dd", {}, vpnChip(st, st.vpn === "on" ? "On" : "Off")));
   if (kv.childElementCount) host.append(kv);
+  if (hs.load) host.append(meter("Load", (hs.load[0] / (hs.cpus || 1)) * 100, `${hs.load[0].toFixed(2)} on ${hs.cpus} CPU${hs.cpus > 1 ? "s" : ""}`));
+  if (hs.mem_total) host.append(meter("Memory", (hs.mem_used / hs.mem_total) * 100, `${fmtBytes(hs.mem_used)} of ${fmtBytes(hs.mem_total)}`));
+  if (hs.disk_total) host.append(meter("Disk", (hs.disk_used / hs.disk_total) * 100, `${fmtBytes(hs.disk_used)} of ${fmtBytes(hs.disk_total)}`));
   host.append(h("button", { class: "btn small danger reboot", type: "button", text: "Reboot server", onclick: rebootServer }));
   el.append(host);
 

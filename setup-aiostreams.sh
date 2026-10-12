@@ -330,11 +330,22 @@ wait_for_cert_and_diagnose() {
 # that the sudo user running this gets read access through their group, so
 # 'cd ~/aiostreams' and SFTP browsing still work for them (they can already
 # read all of it through sudo). Writing still needs sudo or root.
+# Run as plain root (no sudo user, e.g. a root shell), a user who already has
+# that access keeps it: the folder's group is theirs and their ~/aiostreams
+# already points here. A restore extracts with the backup's group, so this
+# covers it too. Anyone else, or no such shortcut (a new server), gets none.
 secure_install_dir() {
-    local dir="${1:-$INSTALL_DIR}"
+    local dir="${1:-$INSTALL_DIR}" gid user ugid home
+    gid=$(stat -c %g "$dir" 2>/dev/null || echo 0)
     chown root:root "$dir" 2>/dev/null || true
     if [[ -n "${SUDO_GID:-}" && "${SUDO_GID}" != 0 && -n "${SUDO_USER:-}" && "$SUDO_USER" != root ]]; then
         chgrp "$SUDO_GID" "$dir" 2>/dev/null && chmod 750 "$dir" && return 0
+    fi
+    if [[ -z "${SUDO_USER:-}" || "$SUDO_USER" == root ]] && [[ "$gid" != 0 ]]; then
+        while IFS=: read -r user _ _ ugid _ home _; do
+            [[ "$ugid" == "$gid" && "$user" != root && -L "$home/aiostreams" && "$home/aiostreams" -ef "$dir" ]] || continue
+            chgrp "$gid" "$dir" 2>/dev/null && chmod 750 "$dir" && return 0
+        done < <(getent passwd)
     fi
     chmod 700 "$dir"
 }

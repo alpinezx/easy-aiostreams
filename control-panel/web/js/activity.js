@@ -94,7 +94,7 @@ async function startRestore(it, restoreCmd, btn) {
     h("ul", { class: "check-list ok" }, ...res.notes.map((n) => h("li", { text: n }))),
     h("p", { class: "dim small", text: "This restore's own output won't stay in Activity afterwards: that list is part of what gets rolled back." }),
     input);
-  const ok = await ask({ title: "Roll this server back?", danger: true, confirmLabel: "Restore",
+  const ok = await ask({ title: "Roll your AIOStreams setup back?", danger: true, confirmLabel: "Restore",
     body: `Restores ${it.name} (made ${ago(it.mtime)}${build}). The current install is moved aside, not deleted. AIOStreams restarts, so streams stop for a minute or two, and the panel restarts at the end. Type restore to confirm.`,
     options: { el, gate: input, word: "restore", read: () => true } });
   if (!ok) return;
@@ -148,7 +148,7 @@ function backupRow(it, cmd, restore, status) {
       h("div", { class: "when", text: `${fmtBytes(it.size)}, made ${ago(it.mtime)}, saved in ${it.dirs.join(" and ")}` })),
     h("div", { class: "btns" },
       h("button", { class: "btn small", type: "button", text: "Restore", disabled: !!status.busy,
-        title: "Roll this server back to this backup, after checking it's safe to do from here",
+        title: "Roll your AIOStreams setup back to this backup, after checking it's safe to do from here",
         onclick: (e) => startRestore(it, restore, e.currentTarget) }),
       h("button", { class: "btn small", type: "button", text: "Copy restore command", onclick: () => copy(restore, "Copied. Paste it into the Terminal tab or an SSH session to restore from this backup.") }),
       h("button", { class: "btn small", type: "button", text: "Copy scp command", onclick: () => copy(cmd, "Copied. Replace YOUR_SERVER with your server's address.") }),

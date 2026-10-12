@@ -6,7 +6,7 @@
 #   sudo bash /opt/aiostreams/setup-backup.sh backup           make a backup
 #   sudo bash /opt/aiostreams/setup-backup.sh restore [file]   restore one
 #   ... restore --check <file>         would it restore here without questions?
-#   ... restore --same-server <file>   roll this server back, no questions
+#   ... restore --same-server <file>   roll this install back, no questions
 #                                      (only after the check passes)
 #
 # setup-aiostreams.sh's own "backup" and "restore" commands and menu
