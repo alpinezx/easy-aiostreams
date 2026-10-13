@@ -4,6 +4,8 @@ import { tagLabel } from "./releases.js";
 
 // The panel reads each backup's build in the background; look again a few times while it does.
 let buildTimer = null, buildTries = 0;
+// This server's public IP for the scp command, looked up once per page load. null: not found.
+let serverIp;
 
 export async function showActivity() {
   const box = $("#jobs"); clear(box);
@@ -44,6 +46,9 @@ export async function showBackups(status) {
   b.onclick = () => runAction(act);
   showSetAsides().catch(() => {});
   const items = await api("/api/backups");
+  if (serverIp === undefined) serverIp = await api("/api/server-address").then((r) => r.ip || null, () => null);
+  // An IPv6 address needs brackets in scp's user@host:path.
+  const host = !serverIp ? "YOUR_SERVER" : serverIp.includes(":") ? `[${serverIp}]` : serverIp;
   clearTimeout(buildTimer);
   if (items.some((it) => it.build_pending) && buildTries < 10) {
     buildTries++;
@@ -60,7 +65,7 @@ export async function showBackups(status) {
     // Restore runs as root, so use the root-owned copy. For scp, prefer the copy in a normal user's
     // home (readable without root); fall back to root's copy.
     const userDir = it.dirs.find((d) => d.startsWith("/home/"));
-    const cmd = userDir ? `scp ${userDir.split("/")[2]}@YOUR_SERVER:${userDir}/${it.name} .` : `scp root@YOUR_SERVER:${it.dirs[0]}/${it.name} .`;
+    const cmd = userDir ? `scp ${userDir.split("/")[2]}@${host}:${userDir}/${it.name} .` : `scp root@${host}:${it.dirs[0]}/${it.name} .`;
     const mainDir = it.dirs.find((d) => !d.startsWith("/home/")) || it.dirs[0];
     const restore = `sudo bash ${status.install_dir || "/opt/aiostreams"}/setup-aiostreams.sh restore ${mainDir}/${it.name}`;
     box.append(backupRow(it, cmd, restore, status));
@@ -151,7 +156,9 @@ function backupRow(it, cmd, restore, status) {
         title: "Roll your AIOStreams setup back to this backup, after checking it's safe to do from here",
         onclick: (e) => startRestore(it, restore, e.currentTarget) }),
       h("button", { class: "btn small", type: "button", text: "Copy restore command", onclick: () => copy(restore, "Copied. Paste it into the Terminal tab or an SSH session to restore from this backup.") }),
-      h("button", { class: "btn small", type: "button", text: "Copy scp command", onclick: () => copy(cmd, "Copied. Replace YOUR_SERVER with your server's address.") }),
+      h("button", { class: "btn small", type: "button", text: "Copy scp command", onclick: () => copy(cmd, cmd.includes("@YOUR_SERVER:")
+        ? "Copied. Replace YOUR_SERVER with your server's address."
+        : "Copied. Run it in a terminal on your own computer to download this backup.") }),
       h("button", { class: "btn small", type: "button", text: it.locked ? "Unlock" : "Lock", "aria-pressed": String(!!it.locked), onclick: async () => {
         if (await saveMeta(it, { locked: !it.locked })) toast(it.locked ? "Unlocked." : "Locked. It can't be deleted from here until you unlock it.");
         refresh();
