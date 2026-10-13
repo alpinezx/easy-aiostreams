@@ -213,7 +213,7 @@ do_backup() {
     # Sorted, so backup-info sits near the start and the panel can read it
     # without unpacking the whole archive.
     if ( umask 077; tar --warning=no-file-changed --sort=name --exclude="$(basename "$INSTALL_DIR")/caddy-logs" \
-            -czf "$out" -C "$(dirname "$INSTALL_DIR")" "$(basename "$INSTALL_DIR")" ); then
+            --exclude="$(basename "$INSTALL_DIR")/public-ip" -czf "$out" -C "$(dirname "$INSTALL_DIR")" "$(basename "$INSTALL_DIR")" ); then
         tar_status=0
     else
         tar_status=$?
@@ -307,10 +307,12 @@ check_restored_domain_dns() {
         fi
 
         local public_ip svc
-        public_ip=""
-        for svc in "https://ifconfig.me" "https://icanhazip.com" "https://ipinfo.io/ip"; do
-            public_ip=$(curl -fs4 --max-time 4 "$svc" 2>/dev/null | tr -d ' \n') && [[ -n "$public_ip" ]] && break
-        done
+        public_ip=$(public_ip_override)
+        if [[ -z "$public_ip" ]]; then
+            for svc in "https://ifconfig.me" "https://icanhazip.com" "https://ipinfo.io/ip"; do
+                public_ip=$(curl -fs4 --max-time 4 "$svc" 2>/dev/null | tr -d ' \n') && [[ -n "$public_ip" ]] && break
+            done
+        fi
 
         if [[ -n "$resolved_ip" && -n "$public_ip" && "$resolved_ip" == "$public_ip" ]]; then
             echo "Resolved $domain -> $resolved_ip, matches this server. Good to go."
@@ -462,8 +464,23 @@ resolve_ip() {
     getent ahostsv4 "$1" 2>/dev/null | awk '{ print $1; exit }' || true
 }
 
+# Optional: one IPv4 address in $INSTALL_DIR/public-ip, used instead of the
+# lookup, for a server whose domains point at an address the lookup can't
+# see. It describes this server, not the install, so backups leave it out
+# and a restore here keeps it.
+PUBLIC_IP_FILE="$INSTALL_DIR/public-ip"
+
+public_ip_override() {
+    local ip
+    ip=$(tr -d ' \t\r\n' < "$PUBLIC_IP_FILE" 2>/dev/null || true)
+    [[ "$ip" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] && printf '%s\n' "$ip"
+    return 0
+}
+
 # Sets PUBLIC_IP to this server's own public IPv4 address, once.
 find_public_ip() {
+    [[ -n "$PUBLIC_IP" ]] && return 0
+    PUBLIC_IP=$(public_ip_override)
     [[ -n "$PUBLIC_IP" ]] && return 0
     local svc
     for svc in "https://ifconfig.me" "https://icanhazip.com" "https://ipinfo.io/ip"; do
@@ -903,6 +920,7 @@ do_restore() {
         fi
     fi
 
+    local aside=""
     if [[ -d "$INSTALL_DIR" ]]; then
         local addons_now
         addons_now=$(current_addons)
@@ -924,7 +942,6 @@ do_restore() {
             return 0
         fi
         [[ -n "$addons_now" ]] && retire_current_addons "$keep/setup-aiostreams.sh"
-        local aside
         aside="$(dirname "$INSTALL_DIR")/aiostreams.pre-restore-$(date +%Y%m%d-%H%M%S)"
         mv "$INSTALL_DIR" "$aside"
         echo "Current install moved aside to $aside (delete it once you're happy with the restore)."
@@ -955,6 +972,10 @@ do_restore() {
     mkdir -p "$(dirname "$INSTALL_DIR")"
     tar xzf "$tarball" -C "$(dirname "$INSTALL_DIR")" aiostreams
     chmod 700 "$INSTALL_DIR"   # setup-aiostreams.sh sets the final access below
+    # This server's own setting, never in a backup (see PUBLIC_IP_FILE).
+    if [[ -n "$aside" && -f "$aside/public-ip" ]]; then
+        cp -p -- "$aside/public-ip" "$PUBLIC_IP_FILE"
+    fi
     chmod 600 "$COMPOSE_FILE" 2>/dev/null || true
     grep -q 'SECRET_KEY=' "$COMPOSE_FILE" || \
         error "Restored compose file has no SECRET_KEY. The archive may be damaged. Nothing has been started."

@@ -265,7 +265,9 @@ wait_for_cert_and_diagnose() {
         # Checks the TLS layer directly rather than parsing Caddy's log wording,
         # since current Caddy versions don't log a fixed "certificate obtained"
         # phrase. Also naturally covers reusing an existing valid cert.
-        if echo | openssl s_client -connect "${domain}:443" -servername "${domain}" 2>/dev/null \
+        # timeout: a connection that opens but never answers would otherwise
+        # hang here for good instead of failing after MAX_WAIT.
+        if echo | timeout 10 openssl s_client -connect "${domain}:443" -servername "${domain}" 2>/dev/null \
             | openssl x509 -noout -subject 2>/dev/null | grep -q "$domain"; then
             cert_ok=true
             break
