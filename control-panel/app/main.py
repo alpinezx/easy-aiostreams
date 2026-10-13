@@ -14,7 +14,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, W
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, config, panelupdate, releases, scriptsync, terminal
+from . import auth, config, panelupdate, releases, scriptsync, serverip, terminal
 from .actions import SCRIPTS, BadAction, build_restore, resolve
 from .stack import BACKUP_NAME, RESTARTABLE, backup_path
 
@@ -282,6 +282,11 @@ def builds_for(items: list[dict]) -> tuple[dict, set]:
             threading.Thread(target=_read_builds, args=(todo,), daemon=True).start()
     known = {k: v["build"] for k, v in cache.items() if k not in {b["name"] for b in todo}}
     return known, {b["name"] for b in todo}
+
+
+@app.get("/api/server-address")
+async def server_address(user: str = Depends(current_user)):
+    return {"ip": await asyncio.to_thread(serverip.address)}
 
 
 @app.get("/api/backups")

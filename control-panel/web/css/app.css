@@ -96,7 +96,16 @@ a { color: var(--accent); }
 .bar-end { flex: none; display: flex; align-items: center; gap: 10px; }
 .demo-flag { background: var(--warn-soft); color: var(--warn); border-radius: 999px; padding: 2px 10px; font-size: .8rem; font-weight: 600; }
 
-main { max-width: 1180px; margin: 0 auto; padding: 28px var(--gutter) 96px; }
+main { max-width: 1180px; margin: 0 auto; padding: 28px var(--gutter) 40px; }
+/* Footer: a link to the repo, styled like a two-part GitHub badge. The Terminal tab fills the
+   screen, so the footer stays out of its way. */
+.foot { max-width: 1180px; margin: 0 auto; padding: 8px var(--gutter) 40px; display: flex; justify-content: center; }
+body:has(#view-terminal:not([hidden])) .foot { display: none; }
+.gh-badge { display: inline-flex; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); font-size: .76rem; font-weight: 600; line-height: 1; text-decoration: none; }
+.gh-badge .gh-l { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; background: var(--text); color: var(--bg); }
+.gh-badge .gh-l svg { width: 13px; height: 13px; }
+.gh-badge .gh-r { display: inline-flex; align-items: center; padding: 5px 9px; background: var(--raised); color: var(--dim); }
+.gh-badge:hover .gh-r { color: var(--text); }
 .view[hidden] { display: none; }
 
 /* ---------- buttons ---------- */
