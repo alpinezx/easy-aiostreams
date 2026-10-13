@@ -98,6 +98,8 @@ Screenshots in `docs/images/control-panel/` come from the panel's demo mode
 data chip visible so they don't pass for a real install (the panel hides it on
 phone widths, so force it on for phone shots). Shoot desktop views at 1366
 wide: the header hides the version chip at 1280 and below.
+`readme-overview.png`, shown in the README, is the Overview at 1366 wide cropped
+just above the Services heading; refresh it with the others.
 
 ## Known pitfalls
 
