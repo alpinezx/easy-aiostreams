@@ -32,6 +32,11 @@ This prints a file name like `aiostreams-backup-YYYYMMDD-HHMMSS.tar.gz` and a re
 
 Run the printed command **now**, from your own computer .  or, if you'd rather not use a terminal, open an SFTP app (FileZilla, WinSCP, Termius) and download the same file from your home directory on the server.
 
+**`scp` asks for a password, or says "Permission denied"?** It logs in with your computer's own SSH key. If you normally connect with an app that keeps its own key (Termius, PuTTY), the server doesn't know your computer's key. Download the file with that app's SFTP instead, or let the server accept your computer's key: paste your computer's public key (the one line in `~/.ssh/id_ed25519.pub`, on Windows `C:\Users\you\.ssh\id_ed25519.pub`, starting `ssh-ed25519`; none yet? `ssh-keygen -t ed25519` makes one) into this on the server, logged in as the user in the `scp` command:
+```bash
+echo "PASTE-YOUR-PUBLIC-KEY-HERE" >> ~/.ssh/authorized_keys
+```
+
 ---
 
 ## Restoring on the same server
