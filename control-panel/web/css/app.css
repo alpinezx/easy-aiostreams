@@ -95,17 +95,18 @@ a { color: var(--accent); }
 .tab[aria-current="page"] { color: var(--text); background: var(--hover); box-shadow: inset 0 -2px 0 var(--accent); }
 .bar-end { flex: none; display: flex; align-items: center; gap: 10px; }
 .demo-flag { background: var(--warn-soft); color: var(--warn); border-radius: 999px; padding: 2px 10px; font-size: .8rem; font-weight: 600; }
+/* A link to the repo, kept as quiet as the version chip. The header is tight, so below 1280px
+   (where the version chip goes too) it shrinks to the GitHub mark alone, and from 721 to 920px,
+   where the tabs already run short of room, it's left out. The demo's chip takes its words' room. */
+.gh-link { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--dim); font-size: .74rem; font-weight: 600; text-decoration: none; white-space: nowrap; }
+.gh-link svg { width: 13px; height: 13px; flex: none; }
+.gh-link:hover { color: var(--text); border-color: var(--faint); }
+.demo-flag:not([hidden]) ~ .gh-link { padding: 5px; }
+.demo-flag:not([hidden]) ~ .gh-link span { display: none; }
+@media (max-width: 1280px) { .gh-link { padding: 5px; } .gh-link span { display: none; } }
+@media (min-width: 721px) and (max-width: 920px) { .gh-link { display: none; } }
 
-main { max-width: 1180px; margin: 0 auto; padding: 28px var(--gutter) 40px; }
-/* Footer: a link to the repo, styled like a two-part GitHub badge. The Terminal tab fills the
-   screen, so the footer stays out of its way. */
-.foot { max-width: 1180px; margin: 0 auto; padding: 8px var(--gutter) 40px; display: flex; justify-content: center; }
-body:has(#view-terminal:not([hidden])) .foot { display: none; }
-.gh-badge { display: inline-flex; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); font-size: .76rem; font-weight: 600; line-height: 1; text-decoration: none; }
-.gh-badge .gh-l { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; background: var(--text); color: var(--bg); }
-.gh-badge .gh-l svg { width: 13px; height: 13px; }
-.gh-badge .gh-r { display: inline-flex; align-items: center; padding: 5px 9px; background: var(--raised); color: var(--dim); }
-.gh-badge:hover .gh-r { color: var(--text); }
+main { max-width: 1180px; margin: 0 auto; padding: 28px var(--gutter) 96px; }
 .view[hidden] { display: none; }
 
 /* ---------- buttons ---------- */
