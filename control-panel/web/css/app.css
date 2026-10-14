@@ -238,7 +238,7 @@ button.chip:hover { text-decoration: underline; }
 h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: -.01em; }
 
 .rows { border: 1px solid var(--line-soft); border-radius: var(--radius); overflow: hidden; background: var(--raised); }
-.row { display: grid; grid-template-columns: minmax(130px, 1.2fr) minmax(0, 1.6fr) 62px 74px 96px 216px; gap: 14px; align-items: center; padding: 13px 16px; border-top: 1px solid var(--line-soft); }
+.row { display: grid; grid-template-columns: minmax(120px, 1.2fr) minmax(0, 1.6fr) 62px 74px 96px 216px; gap: 14px; align-items: center; padding: 13px 16px; border-top: 1px solid var(--line-soft); }
 .row:first-child { border-top: 0; }
 .row-head { padding-top: 9px; padding-bottom: 9px; color: var(--faint); font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; background: var(--sunk); }
 .row .name { font-weight: 600; }
@@ -250,7 +250,7 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .spark { width: 96px; height: 28px; display: block; }
 .spark path.area { fill: var(--accent-soft); stroke: none; }
 .spark path.line { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
-.state-word { display: inline-flex; align-items: center; gap: 7px; }
+.state-word { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
 .state-word::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
 .state-word[data-s="running"]::before { background: var(--ok); }
 .state-word[data-s="starting"]::before, .state-word[data-s="paused"]::before { background: var(--warn); }
@@ -411,8 +411,12 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .login .btn { justify-content: center; padding: 11px 14px; }
 
 /* ---------- narrow screens ---------- */
-@media (max-width: 920px) {
+/* The widths below allow for the rail (76px) and a scrollbar, so "Up for 20h 58m" always fits on one line.
+   Up to 1140px the server card goes under the services; up to 1010px each service row folds in two. */
+@media (max-width: 1140px) {
   .cols { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 1010px) {
   .row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; }
   .row .img, .row .spark-cell, .row.row-head, .row .num { display: none; }
   .row .acts { grid-column: 1 / -1; justify-content: flex-start; }
@@ -535,13 +539,13 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .brand { white-space: nowrap; }
 
 /* mid widths: the side panel leaves too little room for the sparkline plus three buttons */
-@media (min-width: 921px) and (max-width: 1180px) {
+@media (min-width: 1011px) and (max-width: 1280px) {
   .row { grid-template-columns: minmax(110px, 1fr) minmax(0, 1.4fr) 56px 70px 216px; gap: 10px; }
   .row .spark-cell { display: none; }
 }
 
 /* line the side cards up with the top of the services table, not its heading */
-@media (min-width: 921px) { .side { margin-top: 38px; } }
+@media (min-width: 1141px) { .side { margin-top: 38px; } }
 
 /* ---------- phones ---------- */
 @media (max-width: 720px) {
