@@ -65,15 +65,15 @@ Treat the unlock link like a password. If it ever leaks, make a new one (see [Ev
 
 ![Update or switch build, with a backup first](../images/control-panel/update-dialog.png)
 
-On a phone it all stacks into one column:
+The pages are icons down the left; point at one to see its name. On a phone it all stacks into one column, and the pages are in the menu at the top left:
 
-<img src="../images/control-panel/overview-phone.png" alt="The Overview tab on a phone" width="320">
+<img src="../images/control-panel/overview-phone.png" alt="The Overview tab on a phone" width="300"> <img src="../images/control-panel/menu-phone.png" alt="The menu on a phone" width="300">
 
 **Logs.** Live logs for AIOStreams, Caddy and each add-on. Filter, hide warnings, copy or download what you see.
 
 ![The Logs tab](../images/control-panel/logs.png)
 
-**Activity.** Every button you pressed and what it printed, so you can check how an update or backup went.
+**Activity.** Every button you pressed and what it printed, so you can check how an update or backup went. The bin on each entry removes it; **Clear activity** removes them all.
 
 **Backup & Restore.** **Back up now** makes the same backup as `setup-aiostreams.sh` option 7. Each backup shows the AIOStreams version it holds, and can be locked (so it can't be deleted by accident) and given a note. Backups made by **Update** label themselves, for example "Before switching stable → nightly".
 
@@ -97,7 +97,7 @@ On a phone it all stacks into one column:
 sudo bash /opt/aiostreams/control-panel/setup-ui.sh
 ```
 
-Choose **8**, then **1**. It shows a **terminal key** once: save it in your password manager. Reload the panel and a **Terminal** tab appears; type the key there to open it.
+Choose **8**, then **1**. It shows a **terminal key** once: save it in your password manager. Reload the panel and **Terminal** appears in its menu; type the key there to open it.
 
 ![Typing the terminal key](../images/control-panel/terminal-key.png)
 
@@ -123,7 +123,7 @@ sudo bash /opt/aiostreams/control-panel/setup-ui.sh
 
 ## Updating the panel
 
-The panel shows its version next to its name (on wide screens) and on the **Scripts** tab, and checks GitHub for a newer one. When there is one, the chip turns amber and the Scripts tab offers **Update to** the new version. It downloads it and rebuilds the panel, which is away for about a minute; the page reloads by itself. AIOStreams isn't touched, and your login, unlock link and terminal key stay the same. If the download fails, nothing changes, and the Scripts tab shows what happened.
+The panel shows its version under its logo and on the **Scripts** tab, and checks GitHub for a newer one. When there is one, the chip turns amber and the Scripts tab offers **Update to** the new version. It downloads it and rebuilds the panel, which is away for about a minute; the page reloads by itself. AIOStreams isn't touched, and your login, unlock link and terminal key stay the same. If the download fails, nothing changes, and the Scripts tab shows what happened.
 
 Over SSH, the menu's **4) Update** does the same. That's the way to update a panel from before it had its own Update button, or one that won't start:
 
