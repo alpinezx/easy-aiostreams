@@ -55,7 +55,8 @@
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html { -webkit-text-size-adjust: 100%; }
+/* Room for the scrollbar is kept on every page, so a long page (Logs) doesn't shift sideways from a short one */
+html { -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; }
 body {
   margin: 0; background: var(--bg); color: var(--text);
   font: 400 14px/1.5 var(--font); font-feature-settings: "cv11", "ss01";
