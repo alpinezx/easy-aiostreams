@@ -196,8 +196,8 @@ button.chip:hover { text-decoration: underline; }
 .path { margin: 4px 0 30px; padding: 26px 22px 22px; background: var(--sunk); border: 1px solid var(--line-soft); border-radius: var(--radius); }
 .path-title { margin: 0 0 18px; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--faint); }
 .chain { display: flex; align-items: stretch; }
-.terminal { align-self: center; display: flex; align-items: center; gap: 8px; color: var(--faint); font-size: .9rem; padding-right: 10px; }
-.terminal i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--faint); }
+.path-start { align-self: center; display: flex; align-items: center; gap: 8px; color: var(--faint); font-size: .9rem; padding-right: 10px; }
+.path-start i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--faint); }
 .link { flex: 1 1 28px; min-width: 24px; align-self: center; height: 2px; position: relative; background: repeating-linear-gradient(90deg, var(--faint) 0 4px, transparent 4px 9px); opacity: .6; }
 .link.live {
   opacity: 1; height: 3px; border-radius: 2px;
@@ -444,7 +444,7 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   .link.broken { background: repeating-linear-gradient(180deg, var(--bad) 0 4px, transparent 4px 9px); }
   @keyframes flowv { to { background-position: 0 18px; } }
   /* the circle sits right above the dashed line (24px in, 3px wide) */
-  .terminal { padding: 0 0 4px 19.5px; align-self: flex-start; }
+  .path-start { padding: 0 0 4px 19.5px; align-self: flex-start; }
   .addons { margin-left: 24px; }
   .item { grid-template-columns: minmax(0, 1fr) auto; }
   .item .when-col { grid-column: 1 / -1; }
@@ -462,6 +462,8 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 /* xterm draws its own scrollbar; hide the unused native one (and its black track) underneath */
 .xterm-box .xterm-viewport { scrollbar-width: none; background-color: transparent !important; }
 .xterm-box .xterm-viewport::-webkit-scrollbar { display: none; }
+/* its scroll area is only as wide as the columns; widen it so the scrollbar sits at the right edge */
+.xterm-box .xterm-scrollable-element { width: 100%; }
 .xterm-box { height: calc(100vh - 230px); min-height: 320px; padding: 10px; background: var(--sunk); border: 1px solid var(--line-soft); border-radius: var(--radius); overflow: hidden; }
 .btn.primary.danger { background: var(--bad); border-color: var(--bad); color: #fff; }
 .btn.primary.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--bad) 88%, white); }

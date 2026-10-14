@@ -192,7 +192,7 @@ function path(st) {
   const el = rebuild("#path", key, (el) => {
     el.append(h("h2", { class: "path-title", text: "Where a request goes" }));
     const chain = h("div", { class: "chain" });
-    chain.append(h("div", { class: "terminal" }, h("i"), "Visitors"));
+    chain.append(h("div", { class: "path-start" }, h("i"), "Visitors"));
     let upstreamOk = true;   // everything before this point is running
     main.forEach((s) => {
       const ok = s.state === "running";
