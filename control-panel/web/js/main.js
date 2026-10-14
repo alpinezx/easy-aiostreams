@@ -35,6 +35,48 @@ function enter() {
   if (view === "terminal") terminal.show(status);
 }
 
+// Phones: the rail is a drawer, opened from the menu button and closed by its X, the
+// backdrop, Escape, or picking a page.
+function navOpen(open) {
+  const nav = $("#nav");
+  if (nav.classList.contains("open") === open) return;
+  nav.classList.toggle("open", open);
+  $("#nav-scrim").hidden = !open;
+  $("#nav-open").setAttribute("aria-expanded", String(open));
+  document.documentElement.style.overflow = open ? "hidden" : "";
+  (open ? $("#nav-x") : $("#nav-open")).focus();
+}
+
+function initNav() {
+  $("#nav-open").addEventListener("click", () => navOpen(true));
+  $("#nav-x").addEventListener("click", () => navOpen(false));
+  $("#nav-scrim").addEventListener("click", () => navOpen(false));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") navOpen(false); });
+  $("#nav").addEventListener("click", (e) => { if (e.target.closest("a")) navOpen(false); });
+  window.matchMedia("(max-width: 720px)").addEventListener("change", () => navOpen(false));
+
+  // Desktop: the rail shows icons only, so each one names itself beside the rail on hover or focus.
+  // Drawn outside the rail, which scrolls on short windows and would clip it.
+  const tip = $("#tip");
+  const show = (e) => {
+    const el = e.target.closest("[data-tip]");
+    if (!el || window.innerWidth <= 720) return;
+    const r = el.getBoundingClientRect();
+    tip.textContent = el.dataset.tip;
+    tip.style.left = `${$("#nav").getBoundingClientRect().right + 8}px`;
+    tip.style.top = `${r.top + r.height / 2}px`;
+    tip.hidden = false;
+  };
+  const hide = () => { tip.hidden = true; };
+  const nav = $("#nav");
+  nav.addEventListener("mouseover", show);
+  nav.addEventListener("focusin", show);
+  nav.addEventListener("mouseleave", hide);
+  nav.addEventListener("focusout", hide);
+  nav.addEventListener("scroll", hide);
+  nav.addEventListener("click", hide);
+}
+
 function goLogs(container) { pendingLogs = container; location.hash = "#logs"; }
 
 async function tick() {
@@ -67,7 +109,7 @@ async function tick() {
 async function boot() {
   const me = await api("/api/me");
   // One login, so the name isn't shown; it's on Sign out's tooltip.
-  $("#logout").title = `Signed in as ${me.user}`;
+  $("#logout").dataset.tip = `Sign out (${me.user})`;
   scripts.versionChip(me.version);
   scripts.loadPanelVersion(false);      // the header chip turns amber when there's an update
   $("#demo").hidden = !me.demo;
@@ -77,6 +119,7 @@ async function boot() {
     if (confirm("Restart the panel? It will be unavailable for a few seconds and any open terminal will close.")) terminal.restartPanel();
   });
   logs.init();
+  initNav();
   $("#logout").addEventListener("click", async () => {
     await api("/api/logout", { method: "POST" }).catch(() => {});
     location.href = "/login";
