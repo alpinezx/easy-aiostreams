@@ -196,7 +196,7 @@ button.chip:hover { text-decoration: underline; }
 .path { margin: 4px 0 30px; padding: 26px 22px 22px; background: var(--sunk); border: 1px solid var(--line-soft); border-radius: var(--radius); }
 .path-title { margin: 0 0 18px; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--faint); }
 .chain { display: flex; align-items: stretch; }
-.terminal { align-self: center; display: flex; align-items: center; gap: 8px; color: var(--faint); font-size: .9rem; padding-right: 2px; }
+.terminal { align-self: center; display: flex; align-items: center; gap: 8px; color: var(--faint); font-size: .9rem; padding-right: 10px; }
 .terminal i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--faint); }
 .link { flex: 1 1 28px; min-width: 24px; align-self: center; height: 2px; position: relative; background: repeating-linear-gradient(90deg, var(--faint) 0 4px, transparent 4px 9px); opacity: .6; }
 .link.live {

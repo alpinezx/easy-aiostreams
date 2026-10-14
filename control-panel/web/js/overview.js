@@ -266,7 +266,8 @@ function rows(st, goLogs) {
         if (a && a.available) acts.append(h("button", { class: "btn small" + (s.state === "running" ? " danger" : ""), type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
       }
       el.append(h("div", { class: "row", dataset: { svc: s.key } },
-        h("div", {}, h("div", { class: "name", text: s.name }), h("div", { class: "sub", text: s.role })),
+        // What the service does is on hover, keeping each row to the name
+        h("div", {}, h("div", { class: "name", text: s.name, title: s.role || null })),
         h("div", {}, h("div", { class: "state-word", dataset: { s: sx } }, h("span", { dataset: { w: "1" } })),
           h("div", { class: "img", dataset: { img: "1" }, title: s.image || "" })),
         h("div", { class: "num", dataset: { cpu: "1" } }),
