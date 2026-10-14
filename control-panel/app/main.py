@@ -561,6 +561,17 @@ class Jobs:
         self._save()
         return len(drop)
 
+    def remove(self, job_id: str) -> None:
+        with self.lock:
+            j = self.items.get(job_id)
+            if not j:
+                raise HTTPException(404, "No such job")
+            if not j["ended"]:
+                raise HTTPException(409, "That action is still running.")
+            self.items.pop(job_id)
+            self.order.remove(job_id)
+        self._save()
+
     def summary(self, j) -> dict:
         return {k: j[k] for k in ("id", "action", "label", "running", "done", "started", "ended", "code")}
 
@@ -646,6 +657,13 @@ async def get_job(job_id: str, user: str = Depends(current_user)):
     if not j:
         raise HTTPException(404, "No such job")
     return {**jobs.summary(j), "lines": j["lines"]}
+
+
+@app.delete("/api/jobs/{job_id}")
+async def remove_job(job_id: str, user: str = Depends(current_user)):
+    """Forget one finished job and its saved output."""
+    jobs.remove(job_id)
+    return {"removed": job_id}
 
 
 @app.get("/api/jobs/{job_id}/stream")

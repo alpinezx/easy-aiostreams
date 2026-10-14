@@ -217,6 +217,24 @@ def test_clear_activity_keeps_running_and_clears_finished(client):
     assert client.get("/api/jobs").json() == []
 
 
+def test_remove_one_activity_entry(client):
+    from app import main
+    login(client)
+    ids = []
+    for _ in range(2):
+        ids.append(main.jobs.start(actions.resolve("stack.restart", None), None)["id"])
+        deadline = time.time() + 20
+        while main.jobs.current_id() and time.time() < deadline:
+            time.sleep(0.2)
+    assert client.delete(f"/api/jobs/{ids[0]}").json() == {"removed": ids[0]}
+    left = [j["id"] for j in client.get("/api/jobs").json()]
+    assert ids[0] not in left and ids[1] in left
+    assert client.delete(f"/api/jobs/{ids[0]}").status_code == 404
+    with pytest.MonkeyPatch.context() as m:
+        m.setitem(main.jobs.items[ids[1]], "ended", None)
+        assert client.delete(f"/api/jobs/{ids[1]}").status_code == 409
+
+
 def test_clear_logs_endpoint(client):
     login(client)
     assert client.post("/api/logs/aiostreams/clear").json()["ok"]

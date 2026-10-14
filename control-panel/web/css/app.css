@@ -71,40 +71,76 @@ a { color: var(--accent); }
 
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
 
-/* ---------- top bar ---------- */
-.bar {
-  position: sticky; top: 0; z-index: 20;
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--line-soft);
-}
-.bar-in {
-  max-width: 1180px; margin: 0 auto; padding: 0 var(--gutter);
-  height: 56px; display: flex; align-items: center; gap: 22px;
-}
+/* ---------- navigation ---------- */
+/* An icon rail down the left, with each name in a tooltip. Pages can be added without running
+   out of room. On phones it becomes a drawer, opened from the menu button in a slim top bar. */
+:root { --rail: 76px; }
+body { padding-left: var(--rail); }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 1.05rem; letter-spacing: -.01em; text-decoration: none; color: var(--text); }
 .brand svg { width: 26px; height: 26px; }
-/* Squeezed (a long username, a narrow window, browser zoom), the tabs scroll sideways rather than run into what's next to them. */
-.tabs { display: flex; gap: 2px; margin-right: auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-.tabs::-webkit-scrollbar { display: none; }
-.tab {
-  white-space: nowrap; border: 0; background: none; padding: 8px 12px; border-radius: 8px;
-  color: var(--dim); font-weight: 500; text-decoration: none;
+.rail {
+  position: fixed; z-index: 30; left: 0; top: 0; bottom: 0; width: var(--rail);
+  display: flex; flex-direction: column; align-items: center; gap: 22px;
+  padding: 18px 0 14px; background: var(--bg); border-right: 1px solid var(--line-soft);
+  overflow-y: auto; scrollbar-width: none;
 }
-.tab:hover { color: var(--text); background: var(--hover); }
-.tab[aria-current="page"] { color: var(--text); background: var(--hover); box-shadow: inset 0 -2px 0 var(--accent); }
-.bar-end { flex: none; display: flex; align-items: center; gap: 10px; }
-.demo-flag { background: var(--warn-soft); color: var(--warn); border-radius: 999px; padding: 2px 10px; font-size: .8rem; font-weight: 600; }
-/* A link to the repo, kept as quiet as the version chip. The header is tight, so below 1280px
-   (where the version chip goes too) it shrinks to the GitHub mark alone, and from 721 to 920px,
-   where the tabs already run short of room, it's left out. The demo's chip takes its words' room. */
-.gh-link { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--dim); font-size: .74rem; font-weight: 600; text-decoration: none; white-space: nowrap; }
-.gh-link svg { width: 13px; height: 13px; flex: none; }
-.gh-link:hover { color: var(--text); border-color: var(--faint); }
-.demo-flag:not([hidden]) ~ .gh-link { padding: 5px; }
-.demo-flag:not([hidden]) ~ .gh-link span { display: none; }
-@media (max-width: 1280px) { .gh-link { padding: 5px; } .gh-link span { display: none; } }
-@media (min-width: 721px) and (max-width: 920px) { .gh-link { display: none; } }
+.rail::-webkit-scrollbar { display: none; }
+.rail-top { display: grid; justify-items: center; gap: 8px; }
+.rail-logo { display: grid; justify-items: center; color: var(--text); text-decoration: none; border-radius: 10px; }
+.rail-logo svg { width: 34px; height: 34px; }
+.rail-name { display: none; }
+.rail-links, .rail-end { display: grid; gap: 6px; justify-items: center; }
+.rail-end { margin-top: auto; }
+.rail .tab {
+  width: 44px; height: 44px; display: grid; place-items: center; padding: 0;
+  border: 0; border-radius: 999px; background: none; color: var(--dim); text-decoration: none;
+}
+.rail .tab svg, .icon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.rail .tab svg.solid { width: 19px; height: 19px; fill: currentColor; stroke: none; }
+.rail .tab:hover { color: var(--text); background: var(--hover); }
+.rail .tab[aria-current="page"] { color: var(--text); background: var(--accent-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent); }
+.rail .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.demo-flag { background: var(--warn-soft); color: var(--warn); border-radius: 999px; padding: 1px 7px; font-size: .68rem; font-weight: 600; white-space: nowrap; }
+.tip {
+  position: fixed; z-index: 70; transform: translateY(-50%); pointer-events: none; white-space: nowrap;
+  padding: 5px 10px; border-radius: 8px; background: var(--raised); border: 1px solid var(--line);
+  color: var(--text); font-size: .84rem; box-shadow: 0 8px 24px rgba(0, 0, 0, .3);
+}
+.offline { position: fixed; z-index: 35; top: 14px; left: calc(50% + var(--rail) / 2); transform: translateX(-50%); box-shadow: 0 8px 24px rgba(0, 0, 0, .3); }
+
+.icon-btn { width: 40px; height: 40px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 10px; background: none; color: var(--dim); }
+.icon-btn svg { width: 22px; height: 22px; }
+.icon-btn:hover { color: var(--text); background: var(--hover); }
+.topbar, .nav-x { display: none; }
+
+@media (max-width: 720px) {
+  body { padding-left: 0; }
+  .topbar {
+    display: flex; align-items: center; gap: 8px; position: sticky; top: 0; z-index: 20;
+    height: 56px; padding: 0 var(--gutter) 0 8px;
+    background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .rail {
+    z-index: 45; width: min(300px, 86vw); align-items: stretch; gap: 18px; padding: 14px 14px 18px;
+    border-right-color: var(--line); box-shadow: 24px 0 60px rgba(0, 0, 0, .35);
+    transform: translateX(-100%); visibility: hidden; transition: transform .2s ease-out, visibility 0s .2s;
+  }
+  .rail.open { transform: none; visibility: visible; transition: transform .2s ease-out; }
+  .nav-x { display: grid; position: absolute; top: 10px; right: 10px; }
+  .rail-top { padding: 26px 0 4px; }
+  .rail-logo svg { width: 44px; height: 44px; }
+  .rail-name { display: block; margin-top: 10px; font-weight: 650; }
+  .rail-links, .rail-end { justify-items: stretch; gap: 4px; }
+  .rail .tab { width: auto; height: 48px; display: flex; align-items: center; gap: 14px; padding: 0 16px; font-size: 1rem; font-weight: 500; }
+  .rail .lbl { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
+  .rail-end { padding-top: 12px; border-top: 1px solid var(--line-soft); }
+  .nav-scrim { position: fixed; inset: 0; z-index: 44; background: rgba(5, 4, 10, .55); }
+  .offline { left: 50%; top: 66px; }
+  .tip { display: none !important; }
+  .login .brand span { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .rail { transition: none !important; } }
 
 main { max-width: 1180px; margin: 0 auto; padding: 28px var(--gutter) 96px; }
 .view[hidden] { display: none; }
@@ -266,6 +302,14 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .item { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 14px; align-items: center; padding: 13px 16px; border-top: 1px solid var(--line-soft); width: 100%; text-align: left; background: none; border-left: 0; border-right: 0; border-bottom: 0; }
 .item:first-child { border-top: 0; }
 button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+/* Activity rows: click anywhere to see the output; the bin removes just that entry */
+.item.job { grid-template-columns: minmax(0, 1fr) auto auto auto; cursor: pointer; }
+.item.job:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.job-open { border: 0; background: none; padding: 0; text-align: left; min-width: 0; }
+.job-x { padding: 5px; color: var(--faint); }
+.job-x svg { width: 16px; height: 16px; display: block; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.job-x:hover:not(:disabled) { color: var(--bad); background: var(--bad-soft); }
+.job-x:disabled { visibility: hidden; }
 .item .what { font-weight: 600; }
 .item:has(> button + button) { grid-template-columns: minmax(0, 1fr) repeat(3, auto); }
 .item .when { font-size: .86rem; color: var(--faint); }
@@ -352,6 +396,7 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .toasts { position: fixed; z-index: 60; left: 50%; bottom: 20px; transform: translateX(-50%); display: grid; gap: 8px; width: min(420px, calc(100vw - 32px)); pointer-events: none; }
 .toast { background: var(--raised); border: 1px solid var(--line); border-left: 4px solid var(--ok); border-radius: 10px; padding: 11px 14px; box-shadow: 0 14px 40px rgba(0, 0, 0, .35); pointer-events: auto; }
 .toast.bad { border-left-color: var(--bad); }
+@media (min-width: 721px) { .toasts { left: calc(50% + var(--rail) / 2); } }
 
 /* ---------- login ---------- */
 .login-wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px var(--gutter); }
@@ -372,10 +417,6 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
   .row .acts { grid-column: 1 / -1; justify-content: flex-start; }
 }
 @media (max-width: 720px) {
-  .bar-in { gap: 10px; }
-  .demo-flag { display: none; }
-  .tabs { overflow-x: auto; scrollbar-width: none; }
-  .brand span { display: none; }
   .chain { flex-direction: column; align-items: stretch; }
   .link { flex: none; width: 3px; height: 26px; min-width: 0; align-self: flex-start; margin-left: 24px; background: repeating-linear-gradient(180deg, var(--faint) 0 4px, transparent 4px 9px); }
   .link.live { background: repeating-linear-gradient(180deg, var(--accent) 0 10px, transparent 10px 18px); background-size: 3px 18px; animation-name: flowv; width: 3px; height: 26px; }
@@ -385,6 +426,8 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
   .addons { margin-left: 24px; }
   .item { grid-template-columns: minmax(0, 1fr) auto; }
   .item .when-col { grid-column: 1 / -1; }
+  .item > .chip { justify-self: start; }
+  .item.job { grid-template-columns: minmax(0, 1fr) auto; }
 }
 
 /* ---- terminal ---- */
@@ -445,11 +488,9 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .scripts-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
 .scripts-foot .btn { margin-left: auto; }
 .chip.small-chip { font-size: .74rem; padding: 1px 8px; }
-/* The panel's version, next to its name in the header, and its row on the Scripts tab */
-.ver-chip { font-size: .74rem; padding: 1px 8px; text-decoration: none; margin-left: -4px; white-space: nowrap; }
+/* The panel's version, under the logo in the rail */
+.ver-chip { font-size: .7rem; padding: 1px 7px; text-decoration: none; white-space: nowrap; }
 .ver-chip:hover { color: var(--text); }
-/* Only where the header has room, like "Control Panel" next to the name. The Scripts tab shows it at every width. */
-@media (max-width: 1280px) { .ver-chip { display: none !important; } }
 .panel-ver { margin-bottom: 14px; display: grid; gap: 10px; }
 .panel-ver-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
 .panel-ver-head h3 { margin: 0; }
@@ -490,9 +531,6 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 /* pressed toggle buttons (Follow, Hide known noise, Lock) */
 .btn[aria-pressed="true"] { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); color: var(--text); }
 
-.brand-sub { font-weight: 500; font-size: .86rem; color: var(--faint); padding-left: 10px; border-left: 1px solid var(--line); letter-spacing: 0; }
-@media (max-width: 1180px) { .brand-sub { display: none; } }
-
 .brand { white-space: nowrap; }
 
 /* mid widths: the side panel leaves too little room for the sparkline plus three buttons */
@@ -506,13 +544,6 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 
 /* ---------- phones ---------- */
 @media (max-width: 720px) {
-  /* tabs get their own row so none are hidden off the edge */
-  .bar-in { flex-wrap: wrap; height: auto; padding-top: 10px; padding-bottom: 4px; row-gap: 4px; }
-  .brand { order: 1; }
-  .bar-end { order: 2; margin-left: auto; }
-  .tabs { order: 3; flex: 1 0 100%; margin-right: 0; }
-  .tab { padding: 8px 11px; }
-
   /* log source switcher scrolls inside itself instead of widening the page */
   .seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
   .seg button { white-space: nowrap; }

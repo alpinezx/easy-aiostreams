@@ -42,7 +42,7 @@ export function versionChip(current) {
   chip.hidden = false;
   const newer = ver && ver.newer;
   chip.className = "chip ver-chip" + (newer ? " warn" : "");
-  // Kept short: the header has little room. The tooltip and the Scripts tab name the new version.
+  // Kept short: the rail is narrow. The tooltip and the Scripts tab name the new version.
   chip.textContent = newer ? `v${cur} ↑` : `v${cur}`;
   chip.title = newer ? `Control panel ${ver.latest} is available. Update it on the Scripts tab.` : "The control panel's version. Updates are on the Scripts tab.";
 }

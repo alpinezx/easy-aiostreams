@@ -27,10 +27,21 @@ export async function showActivity() {
   }
   for (const j of jobs) {
     const state = !j.ended ? ["Running", ""] : j.code === 0 ? ["Done", "ok"] : ["Failed", "bad"];
-    box.append(h("button", { class: "item", type: "button", onclick: () => openJob(j.id) },
-      h("span", {}, h("span", { class: "what", text: j.label }), " ", h("span", { class: "dim", text: actionGroup(j.action) })),
+    // The whole row opens the output; the label is the button, so the keyboard reaches it too.
+    const row = h("div", { class: "item job", onclick: (e) => { if (!e.target.closest(".job-x")) openJob(j.id); } },
+      h("button", { class: "job-open", type: "button" },
+        h("span", { class: "what", text: j.label }), " ", h("span", { class: "dim", text: actionGroup(j.action) })),
       h("span", { class: "when", text: ago(j.started) }),
-      h("span", { class: `chip ${state[1]}`, text: state[0] })));
+      h("span", { class: `chip ${state[1]}`, text: state[0] }));
+    const x = h("button", { class: "btn small quiet job-x", type: "button", title: "Remove from Activity", "aria-label": `Remove ${j.label} from Activity`, disabled: !j.ended,
+      onclick: async () => {
+        try { await api(`/api/jobs/${j.id}`, { method: "DELETE" }); }
+        catch (e) { toast(e.message || "Couldn't remove it.", true); }
+        showActivity().catch(() => {});
+      } });
+    x.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
+    row.append(x);
+    box.append(row);
   }
 }
 
