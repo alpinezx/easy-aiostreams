@@ -418,6 +418,7 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
   .addons { margin-left: 24px; }
   .item { grid-template-columns: minmax(0, 1fr) auto; }
   .item .when-col { grid-column: 1 / -1; }
+  .item > .chip { justify-self: start; }
 }
 
 /* ---- terminal ---- */
