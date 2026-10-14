@@ -443,7 +443,8 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   .link.live { background: repeating-linear-gradient(180deg, var(--accent) 0 10px, transparent 10px 18px); background-size: 3px 18px; animation-name: flowv; width: 3px; height: 26px; }
   .link.broken { background: repeating-linear-gradient(180deg, var(--bad) 0 4px, transparent 4px 9px); }
   @keyframes flowv { to { background-position: 0 18px; } }
-  .terminal { padding: 0 0 4px 2px; align-self: flex-start; }
+  /* the circle sits right above the dashed line (24px in, 3px wide) */
+  .terminal { padding: 0 0 4px 19.5px; align-self: flex-start; }
   .addons { margin-left: 24px; }
   .item { grid-template-columns: minmax(0, 1fr) auto; }
   .item .when-col { grid-column: 1 / -1; }
