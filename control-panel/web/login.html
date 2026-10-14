@@ -8,22 +8,23 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/css/app.css">
 </head>
-<body>
+<body class="bare">
 <div class="login-wrap">
   <div class="login">
-    <div>
-      <div class="brand">
-        <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#f2f2f2"/><path d="M5 17h5l3-7 5 13 3-6h6" fill="none" stroke="#0b0b0b" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span>Easy AIOStreams</span>
-      </div>
-      <p>Control Panel. Sign in to manage your AIOStreams server.</p>
+    <div class="login-head">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#f2f2f2"/><path d="M5 17h5l3-7 5 13 3-6h6" fill="none" stroke="#0b0b0b" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <h1>Sign in</h1>
+      <p>Easy AIOStreams control panel</p>
     </div>
     <form id="f" autocomplete="on">
       <label>Username
-        <input class="input" name="username" autocomplete="username" required autofocus>
+        <input class="input" name="username" autocomplete="username" placeholder="Enter your username" required autofocus>
       </label>
       <label>Password
-        <input class="input" name="password" type="password" autocomplete="current-password" required>
+        <span class="pw">
+          <input class="input" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" required>
+          <button class="pw-eye" id="pw-eye" type="button" aria-label="Show password" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path class="slash" d="M3 3l18 18"/></svg></button>
+        </span>
       </label>
       <p class="err" id="err" role="alert"></p>
       <button class="btn primary" type="submit" id="go">Sign in</button>

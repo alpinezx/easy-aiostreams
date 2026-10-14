@@ -1,4 +1,4 @@
-import { $, h, clear } from "./util.js";
+import { $, h, clear, extIcon } from "./util.js";
 import { renderMarkdown } from "./md.js";
 
 // A nightly's GitHub release appears before its Docker image is pushed; don't offer it until the image has had time.
@@ -61,7 +61,7 @@ function fill(body, r) {
   if (body.childElementCount) return;
   body.append((r.body || "").trim() ? renderMarkdown(r.body) : h("p", { class: "dim", text: "No notes for this release." }));
   if (r.url) body.append(h("p", { class: "rel-gh" },
-    h("a", { href: r.url, target: "_blank", rel: "noopener noreferrer", text: "View on GitHub ↗" })));
+    h("a", { href: r.url, target: "_blank", rel: "noopener noreferrer" }, "View on GitHub", extIcon())));
 }
 
 function mark(r, running, channel) {
