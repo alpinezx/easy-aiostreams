@@ -1,4 +1,4 @@
-import { $, h, clear, setText, fmtDur, fmtBytes, api, toast, ago } from "./util.js";
+import { $, h, clear, setText, fmtDur, fmtBytes, api, toast, ago, extIcon } from "./util.js";
 import { runAction, openJob, rebootServer, restartService } from "./actions.js";
 import { openReleases, remember, behind } from "./releases.js";
 
@@ -139,7 +139,7 @@ function hero(st) {
       h("h1", { class: "headline", text: st.headline })));
     const meta = h("div", { class: "hero-meta" });
     if (st.domain) meta.append(h("a", { class: "btn small open-site", href: `https://${st.domain}`, target: "_blank", rel: "noopener noreferrer",
-      title: `Opens https://${st.domain} in a new tab` }, "Open AIOStreams", h("span", { "aria-hidden": "true", text: "\u2197" })));
+      title: `Opens https://${st.domain} in a new tab` }, "Open AIOStreams", extIcon()));
     if (st.channel) meta.append(h("span", { class: "chip", text: `AIOStreams ${st.channel === "nightly" ? "nightly" : "latest"}`,
       title: st.channel === "nightly" ? "AIOStreams' nightly builds (Docker tag: nightly). Switch with Update." : "AIOStreams' stable releases (Docker tag: latest). Switch with Update." }));
     const [updChip, updTail] = updateBits(st);
@@ -266,7 +266,8 @@ function rows(st, goLogs) {
         if (a && a.available) acts.append(h("button", { class: "btn small" + (s.state === "running" ? " danger" : ""), type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
       }
       el.append(h("div", { class: "row", dataset: { svc: s.key } },
-        h("div", {}, h("div", { class: "name", text: s.name }), h("div", { class: "sub", text: s.role })),
+        // What the service does is on hover, keeping each row to the name
+        h("div", {}, h("div", { class: "name", text: s.name, title: s.role || null })),
         h("div", {}, h("div", { class: "state-word", dataset: { s: sx } }, h("span", { dataset: { w: "1" } })),
           h("div", { class: "img", dataset: { img: "1" }, title: s.image || "" })),
         h("div", { class: "num", dataset: { cpu: "1" } }),

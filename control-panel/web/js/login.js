@@ -1,6 +1,15 @@
 const f = document.getElementById("f");
 const err = document.getElementById("err");
 const go = document.getElementById("go");
+const eye = document.getElementById("pw-eye");
+
+// Show or hide what's typed in the password box
+eye.addEventListener("click", () => {
+  const show = f.elements.password.type === "password";
+  f.elements.password.type = show ? "text" : "password";
+  eye.setAttribute("aria-pressed", String(show));
+  eye.setAttribute("aria-label", show ? "Hide password" : "Show password");
+});
 
 f.addEventListener("submit", async (e) => {
   e.preventDefault();

@@ -26,9 +26,10 @@
   --accent-soft: rgba(179, 169, 255, .12);
   /* The main button on a page: white with dark text, like the dashboard's
      Next / Previous buttons. Colour stays for status (green, amber, red). */
-  --primary: #f2f2f2;
-  --primary-hover: #ffffff;
-  --primary-ink: #0b0b0b;
+  /* Main buttons: the same blue-violet as AIOStreams' own */
+  --primary: #483ea1;
+  --primary-hover: #5b4ccc;
+  --primary-ink: #ffffff;
   --ok: #10b981;
   --warn: #f59e0b;
   --bad: #f87171;
@@ -47,7 +48,7 @@
     --line: #d1d1d1; --line-soft: #e6e6e6;
     --text: #1c1c1c; --dim: #5a5a5a; --faint: #8f8f8f; --hover: rgba(0, 0, 0, .04);
     --accent: #5243cb; --accent-soft: rgba(97, 82, 223, .1);
-    --primary: #1c1c1c; --primary-hover: #000000; --primary-ink: #ffffff;
+    --primary: #4f43b8; --primary-hover: #4034a3; --primary-ink: #ffffff;
     --ok: #047857; --warn: #9a6200; --bad: #c42f2f;
     --bad-soft: rgba(196, 47, 47, .09); --warn-soft: rgba(154, 98, 0, .1); --ok-soft: rgba(18, 128, 90, .1);
   }
@@ -90,6 +91,9 @@ body { padding-left: var(--rail); }
 .rail-logo { display: grid; justify-items: center; color: var(--text); text-decoration: none; border-radius: 10px; }
 .rail-logo svg { width: 34px; height: 34px; }
 .rail-name { display: none; }
+/* The panel's name across the top of every page on desktop; phones have it in the top bar */
+.page-brand { display: flex; align-items: center; gap: 10px; margin: -6px 0 22px; font-weight: 650; font-size: 1.05rem; letter-spacing: -.01em; }
+.page-brand-sub { font-weight: 500; font-size: .86rem; color: var(--faint); padding-left: 10px; border-left: 1px solid var(--line); letter-spacing: 0; }
 .rail-links, .rail-end { display: grid; gap: 6px; justify-items: center; }
 .rail-end { margin-top: auto; }
 .rail .tab {
@@ -132,6 +136,7 @@ body { padding-left: var(--rail); }
   .rail-top { padding: 26px 0 4px; }
   .rail-logo svg { width: 44px; height: 44px; }
   .rail-name { display: block; margin-top: 10px; font-weight: 650; }
+  .page-brand { display: none; }
   .rail-links, .rail-end { justify-items: stretch; gap: 4px; }
   .rail .tab { width: auto; height: 48px; display: flex; align-items: center; gap: 14px; padding: 0 16px; font-size: 1rem; font-weight: 500; }
   .rail .lbl { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
@@ -139,7 +144,6 @@ body { padding-left: var(--rail); }
   .nav-scrim { position: fixed; inset: 0; z-index: 44; background: rgba(5, 4, 10, .55); }
   .offline { left: 50%; top: 66px; }
   .tip { display: none !important; }
-  .login .brand span { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .rail { transition: none !important; } }
 
@@ -192,7 +196,7 @@ button.chip:hover { text-decoration: underline; }
 .path { margin: 4px 0 30px; padding: 26px 22px 22px; background: var(--sunk); border: 1px solid var(--line-soft); border-radius: var(--radius); }
 .path-title { margin: 0 0 18px; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--faint); }
 .chain { display: flex; align-items: stretch; }
-.terminal { align-self: center; display: flex; align-items: center; gap: 8px; color: var(--faint); font-size: .9rem; padding-right: 2px; }
+.terminal { align-self: center; display: flex; align-items: center; gap: 8px; color: var(--faint); font-size: .9rem; padding-right: 10px; }
 .terminal i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--faint); }
 .link { flex: 1 1 28px; min-width: 24px; align-self: center; height: 2px; position: relative; background: repeating-linear-gradient(90deg, var(--faint) 0 4px, transparent 4px 9px); opacity: .6; }
 .link.live {
@@ -400,15 +404,27 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 @media (min-width: 721px) { .toasts { left: calc(50% + var(--rail) / 2); } }
 
 /* ---------- login ---------- */
+/* A card in the middle of the page, like AIOStreams' own sign-in */
+/* No rail on the login page, so nothing to make room for */
+body.bare { padding-left: 0; }
+html:has(> body.bare) { scrollbar-gutter: auto; }
 .login-wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px var(--gutter); }
-.login { width: min(380px, 100%); display: grid; gap: 22px; }
-.login .brand { font-size: 1.9rem; gap: 14px; }
-.login .brand svg { width: 44px; height: 44px; }
-.login p { margin: 0; color: var(--dim); }
-.login form { display: grid; gap: 14px; }
-.login label { display: grid; gap: 6px; font-weight: 600; font-size: .92rem; }
-.login .err { min-height: 1.4em; color: var(--bad); font-size: .92rem; margin: 0; }
+.login { width: min(384px, 100%); display: grid; gap: 22px; padding: 28px 24px 26px; background: var(--raised); border: 1px solid var(--line); border-radius: 14px; }
+.login-head { display: grid; justify-items: center; gap: 6px; text-align: center; }
+.login-head svg { width: 52px; height: 52px; margin-bottom: 8px; }
+.login-head h1 { margin: 0; font-size: 1.4rem; font-weight: 650; letter-spacing: -.01em; }
+.login-head p { margin: 0; color: var(--dim); font-size: .92rem; }
+.login form { display: grid; gap: 16px; }
+.login label { display: grid; gap: 7px; font-weight: 600; font-size: .92rem; }
+.login .input { width: 100%; }
+.login .err { min-height: 1.4em; color: var(--bad); font-size: .92rem; margin: -4px 0 -6px; }
 .login .btn { justify-content: center; padding: 11px 14px; }
+.pw { position: relative; display: block; }
+.pw .input { padding-right: 44px; }
+.pw-eye { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 36px; height: 32px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 7px; background: none; color: var(--dim); }
+.pw-eye:hover { color: var(--text); background: var(--hover); }
+.pw-eye svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.pw-eye[aria-pressed="true"] .slash { display: none; }
 
 /* ---------- narrow screens ---------- */
 /* The widths below allow for the rail (76px) and a scrollbar, so "Up for 20h 58m" always fits on one line.
@@ -427,7 +443,8 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
   .link.live { background: repeating-linear-gradient(180deg, var(--accent) 0 10px, transparent 10px 18px); background-size: 3px 18px; animation-name: flowv; width: 3px; height: 26px; }
   .link.broken { background: repeating-linear-gradient(180deg, var(--bad) 0 4px, transparent 4px 9px); }
   @keyframes flowv { to { background-position: 0 18px; } }
-  .terminal { padding: 0 0 4px 2px; align-self: flex-start; }
+  /* the circle sits right above the dashed line (24px in, 3px wide) */
+  .terminal { padding: 0 0 4px 19.5px; align-self: flex-start; }
   .addons { margin-left: 24px; }
   .item { grid-template-columns: minmax(0, 1fr) auto; }
   .item .when-col { grid-column: 1 / -1; }
@@ -586,6 +603,10 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 
 /* "Open AIOStreams" link in the hero, styled as a button */
 .hero-meta a.btn.open-site { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+/* Box-with-arrow after a link that opens a new tab */
+.ext { display: inline-flex; vertical-align: -2px; margin-left: 4px; }
+a.btn .ext { margin-left: 0; vertical-align: 0; }
+.ext svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .term-keep { font-size: 14px; color: var(--dim); }
 
 /* phones: terminal bar text gets its own line, buttons sit underneath */
