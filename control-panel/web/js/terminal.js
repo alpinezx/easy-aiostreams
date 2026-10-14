@@ -349,7 +349,11 @@ function open(ticket, idle) {
   });
   fit = new window.FitAddon.FitAddon();
   term.loadAddon(fit);
-  term.open(box);
+  // The fit measures the terminal's parent including its padding, so the terminal goes in an
+  // unpadded inner box; otherwise it takes one row too many and the last line is cut off.
+  const host = h("div", { class: "xterm-host" });
+  box.append(host);
+  term.open(host);
   fit.fit();
 
   const proto = location.protocol === "https:" ? "wss" : "ws";
