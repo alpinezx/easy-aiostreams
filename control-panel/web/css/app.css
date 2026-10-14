@@ -459,6 +459,9 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .form-err { color: var(--bad); min-height: 1.2em; font-size: .9rem; }
 .term-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 4px 10px; font-size: .88rem; }
 .xterm-host { height: 100%; }
+/* xterm draws its own scrollbar; hide the unused native one (and its black track) underneath */
+.xterm-box .xterm-viewport { scrollbar-width: none; background-color: transparent !important; }
+.xterm-box .xterm-viewport::-webkit-scrollbar { display: none; }
 .xterm-box { height: calc(100vh - 230px); min-height: 320px; padding: 10px; background: var(--sunk); border: 1px solid var(--line-soft); border-radius: var(--radius); overflow: hidden; }
 .btn.primary.danger { background: var(--bad); border-color: var(--bad); color: #fff; }
 .btn.primary.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--bad) 88%, white); }
