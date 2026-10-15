@@ -190,7 +190,8 @@ h1.headline {
 .chip.warn { color: var(--warn); background: var(--warn-soft); border-color: transparent; }
 .chip.bad { color: var(--bad); background: var(--bad-soft); border-color: transparent; }
 button.chip:hover { text-decoration: underline; }
-.toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; align-items: center; }
+/* when the buttons wrap (big text on a phone), the second row gets the same room as the rows above */
+.toolbar { display: flex; flex-wrap: wrap; gap: 12px 8px; margin-top: 6px; align-items: center; }
 .busy-note { color: var(--dim); font-size: .92rem; display: inline-flex; gap: 8px; align-items: center; }
 
 /* ---------- signal path ---------- */
