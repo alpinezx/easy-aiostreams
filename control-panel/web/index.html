@@ -59,25 +59,40 @@
   </section>
 
   <section class="view" id="view-logs" aria-label="Logs" hidden>
-    <div class="view-head"><h2>Logs</h2></div>
-    <div class="logbar">
-      <div class="logrow">
-        <div class="seg" id="log-tabs" role="group" aria-label="Container"></div>
-        <span class="conn" id="log-conn" data-s="">Connecting</span>
+    <div class="view-head lg-head">
+      <div>
+        <h2>Logs</h2>
+        <p class="lg-sub"><span class="conn" id="log-conn" data-s="">Connecting</span> · <span id="log-count">0 shown</span></p>
       </div>
-      <div class="logrow">
-        <input class="input grow" id="log-filter" type="search" placeholder="Filter" aria-label="Filter lines">
-        <button class="btn small" id="log-noise" type="button" aria-pressed="false" title="Hide Caddy lines that look alarming but are expected" hidden>Hide noise</button>
-        <button class="btn small" id="log-warn" type="button" aria-pressed="false" title="Hide every warning-level line, on any tab. Errors and anything critical still show.">Hide warnings</button>
-        <button class="btn small" id="log-follow" type="button" aria-pressed="true" title="Keep the log scrolled to the newest line. Scrolling up turns it off.">Follow</button>
-        <button class="btn small" id="log-copy" type="button" title="Copy the lines shown (respects the filter)">Copy</button>
-        <button class="btn small" id="log-download" type="button" title="Save the lines shown as a .txt file">Download</button>
-        <button class="btn small quiet" id="log-clear" type="button" title="Hides everything logged so far. Docker's own log file is left alone.">Clear</button>
+      <div class="lg-acts">
+        <button class="btn small icon-only" id="log-clear" type="button" title="Hide everything logged so far. Docker's own log file is left alone." aria-label="Clear"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg></button>
+        <button class="btn small" id="log-copy" type="button" title="Copy the lines shown"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>Copy</button>
+        <button class="btn small" id="log-download" type="button" title="Save the lines shown as a .log file"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>.log</button>
       </div>
     </div>
-    <details class="log-help">
+    <div class="lg-filters">
+      <div class="lg-row">
+        <label class="lg-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="log-filter" type="search" placeholder="Filter lines" aria-label="Filter lines" spellcheck="false" autocomplete="off"></label>
+        <button class="btn small lg-regex" id="log-regex" type="button" aria-pressed="false" title="Treat the filter as a regular expression">.*</button>
+        <select class="input lg-svc" id="log-svc" aria-label="Service"></select>
+        <button class="btn small icon-only lg-more" id="log-more" type="button" aria-label="Display options" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></svg></button>
+      </div>
+      <div class="lg-row lg-row2">
+        <div class="lg-levels" role="group" aria-label="Show only these levels">
+          <button type="button" data-lv="out" aria-pressed="false">INFO</button>
+          <button type="button" data-lv="warn" aria-pressed="false">WARN</button>
+          <button type="button" data-lv="error" aria-pressed="false">ERROR</button>
+        </div>
+        <div class="lg-toggles" id="log-toggles">
+          <label class="sw" id="log-noise-row" hidden title="Hide Caddy lines that look alarming but are expected"><span>Hide noise <span class="faint" id="log-noise-n"></span></span><input type="checkbox" id="log-noise"><i aria-hidden="true"></i></label>
+          <label class="sw" title="Keep the newest line in view. Scrolling up turns it off."><span>Auto-scroll</span><input type="checkbox" id="log-follow" checked><i aria-hidden="true"></i></label>
+          <label class="sw"><span>Wrap</span><input type="checkbox" id="log-wrap"><i aria-hidden="true"></i></label>
+        </div>
+      </div>
+    </div>
+    <details class="log-help" id="log-help" hidden>
       <summary>Warnings in the Caddy log after a restart? Usually fine.</summary>
-      <p>The <b>Hide noise</b> button on the Caddy tab hides exactly the lines listed here, and shows how many it is hiding.</p>
+      <p><b>Hide noise</b> hides exactly the lines listed here, and shows how many it is hiding.</p>
       <ul>
         <li><b>aborting with incomplete response</b> on <code class="mono">/api/logs/…</code>: this page's live log connection closing, from switching tabs, leaving Logs or pressing Clear.</li>
         <li><b>aborting with incomplete response</b> ending in <b>context canceled</b>, on paths like <code class="mono">/api/v1/dashboard/…/stream</code>: a browser closed a live-updating page (the AIOStreams dashboard) while it was still sending. Reloading or leaving the page does it.</li>
@@ -92,7 +107,7 @@
       </ul>
       <p>Worth a look: <b>tls</b> or <b>acme</b> errors (certificate trouble), or <b>dial tcp</b> errors that keep repeating (a service Caddy can't reach).</p>
     </details>
-    <div class="term" id="log-term" tabindex="0" role="log" aria-live="off" aria-label="Container logs"></div>
+    <div class="lg-list" id="log-term" tabindex="0" role="log" aria-live="off" aria-label="Container logs"></div>
   </section>
 
   <section class="view" id="view-activity" aria-label="Activity" hidden>

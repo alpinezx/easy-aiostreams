@@ -92,7 +92,7 @@ body { padding-left: var(--rail); }
 .rail-logo svg { width: 34px; height: 34px; }
 .rail-name { display: none; }
 /* The panel's name across the top of every page on desktop; phones have it in the top bar */
-.page-brand { display: flex; align-items: center; gap: 10px; margin: -6px 0 22px; font-weight: 650; font-size: 1.05rem; letter-spacing: -.01em; }
+.page-brand { display: flex; align-items: center; gap: 10px; margin: -6px 0 12px; font-weight: 650; font-size: 1.05rem; letter-spacing: -.01em; }
 .page-brand-sub { font-weight: 500; font-size: .86rem; color: var(--faint); padding-left: 10px; border-left: 1px solid var(--line); letter-spacing: 0; }
 .rail-links, .rail-end { display: grid; gap: 6px; justify-items: center; }
 .rail-end { margin-top: auto; }
@@ -169,7 +169,8 @@ main { max-width: 1180px; margin: 0 auto; padding: 28px var(--gutter) 96px; }
 .btn.small { padding: 5px 10px; font-size: .88rem; border-radius: 8px; }
 
 /* ---------- hero ---------- */
-.hero { display: grid; gap: 14px; padding: 8px 0 26px; }
+.hero { display: grid; gap: 12px; padding: 0 0 26px; }
+.hero-open { display: flex; }
 .hero-head { display: flex; align-items: center; gap: 12px; }
 .lamp { flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--faint); position: relative; }
 .lamp[data-s="ok"] { background: var(--ok); box-shadow: 0 0 0 4px var(--ok-soft); }
@@ -189,7 +190,8 @@ h1.headline {
 .chip.warn { color: var(--warn); background: var(--warn-soft); border-color: transparent; }
 .chip.bad { color: var(--bad); background: var(--bad-soft); border-color: transparent; }
 button.chip:hover { text-decoration: underline; }
-.toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; align-items: center; }
+/* when the buttons wrap (big text on a phone), the second row gets the same room as the rows above */
+.toolbar { display: flex; flex-wrap: wrap; gap: 12px 8px; margin-top: 6px; align-items: center; }
 .busy-note { color: var(--dim); font-size: .92rem; display: inline-flex; gap: 8px; align-items: center; }
 
 /* ---------- signal path ---------- */
@@ -279,14 +281,8 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .empty { color: var(--dim); font-size: .92rem; margin: 0; }
 
 /* ---------- logs ---------- */
-.logbar { display: grid; gap: 10px; margin-bottom: 12px; }
-.logrow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; min-width: 0; }
-.seg { display: inline-flex; background: var(--raised); border: 1px solid var(--line-soft); border-radius: 10px; padding: 3px; gap: 2px; }
-.seg button { border: 0; background: none; padding: 6px 12px; border-radius: 7px; color: var(--dim); font-weight: 500; }
-.seg button[aria-pressed="true"] { background: var(--bg); color: var(--text); box-shadow: 0 0 0 1px var(--line); }
 .input { background: var(--sunk); border: 1px solid var(--line); border-radius: 9px; padding: 8px 12px; min-width: 0; }
 .input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-.logbar .grow { flex: 1 1 160px; min-width: 120px; max-width: 360px; }
 .term {
   background: var(--sunk); border: 1px solid var(--line-soft); border-radius: var(--radius);
   height: min(68vh, 720px); overflow: auto; padding: 12px 0; font-family: var(--mono); font-size: .8rem; line-height: 1.6;
@@ -297,10 +293,79 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .ln.error { color: var(--bad); } .ln.warn { color: var(--warn); }
 .ln.info { color: var(--accent); } .ln.out { color: var(--text); }
 .term-empty { padding: 24px 16px; color: var(--faint); font-family: var(--font); font-size: .95rem; }
-.conn { font-size: .86rem; color: var(--faint); margin-left: auto; display: inline-flex; gap: 8px; align-items: center; }
+.conn { color: var(--faint); display: inline-flex; gap: 6px; align-items: center; }
 .conn::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
 .conn[data-s="live"]::before { background: var(--ok); }
 .conn[data-s="retry"]::before { background: var(--warn); }
+
+/* ---------- logs, laid out like AIOStreams' own log viewer ---------- */
+.view-head.lg-head { align-items: flex-start; }
+.lg-sub { margin: 4px 0 0; font-size: .86rem; color: var(--faint); }
+.lg-acts { margin-left: auto; display: flex; gap: 8px; }
+.lg-acts .btn { margin-left: 0; }
+.lg-acts svg, .lg-more svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.lg-more svg { fill: currentColor; stroke: none; }
+.btn.icon-only { padding: 5px 8px; }
+.lg-filters { display: grid; gap: 12px; margin-bottom: 12px; padding: 12px; background: var(--raised); border: 1px solid var(--line-soft); border-radius: var(--radius); }
+.lg-row { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.lg-search { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 0 12px; background: var(--sunk); border: 1px solid var(--line); border-radius: 9px; }
+.lg-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.lg-search svg { width: 16px; height: 16px; flex: none; fill: none; stroke: var(--faint); stroke-width: 2; stroke-linecap: round; }
+.lg-search input { flex: 1; min-width: 0; padding: 8px 0; border: 0; background: none; outline: none; }
+.lg-search:has(input.bad) { border-color: var(--bad); }
+.lg-regex { font-family: var(--mono); padding: 7px 10px; }
+.lg-regex[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.lg-svc { width: 200px; flex: none; padding: 8px 10px; }
+.lg-more { display: none; }
+.lg-row2 { justify-content: space-between; flex-wrap: wrap; }
+.lg-levels { display: flex; flex-wrap: wrap; gap: 6px; }
+.lg-levels button { padding: 2px 8px; border: 1px solid var(--line); border-radius: 5px; background: none; color: var(--dim); font-size: .74rem; font-weight: 600; letter-spacing: .03em; }
+.lg-levels button:hover { color: var(--text); }
+.lg-levels button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+.lg-levels button[data-lv="warn"][aria-pressed="true"] { color: var(--warn); }
+.lg-levels button[data-lv="error"][aria-pressed="true"] { color: var(--bad); }
+.lg-toggles { display: flex; gap: 22px; align-items: center; }
+/* on/off switches */
+.sw { display: inline-flex; align-items: center; gap: 10px; font-size: .9rem; font-weight: 600; cursor: pointer; user-select: none; }
+.sw[hidden] { display: none; }
+.sw input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.sw i { position: relative; width: 34px; height: 20px; flex: none; border-radius: 999px; background: var(--line); transition: background .15s; }
+.sw i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--dim); transition: transform .15s, background .15s; }
+.sw input:checked + i { background: var(--primary); }
+.sw input:checked + i::after { transform: translateX(14px); background: #fff; }
+.sw input:focus-visible + i { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .sw i, .sw i::after { transition: none; } }
+/* the lines: a time pill, a level dot, then [module] message and its details */
+.lg-list { height: min(68vh, 720px); overflow: auto; background: var(--raised); border: 1px solid var(--line-soft); border-radius: var(--radius); font-family: var(--mono); font-size: .76rem; overscroll-behavior: contain; }
+.lg-ln { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-top: 1px solid var(--line-soft); white-space: nowrap; width: max-content; min-width: 100%; }
+.lg-ln:first-child { border-top: 0; }
+.lg-ln:hover { background: var(--hover); }
+.lg-time { flex: none; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+.lg-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+.lg-ln.warn .lg-dot { background: var(--warn); }
+.lg-ln.error .lg-dot { background: var(--bad); }
+.lg-ln.warn .lg-msg { color: var(--warn); }
+.lg-ln.error .lg-msg { color: var(--bad); }
+.lg-mod { color: var(--dim); }
+.lg-extra { color: var(--faint); }
+.lg-list.wrap .lg-ln { white-space: normal; width: auto; align-items: flex-start; }
+.lg-list.wrap .lg-msg { white-space: pre-wrap; word-break: break-word; min-width: 0; }
+.lg-list.wrap .lg-dot { margin-top: 5px; }
+.lg-list .term-empty { display: grid; place-items: center; height: 100%; text-align: center; }
+@media (max-width: 720px) {
+  .view-head.lg-head { flex-direction: column; gap: 10px; }
+  .lg-acts { margin-left: 0; }
+  .lg-row:first-child { flex-wrap: wrap; }
+  .lg-search { flex: 1 1 calc(100% - 52px); }
+  .lg-svc { flex: 1; width: auto; }
+  .lg-more { display: inline-flex; }
+  .lg-filters { position: relative; }
+  /* Hide noise, Auto-scroll and Wrap open from the ⋮ button */
+  .lg-toggles { display: none; position: absolute; z-index: 15; right: 12px; top: 104px; flex-direction: column; align-items: stretch; gap: 18px; min-width: 220px; padding: 18px; background: var(--raised); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 14px 40px rgba(0, 0, 0, .4); }
+  .lg-toggles.open { display: flex; }
+  .lg-toggles .sw { justify-content: space-between; }
+  .lg-list { height: 60vh; }
+}
 
 /* ---------- activity + backups ---------- */
 .list { border: 1px solid var(--line-soft); border-radius: var(--radius); background: var(--raised); overflow: hidden; }
@@ -572,10 +637,6 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 
 /* ---------- phones ---------- */
 @media (max-width: 720px) {
-  /* log source switcher scrolls inside itself instead of widening the page */
-  .seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
-  .seg button { white-space: nowrap; }
-  .logbar .grow { flex: 1 1 100%; max-width: none; }
 
   /* backup rows: details on top, buttons underneath */
   .item.bk { grid-template-columns: minmax(0, 1fr); }
@@ -585,18 +646,6 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   .item.bk .what .lock-tag, .item.bk .what .build-tag { display: table; margin: 6px 0 2px; }
 }
 
-/* Follow and Hide noise: make on and off unmistakable. A filled, glowing dot and a solid accent border
-   mean on; a hollow dot and a neutral hover mean off. The dot is always there so nothing shifts. */
-.logbar .btn[aria-pressed]::before {
-  content: ""; flex: none; box-sizing: border-box; width: 8px; height: 8px; border-radius: 50%;
-  border: 1.5px solid var(--faint); background: transparent;
-}
-.logbar .btn[aria-pressed="true"] { border-color: var(--accent); }
-.logbar .btn[aria-pressed="true"]::before {
-  border-color: var(--accent); background: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent);
-}
-.logbar .btn[aria-pressed="false"]:hover:not(:disabled) { border-color: var(--faint); }
 
 /* a note that follows a list (the restart-panel note under the backups) needs air above it */
 .list + .note { margin-top: 16px; }
@@ -608,7 +657,7 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 #set-asides + .note { margin-top: 16px; }
 
 /* "Open AIOStreams" link in the hero, styled as a button */
-.hero-meta a.btn.open-site { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+a.btn.open-site { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
 /* Box-with-arrow after a link that opens a new tab */
 .ext { display: inline-flex; vertical-align: -2px; margin-left: 4px; }
 a.btn .ext { margin-left: 0; vertical-align: 0; }
