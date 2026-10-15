@@ -69,7 +69,7 @@ The pages are icons down the left; point at one to see its name. On a phone it a
 
 <img src="../images/control-panel/overview-phone.png" alt="The Overview tab on a phone" width="300"> <img src="../images/control-panel/menu-phone.png" alt="The menu on a phone" width="300">
 
-**Logs.** Live logs for AIOStreams, Caddy and each add-on. Filter, hide warnings, copy or download what you see.
+**Logs.** Live logs for AIOStreams, Caddy and each add-on, picked from a list. Filter the lines (or match a pattern with `.*`), show only INFO, WARN or ERROR, and copy or download what you see.
 
 ![The Logs tab](../images/control-panel/logs.png)
 

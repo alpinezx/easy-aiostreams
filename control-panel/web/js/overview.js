@@ -137,15 +137,17 @@ function hero(st) {
     el.append(h("div", { class: "hero-head", "aria-live": "polite" },
       h("span", { class: "lamp", dataset: { s: st.overall }, "aria-hidden": "true" }),
       h("h1", { class: "headline", text: st.headline })));
+    // Open AIOStreams on a line of its own, then one chip for the build and version, then the update bits.
+    if (st.domain) el.append(h("div", { class: "hero-open" }, h("a", { class: "btn small open-site", href: `https://${st.domain}`, target: "_blank", rel: "noopener noreferrer",
+      title: `Opens https://${st.domain} in a new tab` }, "Open AIOStreams", extIcon())));
     const meta = h("div", { class: "hero-meta" });
-    if (st.domain) meta.append(h("a", { class: "btn small open-site", href: `https://${st.domain}`, target: "_blank", rel: "noopener noreferrer",
-      title: `Opens https://${st.domain} in a new tab` }, "Open AIOStreams", extIcon()));
-    if (st.channel) meta.append(h("span", { class: "chip", text: `AIOStreams ${st.channel === "nightly" ? "nightly" : "latest"}`,
-      title: st.channel === "nightly" ? "AIOStreams' nightly builds (Docker tag: nightly). Switch with Update." : "AIOStreams' stable releases (Docker tag: latest). Switch with Update." }));
     const [updChip, updTail] = updateBits(st);
     const nightlyTag = relChannel(st) === "nightly" && runningTag(st);
-    if (st.version) meta.append(h("span", { class: "chip", text: nightlyTag ? `v${st.version} · ${nightlyTag.slice(0, -8)}` : `v${st.version}`,
-      title: nightlyTag ? `The AIOStreams version running now, and the nightly build it came from (${nightlyTag})` : "The AIOStreams version running now" }));
+    const chan = st.channel ? `AIOStreams ${st.channel === "nightly" ? "nightly" : "latest"}` : "AIOStreams";
+    const ver = st.version ? (nightlyTag ? `v${st.version} · ${nightlyTag.slice(0, -8)}` : `v${st.version}`) : "";
+    if (st.channel || st.version) meta.append(h("span", { class: "chip", text: [chan, ver].filter(Boolean).join(" "),
+      title: [st.channel === "nightly" ? "AIOStreams' nightly builds (Docker tag: nightly). Switch with Update." : st.channel ? "AIOStreams' stable releases (Docker tag: latest). Switch with Update." : "",
+        st.version ? (nightlyTag ? `Running v${st.version}, from the nightly build ${nightlyTag}.` : `Running v${st.version}.`) : ""].filter(Boolean).join(" ") }));
     if (updChip) meta.append(updChip);
     if (updTail) meta.append(...updTail);
     // VPN and certificate live in This server; they come up here, after the AIOStreams items, only when they need attention.
