@@ -23,44 +23,11 @@ Still not sure, or want the full technical breakdown of what each layer actually
 
 In your VPN provider's site or app, look for an "advanced," "manual setup," or "WireGuard" section, and download a `.conf` file for a server/location of your choice.
 
-**Test it works** by opening it in a WireGuard app on your own computer first and confirming it connects. Then **disconnect it there** before moving on .  you can't use the same file in two places at once.
+**Test it works** by opening it in a WireGuard app on your own computer first and confirming it connects. Then **disconnect it there** before moving on: you can't use the same file in two places at once.
 
 ---
 
-## 2. Check one line inside the file
-
-**This does:** confirms gluetun (the VPN tool) can actually use this file .  it needs an IP address, not a domain name.
-
-Open the `.conf` file and find the `Endpoint =` line. If it looks like this, you're good, skip to step 3:
-```
-Endpoint = 212.15.80.116:51820
-```
-
-If it looks like this instead (a name, not numbers):
-```
-Endpoint = new-york.us.wg.someprovider.net:51820
-```
-Run this to get the real IP:
-```bash
-dig +short new-york.us.wg.someprovider.net
-```
-Replace the hostname in the file with the IP it gives you, keeping the `:51820` part as-is.
-
----
-
-## 3. Upload the file to your server
-
-**This does:** puts the `.conf` file where the script can find it.
-
-Use any SFTP app (FileZilla, WinSCP, Termius) to drop the file into your home directory on the server. Where that is depends on how you log in:
-- **Logged in as root:** `/root/myvpn.conf`
-- **Logged in as yourself, using `sudo` to run the script:** your own home directory, e.g. `/home/your_user/myvpn.conf`
-
-Either way the script auto-detects it .  remember the path in case you need it, but you likely won't need to type it.
-
----
-
-## 4. Install and run the script
+## 2. Install and run the script
 
 **This does:** installs the VPN layer and walks you through first-time setup.
 
@@ -69,11 +36,21 @@ sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/
 sudo bash /opt/aiostreams/setup-vpn-gluetun.sh
 ```
 
-It'll ask for the path to your `.conf` file from step 3, then set everything up and switch you into VPN mode automatically.
+It asks how you'd like to give it your config. Press **Enter** to paste it:
+
+1. Open the `.conf` file on your computer in a text editor (Notepad is fine), select everything and copy it.
+2. Paste it into the SSH window. **Nothing shows on screen**, since it holds your private key. That's expected.
+3. Press **Enter**, then **Ctrl+D**.
+
+If the file's `Endpoint =` line has a name rather than an IP (like `new-york.us.wg.someprovider.net:51820`), the script looks the name up for you and lists the server addresses it found, fastest first. Press **Enter** for the recommended one. There's no need to edit the file first.
+
+It then sets everything up and switches you into VPN mode.
+
+Prefer to upload the file? Put it in your home folder with any SFTP app (FileZilla, WinSCP, Termius) and choose **2** instead of pasting; the script finds it.
 
 ---
 
-## 5. Confirm it's working
+## 3. Confirm it's working
 
 **This does:** proves your traffic is actually going through the VPN now.
 
@@ -97,7 +74,7 @@ Then load `https://yourdomain`, log in, and play a stream that previously needed
 
 ---
 
-## 6. Prove the kill switch actually blocks traffic (optional but recommended)
+## 4. Prove the kill switch actually blocks traffic (optional but recommended)
 
 **This does:** confirms a dropped tunnel fails closed instead of quietly leaking through your VPS's real IP.
 
@@ -122,7 +99,7 @@ sudo bash /opt/aiostreams/setup-vpn-gluetun.sh
 ```
 - **Turn VPN ON / OFF** .  switches modes, a few seconds of downtime.
 - **Status** .  shows whether it's on and healthy.
-- **Reconfigure VPN** .  swap in a different `.conf` file.
+- **Reconfigure VPN**: switch to a different config. Paste it, pick an address, and it's used straight away.
 
 ---
 

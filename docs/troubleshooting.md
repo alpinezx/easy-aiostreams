@@ -22,11 +22,11 @@ A quick-reference list pulled from the advanced guides' own troubleshooting sect
 
 1. **DNS not pointing at your server yet, or ports 80/443 blocked, so the HTTPS cert fails.** The two most common snags, on a first install and on a [restore](./advanced/backup-restore.md#troubleshooting) alike. Confirm DNS first with `dig +short yourdomain.com`; if that matches but it's still stuck, check [Firewall & Ports](./advanced/firewall-ports.md), especially if you're on Oracle Cloud.
 
-2. **VPN status shows "unhealthy," or the tunnel won't connect.** Almost always a stale endpoint IP.
+2. **VPN status shows "unhealthy," or the tunnel won't connect.** Almost always a stale endpoint IP. Run **Reconfigure** with the same config and pick a fresh address.
    → [VPN Setup: Troubleshooting](./advanced/vpn-setup.md#troubleshooting)
 
-3. **The `Endpoint =` line in your `.conf` file is a hostname, not an IP.** gluetun requires a literal IP address here. Resolve it with `dig` first.
-   → [Important: gluetun needs an IP, not a hostname](./advanced/vpn-setup.md#important-gluetun-needs-an-ip-not-a-hostname)
+3. **The `Endpoint =` line in your `.conf` file is a hostname, not an IP.** That's fine: gluetun needs an IP, and the script looks the name up and lets you pick an address.
+   → [VPN Setup: Endpoint names and IPs](./advanced/vpn-setup.md#endpoint-names-and-ips)
 
 4. **`sudo docker compose logs gluetun` shows "using plaintext DNS."** Looks like a leak, isn't one, it's a one-time startup message before gluetun's own encrypted resolver finishes booting. **Status** and **Turn VPN ON** both now check the real thing (a live connection on :853) and print `DNS: encrypted` once confirmed, ignore the log line.
    → [VPN Setup: Confirming DNS is actually encrypted](./advanced/vpn-setup.md#confirming-dns-is-actually-encrypted-not-just-the-tunnel)
