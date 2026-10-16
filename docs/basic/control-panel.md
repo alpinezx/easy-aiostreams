@@ -61,7 +61,7 @@ Treat the unlock link like a password. If it ever leaks, make a new one (see [Ev
 
 ## What's in it
 
-**Overview.** Whether everything is up, which build and version you're on, the path a request takes through Caddy (and the VPN, if you use it), and each service with its CPU, memory and a **Logs** button. **Restart**, **Stop** and **Update • Switch build** do the same as the matching options in `setup-aiostreams.sh`.
+**Overview.** Whether everything is up, which build and version you're on, the path a request takes through Caddy (and the VPN, if you use it), and each service with its CPU, memory and a **Logs** button. **Update • Switch build** sits at the top, **Restart stack** by the request path, and **Stop** (or **Start**) on AIOStreams' row; they do the same as the matching options in `setup-aiostreams.sh`. Stop leaves Caddy running.
 
 ![Update or switch build, with a backup first](../images/control-panel/update-dialog.png)
 
