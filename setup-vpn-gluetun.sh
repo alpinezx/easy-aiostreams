@@ -804,7 +804,7 @@ do_uninstall_vpn() {
 
     local orig_conf=""
     [[ -f "$LAST_CONF_MARKER" ]] && orig_conf=$(cat "$LAST_CONF_MARKER" 2>/dev/null || true)
-    if [[ -n "$orig_conf" && -f "$orig_conf" ]]; then
+    if [[ -n "$orig_conf" && -f "$orig_conf" && "$orig_conf" != "$STATE_DIR"/* ]]; then
         echo ""
         echo "Your original WireGuard config is still at: $orig_conf"
         echo "It contains your private key in plain text."
@@ -939,12 +939,42 @@ resolve_endpoint() {
     chmod 600 "$ENDPOINT_HOST_FILE"
 }
 
-do_reconfigure_vpn() {
-    try_read_existing_values "$COMPOSE_FILE" || read_existing_values "$DIRECT_COMPOSE"
+# A WireGuard config pasted into the SSH window, so nothing has to be uploaded
+# first. It holds the private key, so the paste isn't shown on screen, and it's
+# saved where only root can read it (vpn-state is 700). The previous pasted
+# config is kept beside it as wireguard.conf.prev.
+PASTED_CONF="$STATE_DIR/wireguard.conf"
+PASTE_TTY=""
+paste_config() {
+    echo ""
+    echo "Paste the whole config now. It won't show on screen, since it holds your private key."
+    echo "When it's all pasted, press Enter, then Ctrl+D."
+    if [[ -t 0 ]]; then
+        PASTE_TTY=$(stty -g)
+        stty -echo
+        trap 'stty "$PASTE_TTY" 2>/dev/null; echo; exit 130' INT TERM
+    fi
+    local body
+    body=$(cat || true)
+    if [[ -n "$PASTE_TTY" ]]; then
+        stty "$PASTE_TTY"
+        trap - INT TERM
+        PASTE_TTY=""
+    fi
+    body=$(tr -d '\r' <<<"$body" | sed 's/^[[:space:]]*//')
+    echo "Read $(grep -c . <<<"$body" || true) lines."
+    grep -qi '^\[Interface\]' <<<"$body" && grep -qi '^\[Peer\]' <<<"$body" && \
+        grep -qi '^PrivateKey' <<<"$body" && grep -qi '^Endpoint' <<<"$body" || \
+        error "That doesn't look like a WireGuard config (it needs [Interface], [Peer], PrivateKey and Endpoint). Nothing was saved."
+    [[ -f "$PASTED_CONF" ]] && mv -f "$PASTED_CONF" "$PASTED_CONF.prev"
+    ( umask 077; printf '%s\n' "$body" > "$PASTED_CONF" )
+    chmod 600 "$PASTED_CONF"
+    WG_PATH="$PASTED_CONF"
+    echo "  Saved (only root can read it)."
+}
 
-    info "WireGuard config"
-    echo "Point this at a WireGuard .conf file already on this server."
-
+# A WireGuard .conf already on the server, uploaded with SFTP for example.
+choose_conf_file() {
     # Auto-detect .conf files in /root and the invoking sudo user's home,
     # filtered by content (needs [Interface]/[Peer]/PrivateKey/Endpoint) so
     # an unrelated .conf like nginx.conf isn't offered as a choice.
@@ -1005,6 +1035,20 @@ do_reconfigure_vpn() {
     fi
 
     [[ -f "$WG_PATH" ]] || error "File not found: $WG_PATH"
+}
+
+do_reconfigure_vpn() {
+    try_read_existing_values "$COMPOSE_FILE" || read_existing_values "$DIRECT_COMPOSE"
+
+    info "WireGuard config"
+    echo "  1) Paste it in (open your VPN provider's .conf file and copy everything)"
+    echo "  2) Use a .conf file already on this server"
+    read -rp "Choose 1 or 2 [1]: " WG_HOW
+    if [[ "${WG_HOW:-1}" == "2" ]]; then
+        choose_conf_file
+    else
+        paste_config
+    fi
 
     WG_PRIVATE_KEY=$(grep -i '^PrivateKey' "$WG_PATH" | head -1 | cut -d= -f2- | tr -d ' \r' || true)
     WG_ADDRESS=$(grep -i '^Address' "$WG_PATH" | head -1 | cut -d= -f2- | tr -d ' \r' || true)
