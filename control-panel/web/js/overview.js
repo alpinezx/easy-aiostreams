@@ -79,7 +79,7 @@ const SVG = "http://www.w3.org/2000/svg";
 
 const STATE_WORD = {
   running: "Running", starting: "Starting", stopped: "Stopped", missing: "Not created",
-  unhealthy: "Unhealthy", restarting: "Restarting", paused: "Stopped on purpose",
+  unhealthy: "Unhealthy", restarting: "Restarting", paused: "Stopped manually",
 };
 const stateOf = (s) => (s.on_purpose && s.state !== "running" ? "paused" : s.state);
 
@@ -165,11 +165,8 @@ function hero(st) {
       el.append(h("p", { class: "empty", text: "AIOStreams isn't installed on this server yet. Run setup-aiostreams.sh over SSH first." }));
       return;
     }
-    if (aio && aio.state === "running") {
-      bar.append(btn("stack.restart"), btn("stack.stop", "danger"), btn("stack.update", "primary", "Update \u2022 Switch build"));
-    } else {
-      bar.append(btn("stack.start", "primary"), btn("stack.update", "", "Update \u2022 Switch build"));
-    }
+    // Start and Stop sit on AIOStreams' row in Services, and Restart stack on the request path.
+    bar.append(btn("stack.update", "primary", "Update \u2022 Switch build"));
     if (st.busy) {
       bar.append(h("span", { class: "busy-note" }, h("span", { class: "spin", "aria-hidden": "true" }), "An action is running",
         h("button", { class: "btn small", type: "button", text: "View output", onclick: () => openJob(st.busy) })));
@@ -190,9 +187,12 @@ function node(s) {
 function path(st) {
   const main = st.services.filter((s) => !s.addon);
   const addons = st.services.filter((s) => s.addon);
-  const key = st.services.map((s) => `${s.key}:${stateOf(s)}`).join(",") + st.docker_ok;
+  const restart = st.installed && st.actions.find((a) => a.id === "stack.restart");
+  const key = st.services.map((s) => `${s.key}:${stateOf(s)}`).join(",") + st.docker_ok + !!st.busy + !!(restart && restart.available);
   const el = rebuild("#path", key, (el) => {
-    el.append(h("h2", { class: "path-title", text: "Where a request goes" }));
+    el.append(h("div", { class: "path-head" }, h("h2", { class: "path-title", text: "Where a request goes" }),
+      restart && restart.available ? h("button", { class: "btn small", type: "button", text: "Restart stack", disabled: !!st.busy,
+        title: "Restart Caddy, AIOStreams and anything in between", onclick: () => runAction(restart) }) : null));
     const chain = h("div", { class: "chain" });
     chain.append(h("div", { class: "path-start" }, h("i"), "Visitors"));
     let upstreamOk = true;   // everything before this point is running
@@ -262,8 +262,9 @@ function rows(st, goLogs) {
           title: s.state === "running" ? `Restart only ${s.name}` : "Only available while it's running",
           onclick: () => restartService(s) }));
       }
-      if (s.addon) {
-        const id = `${s.key}.${s.state === "running" ? "stop" : "start"}`;
+      // AIOStreams' Start / Stop are the stack's (Stop leaves Caddy up); the add-ons have their own
+      if (s.addon || s.key === "aiostreams") {
+        const id = `${s.addon ? s.key : "stack"}.${s.state === "running" ? "stop" : "start"}`;
         const a = avail[id];
         if (a && a.available) acts.append(h("button", { class: "btn small" + (s.state === "running" ? " danger" : ""), type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
       }

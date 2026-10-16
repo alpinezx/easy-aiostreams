@@ -196,7 +196,8 @@ button.chip:hover { text-decoration: underline; }
 
 /* ---------- signal path ---------- */
 .path { margin: 4px 0 30px; padding: 26px 22px 22px; background: var(--sunk); border: 1px solid var(--line-soft); border-radius: var(--radius); }
-.path-title { margin: 0 0 18px; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--faint); }
+.path-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -6px 0 18px; }
+.path-title { margin: 0; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--faint); }
 .chain { display: flex; align-items: stretch; }
 .path-start { align-self: center; display: flex; align-items: center; gap: 8px; color: var(--faint); font-size: .9rem; padding-right: 10px; }
 .path-start i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--faint); }
