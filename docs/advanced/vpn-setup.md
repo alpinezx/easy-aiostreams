@@ -108,9 +108,9 @@ when the endpoint is a name, the script does it.
 2. It pings up to 8 of those addresses at once, from the server, and lists
    them fastest first:
    ```
-     1) 186.247.163.16   0.9 ms  (recommended)
-     2) 186.247.75.151   0.9 ms
-     3) 186.247.78.230   1.9 ms
+     1) 203.0.113.16     0.9 ms  (recommended)
+     2) 203.0.113.151    0.9 ms
+     3) 203.0.113.230    1.9 ms
    ```
    Press **Enter** for the recommended one, or type a number. Some providers
    don't answer pings; those show "no reply", go last, and can still be picked.
