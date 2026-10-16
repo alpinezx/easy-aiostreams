@@ -804,7 +804,7 @@ do_uninstall_vpn() {
 
     local orig_conf=""
     [[ -f "$LAST_CONF_MARKER" ]] && orig_conf=$(cat "$LAST_CONF_MARKER" 2>/dev/null || true)
-    if [[ -n "$orig_conf" && -f "$orig_conf" ]]; then
+    if [[ -n "$orig_conf" && -f "$orig_conf" && "$orig_conf" != "$STATE_DIR"/* ]]; then
         echo ""
         echo "Your original WireGuard config is still at: $orig_conf"
         echo "It contains your private key in plain text."
@@ -867,12 +867,128 @@ do_update_gluetun() {
     cleanup_replaced_images "$image_snapshot"
 }
 
-do_reconfigure_vpn() {
-    try_read_existing_values "$COMPOSE_FILE" || read_existing_values "$DIRECT_COMPOSE"
+# gluetun needs the endpoint as an IP. When a .conf gives a name instead, look
+# it up through several public DNS services (over HTTPS with curl, so nothing
+# extra to install) plus this server's own resolver, ping each address from
+# here, and let the person pick, fastest first. Providers often hand out a
+# different address on every lookup, so each service is asked a few times and
+# the answers aren't expected to agree. Sets WG_ENDPOINT_IP, and remembers the
+# name so it can be looked up again later.
+ENDPOINT_HOST_FILE="$STATE_DIR/endpoint-host"
+ENDPOINT_MAX=8
+resolve_endpoint() {
+    local host="$1" url out ip ms tag pick i round
+    [[ "$host" =~ ^[A-Za-z0-9.-]+$ ]] || error "Endpoint '$host' isn't an IPv4 address or a host name. Check the .conf file's Endpoint line."
+    info "Looking up $host"
+    local ips=()
+    for round in 1 2 3; do
+        for url in \
+            "https://cloudflare-dns.com/dns-query?name=$host&type=A" \
+            "https://dns.google/resolve?name=$host&type=A" \
+            "https://dns.adguard-dns.com/resolve?name=$host&type=A" \
+            "https://dns.nextdns.io/dns-query?name=$host&type=A"; do
+            out=$(curl -fsS --max-time 5 -H 'accept: application/dns-json' "$url" 2>/dev/null || true)
+            while read -r ip; do
+                [[ -n "$ip" ]] && ips+=("$ip")
+            done < <(grep -oE '"data": *"[0-9]+(\.[0-9]+){3}"' <<<"$out" | grep -oE '[0-9]+(\.[0-9]+){3}' || true)
+        done
+    done
+    while read -r ip; do
+        [[ -n "$ip" ]] && ips+=("$ip")
+    done < <(getent ahostsv4 "$host" 2>/dev/null | awk '{print $1}' || true)
+    [[ ${#ips[@]} -gt 0 ]] || error "Couldn't look up $host. Check the name in the .conf file, or put the server's IP in its Endpoint line instead."
+    mapfile -t ips < <(printf '%s\n' "${ips[@]}" | awk 'NF && !seen[$0]++' | head -n "$ENDPOINT_MAX")
+    local found=${#ips[@]}
 
-    info "WireGuard config"
-    echo "Point this at a WireGuard .conf file already on this server."
+    # The address in use now, when it came from this same name, always goes in
+    # the list (the lookups may not return it again), so it can be compared
+    # with the others. Never for a different name: its keys wouldn't match.
+    local in_use="" prev_host=""
+    [[ -f "$ENDPOINT_HOST_FILE" ]] && prev_host=$(cat "$ENDPOINT_HOST_FILE" 2>/dev/null || true)
+    if [[ "$prev_host" == "$host" && -f "$VPN_COMPOSE" ]]; then
+        in_use=$(grep -oP '(?<=WIREGUARD_ENDPOINT_IP=).*' "$VPN_COMPOSE" 2>/dev/null | head -1 || true)
+        if [[ -n "$in_use" ]] && ! printf '%s\n' "${ips[@]}" | grep -qxF "$in_use"; then
+            ips+=("$in_use")
+        fi
+    fi
 
+    # Ping them all at once from this server, then list fastest first. Some
+    # providers don't answer pings; those go last as "no reply" and can still
+    # be picked.
+    local rows=()
+    if command -v ping >/dev/null 2>&1; then
+        echo "  Found $found address(es). Checking how quickly each answers from this server..."
+        local tmp
+        tmp=$(mktemp -d)
+        for ip in "${ips[@]}"; do
+            ( ping -c 3 -i 0.2 -W 1 -q "$ip" 2>/dev/null | awk -F/ '/^(rtt|round-trip)/ {printf "%.1f", $5}' > "$tmp/$ip" || true ) &
+        done
+        wait
+        for ip in "${ips[@]}"; do
+            ms=$(cat "$tmp/$ip" 2>/dev/null || true)
+            rows+=("${ms:-99999} $ip")
+        done
+        rm -rf "$tmp"
+        mapfile -t rows < <(printf '%s\n' "${rows[@]}" | sort -g -k1,1)
+    else
+        for ip in "${ips[@]}"; do rows+=("99999 $ip"); done
+    fi
+
+    echo ""
+    i=1
+    for row in "${rows[@]}"; do
+        ms=${row%% *}; ip=${row#* }
+        tag=""
+        [[ $i -eq 1 && "$ms" != 99999 ]] && tag="  (recommended)"
+        [[ -n "$in_use" && "$ip" == "$in_use" ]] && tag="$tag  (in use now)"
+        if [[ "$ms" == 99999 ]]; then ms="no reply"; else ms="$ms ms"; fi
+        printf '  %d) %-15s  %s%s\n' "$i" "$ip" "$ms" "$tag"
+        i=$((i + 1))
+    done
+    read -rp "Choose a number [1-${#rows[@]}], or press Enter for 1: " pick
+    [[ -z "$pick" ]] && pick=1
+    [[ "$pick" =~ ^[0-9]+$ ]] && (( pick >= 1 && pick <= ${#rows[@]} )) || error "Not one of the numbers listed."
+    WG_ENDPOINT_IP=${rows[$((pick - 1))]#* }
+    echo "$host" > "$ENDPOINT_HOST_FILE"
+    chmod 600 "$ENDPOINT_HOST_FILE"
+}
+
+# A WireGuard config pasted into the SSH window, so nothing has to be uploaded
+# first. It holds the private key, so the paste isn't shown on screen, and it's
+# saved where only root can read it (vpn-state is 700). The previous pasted
+# config is kept beside it as wireguard.conf.prev.
+PASTED_CONF="$STATE_DIR/wireguard.conf"
+PASTE_TTY=""
+paste_config() {
+    echo ""
+    echo "Paste the whole config now. It won't show on screen, since it holds your private key."
+    echo "When it's all pasted, press Enter, then Ctrl+D."
+    if [[ -t 0 ]]; then
+        PASTE_TTY=$(stty -g)
+        stty -echo
+        trap 'stty "$PASTE_TTY" 2>/dev/null; echo; exit 130' INT TERM
+    fi
+    local body
+    body=$(cat || true)
+    if [[ -n "$PASTE_TTY" ]]; then
+        stty "$PASTE_TTY"
+        trap - INT TERM
+        PASTE_TTY=""
+    fi
+    body=$(tr -d '\r' <<<"$body" | sed 's/^[[:space:]]*//')
+    echo "Read $(grep -c . <<<"$body" || true) lines."
+    grep -qi '^\[Interface\]' <<<"$body" && grep -qi '^\[Peer\]' <<<"$body" && \
+        grep -qi '^PrivateKey' <<<"$body" && grep -qi '^Endpoint' <<<"$body" || \
+        error "That doesn't look like a WireGuard config (it needs [Interface], [Peer], PrivateKey and Endpoint). Nothing was saved."
+    [[ -f "$PASTED_CONF" ]] && mv -f "$PASTED_CONF" "$PASTED_CONF.prev"
+    ( umask 077; printf '%s\n' "$body" > "$PASTED_CONF" )
+    chmod 600 "$PASTED_CONF"
+    WG_PATH="$PASTED_CONF"
+    echo "  Saved (only root can read it)."
+}
+
+# A WireGuard .conf already on the server, uploaded with SFTP for example.
+choose_conf_file() {
     # Auto-detect .conf files in /root and the invoking sudo user's home,
     # filtered by content (needs [Interface]/[Peer]/PrivateKey/Endpoint) so
     # an unrelated .conf like nginx.conf isn't offered as a choice.
@@ -933,6 +1049,38 @@ do_reconfigure_vpn() {
     fi
 
     [[ -f "$WG_PATH" ]] || error "File not found: $WG_PATH"
+}
+
+do_reconfigure_vpn() {
+    try_read_existing_values "$COMPOSE_FILE" || read_existing_values "$DIRECT_COMPOSE"
+
+    # A config whose endpoint is a name can be kept and just pointed at a
+    # different server address (one that's flaky or blocked, say). Offered
+    # only while that config file is still there.
+    local current_conf="" can_repick=false
+    [[ -f "$LAST_CONF_MARKER" ]] && current_conf=$(cat "$LAST_CONF_MARKER" 2>/dev/null || true)
+    [[ -n "$current_conf" && -f "$current_conf" && -f "$ENDPOINT_HOST_FILE" ]] && can_repick=true
+
+    info "WireGuard config"
+    echo "  1) Paste it in (open your VPN provider's .conf file and copy everything)"
+    echo "  2) Use a .conf file already on this server"
+    if $can_repick; then
+        echo "  3) Keep the current config, just pick a different server address"
+        read -rp "Choose 1, 2 or 3 [1]: " WG_HOW
+    else
+        read -rp "Choose 1 or 2 [1]: " WG_HOW
+    fi
+    case "${WG_HOW:-1}" in
+        2) choose_conf_file ;;
+        3)
+            if $can_repick; then
+                WG_PATH="$current_conf"
+            else
+                paste_config
+            fi
+            ;;
+        *) paste_config ;;
+    esac
 
     WG_PRIVATE_KEY=$(grep -i '^PrivateKey' "$WG_PATH" | head -1 | cut -d= -f2- | tr -d ' \r' || true)
     WG_ADDRESS=$(grep -i '^Address' "$WG_PATH" | head -1 | cut -d= -f2- | tr -d ' \r' || true)
@@ -945,15 +1093,38 @@ do_reconfigure_vpn() {
     WG_ENDPOINT_IP="${WG_ENDPOINT%%:*}"
     WG_ENDPOINT_PORT="${WG_ENDPOINT##*:}"
 
-    if ! [[ "$WG_ENDPOINT_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        error "Endpoint '$WG_ENDPOINT_IP' isn't a literal IPv4 address. gluetun requires an IP, not a hostname, resolve it first (e.g. 'dig +short $WG_ENDPOINT_IP') and edit the .conf file's Endpoint line before retrying."
+    [[ "$WG_ENDPOINT_PORT" =~ ^[0-9]+$ ]] || error "Couldn't read a port from the Endpoint line ($WG_ENDPOINT). It should look like name-or-IP:51820."
+    if [[ "$WG_ENDPOINT_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        rm -f "$ENDPOINT_HOST_FILE"
+    else
+        resolve_endpoint "$WG_ENDPOINT_IP"     # a name: look it up and pick an address
     fi
 
     echo "  Parsed endpoint: $WG_ENDPOINT_IP:$WG_ENDPOINT_PORT"
 
     echo "$WG_PATH" > "$LAST_CONF_MARKER"
     write_vpn_files
-    echo "VPN config saved. Choose 'Turn VPN ON' from the menu to apply it."
+    [[ "${1:-}" == "menu" ]] || return 0      # first-time setup applies it next
+    if [[ "$(cat "$ACTIVE_MARKER" 2>/dev/null || true)" == "vpn" ]]; then
+        read -rp "VPN config saved. Use it now? This restarts the stack in VPN mode. [Y/n]: " APPLY_NOW
+        case "$APPLY_NOW" in
+            n|N|no|No) echo "Not applied yet. Choose 'Turn VPN ON' when you're ready." ;;
+            *) turn_vpn_on ;;
+        esac
+    else
+        echo "VPN config saved. It's used the next time you choose 'Turn VPN ON'."
+    fi
+}
+
+# Turn VPN ON (menu option 2, and option 4's "use it now"). No
+# confirm_vpn_disruption gate, unlike OFF, this direction never exposes
+# anything. skip_aio purely avoids resurrecting AIOStreams if it was
+# deliberately left stopped beforehand.
+turn_vpn_on() {
+    local aio_running_now skip_aio="false"
+    aio_running_now=$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo "false")
+    [[ "$aio_running_now" == "true" ]] || skip_aio="true"
+    apply_mode "vpn" "$skip_aio"
 }
 
 first_time_setup() {
@@ -1012,15 +1183,7 @@ while true; do
 
     case "$CHOICE" in
         1) do_status ;;
-        2)
-            # No confirm_vpn_disruption gate, unlike OFF, this direction
-            # never exposes anything. skip_aio purely avoids resurrecting
-            # AIOStreams if it was deliberately left stopped beforehand.
-            aio_running_now=$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo "false")
-            skip_aio="false"
-            [[ "$aio_running_now" == "true" ]] || skip_aio="true"
-            apply_mode "vpn" "$skip_aio"
-            ;;
+        2) turn_vpn_on ;;
         3)
             if confirm_vpn_disruption; then
                 # Check AFTER confirm_vpn_disruption, if the user picked
@@ -1032,7 +1195,7 @@ while true; do
                 apply_mode "direct" "$skip_aio"
             fi
             ;;
-        4) do_reconfigure_vpn ;;
+        4) do_reconfigure_vpn menu ;;
         5) do_update_gluetun ;;
         6) do_force_cleanup ;;
         7) do_uninstall_vpn ;;

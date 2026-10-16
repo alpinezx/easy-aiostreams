@@ -60,8 +60,9 @@ VPS directly.
 - A VPN provider that supports **WireGuard**, with a way to export a
   `.conf` config file (most major providers support this .  check their
   site or app for an "advanced," "manual setup," or "WireGuard" section).
-- That `.conf` file uploaded somewhere on the VPS (SFTP works fine .  see
-  [Getting your config onto the server](#getting-your-config-onto-the-server)).
+- That `.conf` file on your computer. You paste its contents into the script,
+  or upload it if you prefer (see
+  [Giving the script your config](#giving-the-script-your-config)).
 
 ---
 
@@ -85,48 +86,64 @@ provider to disconnect one side.
 
 ---
 
-## Important: gluetun needs an IP, not a hostname
+## Endpoint names and IPs
 
-Open your `.conf` file and look at the `Endpoint =` line under `[Peer]`.
-
-If it looks like this, you're fine:
+Open your `.conf` file and look at the `Endpoint =` line under `[Peer]`. It's
+either an IP:
 ```
 Endpoint = 212.15.80.116:51820
 ```
-
-If it looks like this, you have one extra step first:
+or a name:
 ```
 Endpoint = new-york.us.wg.someprovider.net:51820
 ```
 
-gluetun's custom-provider mode requires a literal IP address here . 
-domain/hostnames aren't supported (this is a known gluetun limitation, not
-a bug in this script). Resolve it once and edit the file:
+gluetun's custom-provider mode only accepts an IP here (a known gluetun
+limitation, not a bug in this script). You don't have to look it up yourself:
+when the endpoint is a name, the script does it.
 
-```bash
-dig +short new-york.us.wg.someprovider.net
-```
+1. It asks Cloudflare, Google, AdGuard and NextDNS over HTTPS (three times
+   each), plus the server's own resolver. Many providers hand out a different
+   address on every lookup, so this collects a spread of their servers.
+2. It pings up to 8 of those addresses at once, from the server, and lists
+   them fastest first:
+   ```
+     1) 203.0.113.16     0.9 ms  (recommended)
+     2) 203.0.113.151    0.9 ms
+     3) 203.0.113.230    1.9 ms
+   ```
+   Press **Enter** for the recommended one, or type a number. Some providers
+   don't answer pings; those show "no reply", go last, and can still be picked.
+3. It uses that IP with the port from your file. The `.conf` file itself isn't
+   changed, and the name is remembered in `vpn-state/endpoint-host`.
 
-Take the IP that comes back and replace the hostname in the `Endpoint` line,
-keeping the port (`:51820`) as-is.
+Asking from the server gets the addresses meant for the server's location,
+which suit it better than a DNS checking website's answers.
 
-Some providers' regional hostnames (like the example above) load-balance across multiple servers, so the IP you resolve today might change if you resolve it again in a few months. If the tunnel mysteriously stops connecting later, re-run `dig` and update the endpoint. Regional hostnames have this issue; server-specific ones don't.
+A name like this points at several servers, and they change over time. If
+the one you picked becomes slow, flaky or blocked, run **Reconfigure** and
+choose **3) Keep the current config, just pick a different server address**:
+it looks the name up again, marks the address in use now, and lets you pick
+another. Server-specific names and plain IPs don't need this.
 
 ---
 
-## Getting your config onto the server
+## Giving the script your config
 
-Any file transfer method works .  SFTP (e.g. via Termius, FileZilla, WinSCP)
-is the easiest for most people. Drop the `.conf` file directly into your
-home directory on the server .  no special folder needed. Where that is
-depends on how you log in to run the script:
-- **Logged in as root:** `/root/myvpn.conf`
-- **Logged in as yourself, using `sudo` to run the script:** your own home
-  directory, e.g. `/home/your_user/myvpn.conf`
+The script asks how you'd like to give it the config:
 
-The script auto-detects `.conf` files in either location (it checks both
-`/root` and the invoking sudo user's home), so just remember the path in
-case auto-detect doesn't find it .  you'll be asked for it either way.
+- **Paste it** (the default, just press Enter). Open the `.conf` file on your
+  computer in a text editor, copy everything, paste it into the SSH window,
+  then press **Enter** and **Ctrl+D**. Nothing shows on screen while you
+  paste, since it holds your private key. The script checks it's a WireGuard
+  config (`[Interface]`, `[Peer]`, `PrivateKey`, `Endpoint`) and saves it as
+  `vpn-state/wireguard.conf`, readable only by root. The one before is kept
+  as `wireguard.conf.prev`.
+- **Use a file already on the server.** Upload the `.conf` file with any
+  SFTP app (Termius, FileZilla, WinSCP) into your home folder:
+  `/root/myvpn.conf` if you log in as root, or `/home/your_user/myvpn.conf`
+  if you log in as yourself and use `sudo`. The script finds `.conf` files in
+  both places, or you can type a path.
 
 ---
 
@@ -146,7 +163,8 @@ setup automatically:
 
 1. Reads your existing domain/login straight out of your current
    `docker-compose.yml` .  nothing to re-enter.
-2. Asks for the path to your `.conf` file (from the step above).
+2. Asks for your config (paste it, or point at a file), and if its endpoint
+   is a name, lets you pick an address.
 3. Backs up your current config.
 4. Builds both a "direct" and a "VPN" version of your stack, and switches
    you into VPN mode.
@@ -184,8 +202,11 @@ sudo bash /opt/aiostreams/setup-vpn-gluetun.sh
   restarts the stack (a few seconds of downtime either way). Switching modes
   fully removes whatever the other mode was running .  nothing is left idling
   in the background.
-- **Reconfigure** .  swap in a different `.conf` file (e.g. a different
-  country/server) without redoing the whole setup.
+- **Reconfigure**: switch to a different config (for example a different
+  country or server) without redoing the whole setup. Paste it or point at a
+  file, pick an address, and with the VPN on, it offers to use it straight
+  away (a stack restart). When the current config's endpoint is a name, a
+  third choice keeps the config and just picks a different server address.
 - **Update gluetun** .  pulls the latest gluetun image. In VPN mode it then
   safely restarts the stack so the new image takes effect; in direct mode
   nothing restarts .  the fresh image simply gets used next time you turn the
@@ -201,9 +222,10 @@ sudo bash /opt/aiostreams/setup-vpn-gluetun.sh
 - **Uninstall VPN layer** .  removes gluetun and its saved state entirely,
   switching back to a plain AIOStreams + Caddy stack first if VPN mode is
   currently on. Along the way it offers to also remove the gluetun Docker
-  image and to delete your original `.conf` file (both are optional . 
-  the `.conf` file contains your private key in plain text, so deleting it
-  once you're done is worth doing). AIOStreams and Caddy themselves are
+  image and, if you used a file you uploaded, to delete it (both are
+  optional, but the `.conf` file holds your private key in plain text, so
+  deleting it once you're done is worth doing). A pasted config is removed
+  with the saved state. AIOStreams and Caddy themselves are
   untouched; running the script again afterward starts first-time VPN
   setup from scratch.
 
@@ -553,7 +575,8 @@ two compare directly.
 **"Couldn't confirm the tunnel came up" / status shows unhealthy**
 Check the raw logs: `sudo docker compose logs gluetun`. Look for connection
 errors near the `[wireguard] Connecting to ...` line. A stale endpoint IP
-(see the hostname section above) is the most common cause.
+is the most common cause: run **Reconfigure**, choose **3** and pick a
+different address (see [Endpoint names and IPs](#endpoint-names-and-ips)).
 
 **Orphan container warnings when switching modes**
 Mode switches tear down the currently running stack *before* swapping
