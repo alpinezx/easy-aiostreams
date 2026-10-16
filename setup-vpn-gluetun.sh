@@ -898,13 +898,26 @@ resolve_endpoint() {
     done < <(getent ahostsv4 "$host" 2>/dev/null | awk '{print $1}' || true)
     [[ ${#ips[@]} -gt 0 ]] || error "Couldn't look up $host. Check the name in the .conf file, or put the server's IP in its Endpoint line instead."
     mapfile -t ips < <(printf '%s\n' "${ips[@]}" | awk 'NF && !seen[$0]++' | head -n "$ENDPOINT_MAX")
+    local found=${#ips[@]}
+
+    # The address in use now, when it came from this same name, always goes in
+    # the list (the lookups may not return it again), so it can be compared
+    # with the others. Never for a different name: its keys wouldn't match.
+    local in_use="" prev_host=""
+    [[ -f "$ENDPOINT_HOST_FILE" ]] && prev_host=$(cat "$ENDPOINT_HOST_FILE" 2>/dev/null || true)
+    if [[ "$prev_host" == "$host" && -f "$VPN_COMPOSE" ]]; then
+        in_use=$(grep -oP '(?<=WIREGUARD_ENDPOINT_IP=).*' "$VPN_COMPOSE" 2>/dev/null | head -1 || true)
+        if [[ -n "$in_use" ]] && ! printf '%s\n' "${ips[@]}" | grep -qxF "$in_use"; then
+            ips+=("$in_use")
+        fi
+    fi
 
     # Ping them all at once from this server, then list fastest first. Some
     # providers don't answer pings; those go last as "no reply" and can still
     # be picked.
     local rows=()
     if command -v ping >/dev/null 2>&1; then
-        echo "  Found ${#ips[@]} address(es). Checking how quickly each answers from this server..."
+        echo "  Found $found address(es). Checking how quickly each answers from this server..."
         local tmp
         tmp=$(mktemp -d)
         for ip in "${ips[@]}"; do
@@ -921,8 +934,6 @@ resolve_endpoint() {
         for ip in "${ips[@]}"; do rows+=("99999 $ip"); done
     fi
 
-    local in_use=""
-    [[ -f "$VPN_COMPOSE" ]] && in_use=$(grep -oP '(?<=WIREGUARD_ENDPOINT_IP=).*' "$VPN_COMPOSE" 2>/dev/null | head -1 || true)
     echo ""
     i=1
     for row in "${rows[@]}"; do
