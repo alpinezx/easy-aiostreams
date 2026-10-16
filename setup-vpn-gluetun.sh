@@ -908,7 +908,7 @@ resolve_endpoint() {
         local tmp
         tmp=$(mktemp -d)
         for ip in "${ips[@]}"; do
-            ( ping -c 3 -i 0.2 -W 1 -q "$ip" 2>/dev/null | awk -F/ '/^(rtt|round-trip)/ {printf "%.0f", $5}' > "$tmp/$ip" || true ) &
+            ( ping -c 3 -i 0.2 -W 1 -q "$ip" 2>/dev/null | awk -F/ '/^(rtt|round-trip)/ {printf "%.1f", $5}' > "$tmp/$ip" || true ) &
         done
         wait
         for ip in "${ips[@]}"; do
@@ -916,7 +916,7 @@ resolve_endpoint() {
             rows+=("${ms:-99999} $ip")
         done
         rm -rf "$tmp"
-        mapfile -t rows < <(printf '%s\n' "${rows[@]}" | sort -n -k1,1)
+        mapfile -t rows < <(printf '%s\n' "${rows[@]}" | sort -g -k1,1)
     else
         for ip in "${ips[@]}"; do rows+=("99999 $ip"); done
     fi
@@ -1072,7 +1072,27 @@ do_reconfigure_vpn() {
 
     echo "$WG_PATH" > "$LAST_CONF_MARKER"
     write_vpn_files
-    echo "VPN config saved. Choose 'Turn VPN ON' from the menu to apply it."
+    [[ "${1:-}" == "menu" ]] || return 0      # first-time setup applies it next
+    if [[ "$(cat "$ACTIVE_MARKER" 2>/dev/null || true)" == "vpn" ]]; then
+        read -rp "VPN config saved. Use it now? This restarts the stack in VPN mode. [Y/n]: " APPLY_NOW
+        case "$APPLY_NOW" in
+            n|N|no|No) echo "Not applied yet. Choose 'Turn VPN ON' when you're ready." ;;
+            *) turn_vpn_on ;;
+        esac
+    else
+        echo "VPN config saved. It's used the next time you choose 'Turn VPN ON'."
+    fi
+}
+
+# Turn VPN ON (menu option 2, and option 4's "use it now"). No
+# confirm_vpn_disruption gate, unlike OFF, this direction never exposes
+# anything. skip_aio purely avoids resurrecting AIOStreams if it was
+# deliberately left stopped beforehand.
+turn_vpn_on() {
+    local aio_running_now skip_aio="false"
+    aio_running_now=$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo "false")
+    [[ "$aio_running_now" == "true" ]] || skip_aio="true"
+    apply_mode "vpn" "$skip_aio"
 }
 
 first_time_setup() {
@@ -1131,15 +1151,7 @@ while true; do
 
     case "$CHOICE" in
         1) do_status ;;
-        2)
-            # No confirm_vpn_disruption gate, unlike OFF, this direction
-            # never exposes anything. skip_aio purely avoids resurrecting
-            # AIOStreams if it was deliberately left stopped beforehand.
-            aio_running_now=$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo "false")
-            skip_aio="false"
-            [[ "$aio_running_now" == "true" ]] || skip_aio="true"
-            apply_mode "vpn" "$skip_aio"
-            ;;
+        2) turn_vpn_on ;;
         3)
             if confirm_vpn_disruption; then
                 # Check AFTER confirm_vpn_disruption, if the user picked
@@ -1151,7 +1163,7 @@ while true; do
                 apply_mode "direct" "$skip_aio"
             fi
             ;;
-        4) do_reconfigure_vpn ;;
+        4) do_reconfigure_vpn menu ;;
         5) do_update_gluetun ;;
         6) do_force_cleanup ;;
         7) do_uninstall_vpn ;;
