@@ -921,12 +921,15 @@ resolve_endpoint() {
         for ip in "${ips[@]}"; do rows+=("99999 $ip"); done
     fi
 
+    local in_use=""
+    [[ -f "$VPN_COMPOSE" ]] && in_use=$(grep -oP '(?<=WIREGUARD_ENDPOINT_IP=).*' "$VPN_COMPOSE" 2>/dev/null | head -1 || true)
     echo ""
     i=1
     for row in "${rows[@]}"; do
         ms=${row%% *}; ip=${row#* }
         tag=""
         [[ $i -eq 1 && "$ms" != 99999 ]] && tag="  (recommended)"
+        [[ -n "$in_use" && "$ip" == "$in_use" ]] && tag="$tag  (in use now)"
         if [[ "$ms" == 99999 ]]; then ms="no reply"; else ms="$ms ms"; fi
         printf '  %d) %-15s  %s%s\n' "$i" "$ip" "$ms" "$tag"
         i=$((i + 1))
@@ -1040,15 +1043,33 @@ choose_conf_file() {
 do_reconfigure_vpn() {
     try_read_existing_values "$COMPOSE_FILE" || read_existing_values "$DIRECT_COMPOSE"
 
+    # A config whose endpoint is a name can be kept and just pointed at a
+    # different server address (one that's flaky or blocked, say). Offered
+    # only while that config file is still there.
+    local current_conf="" can_repick=false
+    [[ -f "$LAST_CONF_MARKER" ]] && current_conf=$(cat "$LAST_CONF_MARKER" 2>/dev/null || true)
+    [[ -n "$current_conf" && -f "$current_conf" && -f "$ENDPOINT_HOST_FILE" ]] && can_repick=true
+
     info "WireGuard config"
     echo "  1) Paste it in (open your VPN provider's .conf file and copy everything)"
     echo "  2) Use a .conf file already on this server"
-    read -rp "Choose 1 or 2 [1]: " WG_HOW
-    if [[ "${WG_HOW:-1}" == "2" ]]; then
-        choose_conf_file
+    if $can_repick; then
+        echo "  3) Keep the current config, just pick a different server address"
+        read -rp "Choose 1, 2 or 3 [1]: " WG_HOW
     else
-        paste_config
+        read -rp "Choose 1 or 2 [1]: " WG_HOW
     fi
+    case "${WG_HOW:-1}" in
+        2) choose_conf_file ;;
+        3)
+            if $can_repick; then
+                WG_PATH="$current_conf"
+            else
+                paste_config
+            fi
+            ;;
+        *) paste_config ;;
+    esac
 
     WG_PRIVATE_KEY=$(grep -i '^PrivateKey' "$WG_PATH" | head -1 | cut -d= -f2- | tr -d ' \r' || true)
     WG_ADDRESS=$(grep -i '^Address' "$WG_PATH" | head -1 | cut -d= -f2- | tr -d ' \r' || true)

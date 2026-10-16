@@ -120,9 +120,11 @@ when the endpoint is a name, the script does it.
 Asking from the server gets the addresses meant for the server's location,
 which suit it better than a DNS checking website's answers.
 
-A name like this can point at different servers over time. If the tunnel
-stops connecting months later, run **Reconfigure** with the same file and pick
-a fresh address. Server-specific names and plain IPs don't have this issue.
+A name like this points at several servers, and they change over time. If
+the one you picked becomes slow, flaky or blocked, run **Reconfigure** and
+choose **3) Keep the current config, just pick a different server address**:
+it looks the name up again, marks the address in use now, and lets you pick
+another. Server-specific names and plain IPs don't need this.
 
 ---
 
@@ -203,7 +205,8 @@ sudo bash /opt/aiostreams/setup-vpn-gluetun.sh
 - **Reconfigure**: switch to a different config (for example a different
   country or server) without redoing the whole setup. Paste it or point at a
   file, pick an address, and with the VPN on, it offers to use it straight
-  away (a stack restart).
+  away (a stack restart). When the current config's endpoint is a name, a
+  third choice keeps the config and just picks a different server address.
 - **Update gluetun** .  pulls the latest gluetun image. In VPN mode it then
   safely restarts the stack so the new image takes effect; in direct mode
   nothing restarts .  the fresh image simply gets used next time you turn the
@@ -572,8 +575,8 @@ two compare directly.
 **"Couldn't confirm the tunnel came up" / status shows unhealthy**
 Check the raw logs: `sudo docker compose logs gluetun`. Look for connection
 errors near the `[wireguard] Connecting to ...` line. A stale endpoint IP
-is the most common cause: run **Reconfigure** with the same config and pick
-a fresh address (see [Endpoint names and IPs](#endpoint-names-and-ips)).
+is the most common cause: run **Reconfigure**, choose **3** and pick a
+different address (see [Endpoint names and IPs](#endpoint-names-and-ips)).
 
 **Orphan container warnings when switching modes**
 Mode switches tear down the currently running stack *before* swapping

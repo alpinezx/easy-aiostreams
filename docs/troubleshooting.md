@@ -22,7 +22,7 @@ A quick-reference list pulled from the advanced guides' own troubleshooting sect
 
 1. **DNS not pointing at your server yet, or ports 80/443 blocked, so the HTTPS cert fails.** The two most common snags, on a first install and on a [restore](./advanced/backup-restore.md#troubleshooting) alike. Confirm DNS first with `dig +short yourdomain.com`; if that matches but it's still stuck, check [Firewall & Ports](./advanced/firewall-ports.md), especially if you're on Oracle Cloud.
 
-2. **VPN status shows "unhealthy," or the tunnel won't connect.** Almost always a stale endpoint IP. Run **Reconfigure** with the same config and pick a fresh address.
+2. **VPN status shows "unhealthy," or the tunnel won't connect.** Almost always a stale endpoint IP. Run **Reconfigure**, choose **3** (keep the current config) and pick a different address.
    → [VPN Setup: Troubleshooting](./advanced/vpn-setup.md#troubleshooting)
 
 3. **The `Endpoint =` line in your `.conf` file is a hostname, not an IP.** That's fine: gluetun needs an IP, and the script looks the name up and lets you pick an address.

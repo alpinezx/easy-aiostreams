@@ -99,7 +99,7 @@ sudo bash /opt/aiostreams/setup-vpn-gluetun.sh
 ```
 - **Turn VPN ON / OFF** .  switches modes, a few seconds of downtime.
 - **Status** .  shows whether it's on and healthy.
-- **Reconfigure VPN**: switch to a different config. Paste it, pick an address, and it's used straight away.
+- **Reconfigure VPN**: switch to a different config. Paste it, pick an address, and it's used straight away. Its option **3** keeps your config and just picks a different server address, handy if the current one turns slow or blocked.
 
 ---
 
