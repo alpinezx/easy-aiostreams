@@ -1,14 +1,37 @@
 import { $, h, clear, api, ago } from "./util.js";
+import { runAction } from "./actions.js";
 
-// The VPN page: read-only for now. Whether the tunnel is up, where traffic
-// leaves (asked from inside the VPN container), and which server address the
-// config points at. Changing the config stays in setup-vpn-gluetun.sh.
+// The VPN page. Whether the tunnel is up, where traffic leaves (asked from
+// inside the VPN container), which server address the config points at, and
+// Turn VPN on / off, which runs setup-vpn-gluetun.sh with all its own checks.
+// Changing the config stays in the script for now.
 
-let checking = false;
+let checking = false, last = null, st = null;
 const REGION = (() => { try { return new Intl.DisplayNames([], { type: "region" }); } catch (_) { return null; } })();
 const countryName = (code) => { try { return (code && REGION && REGION.of(code)) || code; } catch (_) { return code; } };
 
-export async function show(fresh = false) {
+// The on/off button follows the panel's status: which way to switch, and
+// greyed out while any action runs.
+export function setStatus(status) {
+  st = status;
+  toggle();
+}
+
+function toggle() {
+  const b = $("#vpn-toggle");
+  const mode = (st && st.vpn) || (last && last.mode);   // the live status first: it follows a switch within seconds
+  const id = mode === "on" ? "vpn.off" : mode === "off" ? "vpn.on" : null;
+  const act = id && st && st.actions.find((a) => a.id === id);
+  b.hidden = !(act && act.available);
+  if (b.hidden) return;
+  b.textContent = act.label;
+  b.className = "btn small" + (id === "vpn.on" ? " primary" : "");
+  b.disabled = !!st.busy;
+  b.onclick = () => runAction(act);
+}
+
+export async function show(fresh = false, status) {
+  if (status) st = status;
   const box = $("#vpn-root"), btn = $("#vpn-check");
   if (checking) return;
   checking = true;
@@ -33,6 +56,8 @@ function cell(label, value, mono) {
 
 function render(v) {
   const box = $("#vpn-root"), btn = $("#vpn-check");
+  last = v;
+  toggle();
   clear(box);
   btn.disabled = v.mode !== "on";
   const [lamp, word] = v.mode !== "on" ? ["", "Off, using a direct connection"]
@@ -52,8 +77,7 @@ function render(v) {
   for (const g of [where, server]) if (g.childElementCount) card.append(g);
   if (v.mode === "on" && !v.connected && v.error) card.append(h("p", { class: "vpn-note", text: v.error }));
   if (v.mode === "off") {
-    card.append(h("p", { class: "vpn-note dim" }, "AIOStreams is using a direct connection. To turn the VPN back on, run ",
-      h("code", { class: "mono", text: "setup-vpn-gluetun.sh" }), " and choose Turn VPN ON (it's on the ", h("a", { href: "#scripts", text: "Scripts" }), " page)."));
+    card.append(h("p", { class: "vpn-note dim", text: "AIOStreams is using a direct connection, so its traffic leaves from this server's own IP. Turn VPN on switches it back." }));
   }
   box.append(card);
   box.append(h("p", { class: "dim vpn-foot" }, "To switch server or config, run ", h("code", { class: "mono", text: "setup-vpn-gluetun.sh" }),

@@ -67,6 +67,17 @@ _STATIC: dict[str, Action] = {a.id: a for a in [
            needs=("setup-webhook.sh", "webhook-relay-state/docker-compose.yml"),
            confirm="Stop the webhook relay? Incoming webhooks will be rejected until it starts again."),
 
+    # The VPN's own checks run in the script: the tunnel is confirmed before
+    # AIOStreams starts, the boot hook follows the mode, and a failed switch
+    # stops with the stack as it was. "off" keeps AIOStreams live throughout.
+    Action("vpn.on", "Turn VPN on", "Turning the VPN on", "VPN on", "setup-vpn-gluetun.sh",
+           args=("on",), timeout=420, needs=("setup-vpn-gluetun.sh", "vpn-state/active"),
+           confirm="AIOStreams waits for the tunnel to connect before it starts again, "
+                   "so streams pause for up to a minute. This page reconnects by itself."),
+    Action("vpn.off", "Turn VPN off", "Turning the VPN off", "VPN off", "setup-vpn-gluetun.sh",
+           args=("off",), timeout=420, needs=("setup-vpn-gluetun.sh", "vpn-state/active"),
+           confirm="AIOStreams switches to a direct connection, so its traffic leaves from "
+                   "this server's own IP from now on. Streams pause for a few seconds, and this page reconnects by itself."),
     Action("watchdog.start", "Start", "Starting", "Start finished", "setup-watchdog.sh",
            args=("install-timer",), timeout=60,
            needs=("setup-watchdog.sh", "watchdog-state/config")),

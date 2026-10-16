@@ -267,6 +267,8 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .panel { background: var(--raised); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 16px; }
 .panel h3 { margin: 0 0 12px; font-size: .98rem; font-weight: 650; }
 /* VPN page: full width like the backup cards, details in labelled columns */
+.vpn-acts { margin-left: auto; display: flex; gap: 8px; }
+.vpn-acts .btn { margin-left: 0; }
 .vpn-card { padding: 18px 20px; }
 .vpn-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .vpn-state { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 1.05rem; }

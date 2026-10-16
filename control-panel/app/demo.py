@@ -222,6 +222,14 @@ class DemoBackend:
                       "Moving the current install aside (same-server restore).", "==> Extracting backup", "==> Starting the restored stack",
                       "==> Restore complete!", "  - Control panel (panel.example.com): restart it (Restart panel) so it picks up the restored install."]:
                 say(l, 0.4)
+        elif action.id in ("vpn.on", "vpn.off"):
+            on = action.id == "vpn.on"
+            for l in ["==> Stopping the current stack", f"==> Starting the stack in '{'vpn' if on else 'direct'}' mode",
+                      "==> Confirming the WireGuard tunnel is actually connected..." if on else "==> Verifying caddy and aiostreams are running",
+                      "VPN is up. gluetun's exit IP: 203.0.113.17" if on else "Direct mode: AIOStreams uses this server's own IP.",
+                      "Confirm at https://streams.example.com"]:
+                say(l, 0.5)
+            self.vpn = "on" if on else "off"
         elif action.id == "stack.backup":
             say("==> Creating backup"); say("Backup written to /root/aiostreams-backup-20261009-161500.tar.gz")
             say("!! This file contains your SECRET_KEY, all logins and your WireGuard private key.")

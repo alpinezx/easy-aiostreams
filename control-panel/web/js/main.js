@@ -35,7 +35,7 @@ function enter() {
   if (view === "overview") render(status, goLogs);
   if (view === "scripts") scripts.show(status, terminalOn);
   if (view === "terminal") terminal.show(status);
-  if (view === "vpn") vpn.show();
+  if (view === "vpn") vpn.show(false, status);
 }
 
 // Phones: the rail is a drawer, opened from the menu button and closed by its X, the
@@ -108,7 +108,9 @@ async function tick() {
       }
       if (view === "activity") showActivity().catch(() => {});
       if (view === "backups") showBackups(status).catch(() => {});
+      if (view === "vpn") vpn.show(true, status);     // a VPN switch just finished: check again
     }
+    if (view === "vpn") vpn.setStatus(status);
     lastBusy = status.busy;
   } catch (e) {
     if (e.message !== "signed out") $("#offline").hidden = false;
@@ -125,7 +127,7 @@ async function boot() {
   $("#demo").hidden = !me.demo;
   terminalOn = !!me.terminal;
   $("#tab-terminal").hidden = !terminalOn;
-  $("#vpn-check").addEventListener("click", () => vpn.show(true));
+  $("#vpn-check").addEventListener("click", () => vpn.show(true, status));
   for (const id of ["#restart-panel", "#restart-panel-2"]) $(id).addEventListener("click", () => {
     if (confirm("Restart the panel? It will be unavailable for a few seconds and any open terminal will close.")) terminal.restartPanel();
   });
