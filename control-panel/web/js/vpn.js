@@ -24,6 +24,13 @@ export async function show(fresh = false) {
   }
 }
 
+// One labelled value in the card's grid; nothing when there's no value
+function cell(label, value, mono) {
+  if (!value) return null;
+  return h("div", { class: "vpn-cell" }, h("div", { class: "vpn-label", text: label }),
+    h("div", { class: "vpn-value" + (mono ? " mono" : ""), text: value }));
+}
+
 function render(v) {
   const box = $("#vpn-root"), btn = $("#vpn-check");
   clear(box);
@@ -31,18 +38,18 @@ function render(v) {
   const [lamp, word] = v.mode !== "on" ? ["", "Off, using a direct connection"]
     : v.connected ? ["ok", "Connected"] : ["down", "Not connected"];
   const card = h("div", { class: "panel vpn-card" },
-    h("div", { class: "vpn-state" }, h("span", { class: "lamp", dataset: { s: lamp }, "aria-hidden": "true" }), h("span", { text: word })));
-  const kv = h("dl", { class: "kv" });
-  const row = (k, val, mono) => { if (val) kv.append(h("dt", { text: k }), h("dd", { class: mono ? "mono" : null, text: val })); };
-  if (v.mode === "on" && v.connected) {
-    row("Exit IP", v.exit_ip, true);
-    row("Location", [v.city, countryName(v.country)].filter(Boolean).join(", "));
-    row("Network", v.org);
-  }
-  row("Endpoint", v.endpoint_host, true);
-  row("Server address", v.endpoint_ip ? `${v.endpoint_ip}${v.endpoint_port ? ":" + v.endpoint_port : ""}` : "", true);
-  if (v.checked_at) row("Checked", ago(v.checked_at));
-  if (kv.childElementCount) card.append(kv);
+    h("div", { class: "vpn-head" },
+      h("div", { class: "vpn-state" }, h("span", { class: "lamp", dataset: { s: lamp }, "aria-hidden": "true" }), h("span", { text: word })),
+      v.checked_at ? h("span", { class: "vpn-checked", text: `Checked ${ago(v.checked_at)}` }) : null));
+  const up = v.mode === "on" && v.connected;
+  const where = h("div", { class: "vpn-grid" },
+    up ? cell("Exit IP", v.exit_ip, true) : null,
+    up ? cell("Location", [v.city, countryName(v.country)].filter(Boolean).join(", ")) : null,
+    up ? cell("Network", v.org) : null);
+  const server = h("div", { class: "vpn-grid" },
+    cell("Endpoint", v.endpoint_host, true),
+    cell("Server address", v.endpoint_ip ? `${v.endpoint_ip}${v.endpoint_port ? ":" + v.endpoint_port : ""}` : "", true));
+  for (const g of [where, server]) if (g.childElementCount) card.append(g);
   if (v.mode === "on" && !v.connected && v.error) card.append(h("p", { class: "vpn-note", text: v.error }));
   if (v.mode === "off") {
     card.append(h("p", { class: "vpn-note dim" }, "AIOStreams is using a direct connection. To turn the VPN back on, run ",
