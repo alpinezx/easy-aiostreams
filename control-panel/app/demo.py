@@ -75,6 +75,18 @@ class DemoBackend:
         self.started = {k: datetime.now(timezone.utc) - timedelta(hours=random.randint(30, 400)) for k in self.running}
         self.hist = {k: [random.uniform(0.5, 6) for _ in range(30)] for k in self.running}
 
+    def vpn_info(self, fresh: bool = False) -> dict:
+        out = {"mode": self.vpn, "endpoint_host": None, "endpoint_ip": None, "endpoint_port": None,
+               "connected": None, "exit_ip": None, "city": None, "region": None, "country": None, "org": None,
+               "checked_at": None, "error": None}
+        if self.vpn == "none":
+            return out
+        out.update(endpoint_host="nl.wg.example-vpn.net", endpoint_ip="203.0.113.16", endpoint_port="51820")
+        if self.vpn == "on":
+            out.update(connected=self.running.get("gluetun", False), exit_ip="203.0.113.17", city="Amsterdam",
+                       region="North Holland", country="NL", org="AS64500 Example VPN", checked_at=time.time())
+        return out
+
     def status(self) -> dict:
         defs = [("caddy", "caddy", "Caddy", "HTTPS front door", False, "caddy:2"),
                 ("gluetun", "gluetun", "VPN tunnel", "gluetun, WireGuard", False, "qmcgaw/gluetun:v3"),
@@ -210,6 +222,14 @@ class DemoBackend:
                       "Moving the current install aside (same-server restore).", "==> Extracting backup", "==> Starting the restored stack",
                       "==> Restore complete!", "  - Control panel (panel.example.com): restart it (Restart panel) so it picks up the restored install."]:
                 say(l, 0.4)
+        elif action.id in ("vpn.on", "vpn.off"):
+            on = action.id == "vpn.on"
+            for l in ["==> Stopping the current stack", f"==> Starting the stack in '{'vpn' if on else 'direct'}' mode",
+                      "==> Confirming the WireGuard tunnel is actually connected..." if on else "==> Verifying caddy and aiostreams are running",
+                      "VPN is up. gluetun's exit IP: 203.0.113.17" if on else "Direct mode: AIOStreams uses this server's own IP.",
+                      "Confirm at https://streams.example.com"]:
+                say(l, 0.5)
+            self.vpn = "on" if on else "off"
         elif action.id == "stack.backup":
             say("==> Creating backup"); say("Backup written to /root/aiostreams-backup-20261009-161500.tar.gz")
             say("!! This file contains your SECRET_KEY, all logins and your WireGuard private key.")

@@ -5,6 +5,7 @@ import { showActivity, showBackups } from "./activity.js";
 import { currentJobId, openJob } from "./actions.js";
 import * as terminal from "./terminal.js";
 import * as scripts from "./scripts.js";
+import * as vpn from "./vpn.js";
 
 let status = null;
 let view = "overview";
@@ -12,12 +13,13 @@ let pendingLogs = null;
 let lastBusy = null;
 let timer = null;
 
-const VIEWS = ["overview", "logs", "activity", "backups", "scripts", "terminal"];
+const VIEWS = ["overview", "logs", "activity", "backups", "scripts", "vpn", "terminal"];
 let terminalOn = false;
+let vpnSetUp = false;     // the VPN page shows once setup-vpn-gluetun.sh has set the VPN up
 
 function route() {
   const v = location.hash.slice(1).split("/")[0];
-  view = VIEWS.includes(v) && (v !== "terminal" || terminalOn) ? v : "overview";
+  view = VIEWS.includes(v) && (v !== "terminal" || terminalOn) && (v !== "vpn" || vpnSetUp) ? v : "overview";
   for (const name of VIEWS) $(`#view-${name}`).hidden = name !== view;
   document.querySelectorAll(".tab").forEach((t) => t.toggleAttribute("aria-current", false));
   const active = document.querySelector(`.tab[data-view="${view}"]`);
@@ -33,6 +35,7 @@ function enter() {
   if (view === "overview") render(status, goLogs);
   if (view === "scripts") scripts.show(status, terminalOn);
   if (view === "terminal") terminal.show(status);
+  if (view === "vpn") vpn.show(false, status);
 }
 
 // Phones: the rail is a drawer, opened from the menu button and closed by its X, the
@@ -87,6 +90,13 @@ async function tick() {
     document.title = `${status.headline} - Easy AIOStreams`;
     record(status);
     if (view === "overview") render(status, goLogs);
+    // The VPN page appears once the VPN has been set up (on or off), never before
+    const vpnNow = status.vpn === "on" || status.vpn === "off";
+    if (vpnNow !== vpnSetUp) {
+      vpnSetUp = vpnNow;
+      $("#tab-vpn").hidden = !vpnSetUp;
+      if (location.hash.slice(1) === "vpn" || view === "vpn") route();   // opened at #vpn, or the VPN was removed
+    }
 
     // an action just finished while the output panel was closed: say so
     if (lastBusy && !status.busy) {
@@ -98,7 +108,9 @@ async function tick() {
       }
       if (view === "activity") showActivity().catch(() => {});
       if (view === "backups") showBackups(status).catch(() => {});
+      if (view === "vpn") vpn.show(true, status);     // a VPN switch just finished: check again
     }
+    if (view === "vpn") vpn.setStatus(status);
     lastBusy = status.busy;
   } catch (e) {
     if (e.message !== "signed out") $("#offline").hidden = false;
@@ -115,6 +127,7 @@ async function boot() {
   $("#demo").hidden = !me.demo;
   terminalOn = !!me.terminal;
   $("#tab-terminal").hidden = !terminalOn;
+  $("#vpn-check").addEventListener("click", () => vpn.show(true, status));
   for (const id of ["#restart-panel", "#restart-panel-2"]) $(id).addEventListener("click", () => {
     if (confirm("Restart the panel? It will be unavailable for a few seconds and any open terminal will close.")) terminal.restartPanel();
   });

@@ -34,6 +34,7 @@
     <a class="tab" href="#activity" data-view="activity" data-tip="Activity"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg><span class="lbl">Activity</span></a>
     <a class="tab" href="#backups" data-view="backups" data-tip="Backup &amp; Restore"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9M10 13h4"/></svg><span class="lbl">Backup &amp; Restore</span></a>
     <a class="tab" href="#scripts" data-view="scripts" data-tip="Scripts"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg><span class="lbl">Scripts</span></a>
+    <a class="tab" href="#vpn" data-view="vpn" id="tab-vpn" data-tip="VPN" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 4.6 3.4 8 8 9 4.6-1 8-4.4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg><span class="lbl">VPN</span></a>
     <a class="tab" href="#terminal" data-view="terminal" id="tab-terminal" data-tip="Terminal" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 17 6-5-6-5M12 19h8"/></svg><span class="lbl">Terminal</span></a>
   </div>
   <div class="rail-end">
@@ -132,6 +133,11 @@
   <section class="view" id="view-scripts" aria-label="Scripts" hidden>
     <div class="view-head"><h2>Scripts</h2></div>
     <div id="scripts-root"></div>
+  </section>
+
+  <section class="view" id="view-vpn" aria-label="VPN" hidden>
+    <div class="view-head vpn-headrow"><h2>VPN</h2><div class="vpn-acts"><button class="btn small" id="vpn-toggle" type="button" hidden></button><button class="btn small" id="vpn-check" type="button">Check now</button></div></div>
+    <div id="vpn-root"></div>
   </section>
 
   <section class="view" id="view-terminal" aria-label="Terminal" hidden>

@@ -1127,6 +1127,16 @@ turn_vpn_on() {
     apply_mode "vpn" "$skip_aio"
 }
 
+# Turn VPN OFF (menu option 3, after confirm_vpn_disruption, and the "off"
+# command). Checked after any "Stop AIOStreams first" choice, so a stopped
+# AIOStreams isn't started again.
+turn_vpn_off() {
+    local aio_running_now skip_aio="false"
+    aio_running_now=$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo "false")
+    [[ "$aio_running_now" == "true" ]] || skip_aio="true"
+    apply_mode "direct" "$skip_aio"
+}
+
 first_time_setup() {
     info "First-time VPN setup"
     read_existing_values "$COMPOSE_FILE"
@@ -1150,6 +1160,22 @@ first_time_setup() {
 
 if [[ "${1:-}" == "install-boot-hook" ]]; then
     install_vpn_boot_hook
+    exit 0
+fi
+
+# "on" / "off": switch modes without the menu, for the control panel. "off"
+# keeps AIOStreams live through the switch (the menu's "Continue anyway"); the
+# panel shows that warning before running it. Neither does anything when the
+# VPN is already that way, and neither sets the VPN up for the first time.
+if [[ "${1:-}" == "on" || "${1:-}" == "off" ]]; then
+    [[ -f "$ACTIVE_MARKER" ]] || error "The VPN isn't set up on this server yet. Run this script without arguments first."
+    want="vpn"
+    [[ "$1" == "off" ]] && want="direct"
+    if [[ "$(cat "$ACTIVE_MARKER" 2>/dev/null || true)" == "$want" ]]; then
+        echo "The VPN is already $1. Nothing to do."
+        exit 0
+    fi
+    if [[ "$1" == "on" ]]; then turn_vpn_on; else turn_vpn_off; fi
     exit 0
 fi
 
@@ -1184,17 +1210,7 @@ while true; do
     case "$CHOICE" in
         1) do_status ;;
         2) turn_vpn_on ;;
-        3)
-            if confirm_vpn_disruption; then
-                # Check AFTER confirm_vpn_disruption, if the user picked
-                # "Stop AIOStreams first" inside that prompt, it's only
-                # actually stopped by the time we get here.
-                aio_running_now=$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo "false")
-                skip_aio="false"
-                [[ "$aio_running_now" == "true" ]] || skip_aio="true"
-                apply_mode "direct" "$skip_aio"
-            fi
-            ;;
+        3) if confirm_vpn_disruption; then turn_vpn_off; fi ;;
         4) do_reconfigure_vpn menu ;;
         5) do_update_gluetun ;;
         6) do_force_cleanup ;;

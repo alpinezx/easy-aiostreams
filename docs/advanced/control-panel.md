@@ -48,20 +48,25 @@ It is still root-equivalent on your server, because it has to run the scripts an
 
 | Button | Script and input |
 | --- | --- |
-| Start, Stop, Restart | `setup-aiostreams.sh` menu options 3, 2, 4 |
+| Start, Stop (AIOStreams' row), Restart stack | `setup-aiostreams.sh` menu options 3, 2, 4 |
 | Restart (per service) | restarts just that container through Docker; AIOStreams, MediaFlow and the webhook relay only |
 | Update | menu option 5, with the backup and build-channel answers from the dialog |
 | Back up now | `setup-aiostreams.sh backup` |
 | MediaFlow, webhook relay | `start-mediaflow`, `start-relay`, and menu option 3 for Stop |
 | Phone alerts | `install-timer`, and menu options 3 and 4 |
+| Turn VPN on, Turn VPN off | `setup-vpn-gluetun.sh on`, `off` (the same steps as its menu options 2 and 3) |
 
-The scripts run on the host with a terminal attached, like an SSH session. Reconfigure, VPN switching and uninstall have no button. Restore is run from the Terminal tab or SSH.
+The scripts run on the host with a terminal attached, like an SSH session. Reconfigure (including the VPN's) and uninstall have no button.
 
 The version chip on the Overview tab is read from the running AIOStreams container's own `package.json`, once per container (an update recreates it, so the chip follows).
 
 ## Logs
 
 Each line is split the way AIOStreams' own log viewer shows it: time, a dot for its JSON `level`, `[module]`, the message, then any other fields. The **INFO**, **WARN** and **ERROR** buttons show only the levels picked (none picked shows everything). For Caddy, **Hide noise** hides the lines that look alarming but are expected (a restart, the log viewer reconnecting) and says how many it is hiding; those lines are logged as warnings and errors themselves, so the level buttons can't do this. All of these are display filters only; they never change what's logged. **Clear** hides everything logged so far, and it stays hidden after a reload; Docker's own log file is left alone on purpose, since emptying it behind Docker's back breaks `docker logs`.
+
+## VPN page
+
+It appears on the rail once `setup-vpn-gluetun.sh` has set the VPN up, on or off. It shows whether the tunnel is connected and, asked from inside the VPN container (`ipinfo.io`, falling back to plain IP lookups), where traffic leaves: the exit IP, city, country and network. It also shows the endpoint name and server address, read from `vpn-state`; the panel reads only those lines, never the keys. A check is reused for a minute; **Check now** asks again. **Turn VPN off** keeps AIOStreams live through the switch and **Turn VPN on** waits for the tunnel before starting it; both are the script doing the work, with its own checks. The panel is its own Docker project, so the switch never touches it, though it's out of reach for a few seconds while Caddy restarts.
 
 ## Backups and restores
 

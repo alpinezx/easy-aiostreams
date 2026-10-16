@@ -266,6 +266,22 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .side { display: grid; gap: 18px; }
 .panel { background: var(--raised); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 16px; }
 .panel h3 { margin: 0 0 12px; font-size: .98rem; font-weight: 650; }
+/* VPN page: full width like the backup cards, details in labelled columns */
+.vpn-acts { margin-left: auto; display: flex; gap: 8px; }
+.vpn-acts .btn { margin-left: 0; }
+.vpn-card { padding: 18px 20px; }
+.vpn-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.vpn-state { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 1.05rem; }
+.vpn-checked { color: var(--faint); font-size: .86rem; }
+.vpn-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 24px; margin-top: 18px; }
+.vpn-grid + .vpn-grid { padding-top: 16px; border-top: 1px solid var(--line-soft); }
+.vpn-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--faint); margin-bottom: 4px; }
+.vpn-value { font-size: .98rem; font-weight: 600; overflow-wrap: anywhere; }
+.vpn-value.mono { font-size: .9rem; font-weight: 500; }
+.vpn-note { margin: 16px 0 0; font-size: .9rem; }
+.vpn-foot { margin: 14px 0 0; font-size: .88rem; }
+.vpn-card code, .vpn-foot code { white-space: nowrap; }
+@media (max-width: 720px) { .vpn-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; } }
 .meter { margin-bottom: 14px; }
 .meter:last-of-type { margin-bottom: 0; }
 .meter-top { display: flex; justify-content: space-between; font-size: .9rem; margin-bottom: 6px; }

@@ -289,6 +289,12 @@ async def server_address(user: str = Depends(current_user)):
     return {"ip": await asyncio.to_thread(serverip.address)}
 
 
+@app.get("/api/vpn")
+async def vpn(fresh: bool = False, user: str = Depends(current_user)):
+    """The VPN page: mode, endpoint and, with the tunnel on, where traffic leaves. Never the keys."""
+    return await asyncio.to_thread(backend.vpn_info, fresh)
+
+
 @app.get("/api/backups")
 async def backups(user: str = Depends(current_user)):
     items = await asyncio.to_thread(backend.backups)

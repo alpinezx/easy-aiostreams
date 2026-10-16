@@ -362,3 +362,41 @@ def test_backup_path_prefers_roots_copy(monkeypatch):
     b = {"name": "aiostreams-backup-1.tar.gz", "dirs": ["/home/ubuntu", "/root"]}
     assert stack.backup_path(b) == "/root/aiostreams-backup-1.tar.gz"
     assert stack.backup_path({**b, "dirs": ["/home/ubuntu"]}) == "/home/ubuntu/aiostreams-backup-1.tar.gz"
+
+
+VPN_SAVED = ("      - WIREGUARD_PRIVATE_KEY=PRIVkeyPRIVkeyPRIVkey=\n"
+             "      - WIREGUARD_ENDPOINT_IP=203.0.113.16\n      - WIREGUARD_ENDPOINT_PORT=51820\n")
+
+
+def test_vpn_info_off_reads_endpoint_never_the_key(tmp_path, monkeypatch):
+    b = make_backend(tmp_path, monkeypatch, [container("caddy"), container("aiostreams")],
+                     extra_files=["vpn-state/active"])
+    (config.INSTALL_DIR / "vpn-state/docker-compose.vpn.yml").write_text(VPN_SAVED)
+    (config.INSTALL_DIR / "vpn-state/endpoint-host").write_text("nl.wg.example-vpn.net\n")
+    v = b.vpn_info()
+    assert v["mode"] == "off" and v["connected"] is None
+    assert (v["endpoint_host"], v["endpoint_ip"], v["endpoint_port"]) == ("nl.wg.example-vpn.net", "203.0.113.16", "51820")
+    assert "PRIVkey" not in repr(v)
+
+
+def test_vpn_info_on_asks_gluetun_where_traffic_leaves(tmp_path, monkeypatch):
+    compose = "services:\n  gluetun:\n    container_name: gluetun\n"
+    asked = []
+
+    def exec_run(cmd):
+        asked.append(cmd[-1])
+        out = b'{"ip": "203.0.113.17", "city": "Amsterdam", "country": "NL", "org": "AS64500 Example"}'
+        return SimpleNamespace(exit_code=0, output=out)
+    g = container("gluetun")
+    g.exec_run = exec_run
+    b = make_backend(tmp_path, monkeypatch, [g], compose=compose, extra_files=["vpn-state/active"])
+    b._client.containers.get = lambda name: g
+    (config.INSTALL_DIR / "vpn-state/docker-compose.vpn.yml").write_text(VPN_SAVED)
+    v = b.vpn_info()
+    assert v["mode"] == "on" and v["connected"] is True
+    assert (v["exit_ip"], v["city"], v["country"]) == ("203.0.113.17", "Amsterdam", "NL")
+    assert v["endpoint_host"] is None and "PRIVkey" not in repr(v)
+    b.vpn_info()                       # within a minute: from the cache, gluetun isn't asked again
+    assert len(asked) == 1
+    b.vpn_info(fresh=True)             # Check now asks again
+    assert len(asked) == 2
