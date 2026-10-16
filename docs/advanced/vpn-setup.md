@@ -229,6 +229,13 @@ sudo bash /opt/aiostreams/setup-vpn-gluetun.sh
   untouched; running the script again afterward starts first-time VPN
   setup from scratch.
 
+The same switch works without the menu: `sudo bash
+/opt/aiostreams/setup-vpn-gluetun.sh on` or `off`. They're the same steps as
+options 2 and 3; `off` keeps AIOStreams live through the switch (the menu's
+"Continue anyway"). Both do nothing when the VPN is already that way, and
+neither sets the VPN up for the first time. The control panel's VPN page
+runs these.
+
 ---
 
 ## After a reboot
