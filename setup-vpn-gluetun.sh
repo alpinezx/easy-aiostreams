@@ -867,6 +867,78 @@ do_update_gluetun() {
     cleanup_replaced_images "$image_snapshot"
 }
 
+# gluetun needs the endpoint as an IP. When a .conf gives a name instead, look
+# it up through several public DNS services (over HTTPS with curl, so nothing
+# extra to install) plus this server's own resolver, ping each address from
+# here, and let the person pick, fastest first. Providers often hand out a
+# different address on every lookup, so each service is asked a few times and
+# the answers aren't expected to agree. Sets WG_ENDPOINT_IP, and remembers the
+# name so it can be looked up again later.
+ENDPOINT_HOST_FILE="$STATE_DIR/endpoint-host"
+ENDPOINT_MAX=8
+resolve_endpoint() {
+    local host="$1" url out ip ms tag pick i round
+    [[ "$host" =~ ^[A-Za-z0-9.-]+$ ]] || error "Endpoint '$host' isn't an IPv4 address or a host name. Check the .conf file's Endpoint line."
+    info "Looking up $host"
+    local ips=()
+    for round in 1 2 3; do
+        for url in \
+            "https://cloudflare-dns.com/dns-query?name=$host&type=A" \
+            "https://dns.google/resolve?name=$host&type=A" \
+            "https://dns.adguard-dns.com/resolve?name=$host&type=A" \
+            "https://dns.nextdns.io/dns-query?name=$host&type=A"; do
+            out=$(curl -fsS --max-time 5 -H 'accept: application/dns-json' "$url" 2>/dev/null || true)
+            while read -r ip; do
+                [[ -n "$ip" ]] && ips+=("$ip")
+            done < <(grep -oE '"data": *"[0-9]+(\.[0-9]+){3}"' <<<"$out" | grep -oE '[0-9]+(\.[0-9]+){3}' || true)
+        done
+    done
+    while read -r ip; do
+        [[ -n "$ip" ]] && ips+=("$ip")
+    done < <(getent ahostsv4 "$host" 2>/dev/null | awk '{print $1}' || true)
+    [[ ${#ips[@]} -gt 0 ]] || error "Couldn't look up $host. Check the name in the .conf file, or put the server's IP in its Endpoint line instead."
+    mapfile -t ips < <(printf '%s\n' "${ips[@]}" | awk 'NF && !seen[$0]++' | head -n "$ENDPOINT_MAX")
+
+    # Ping them all at once from this server, then list fastest first. Some
+    # providers don't answer pings; those go last as "no reply" and can still
+    # be picked.
+    local rows=()
+    if command -v ping >/dev/null 2>&1; then
+        echo "  Found ${#ips[@]} address(es). Checking how quickly each answers from this server..."
+        local tmp
+        tmp=$(mktemp -d)
+        for ip in "${ips[@]}"; do
+            ( ping -c 3 -i 0.2 -W 1 -q "$ip" 2>/dev/null | awk -F/ '/^(rtt|round-trip)/ {printf "%.0f", $5}' > "$tmp/$ip" || true ) &
+        done
+        wait
+        for ip in "${ips[@]}"; do
+            ms=$(cat "$tmp/$ip" 2>/dev/null || true)
+            rows+=("${ms:-99999} $ip")
+        done
+        rm -rf "$tmp"
+        mapfile -t rows < <(printf '%s\n' "${rows[@]}" | sort -n -k1,1)
+    else
+        for ip in "${ips[@]}"; do rows+=("99999 $ip"); done
+    fi
+
+    echo ""
+    i=1
+    for row in "${rows[@]}"; do
+        ms=${row%% *}; ip=${row#* }
+        tag=""
+        [[ $i -eq 1 && "$ms" != 99999 ]] && tag="  (recommended)"
+        if [[ "$ms" == 99999 ]]; then ms="no reply"; else ms="$ms ms"; fi
+        printf '  %d) %-15s  %s%s\n' "$i" "$ip" "$ms" "$tag"
+        i=$((i + 1))
+    done
+    read -rp "Choose a number [1-${#rows[@]}], or press Enter for 1: " pick
+    [[ -z "$pick" ]] && pick=1
+    [[ "$pick" =~ ^[0-9]+$ ]] && (( pick >= 1 && pick <= ${#rows[@]} )) || error "Not one of the numbers listed."
+    WG_ENDPOINT_IP=${rows[$((pick - 1))]#* }
+    echo "$host" > "$ENDPOINT_HOST_FILE"
+    chmod 600 "$ENDPOINT_HOST_FILE"
+}
+
 do_reconfigure_vpn() {
     try_read_existing_values "$COMPOSE_FILE" || read_existing_values "$DIRECT_COMPOSE"
 
@@ -945,8 +1017,11 @@ do_reconfigure_vpn() {
     WG_ENDPOINT_IP="${WG_ENDPOINT%%:*}"
     WG_ENDPOINT_PORT="${WG_ENDPOINT##*:}"
 
-    if ! [[ "$WG_ENDPOINT_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        error "Endpoint '$WG_ENDPOINT_IP' isn't a literal IPv4 address. gluetun requires an IP, not a hostname, resolve it first (e.g. 'dig +short $WG_ENDPOINT_IP') and edit the .conf file's Endpoint line before retrying."
+    [[ "$WG_ENDPOINT_PORT" =~ ^[0-9]+$ ]] || error "Couldn't read a port from the Endpoint line ($WG_ENDPOINT). It should look like name-or-IP:51820."
+    if [[ "$WG_ENDPOINT_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        rm -f "$ENDPOINT_HOST_FILE"
+    else
+        resolve_endpoint "$WG_ENDPOINT_IP"     # a name: look it up and pick an address
     fi
 
     echo "  Parsed endpoint: $WG_ENDPOINT_IP:$WG_ENDPOINT_PORT"
