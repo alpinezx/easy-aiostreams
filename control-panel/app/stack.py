@@ -280,6 +280,65 @@ class Backend:
             self._version_cache = (cid, (ver, tag))
         return ver, tag
 
+    # The VPN page. Reads only the endpoint lines and the remembered name from
+    # vpn-state, never the keys. With the tunnel on, asks from inside gluetun
+    # where traffic leaves (so the answer is the VPN's exit, not this server),
+    # at most once a minute unless asked to check now.
+    _VPN_FRESH = 60
+    _vpn_cache: dict | None = None
+
+    def vpn_info(self, fresh: bool = False) -> dict:
+        compose = _read(self.p("docker-compose.yml"))
+        mode = "on" if "container_name: gluetun" in compose else ("off" if self.p("vpn-state/active").exists() else "none")
+        saved = _read(self.p("vpn-state/docker-compose.vpn.yml"))
+        ip = re.search(r"WIREGUARD_ENDPOINT_IP=(\S+)", saved)
+        port = re.search(r"WIREGUARD_ENDPOINT_PORT=(\d+)", saved)
+        host = _read(self.p("vpn-state/endpoint-host")).strip()
+        out = {"mode": mode, "endpoint_host": host if re.fullmatch(r"[A-Za-z0-9.-]+", host) else None,
+               "endpoint_ip": ip.group(1) if ip else None, "endpoint_port": port.group(1) if port else None,
+               "connected": None, "exit_ip": None, "city": None, "region": None, "country": None, "org": None,
+               "checked_at": None, "error": None}
+        if mode != "on":
+            return out
+        now = time.time()
+        cached = self._vpn_cache
+        if cached and not fresh and now - cached["checked_at"] < self._VPN_FRESH:
+            out.update(cached)
+            return out
+        got: dict = {"connected": False, "checked_at": now}
+        try:
+            c = self.client.containers.get("gluetun")
+            if not (c.attrs.get("State") or {}).get("Running"):
+                got["error"] = "The VPN container isn't running."
+            else:
+                for url in ("http://ipinfo.io/json", "http://ifconfig.me/ip", "http://icanhazip.com"):
+                    r = c.exec_run(["wget", "-qO-", "-T", "6", url])
+                    text = (r.output or b"").decode(errors="replace").strip() if r.exit_code == 0 else ""
+                    if not text:
+                        continue
+                    if text.startswith("{"):
+                        try:
+                            j = json.loads(text)
+                        except ValueError:
+                            continue
+                        if not isinstance(j, dict) or not j.get("ip"):
+                            continue
+                        got.update(exit_ip=str(j["ip"]), city=j.get("city"), region=j.get("region"),
+                                   country=j.get("country"), org=j.get("org"))
+                    elif re.fullmatch(r"[0-9a-fA-F.:]+", text):
+                        got["exit_ip"] = text
+                    else:
+                        continue
+                    got["connected"] = True
+                    break
+                if not got["connected"]:
+                    got["error"] = "Couldn't reach the internet through the tunnel."
+        except Exception:
+            got["error"] = "Docker couldn't reach the VPN container."
+        self._vpn_cache = got
+        out.update(got)
+        return out
+
     def status(self) -> dict:
         self._last_view = time.time()
         compose = _read(self.p("docker-compose.yml"))

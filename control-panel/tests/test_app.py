@@ -363,3 +363,11 @@ def test_panel_version_and_update_endpoints(client):
     assert client.post("/api/panel/update", json={"confirm": "Update "}).json() == {"ok": True, "demo": True}
     client.post("/api/logout"); client.cookies.clear()
     assert client.post("/api/panel/update", json={"confirm": "update"}).status_code == 401
+
+
+def test_vpn_page_needs_login_and_shows_no_keys(client):
+    assert client.get("/api/vpn").status_code == 401
+    login(client)
+    v = client.get("/api/vpn").json()
+    assert v["mode"] in ("on", "off", "none")
+    assert not any("key" in k.lower() for k in v)

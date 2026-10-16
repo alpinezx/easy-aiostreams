@@ -266,6 +266,13 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .side { display: grid; gap: 18px; }
 .panel { background: var(--raised); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 16px; }
 .panel h3 { margin: 0 0 12px; font-size: .98rem; font-weight: 650; }
+/* VPN page */
+.vpn-card { max-width: 640px; }
+.vpn-state { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 1.05rem; margin-bottom: 14px; }
+.vpn-card .kv dd { overflow-wrap: anywhere; }
+.vpn-note { margin: 14px 0 0; font-size: .9rem; }
+.vpn-foot { margin: 14px 0 0; font-size: .88rem; }
+.vpn-card code, .vpn-foot code { white-space: nowrap; }
 .meter { margin-bottom: 14px; }
 .meter:last-of-type { margin-bottom: 0; }
 .meter-top { display: flex; justify-content: space-between; font-size: .9rem; margin-bottom: 6px; }

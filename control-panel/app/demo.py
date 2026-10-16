@@ -75,6 +75,18 @@ class DemoBackend:
         self.started = {k: datetime.now(timezone.utc) - timedelta(hours=random.randint(30, 400)) for k in self.running}
         self.hist = {k: [random.uniform(0.5, 6) for _ in range(30)] for k in self.running}
 
+    def vpn_info(self, fresh: bool = False) -> dict:
+        out = {"mode": self.vpn, "endpoint_host": None, "endpoint_ip": None, "endpoint_port": None,
+               "connected": None, "exit_ip": None, "city": None, "region": None, "country": None, "org": None,
+               "checked_at": None, "error": None}
+        if self.vpn == "none":
+            return out
+        out.update(endpoint_host="nl.wg.example-vpn.net", endpoint_ip="203.0.113.16", endpoint_port="51820")
+        if self.vpn == "on":
+            out.update(connected=self.running.get("gluetun", False), exit_ip="203.0.113.17", city="Amsterdam",
+                       region="North Holland", country="NL", org="AS64500 Example VPN", checked_at=time.time())
+        return out
+
     def status(self) -> dict:
         defs = [("caddy", "caddy", "Caddy", "HTTPS front door", False, "caddy:2"),
                 ("gluetun", "gluetun", "VPN tunnel", "gluetun, WireGuard", False, "qmcgaw/gluetun:v3"),
