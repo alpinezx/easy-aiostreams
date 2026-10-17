@@ -253,7 +253,8 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .row .num { font-variant-numeric: tabular-nums; font-size: .9rem; text-align: right; }
 .row-head .num { font-size: inherit; }
 .row .img { font-family: var(--mono); font-size: .8rem; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.row .acts { display: flex; gap: 6px; justify-content: flex-end; }
+.row .acts { display: grid; grid-template-columns: 58px 74px 62px; gap: 6px; justify-content: end; }
+.row .acts .btn { width: 100%; }
 .spark { width: 96px; height: 28px; display: block; }
 .spark path.area { fill: var(--accent-soft); stroke: none; }
 .spark path.line { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
@@ -280,6 +281,18 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .vpn-value.mono { font-size: .9rem; font-weight: 500; }
 .vpn-note { margin: 16px 0 0; font-size: .9rem; }
 .vpn-foot { margin: 14px 0 0; font-size: .88rem; }
+.vpn-card-acts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
+/* Change server's address list */
+.addr-list { display: grid; gap: 6px; margin: 4px 0 18px; max-height: 52vh; overflow: auto; }
+.addr { display: grid; grid-template-columns: 18px auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 12px;
+  border: 1px solid var(--line-soft); border-radius: 9px; cursor: pointer; }
+.addr:hover { border-color: var(--line); }
+.addr:has(input:checked) { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); background: var(--accent-soft); }
+.addr input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+.addr-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.addr-tags .chip { font-size: .74rem; padding: 1px 8px; }
+.addr-ms { color: var(--dim); font-size: .88rem; font-variant-numeric: tabular-nums; text-align: right; }
+.addr-wait { margin: 0; }
 .vpn-card code, .vpn-foot code { white-space: nowrap; }
 @media (max-width: 720px) { .vpn-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; } }
 .meter { margin-bottom: 14px; }
@@ -517,7 +530,7 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 @media (max-width: 1010px) {
   .row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; }
   .row .img, .row .spark-cell, .row.row-head, .row .num { display: none; }
-  .row .acts { grid-column: 1 / -1; justify-content: flex-start; }
+  .row .acts { grid-column: 1 / -1; justify-content: start; }
 }
 @media (max-width: 720px) {
   .chain { flex-direction: column; align-items: stretch; }
@@ -574,7 +587,7 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .log-help b { color: var(--text); font-weight: 600; }
 
 /* ---- reboot ---- */
-.btn.reboot { margin-top: 14px; }
+.btn.reboot { display: flex; margin: 14px 0 0 auto; }
 .veil { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 92%, transparent); }
 .veil-box { text-align: center; padding: 28px 32px; background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius); max-width: 420px; }
 .veil-box h3 { margin: 0 0 8px; }

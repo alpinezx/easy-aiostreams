@@ -35,6 +35,26 @@ def backup_path(b: dict) -> str:
     return f"{d}/{b['name']}"
 
 
+def parse_vpn_addresses(out: str, code: int) -> dict:
+    """setup-vpn-gluetun.sh addresses prints '<ip> <ms or -> [in-use] [recommended]'
+    per line, fastest first; on failure, an 'XX  reason' line."""
+    lines = [re.sub(r"\x1b\[[0-9;]*m", "", l).strip() for l in out.splitlines()]
+    if code != 0:
+        why = next((l[2:].strip() for l in reversed(lines) if l.startswith("XX")), "") or "Couldn't look the addresses up."
+        return {"addresses": [], "error": why}
+    rows = []
+    for l in lines:
+        parts = l.split()
+        if len(parts) < 2 or not re.fullmatch(r"\d{1,3}(\.\d{1,3}){3}", parts[0]):
+            continue
+        try:
+            ms = None if parts[1] == "-" else float(parts[1])
+        except ValueError:
+            continue
+        rows.append({"ip": parts[0], "ms": ms, "in_use": "in-use" in parts[2:], "recommended": "recommended" in parts[2:]})
+    return {"addresses": rows, "error": None if rows else "The lookup found no addresses."}
+
+
 def parse_restore_check(out: str, code: int) -> dict:
     """setup-backup.sh restore --check prints '  ok: ...' and '  no: ...' lines
     and a 'Result:' line. One from before the check existed prints none."""
@@ -515,6 +535,20 @@ class Backend:
                             "--occurrence=1", f"{config.INSTALL_DIR.name}/backup-info"],
                            capture_output=True, text=True, timeout=180)
         return parse_backup_info(r.stdout) if r.returncode == 0 else None
+
+    def vpn_addresses(self) -> dict:
+        """The VPN config's server addresses, fastest first, timed from this
+        server by setup-vpn-gluetun.sh. Changes nothing."""
+        host = _read(self.p("vpn-state/endpoint-host")).strip() or None
+        cmd = ["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "env", "-i",
+               f"HOME={self.home}", f"PATH={HOST_PATH}", "TERM=dumb", "LANG=C.UTF-8",
+               "bash", str(config.INSTALL_DIR / "setup-vpn-gluetun.sh"), "addresses"]
+        try:
+            r = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=90)
+            out = parse_vpn_addresses(r.stdout + r.stderr, r.returncode)
+        except subprocess.TimeoutExpired:
+            out = {"addresses": [], "error": "The lookup took too long."}
+        return {"host": host, **out}
 
     def restore_check(self, b: dict) -> dict:
         """Asks setup-backup.sh whether this backup restores here without

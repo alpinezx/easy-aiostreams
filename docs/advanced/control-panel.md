@@ -55,6 +55,7 @@ It is still root-equivalent on your server, because it has to run the scripts an
 | MediaFlow, webhook relay | `start-mediaflow`, `start-relay`, and menu option 3 for Stop |
 | Phone alerts | `install-timer`, and menu options 3 and 4 |
 | Turn VPN on, Turn VPN off | `setup-vpn-gluetun.sh on`, `off` (the same steps as its menu options 2 and 3) |
+| Change server, Update VPN | `setup-vpn-gluetun.sh addresses` for the list, then `use-address <ip>`; `update` (menu option 5) |
 
 The scripts run on the host with a terminal attached, like an SSH session. Reconfigure (including the VPN's) and uninstall have no button.
 
@@ -66,7 +67,7 @@ Each line is split the way AIOStreams' own log viewer shows it: time, a dot for 
 
 ## VPN page
 
-It appears on the rail once `setup-vpn-gluetun.sh` has set the VPN up, on or off. It shows whether the tunnel is connected and, asked from inside the VPN container (`ipinfo.io`, falling back to plain IP lookups), where traffic leaves: the exit IP, city, country and network. It also shows the endpoint name and server address, read from `vpn-state`; the panel reads only those lines, never the keys. A check is reused for a minute; **Check now** asks again. **Turn VPN off** keeps AIOStreams live through the switch and **Turn VPN on** waits for the tunnel before starting it; both are the script doing the work, with its own checks. The panel is its own Docker project, so the switch never touches it, though it's out of reach for a few seconds while Caddy restarts.
+It appears on the rail once `setup-vpn-gluetun.sh` has set the VPN up, on or off. It shows whether the tunnel is connected and, asked from inside the VPN container (`ipinfo.io`, falling back to plain IP lookups), where traffic leaves: the exit IP, city, country and network. It also shows the endpoint name and server address, read from `vpn-state`; the panel reads only those lines, never the keys. A check is reused for a minute; **Check now** asks again. **Turn VPN off** keeps AIOStreams live through the switch and **Turn VPN on** waits for the tunnel before starting it; both are the script doing the work, with its own checks. **Change server** appears when the config's endpoint is a name: the script looks it up again, pings each address from the server and lists them fastest first; the address picked is the only thing sent back, and the panel accepts only an IPv4 address. **Update VPN** pulls the newest `qmcgaw/gluetun:v3` and restarts the stack only if the image changed and the VPN is on. The panel is its own Docker project, so the switch never touches it, though it's out of reach for a few seconds while Caddy restarts.
 
 ## Backups and restores
 

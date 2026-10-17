@@ -64,6 +64,7 @@ class DemoBackend:
         self._gone: set[str] = set()
         self._cleared_logs: set[str] = set()
         self.vpn = os.environ.get("UI_DEMO_VPN", "on")   # on | off | none, to preview the header chip
+        self.vpn_ip = "203.0.113.16"
         self.channel = os.environ.get("UI_DEMO_CHANNEL", "latest")   # latest | nightly
         self._made: list[dict] = []    # backups "made" by demo actions, newest first
         self.running = {"caddy": True, "gluetun": True, "aiostreams": True, "mediaflow-proxy-light": True, "aios-webhook-relay": True}
@@ -81,11 +82,19 @@ class DemoBackend:
                "checked_at": None, "error": None}
         if self.vpn == "none":
             return out
-        out.update(endpoint_host="nl.wg.example-vpn.net", endpoint_ip="203.0.113.16", endpoint_port="51820")
+        out.update(endpoint_host="nl.wg.example-vpn.net", endpoint_ip=self.vpn_ip, endpoint_port="51820")
         if self.vpn == "on":
             out.update(connected=self.running.get("gluetun", False), exit_ip="203.0.113.17", city="Amsterdam",
                        region="North Holland", country="NL", org="AS64500 Example VPN", checked_at=time.time())
         return out
+
+    def vpn_addresses(self) -> dict:
+        time.sleep(1.5)
+        ips = [("203.0.113.24", 0.8), ("203.0.113.16", 0.9), ("203.0.113.40", 0.9), ("203.0.113.71", 1.2), ("203.0.113.9", None)]
+        if self.vpn_ip not in [i for i, _ in ips]:
+            ips.insert(1, (self.vpn_ip, 1.0))
+        return {"host": "nl.wg.example-vpn.net", "error": None, "addresses": [
+            {"ip": ip, "ms": ms, "in_use": ip == self.vpn_ip, "recommended": n == 0} for n, (ip, ms) in enumerate(ips)]}
 
     def status(self) -> dict:
         defs = [("caddy", "caddy", "Caddy", "HTTPS front door", False, "caddy:2"),
@@ -230,6 +239,17 @@ class DemoBackend:
                       "Confirm at https://streams.example.com"]:
                 say(l, 0.5)
             self.vpn = "on" if on else "off"
+        elif action.id == "vpn.use":
+            ip = action.args[1]
+            for l in [f"Server address: {ip}:51820 (was {self.vpn_ip})", "==> Stopping the current stack", "==> Starting the stack in 'vpn' mode",
+                      "==> Confirming the WireGuard tunnel is actually connected...", "VPN is up. gluetun's exit IP: 203.0.113.17",
+                      "==> Tunnel confirmed, starting AIOStreams"]:
+                say(l, 0.5)
+            self.vpn_ip = ip
+        elif action.id == "vpn.update":
+            for l in ["==> Pulling latest gluetun (v3 stable channel)", "Status: Image is up to date for qmcgaw/gluetun:v3",
+                      "gluetun is already on the newest v3 release. Nothing restarted."]:
+                say(l, 0.5)
         elif action.id == "stack.backup":
             say("==> Creating backup"); say("Backup written to /root/aiostreams-backup-20261009-161500.tar.gz")
             say("!! This file contains your SECRET_KEY, all logins and your WireGuard private key.")

@@ -410,7 +410,7 @@ if \$tunnel_confirmed; then
     rm -f "\$INSTALL_DIR/aiostreams-stopped-on-purpose"
     log "aiostreams started."
 else
-    log "Tunnel could not be confirmed after boot — aiostreams NOT started (left stopped, not attached to an unconfirmed tunnel). Check: docker compose -f \$COMPOSE_FILE logs gluetun, then once resolved: cd \$INSTALL_DIR && sudo bash setup-aiostreams.sh (option 3, Start AIOStreams)."
+    log "Tunnel could not be confirmed after boot, so aiostreams was NOT started (left stopped, not attached to an unconfirmed tunnel). Check: docker compose -f \$COMPOSE_FILE logs gluetun, then once resolved: cd \$INSTALL_DIR && sudo bash setup-aiostreams.sh (option 3, Start AIOStreams)."
 fi
 EOF
     chmod 700 "$BOOT_SCRIPT"
@@ -853,16 +853,22 @@ do_update_gluetun() {
     image_snapshot=$(snapshot_image_ids qmcgaw/gluetun:v3)
     docker pull qmcgaw/gluetun:v3
 
-    if [[ "$active" == "vpn" ]]; then
+    local newest running
+    newest=$(docker image inspect -f '{{.Id}}' qmcgaw/gluetun:v3 2>/dev/null || echo none)
+    running=$(docker inspect -f '{{.Image}}' gluetun 2>/dev/null || echo none)
+    if [[ "$active" == "vpn" && "$running" == "$newest" ]]; then
+        echo ""
+        echo "gluetun is already on the newest v3 release. Nothing restarted."
+    elif [[ "$active" == "vpn" ]]; then
         echo ""
         echo "VPN mode is active, restarting the stack so the new image takes effect."
         echo "(Full toggle rather than a lone container restart: aiostreams shares"
         echo "gluetun's network namespace, so both must be recreated together.)"
-        apply_mode "vpn"
+        turn_vpn_on
     else
         echo ""
-        echo "Done. You're in direct mode, so nothing needs restarting —"
-        echo "the updated image will be used next time you turn the VPN on."
+        echo "Done. You're in direct mode, so nothing needs restarting."
+        echo "The updated image is used next time you turn the VPN on."
     fi
     cleanup_replaced_images "$image_snapshot"
 }
@@ -876,10 +882,16 @@ do_update_gluetun() {
 # name so it can be looked up again later.
 ENDPOINT_HOST_FILE="$STATE_DIR/endpoint-host"
 ENDPOINT_MAX=8
-resolve_endpoint() {
-    local host="$1" url out ip ms tag pick i round
+# endpoint_candidates fills EP_ROWS ("ms ip", fastest first, 99999 for no
+# reply) and EP_IN_USE. EP_QUIET=1 leaves out the progress lines (for the
+# "addresses" command).
+EP_QUIET=""
+EP_ROWS=()
+EP_IN_USE=""
+endpoint_candidates() {
+    local host="$1" url out ip ms round
     [[ "$host" =~ ^[A-Za-z0-9.-]+$ ]] || error "Endpoint '$host' isn't an IPv4 address or a host name. Check the .conf file's Endpoint line."
-    info "Looking up $host"
+    [[ -n "$EP_QUIET" ]] || info "Looking up $host"
     local ips=()
     for round in 1 2 3; do
         for url in \
@@ -917,7 +929,7 @@ resolve_endpoint() {
     # be picked.
     local rows=()
     if command -v ping >/dev/null 2>&1; then
-        echo "  Found $found address(es). Checking how quickly each answers from this server..."
+        [[ -n "$EP_QUIET" ]] || echo "  Found $found address(es). Checking how quickly each answers from this server..."
         local tmp
         tmp=$(mktemp -d)
         for ip in "${ips[@]}"; do
@@ -933,7 +945,14 @@ resolve_endpoint() {
     else
         for ip in "${ips[@]}"; do rows+=("99999 $ip"); done
     fi
+    EP_ROWS=("${rows[@]}")
+    EP_IN_USE="$in_use"
+}
 
+resolve_endpoint() {
+    local host="$1" row ms ip tag pick i
+    endpoint_candidates "$host"
+    local rows=("${EP_ROWS[@]}") in_use="$EP_IN_USE"
     echo ""
     i=1
     for row in "${rows[@]}"; do
@@ -1051,6 +1070,32 @@ choose_conf_file() {
     [[ -f "$WG_PATH" ]] || error "File not found: $WG_PATH"
 }
 
+# The config in use, when its endpoint is a name that can be looked up again
+# for a different server address. Sets CURRENT_CONF; fails when there's no
+# such config (an IP endpoint, or the file has gone).
+CURRENT_CONF=""
+current_repickable_conf() {
+    CURRENT_CONF=""
+    [[ -f "$LAST_CONF_MARKER" ]] && CURRENT_CONF=$(cat "$LAST_CONF_MARKER" 2>/dev/null || true)
+    [[ -n "$CURRENT_CONF" && -f "$CURRENT_CONF" && -f "$ENDPOINT_HOST_FILE" ]]
+}
+
+# Reads the WireGuard values from a .conf file into WG_*.
+parse_conf() {
+    WG_PRIVATE_KEY=$(grep -i '^PrivateKey' "$1" | head -1 | cut -d= -f2- | tr -d ' \r' || true)
+    WG_ADDRESS=$(grep -i '^Address' "$1" | head -1 | cut -d= -f2- | tr -d ' \r' || true)
+    WG_PUBLIC_KEY=$(grep -i '^PublicKey' "$1" | head -1 | cut -d= -f2- | tr -d ' \r' || true)
+    WG_ENDPOINT=$(grep -i '^Endpoint' "$1" | head -1 | cut -d= -f2- | tr -d ' \r' || true)
+
+    [[ -n "$WG_PRIVATE_KEY" && -n "$WG_ADDRESS" && -n "$WG_PUBLIC_KEY" && -n "$WG_ENDPOINT" ]] || \
+        error "Couldn't parse PrivateKey/Address/PublicKey/Endpoint from $1."
+
+    WG_ENDPOINT_IP="${WG_ENDPOINT%%:*}"
+    WG_ENDPOINT_PORT="${WG_ENDPOINT##*:}"
+
+    [[ "$WG_ENDPOINT_PORT" =~ ^[0-9]+$ ]] || error "Couldn't read a port from the Endpoint line ($WG_ENDPOINT). It should look like name-or-IP:51820."
+}
+
 do_reconfigure_vpn() {
     try_read_existing_values "$COMPOSE_FILE" || read_existing_values "$DIRECT_COMPOSE"
 
@@ -1058,8 +1103,7 @@ do_reconfigure_vpn() {
     # different server address (one that's flaky or blocked, say). Offered
     # only while that config file is still there.
     local current_conf="" can_repick=false
-    [[ -f "$LAST_CONF_MARKER" ]] && current_conf=$(cat "$LAST_CONF_MARKER" 2>/dev/null || true)
-    [[ -n "$current_conf" && -f "$current_conf" && -f "$ENDPOINT_HOST_FILE" ]] && can_repick=true
+    if current_repickable_conf; then current_conf="$CURRENT_CONF"; can_repick=true; fi
 
     info "WireGuard config"
     echo "  1) Paste it in (open your VPN provider's .conf file and copy everything)"
@@ -1082,18 +1126,7 @@ do_reconfigure_vpn() {
         *) paste_config ;;
     esac
 
-    WG_PRIVATE_KEY=$(grep -i '^PrivateKey' "$WG_PATH" | head -1 | cut -d= -f2- | tr -d ' \r' || true)
-    WG_ADDRESS=$(grep -i '^Address' "$WG_PATH" | head -1 | cut -d= -f2- | tr -d ' \r' || true)
-    WG_PUBLIC_KEY=$(grep -i '^PublicKey' "$WG_PATH" | head -1 | cut -d= -f2- | tr -d ' \r' || true)
-    WG_ENDPOINT=$(grep -i '^Endpoint' "$WG_PATH" | head -1 | cut -d= -f2- | tr -d ' \r' || true)
-
-    [[ -n "$WG_PRIVATE_KEY" && -n "$WG_ADDRESS" && -n "$WG_PUBLIC_KEY" && -n "$WG_ENDPOINT" ]] || \
-        error "Couldn't parse PrivateKey/Address/PublicKey/Endpoint from $WG_PATH."
-
-    WG_ENDPOINT_IP="${WG_ENDPOINT%%:*}"
-    WG_ENDPOINT_PORT="${WG_ENDPOINT##*:}"
-
-    [[ "$WG_ENDPOINT_PORT" =~ ^[0-9]+$ ]] || error "Couldn't read a port from the Endpoint line ($WG_ENDPOINT). It should look like name-or-IP:51820."
+    parse_conf "$WG_PATH"
     if [[ "$WG_ENDPOINT_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
         rm -f "$ENDPOINT_HOST_FILE"
     else
@@ -1176,6 +1209,57 @@ if [[ "${1:-}" == "on" || "${1:-}" == "off" ]]; then
         exit 0
     fi
     if [[ "$1" == "on" ]]; then turn_vpn_on; else turn_vpn_off; fi
+    exit 0
+fi
+
+# For the control panel, all without questions, and only once the VPN is set
+# up. "update": menu option 5. "addresses": the current config's server
+# addresses, fastest first, one line each: "<ip> <ms, or - for no reply>"
+# then "in-use" and "recommended" where they apply. "use-address <ip>": point
+# the current config at that address (option 4's choice 3), and use it now
+# if the VPN is on.
+if [[ "${1:-}" == "update" || "${1:-}" == "addresses" || "${1:-}" == "use-address" ]]; then
+    [[ -f "$ACTIVE_MARKER" ]] || error "The VPN isn't set up on this server yet. Run this script without arguments first."
+    case "$1" in
+        update) do_update_gluetun ;;
+        addresses)
+            current_repickable_conf || error "The VPN config's Endpoint is an IP address, so there are no other addresses to pick from."
+            EP_QUIET=1
+            endpoint_candidates "$(cat "$ENDPOINT_HOST_FILE")"
+            i=1
+            for row in "${EP_ROWS[@]}"; do
+                ms=${row%% *}; ip=${row#* }
+                line="$ip $([[ "$ms" == 99999 ]] && echo - || echo "$ms")"
+                [[ "$ip" == "$EP_IN_USE" ]] && line="$line in-use"
+                [[ $i -eq 1 && "$ms" != 99999 ]] && line="$line recommended"
+                echo "$line"
+                i=$((i + 1))
+            done
+            ;;
+        use-address)
+            ip="${2:-}"
+            [[ "$ip" =~ ^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$ ]] && \
+                (( 10#${BASH_REMATCH[1]} <= 255 && 10#${BASH_REMATCH[2]} <= 255 && 10#${BASH_REMATCH[3]} <= 255 && 10#${BASH_REMATCH[4]} <= 255 )) || \
+                error "Give an IPv4 address, like 203.0.113.16."
+            current_repickable_conf || error "The VPN config's Endpoint is an IP address, so there's no other address to switch to. Use Reconfigure VPN instead."
+            try_read_existing_values "$COMPOSE_FILE" || read_existing_values "$DIRECT_COMPOSE"
+            parse_conf "$CURRENT_CONF"
+            was=$(grep -oP '(?<=WIREGUARD_ENDPOINT_IP=).*' "$VPN_COMPOSE" 2>/dev/null | head -1 || true)
+            mode=$(cat "$ACTIVE_MARKER" 2>/dev/null || true)
+            if [[ "$ip" == "$was" && "$mode" == "vpn" ]]; then
+                echo "Already using $ip. Nothing to do."
+                exit 0
+            fi
+            WG_ENDPOINT_IP="$ip"
+            echo "Server address: $ip:$WG_ENDPOINT_PORT (was ${was:-unknown})"
+            write_vpn_files
+            if [[ "$mode" == "vpn" ]]; then
+                turn_vpn_on
+            else
+                echo "Saved. It's used the next time the VPN is turned on."
+            fi
+            ;;
+    esac
     exit 0
 fi
 

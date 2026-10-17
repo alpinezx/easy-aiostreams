@@ -295,6 +295,12 @@ async def vpn(fresh: bool = False, user: str = Depends(current_user)):
     return await asyncio.to_thread(backend.vpn_info, fresh)
 
 
+@app.get("/api/vpn/addresses")
+async def vpn_addresses(user: str = Depends(current_user)):
+    """The addresses the VPN config's server name has, fastest first, for Change server."""
+    return await asyncio.to_thread(backend.vpn_addresses)
+
+
 @app.get("/api/backups")
 async def backups(user: str = Depends(current_user)):
     items = await asyncio.to_thread(backend.backups)
