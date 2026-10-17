@@ -88,6 +88,10 @@ _STATIC: dict[str, Action] = {a.id: a for a in [
            args=("revert-config",), timeout=420, needs=("setup-vpn-gluetun.sh", "vpn-state/active", "vpn-state/previous/endpoint-ip"),
            confirm="Goes back to the config you used before the last change, at the same server address. "
                    "With the VPN on, the stack restarts and streams pause for up to a minute."),
+    Action("vpn.forget", "Delete the old config", "Deleting the old config", "Old config deleted", "setup-vpn-gluetun.sh",
+           args=("forget-config",), timeout=60, needs=("setup-vpn-gluetun.sh", "vpn-state/active", "vpn-state/previous"),
+           confirm="Deletes the config kept from before the last change, private key and all. Put the old config back "
+                   "goes with it. The config in use isn't touched. This can't be undone."),
     Action("watchdog.start", "Start", "Starting", "Start finished", "setup-watchdog.sh",
            args=("install-timer",), timeout=60,
            needs=("setup-watchdog.sh", "watchdog-state/config")),

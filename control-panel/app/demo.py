@@ -275,6 +275,9 @@ class DemoBackend:
                       "==> Starting the stack in 'vpn' mode", "VPN is up. gluetun's exit IP: 203.0.113.17"]:
                 say(l, 0.5)
             self.vpn_host, self.vpn_ip, self.previous = "nl.wg.example-vpn.net", "203.0.113.16", None
+        elif action.id == "vpn.forget":
+            say("Deleted the old config kept from before the last change. The config in use isn't touched.")
+            self.previous = None
         elif action.id == "vpn.update":
             for l in ["==> Pulling latest gluetun (v3 stable channel)", "Status: Image is up to date for qmcgaw/gluetun:v3",
                       "gluetun is already on the newest v3 release. Nothing restarted."]:

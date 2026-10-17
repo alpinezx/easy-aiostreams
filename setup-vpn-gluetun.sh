@@ -1253,8 +1253,9 @@ switch_config_now() {
 # they apply. "use-address <ip>": point the current config at that address
 # (option 4's choice 3), and use it now if the VPN is on. "use-config <ip>":
 # switch to the config the panel saved, at that address. "revert-config":
-# go back to the config before the last use-config.
-if [[ "${1:-}" =~ ^(update|addresses|use-address|use-config|revert-config)$ ]]; then
+# go back to the config before the last use-config. "forget-config": delete
+# that kept config instead (it holds a private key).
+if [[ "${1:-}" =~ ^(update|addresses|use-address|use-config|revert-config|forget-config)$ ]]; then
     [[ -f "$ACTIVE_MARKER" ]] || error "The VPN isn't set up on this server yet. Run this script without arguments first."
     case "$1" in
         update) do_update_gluetun ;;
@@ -1354,6 +1355,11 @@ if [[ "${1:-}" =~ ^(update|addresses|use-address|use-config|revert-config)$ ]]; 
             rm -rf "$PREV_DIR"
             echo "Putting back the config from before the last change (server address $WG_ENDPOINT_IP:$WG_ENDPOINT_PORT)."
             switch_config_now
+            ;;
+        forget-config)
+            [[ -d "$PREV_DIR" ]] || { echo "There's no old config kept. Nothing to delete."; exit 0; }
+            rm -rf "$PREV_DIR"
+            echo "Deleted the old config kept from before the last change. The config in use isn't touched."
             ;;
     esac
     exit 0

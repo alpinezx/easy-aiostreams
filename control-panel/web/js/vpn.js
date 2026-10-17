@@ -213,10 +213,14 @@ function render(v) {
     card.append(h("p", { class: "vpn-note dim", text: "AIOStreams is using a direct connection, so its traffic leaves from this server's own IP. Turn VPN on switches it back." }));
   }
   const use = actFor("vpn.use"), upd = actFor("vpn.update"), conf = actFor("vpn.config"), back = actFor("vpn.revert");
+  const forget = actFor("vpn.forget");
   if (v.previous && back) {
     card.append(h("div", { class: "vpn-prev" },
       h("span", { class: "dim", text: `Config changed ${ago(v.previous.changed_at)}${v.previous.endpoint_host ? `, from ${v.previous.endpoint_host}` : ""}.` }),
-      h("button", { class: "btn small", type: "button", text: "Put the old config back", disabled: !!(st && st.busy), onclick: () => runAction(back) })));
+      h("span", { class: "vpn-prev-acts" },
+        h("button", { class: "btn small", type: "button", text: "Put the old config back", disabled: !!(st && st.busy), onclick: () => runAction(back) }),
+        forget ? h("button", { class: "btn small danger", type: "button", text: "Delete", disabled: !!(st && st.busy),
+          title: "Delete the old config kept for Put the old config back", onclick: () => runAction(forget) }) : null)));
   }
   if (use || upd || conf) {
     card.append(h("div", { class: "vpn-card-acts" },
