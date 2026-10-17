@@ -295,6 +295,29 @@ async def vpn(fresh: bool = False, user: str = Depends(current_user)):
     return await asyncio.to_thread(backend.vpn_info, fresh)
 
 
+@app.post("/api/vpn/config")
+async def vpn_config(request: Request, user: str = Depends(current_user)):
+    """Checks a pasted WireGuard config and keeps it, readable only by root, for
+    Change config. Sends back the endpoint and address, never the keys."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    conf = body.get("conf") if isinstance(body, dict) else None
+    if not isinstance(conf, str) or not conf.strip() or len(conf) > 8192:
+        raise HTTPException(400, "Paste the whole WireGuard config.")
+    try:
+        return await asyncio.to_thread(backend.vpn_stage_config, conf)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/vpn/config/addresses")
+async def vpn_config_addresses(user: str = Depends(current_user)):
+    """The addresses the staged config's endpoint name has, fastest first."""
+    return await asyncio.to_thread(backend.vpn_staged_addresses)
+
+
 @app.get("/api/vpn/addresses")
 async def vpn_addresses(user: str = Depends(current_user)):
     """The addresses the VPN config's server name has, fastest first, for Change server."""

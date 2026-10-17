@@ -1212,20 +1212,60 @@ if [[ "${1:-}" == "on" || "${1:-}" == "off" ]]; then
     exit 0
 fi
 
+# The control panel's Change config. The panel checks a pasted config and
+# saves it as UPLOAD_CONF (root only); use-config keeps everything in use now
+# in PREV_DIR, then switches. revert-config puts that back.
+UPLOAD_CONF="$STATE_DIR/upload.conf"
+PREV_DIR="$STATE_DIR/previous"
+
+valid_ipv4() {
+    [[ "$1" =~ ^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$ ]] && \
+        (( 10#${BASH_REMATCH[1]} <= 255 && 10#${BASH_REMATCH[2]} <= 255 && 10#${BASH_REMATCH[3]} <= 255 && 10#${BASH_REMATCH[4]} <= 255 ))
+}
+
+# Switches to $WG_PATH at $WG_ENDPOINT_IP (both set by the caller) and, with
+# the VPN on, uses it now. Fails when AIOStreams was running before but the
+# tunnel didn't connect, so the panel shows the switch as failed.
+switch_config_now() {
+    local was_running mode
+    was_running=$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo "false")
+    mode=$(cat "$ACTIVE_MARKER" 2>/dev/null || true)
+    echo "$WG_PATH" > "$LAST_CONF_MARKER"
+    write_vpn_files
+    if [[ "$mode" != "vpn" ]]; then
+        echo "Saved. It's used the next time the VPN is turned on."
+        return 0
+    fi
+    turn_vpn_on
+    if [[ "$was_running" == "true" && "$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo false)" != "true" ]]; then
+        echo ""
+        echo "The tunnel didn't connect with this config, so AIOStreams is stopped."
+        echo "Use Put the old config back on the control panel's VPN page, or run:"
+        echo "  sudo bash $INSTALL_DIR/setup-vpn-gluetun.sh revert-config"
+        exit 1
+    fi
+}
+
 # For the control panel, all without questions, and only once the VPN is set
-# up. "update": menu option 5. "addresses": the current config's server
-# addresses, fastest first, one line each: "<ip> <ms, or - for no reply>"
-# then "in-use" and "recommended" where they apply. "use-address <ip>": point
-# the current config at that address (option 4's choice 3), and use it now
-# if the VPN is on.
-if [[ "${1:-}" == "update" || "${1:-}" == "addresses" || "${1:-}" == "use-address" ]]; then
+# up. "update": menu option 5. "addresses [name]": the current config's
+# server addresses (or a name's, for Change config), fastest first, one line
+# each: "<ip> <ms, or - for no reply>" then "in-use" and "recommended" where
+# they apply. "use-address <ip>": point the current config at that address
+# (option 4's choice 3), and use it now if the VPN is on. "use-config <ip>":
+# switch to the config the panel saved, at that address. "revert-config":
+# go back to the config before the last use-config.
+if [[ "${1:-}" =~ ^(update|addresses|use-address|use-config|revert-config)$ ]]; then
     [[ -f "$ACTIVE_MARKER" ]] || error "The VPN isn't set up on this server yet. Run this script without arguments first."
     case "$1" in
         update) do_update_gluetun ;;
         addresses)
-            current_repickable_conf || error "The VPN config's Endpoint is an IP address, so there are no other addresses to pick from."
             EP_QUIET=1
-            endpoint_candidates "$(cat "$ENDPOINT_HOST_FILE")"
+            if [[ -n "${2:-}" ]]; then
+                endpoint_candidates "$2"
+            else
+                current_repickable_conf || error "The VPN config's Endpoint is an IP address, so there are no other addresses to pick from."
+                endpoint_candidates "$(cat "$ENDPOINT_HOST_FILE")"
+            fi
             i=1
             for row in "${EP_ROWS[@]}"; do
                 ms=${row%% *}; ip=${row#* }
@@ -1238,9 +1278,7 @@ if [[ "${1:-}" == "update" || "${1:-}" == "addresses" || "${1:-}" == "use-addres
             ;;
         use-address)
             ip="${2:-}"
-            [[ "$ip" =~ ^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$ ]] && \
-                (( 10#${BASH_REMATCH[1]} <= 255 && 10#${BASH_REMATCH[2]} <= 255 && 10#${BASH_REMATCH[3]} <= 255 && 10#${BASH_REMATCH[4]} <= 255 )) || \
-                error "Give an IPv4 address, like 203.0.113.16."
+            valid_ipv4 "$ip" || error "Give an IPv4 address, like 203.0.113.16."
             current_repickable_conf || error "The VPN config's Endpoint is an IP address, so there's no other address to switch to. Use Reconfigure VPN instead."
             try_read_existing_values "$COMPOSE_FILE" || read_existing_values "$DIRECT_COMPOSE"
             parse_conf "$CURRENT_CONF"
@@ -1258,6 +1296,64 @@ if [[ "${1:-}" == "update" || "${1:-}" == "addresses" || "${1:-}" == "use-addres
             else
                 echo "Saved. It's used the next time the VPN is turned on."
             fi
+            ;;
+        use-config)
+            ip="${2:-}"
+            valid_ipv4 "$ip" || error "Give an IPv4 address, like 203.0.113.16."
+            [[ -f "$UPLOAD_CONF" ]] || error "There's no new config waiting. Paste it on the control panel's VPN page first."
+            body=$(tr -d '\r' < "$UPLOAD_CONF" | sed 's/^[[:space:]]*//')
+            grep -qi '^\[Interface\]' <<<"$body" && grep -qi '^\[Peer\]' <<<"$body" && \
+                grep -qi '^PrivateKey' <<<"$body" && grep -qi '^Endpoint' <<<"$body" || \
+                error "The new config doesn't look like a WireGuard config. Nothing changed."
+            try_read_existing_values "$COMPOSE_FILE" || read_existing_values "$DIRECT_COMPOSE"
+
+            # Keep what's in use now: the config's contents (its file may be
+            # one in a home folder that changes later), its name and address.
+            old_conf=$(cat "$LAST_CONF_MARKER" 2>/dev/null || true)
+            old_ip=$(grep -oP '(?<=WIREGUARD_ENDPOINT_IP=).*' "$VPN_COMPOSE" 2>/dev/null | head -1 || true)
+            [[ -n "$old_conf" && -f "$old_conf" && -n "$old_ip" ]] || error "Couldn't find the config in use now, so it couldn't be kept. Nothing changed."
+            rm -rf "$PREV_DIR"
+            ( umask 077; mkdir -p "$PREV_DIR"; tr -d '\r' < "$old_conf" > "$PREV_DIR/wireguard.conf" )
+            echo "$old_ip" > "$PREV_DIR/endpoint-ip"
+            [[ -f "$ENDPOINT_HOST_FILE" ]] && cp "$ENDPOINT_HOST_FILE" "$PREV_DIR/endpoint-host"
+            date +%s > "$PREV_DIR/changed-at"
+            chmod 700 "$PREV_DIR"; chmod 600 "$PREV_DIR"/*
+
+            ( umask 077; printf '%s\n' "$body" > "$PASTED_CONF" )
+            chmod 600 "$PASTED_CONF"
+            rm -f "$UPLOAD_CONF" "$PASTED_CONF.prev"
+            WG_PATH="$PASTED_CONF"
+            parse_conf "$WG_PATH"
+            if valid_ipv4 "$WG_ENDPOINT_IP"; then
+                rm -f "$ENDPOINT_HOST_FILE"         # an IP endpoint is used as it is
+            else
+                [[ "$WG_ENDPOINT_IP" =~ ^[A-Za-z0-9.-]+$ ]] || error "The new config's Endpoint isn't an IPv4 address or a host name."
+                echo "$WG_ENDPOINT_IP" > "$ENDPOINT_HOST_FILE"
+                chmod 600 "$ENDPOINT_HOST_FILE"
+                WG_ENDPOINT_IP="$ip"
+            fi
+            echo "New config: endpoint $(cat "$ENDPOINT_HOST_FILE" 2>/dev/null || echo "$WG_ENDPOINT_IP"), server address $WG_ENDPOINT_IP:$WG_ENDPOINT_PORT"
+            echo "Kept the previous config, for Put the old config back."
+            switch_config_now
+            ;;
+        revert-config)
+            [[ -f "$PREV_DIR/wireguard.conf" && -f "$PREV_DIR/endpoint-ip" ]] || error "There's no earlier config to go back to."
+            try_read_existing_values "$COMPOSE_FILE" || read_existing_values "$DIRECT_COMPOSE"
+            ( umask 077; cp "$PREV_DIR/wireguard.conf" "$PASTED_CONF" )
+            chmod 600 "$PASTED_CONF"
+            if [[ -f "$PREV_DIR/endpoint-host" ]]; then
+                cp "$PREV_DIR/endpoint-host" "$ENDPOINT_HOST_FILE"
+                chmod 600 "$ENDPOINT_HOST_FILE"
+            else
+                rm -f "$ENDPOINT_HOST_FILE"
+            fi
+            WG_PATH="$PASTED_CONF"
+            parse_conf "$WG_PATH"
+            WG_ENDPOINT_IP=$(cat "$PREV_DIR/endpoint-ip")
+            valid_ipv4 "$WG_ENDPOINT_IP" || error "The earlier config's saved server address isn't valid. Use Reconfigure VPN instead."
+            rm -rf "$PREV_DIR"
+            echo "Putting back the config from before the last change (server address $WG_ENDPOINT_IP:$WG_ENDPOINT_PORT)."
+            switch_config_now
             ;;
     esac
     exit 0

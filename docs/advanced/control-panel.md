@@ -56,8 +56,9 @@ It is still root-equivalent on your server, because it has to run the scripts an
 | Phone alerts | `install-timer`, and menu options 3 and 4 |
 | Turn VPN on, Turn VPN off | `setup-vpn-gluetun.sh on`, `off` (the same steps as its menu options 2 and 3) |
 | Change server, Update VPN | `setup-vpn-gluetun.sh addresses` for the list, then `use-address <ip>`; `update` (menu option 5) |
+| Change config, Put the old config back | `setup-vpn-gluetun.sh addresses <name>` for the new config's list, then `use-config <ip>`; `revert-config` |
 
-The scripts run on the host with a terminal attached, like an SSH session. Reconfigure (including the VPN's) and uninstall have no button.
+The scripts run on the host with a terminal attached, like an SSH session. The main script's Reconfigure, the VPN's first-time setup and the uninstalls have no button.
 
 The version chip on the Overview tab is read from the running AIOStreams container's own `package.json`, once per container (an update recreates it, so the chip follows).
 
@@ -67,7 +68,9 @@ Each line is split the way AIOStreams' own log viewer shows it: time, a dot for 
 
 ## VPN page
 
-It appears on the rail once `setup-vpn-gluetun.sh` has set the VPN up, on or off. It shows whether the tunnel is connected and, asked from inside the VPN container (`ipinfo.io`, falling back to plain IP lookups), where traffic leaves: the exit IP, city, country and network. It also shows the endpoint name and server address, read from `vpn-state`; the panel reads only those lines, never the keys. A check is reused for a minute; **Check now** asks again. **Turn VPN off** keeps AIOStreams live through the switch and **Turn VPN on** waits for the tunnel before starting it; both are the script doing the work, with its own checks. **Change server** appears when the config's endpoint is a name: the script looks it up again, pings each address from the server and lists them fastest first; the address picked is the only thing sent back, and the panel accepts only an IPv4 address. **Update VPN** pulls the newest `qmcgaw/gluetun:v3` and restarts the stack only if the image changed and the VPN is on. The panel is its own Docker project, so the switch never touches it, though it's out of reach for a few seconds while Caddy restarts.
+It appears on the rail once `setup-vpn-gluetun.sh` has set the VPN up, on or off. It shows whether the tunnel is connected and, asked from inside the VPN container (`ipinfo.io`, falling back to plain IP lookups), where traffic leaves: the exit IP, city, country and network. It also shows the endpoint name and server address, read from `vpn-state`; the panel reads only those lines, never the keys. A check is reused for a minute; **Check now** asks again. **Turn VPN off** keeps AIOStreams live through the switch and **Turn VPN on** waits for the tunnel before starting it; both are the script doing the work, with its own checks. **Change server** appears when the config's endpoint is a name: the script looks it up again, pings each address from the server and lists them fastest first; the address picked is the only thing sent back, and the panel accepts only an IPv4 address. **Update VPN** pulls the newest `qmcgaw/gluetun:v3` and restarts the stack only if the image changed and the VPN is on.
+
+**Change config** sends the pasted config (or the file's contents, read in the browser) to the panel once, over HTTPS. The panel checks it has both sections, real-looking keys and a valid endpoint, saves it as `vpn-state/upload.conf` (root only, mode 600) and sends back only the endpoint and address; the paste box is emptied. The script's `use-config` then keeps the config in use, its server name and address in `vpn-state/previous/`, installs the new one as `vpn-state/wireguard.conf`, and switches with the usual tunnel check. If AIOStreams was running and the tunnel doesn't connect, it reports a failure and leaves AIOStreams stopped rather than unprotected. **Put the old config back** (`revert-config`) stays on the page until the next change. The panel is its own Docker project, so the switch never touches it, though it's out of reach for a few seconds while Caddy restarts.
 
 ## Backups and restores
 

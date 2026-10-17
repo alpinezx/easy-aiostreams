@@ -22,6 +22,7 @@ import docker
 
 from . import config
 from .actions import SCRIPTS, Action
+from .wgconf import check_wireguard_conf
 
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 BACKUP_NAME = re.compile(r"aiostreams-backup-[0-9A-Za-z._-]+\.tar\.gz")
@@ -317,7 +318,7 @@ class Backend:
         out = {"mode": mode, "endpoint_host": host if re.fullmatch(r"[A-Za-z0-9.-]+", host) else None,
                "endpoint_ip": ip.group(1) if ip else None, "endpoint_port": port.group(1) if port else None,
                "connected": None, "exit_ip": None, "city": None, "region": None, "country": None, "org": None,
-               "checked_at": None, "error": None}
+               "checked_at": None, "error": None, "previous": self._vpn_previous()}
         if mode != "on":
             return out
         now = time.time()
@@ -536,19 +537,55 @@ class Backend:
                            capture_output=True, text=True, timeout=180)
         return parse_backup_info(r.stdout) if r.returncode == 0 else None
 
+    def _vpn_previous(self) -> dict | None:
+        """The config kept by the last Change config, for Put the old config back."""
+        if not (self.p("vpn-state/previous/endpoint-ip").exists() and self.p("vpn-state/previous/wireguard.conf").exists()):
+            return None
+        try:
+            changed = int(_read(self.p("vpn-state/previous/changed-at")).strip())
+        except ValueError:
+            changed = None
+        host = _read(self.p("vpn-state/previous/endpoint-host")).strip()
+        return {"changed_at": changed, "endpoint_host": host if re.fullmatch(r"[A-Za-z0-9.-]+", host) else None}
+
+    def vpn_stage_config(self, conf: str) -> dict:
+        """Checks a pasted config and saves it where only root can read it,
+        for the script's use-config. Raises ValueError with a reason."""
+        if not self.p("vpn-state/active").exists():
+            raise ValueError("The VPN isn't set up on this server.")
+        body, info = check_wireguard_conf(conf)
+        path = self.p("vpn-state/upload.conf")
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
+            f.write(body)
+        os.chmod(path, 0o600)
+        return info
+
+    def vpn_staged_addresses(self) -> dict:
+        """The addresses the saved new config's endpoint name has, fastest first."""
+        try:
+            _, info = check_wireguard_conf(_read(self.p("vpn-state/upload.conf")))
+        except ValueError:
+            return {"host": None, "addresses": [], "error": "Paste the config again."}
+        if not info["endpoint_host"]:
+            return {"host": None, "addresses": [], "error": "Its Endpoint is already an address."}
+        return {"host": info["endpoint_host"], **self._run_addresses(info["endpoint_host"])}
+
+    def _run_addresses(self, host: str | None = None) -> dict:
+        cmd = ["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "env", "-i",
+               f"HOME={self.home}", f"PATH={HOST_PATH}", "TERM=dumb", "LANG=C.UTF-8",
+               "bash", str(config.INSTALL_DIR / "setup-vpn-gluetun.sh"), "addresses", *([host] if host else [])]
+        try:
+            r = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=90)
+            return parse_vpn_addresses(r.stdout + r.stderr, r.returncode)
+        except subprocess.TimeoutExpired:
+            return {"addresses": [], "error": "The lookup took too long."}
+
     def vpn_addresses(self) -> dict:
         """The VPN config's server addresses, fastest first, timed from this
         server by setup-vpn-gluetun.sh. Changes nothing."""
         host = _read(self.p("vpn-state/endpoint-host")).strip() or None
-        cmd = ["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "env", "-i",
-               f"HOME={self.home}", f"PATH={HOST_PATH}", "TERM=dumb", "LANG=C.UTF-8",
-               "bash", str(config.INSTALL_DIR / "setup-vpn-gluetun.sh"), "addresses"]
-        try:
-            r = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=90)
-            out = parse_vpn_addresses(r.stdout + r.stderr, r.returncode)
-        except subprocess.TimeoutExpired:
-            out = {"addresses": [], "error": "The lookup took too long."}
-        return {"host": host, **out}
+        return {"host": host, **self._run_addresses()}
 
     def restore_check(self, b: dict) -> dict:
         """Asks setup-backup.sh whether this backup restores here without

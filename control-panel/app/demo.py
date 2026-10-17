@@ -65,6 +65,9 @@ class DemoBackend:
         self._cleared_logs: set[str] = set()
         self.vpn = os.environ.get("UI_DEMO_VPN", "on")   # on | off | none, to preview the header chip
         self.vpn_ip = "203.0.113.16"
+        self.vpn_host = "nl.wg.example-vpn.net"
+        self.staged = None
+        self.previous = None
         self.channel = os.environ.get("UI_DEMO_CHANNEL", "latest")   # latest | nightly
         self._made: list[dict] = []    # backups "made" by demo actions, newest first
         self.running = {"caddy": True, "gluetun": True, "aiostreams": True, "mediaflow-proxy-light": True, "aios-webhook-relay": True}
@@ -82,11 +85,22 @@ class DemoBackend:
                "checked_at": None, "error": None}
         if self.vpn == "none":
             return out
-        out.update(endpoint_host="nl.wg.example-vpn.net", endpoint_ip=self.vpn_ip, endpoint_port="51820")
+        out.update(endpoint_host=self.vpn_host, endpoint_ip=self.vpn_ip, endpoint_port="51820", previous=self.previous)
         if self.vpn == "on":
             out.update(connected=self.running.get("gluetun", False), exit_ip="203.0.113.17", city="Amsterdam",
                        region="North Holland", country="NL", org="AS64500 Example VPN", checked_at=time.time())
         return out
+
+    def vpn_stage_config(self, conf: str) -> dict:
+        from .wgconf import check_wireguard_conf
+        _, self.staged = check_wireguard_conf(conf)
+        return self.staged
+
+    def vpn_staged_addresses(self) -> dict:
+        time.sleep(1.5)
+        ips = [("203.0.113.120", 7.9), ("203.0.113.131", 8.2), ("203.0.113.145", 8.6), ("203.0.113.160", None)]
+        return {"host": (self.staged or {}).get("endpoint_host"), "error": None,
+                "addresses": [{"ip": ip, "ms": ms, "in_use": False, "recommended": n == 0} for n, (ip, ms) in enumerate(ips)]}
 
     def vpn_addresses(self) -> dict:
         time.sleep(1.5)
@@ -246,6 +260,21 @@ class DemoBackend:
                       "==> Tunnel confirmed, starting AIOStreams"]:
                 say(l, 0.5)
             self.vpn_ip = ip
+        elif action.id == "vpn.config":
+            ip = action.args[1]
+            st = self.staged or {}
+            for l in [f"Config: {st.get('endpoint_host') or ip}, server address {ip}:51820", "Kept the previous config, for Put the old config back.",
+                      "==> Stopping the current stack", "==> Starting the stack in 'vpn' mode",
+                      "==> Confirming the WireGuard tunnel is actually connected...", "VPN is up. gluetun's exit IP: 203.0.113.121",
+                      "==> Tunnel confirmed, starting AIOStreams"]:
+                say(l, 0.5)
+            self.previous = {"changed_at": time.time(), "endpoint_host": self.vpn_host}
+            self.vpn_host, self.vpn_ip = st.get("endpoint_host") or ip, ip
+        elif action.id == "vpn.revert":
+            for l in ["Putting back the config from before the last change", "==> Stopping the current stack",
+                      "==> Starting the stack in 'vpn' mode", "VPN is up. gluetun's exit IP: 203.0.113.17"]:
+                say(l, 0.5)
+            self.vpn_host, self.vpn_ip, self.previous = "nl.wg.example-vpn.net", "203.0.113.16", None
         elif action.id == "vpn.update":
             for l in ["==> Pulling latest gluetun (v3 stable channel)", "Status: Image is up to date for qmcgaw/gluetun:v3",
                       "gluetun is already on the newest v3 release. Nothing restarted."]:

@@ -384,3 +384,19 @@ def test_vpn_change_server_takes_only_an_ipv4_address(client):
     act = actions.resolve("vpn.use", {"ip": "203.0.113.24"})
     assert act.args == ("use-address", "203.0.113.24") and act.confirm is None
     assert actions.resolve("vpn.update").args == ("update",)
+
+
+def test_vpn_change_config_checks_it_and_never_sends_keys_back(client):
+    from tests.test_wgconf import GOOD, PRIV, PUB
+    assert client.post("/api/vpn/config", json={"conf": GOOD}).status_code == 401
+    login(client)
+    for bad in ({}, {"conf": ""}, {"conf": "hello"}, {"conf": GOOD * 40}):
+        assert client.post("/api/vpn/config", json=bad).status_code == 400
+    r = client.post("/api/vpn/config", json={"conf": GOOD})
+    assert r.status_code == 200 and r.json()["endpoint_host"] == "nl.wg.example-vpn.net"
+    assert PRIV not in r.text and PUB not in r.text
+    assert client.get("/api/vpn/config/addresses").json()["addresses"]
+    assert client.post("/api/actions/vpn.config", json={"params": {"ip": "1.2.3.4; reboot"}}).status_code == 400
+    act = actions.resolve("vpn.config", {"ip": "203.0.113.120"})
+    assert act.args == ("use-config", "203.0.113.120") and act.confirm is None
+    assert actions.resolve("vpn.revert").args == ("revert-config",)
