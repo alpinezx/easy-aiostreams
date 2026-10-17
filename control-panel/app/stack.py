@@ -554,11 +554,14 @@ class Backend:
         if not self.p("vpn-state/active").exists():
             raise ValueError("The VPN isn't set up on this server.")
         body, info = check_wireguard_conf(conf)
-        path = self.p("vpn-state/upload.conf")
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with os.fdopen(fd, "w") as f:
-            f.write(body)
-        os.chmod(path, 0o600)
+        # The install folder is mounted read-only here, so it's written on the host,
+        # through stdin (never a command line, where the key would show in ps).
+        path = str(config.INSTALL_DIR / "vpn-state" / "upload.conf")
+        r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "sh", "-c",
+                            'umask 077 && cat > "$1" && chmod 600 "$1"', "sh", path],
+                           input=body, capture_output=True, text=True, timeout=20)
+        if r.returncode != 0:
+            raise ValueError("Couldn't save it on the server.")
         return info
 
     def vpn_staged_addresses(self) -> dict:
