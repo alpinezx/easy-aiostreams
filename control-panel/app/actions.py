@@ -149,12 +149,44 @@ def build_use_address(ip) -> Action:
                   needs=("setup-vpn-gluetun.sh", "vpn-state/active", "vpn-state/endpoint-host"))
 
 
+def build_use_config(ip, on: bool = False) -> Action:
+    """Switches to the config the VPN page checked and staged in vpn-state,
+    at the server address picked (IPv4 only); the script keeps the old one."""
+    try:
+        addr = ipaddress.IPv4Address(str(ip))
+    except ValueError:
+        raise BadAction("Pick one of the listed addresses.")
+    return Action("vpn.config", "Change config", "Changing the VPN config", "VPN config changed", "setup-vpn-gluetun.sh",
+                  args=("use-config", str(addr), *(("on",) if on is True else ())), timeout=420,
+                  needs=("setup-vpn-gluetun.sh", "vpn-state/active"))
+
+
+def build_delete_config(path: str) -> Action:
+    """Deletes one config from the VPN page's list. main.py has matched the
+    path against the list just made, and the script checks it again."""
+    return Action("vpn.delete", "Delete this config", "Deleting a VPN config", "VPN config deleted", "setup-vpn-gluetun.sh",
+                  args=("delete-config", path), timeout=60, needs=("setup-vpn-gluetun.sh", "vpn-state/active"))
+
+
+def build_use_file(path: str, ip, on: bool = False) -> Action:
+    """Switches to a listed config not in use (a .conf file, the previous config,
+    an earlier paste) at the address picked; like Change config."""
+    try:
+        addr = ipaddress.IPv4Address(str(ip))
+    except ValueError:
+        raise BadAction("Pick one of the listed addresses.")
+    return Action("vpn.file", "Use this config", "Changing the VPN config", "VPN config changed", "setup-vpn-gluetun.sh",
+                  args=("use-file", path, str(addr), *(("on",) if on is True else ())), timeout=420, needs=("setup-vpn-gluetun.sh", "vpn-state/active"))
+
+
 def resolve(action_id: str, params: dict | None = None) -> Action:
     params = params or {}
     if action_id == "stack.update":
         return build_update(params.get("backup", True), params.get("channel"))
     if action_id == "vpn.use":
         return build_use_address(params.get("ip"))
+    if action_id == "vpn.config":
+        return build_use_config(params.get("ip"), params.get("on") is True)
     act = _STATIC.get(action_id)
     if act is None:
         raise BadAction("unknown action")
@@ -162,7 +194,8 @@ def resolve(action_id: str, params: dict | None = None) -> Action:
 
 
 def catalog() -> list[Action]:
-    return list(_STATIC.values()) + [build_update(True, None), build_use_address("192.0.2.1")]
+    return list(_STATIC.values()) + [build_update(True, None), build_use_address("192.0.2.1"), build_use_config("192.0.2.1"),
+                                     build_delete_config("/"), build_use_file("/", "192.0.2.1")]
 
 
 # The stack's scripts, in the order the Terminal tab lists them. Only the first

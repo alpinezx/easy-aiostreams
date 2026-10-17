@@ -15,7 +15,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Stre
 from fastapi.staticfiles import StaticFiles
 
 from . import auth, config, panelupdate, releases, scriptsync, serverip, terminal
-from .actions import SCRIPTS, BadAction, build_restore, resolve
+from .actions import SCRIPTS, BadAction, build_delete_config, build_restore, build_use_file, resolve
 from .stack import BACKUP_NAME, RESTARTABLE, backup_path
 
 if config.DEMO:
@@ -293,6 +293,44 @@ async def server_address(user: str = Depends(current_user)):
 async def vpn(fresh: bool = False, user: str = Depends(current_user)):
     """The VPN page: mode, endpoint and, with the tunnel on, where traffic leaves. Never the keys."""
     return await asyncio.to_thread(backend.vpn_info, fresh)
+
+
+@app.post("/api/vpn/config")
+async def vpn_config(request: Request, user: str = Depends(current_user)):
+    """Checks a pasted WireGuard config and keeps it, readable only by root, for
+    Change config. Sends back the endpoint and address, never the keys."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    conf = body.get("conf") if isinstance(body, dict) else None
+    if not isinstance(conf, str) or not conf.strip() or len(conf) > 8192:
+        raise HTTPException(400, "Paste the whole WireGuard config.")
+    try:
+        return await asyncio.to_thread(backend.vpn_stage_config, conf)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/vpn/config/addresses")
+async def vpn_config_addresses(user: str = Depends(current_user)):
+    """The addresses the staged config's endpoint name has, fastest first."""
+    return await asyncio.to_thread(backend.vpn_staged_addresses)
+
+
+@app.get("/api/vpn/configs")
+async def vpn_configs(user: str = Depends(current_user)):
+    """The WireGuard configs on the server: where, which endpoint, which is in use. Never the keys."""
+    return await asyncio.to_thread(backend.vpn_configs)
+
+
+@app.get("/api/vpn/configs/addresses")
+async def vpn_config_file_addresses(path: str, user: str = Depends(current_user)):
+    """The addresses a listed config's endpoint name has, fastest first, for its Use button."""
+    found = next((c for c in await asyncio.to_thread(backend.vpn_configs) if c["path"] == path), None)
+    if not found or not found["endpoint"]:
+        raise HTTPException(400, "That config isn't on the list any more. Reload the page.")
+    return await asyncio.to_thread(backend.vpn_host_addresses, found["endpoint"])
 
 
 @app.get("/api/vpn/addresses")
@@ -599,6 +637,21 @@ async def run_action(action_id: str, request: Request, user: str = Depends(curre
         body = {}
     params = body.get("params") if isinstance(body, dict) else None
     params = params if isinstance(params, dict) else None
+    if action_id in ("vpn.delete", "vpn.file"):
+        # Only a config the list has just found, never the one in use
+        # (Delete may take the one in use too while the VPN is off; none is left then.)
+        path = str((params or {}).get("path", ""))
+        vpn_off = await asyncio.to_thread(backend.vpn_mode) == "off"
+        found = next((c for c in await asyncio.to_thread(backend.vpn_configs)
+                      if c["path"] == path and (not c["in_use"] or (action_id == "vpn.delete" and vpn_off))), None)
+        if not found or (action_id == "vpn.file" and found["in_use"]):
+            raise HTTPException(400, "That config isn't on the list any more, or it's in use. Reload the page.")
+        try:
+            action = build_delete_config(path) if action_id == "vpn.delete" else \
+                build_use_file(path, (params or {}).get("ip"), (params or {}).get("on") is True)
+        except BadAction as e:
+            raise HTTPException(400, str(e))
+        return jobs.summary(jobs.start(action, params, None))
     if action_id == "stack.restore":
         # Same-server only: the script checks again and refuses rather than asks.
         if str((params or {}).get("confirm", "")).strip().lower() != "restore":

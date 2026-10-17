@@ -22,6 +22,7 @@ import docker
 
 from . import config
 from .actions import SCRIPTS, Action
+from .wgconf import check_wireguard_conf
 
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 BACKUP_NAME = re.compile(r"aiostreams-backup-[0-9A-Za-z._-]+\.tar\.gz")
@@ -33,6 +34,23 @@ def backup_path(b: dict) -> str:
     """Where to restore a backup from: root's copy, not a login user's."""
     d = next((d for d in b["dirs"] if not d.startswith(HOMES_DIR + "/")), b["dirs"][0])
     return f"{d}/{b['name']}"
+
+
+VPN_CONF_KINDS = ("pasted", "previous", "prev-paste", "upload", "file")
+
+
+def parse_vpn_configs(out: str, code: int) -> list[dict]:
+    """setup-vpn-gluetun.sh list-configs: 'kind|path|endpoint|in-use' per line."""
+    rows = []
+    if code != 0:
+        return rows
+    for line in out.splitlines():
+        parts = line.strip().split("|")
+        if len(parts) != 4 or parts[0] not in VPN_CONF_KINDS or not parts[1].startswith("/") or parts[3] not in ("0", "1"):
+            continue
+        ep = parts[2] if re.fullmatch(r"[A-Za-z0-9.-]+", parts[2]) else None
+        rows.append({"kind": parts[0], "path": parts[1], "endpoint": ep, "in_use": parts[3] == "1"})
+    return rows
 
 
 def parse_vpn_addresses(out: str, code: int) -> dict:
@@ -317,7 +335,8 @@ class Backend:
         out = {"mode": mode, "endpoint_host": host if re.fullmatch(r"[A-Za-z0-9.-]+", host) else None,
                "endpoint_ip": ip.group(1) if ip else None, "endpoint_port": port.group(1) if port else None,
                "connected": None, "exit_ip": None, "city": None, "region": None, "country": None, "org": None,
-               "checked_at": None, "error": None}
+               "checked_at": None, "error": None, "previous": self._vpn_previous(),
+               "has_config": "WIREGUARD_PRIVATE_KEY=" in saved}
         if mode != "on":
             return out
         now = time.time()
@@ -536,19 +555,91 @@ class Backend:
                            capture_output=True, text=True, timeout=180)
         return parse_backup_info(r.stdout) if r.returncode == 0 else None
 
+    def _vpn_previous(self) -> dict | None:
+        """The config used before the last change (Previous config), and the address it used."""
+        if not (self.p("vpn-state/previous/endpoint-ip").exists() and self.p("vpn-state/previous/wireguard.conf").exists()):
+            return None
+        try:
+            changed = int(_read(self.p("vpn-state/previous/changed-at")).strip())
+        except ValueError:
+            changed = None
+        host = _read(self.p("vpn-state/previous/endpoint-host")).strip()
+        ip = _read(self.p("vpn-state/previous/endpoint-ip")).strip()
+        return {"changed_at": changed, "endpoint_host": host if re.fullmatch(r"[A-Za-z0-9.-]+", host) else None,
+                "endpoint_ip": ip if re.fullmatch(r"\d{1,3}(\.\d{1,3}){3}", ip) else None}
+
+    def vpn_stage_config(self, conf: str) -> dict:
+        """Checks a pasted config and saves it where only root can read it,
+        for the script's use-config. Raises ValueError with a reason."""
+        if not self.p("vpn-state/active").exists():
+            raise ValueError("The VPN isn't set up on this server.")
+        body, info = check_wireguard_conf(conf)
+        # The install folder is mounted read-only here, so it's written on the host,
+        # through stdin (never a command line, where the key would show in ps).
+        path = str(config.INSTALL_DIR / "vpn-state" / "upload.conf")
+        r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "sh", "-c",
+                            'umask 077 && cat > "$1" && chmod 600 "$1"', "sh", path],
+                           input=body, capture_output=True, text=True, timeout=20)
+        if r.returncode != 0:
+            raise ValueError("Couldn't save it on the server.")
+        return info
+
+    def vpn_staged_addresses(self) -> dict:
+        """The addresses the saved new config's endpoint name has, fastest first."""
+        try:
+            _, info = check_wireguard_conf(_read(self.p("vpn-state/upload.conf")))
+        except ValueError:
+            return {"host": None, "addresses": [], "error": "Paste the config again."}
+        if not info["endpoint_host"]:
+            return {"host": None, "addresses": [], "error": "Its Endpoint is already an address."}
+        return {"host": info["endpoint_host"], **self._run_addresses(info["endpoint_host"])}
+
+    # Who is at the keyboard, for the scripts (see run): the owner of the home with a ~/aiostreams shortcut
+    _WHO = ('u=""; for h in /home/*/; do [ -d "${h}aiostreams" ] && u=$(stat -c %U "$h" 2>/dev/null) && break; done; '
+            'if [ -n "$u" ] && [ "$u" != root ] && id "$u" >/dev/null 2>&1; then '
+            'export SUDO_USER="$u" SUDO_UID="$(id -u "$u")" SUDO_GID="$(id -g "$u")"; fi; ')
+
+    def _vpn_script(self, args: list[str], timeout: int) -> subprocess.CompletedProcess:
+        """A quick, question-free setup-vpn-gluetun.sh command, as the login user would run it."""
+        inner = self._WHO + "cd {d} && exec bash setup-vpn-gluetun.sh {a}".format(
+            d=shlex.quote(str(config.INSTALL_DIR)), a=" ".join(shlex.quote(x) for x in args))
+        cmd = ["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "env", "-i",
+               f"HOME={self.home}", f"PATH={HOST_PATH}", "TERM=dumb", "LANG=C.UTF-8", "bash", "-c", inner]
+        return subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=timeout)
+
+    def _run_addresses(self, host: str | None = None) -> dict:
+        try:
+            r = self._vpn_script(["addresses", *([host] if host else [])], 90)
+            return parse_vpn_addresses(r.stdout + r.stderr, r.returncode)
+        except subprocess.TimeoutExpired:
+            return {"addresses": [], "error": "The lookup took too long."}
+
+    def vpn_mode(self) -> str:
+        """on, off or none, from the files alone (quick, unlike vpn_info)."""
+        if "container_name: gluetun" in _read(self.p("docker-compose.yml")):
+            return "on"
+        return "off" if self.p("vpn-state/active").exists() else "none"
+
+    def vpn_configs(self) -> list[dict]:
+        """Every WireGuard config on the server (vpn-state, /root, the login
+        user's home), which is in use, and each one's endpoint. Never the keys."""
+        if not self.p("vpn-state/active").exists():
+            return []
+        try:
+            r = self._vpn_script(["list-configs"], 30)
+        except subprocess.TimeoutExpired:
+            return []
+        return parse_vpn_configs(r.stdout, r.returncode)
+
+    def vpn_host_addresses(self, host: str) -> dict:
+        """The addresses a listed config's endpoint name has, fastest first."""
+        return {"host": host, **self._run_addresses(host)}
+
     def vpn_addresses(self) -> dict:
         """The VPN config's server addresses, fastest first, timed from this
         server by setup-vpn-gluetun.sh. Changes nothing."""
         host = _read(self.p("vpn-state/endpoint-host")).strip() or None
-        cmd = ["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "env", "-i",
-               f"HOME={self.home}", f"PATH={HOST_PATH}", "TERM=dumb", "LANG=C.UTF-8",
-               "bash", str(config.INSTALL_DIR / "setup-vpn-gluetun.sh"), "addresses"]
-        try:
-            r = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=90)
-            out = parse_vpn_addresses(r.stdout + r.stderr, r.returncode)
-        except subprocess.TimeoutExpired:
-            out = {"addresses": [], "error": "The lookup took too long."}
-        return {"host": host, **out}
+        return {"host": host, **self._run_addresses()}
 
     def restore_check(self, b: dict) -> dict:
         """Asks setup-backup.sh whether this backup restores here without

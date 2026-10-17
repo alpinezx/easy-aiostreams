@@ -238,13 +238,21 @@ options 2 and 3; `off` keeps AIOStreams live through the switch (the menu's
 neither sets the VPN up for the first time. The control panel's VPN page
 runs these.
 
-The panel's other VPN buttons use three more commands, also without
-questions and only once the VPN is set up: `update` (option 5),
-`addresses` (lists the current config's server addresses, fastest first,
+The panel's other VPN buttons use more commands, also without questions
+and only once the VPN is set up: `update` (option 5), `addresses [name]`
+(lists the current config's server addresses, or a name's, fastest first,
 one per line: the address, its ping in ms or `-`, then `in-use` and
-`recommended` where they apply) and `use-address <ip>` (option 4's choice
-3: points the current config at that address, and uses it straight away
-when the VPN is on).
+`recommended` where they apply), `use-address <ip>` (option 4's choice 3:
+points the current config at that address, and uses it straight away when
+the VPN is on), `use-config <ip>` (switches to a config the panel saved as
+`vpn-state/upload.conf`, keeping the one in use in `vpn-state/previous/`),
+`revert-config` (puts that one back at its old address), `forget-config` (deletes it instead),
+`list-configs` (every WireGuard config on the server, one per line:
+`kind|path|endpoint|in-use`), `use-file <path> <ip>` (switches to any
+listed config not in use, copying it into `vpn-state`) and `delete-config <path>`
+(deletes a listed config that isn't in use; with the VPN off, also the one
+it would use, which leaves no config saved). With no config saved, **Turn
+VPN ON** asks for one first, the same way Reconfigure does.
 
 ---
 

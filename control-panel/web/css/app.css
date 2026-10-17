@@ -292,7 +292,39 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .addr-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .addr-tags .chip { font-size: .74rem; padding: 1px 8px; }
 .addr-ms { color: var(--dim); font-size: .88rem; font-variant-numeric: tabular-nums; text-align: right; }
-.addr-wait { margin: 0; }
+.addr-wait, .conf-checking { display: flex; align-items: center; gap: 10px; margin: 0; }
+.addr-wait .spin, .conf-checking .spin { flex: none; }
+/* Change config */
+.dialog:has(.conf-wrap) { width: min(520px, calc(100vw - 32px)); }
+.conf-wrap { display: grid; gap: 12px; }
+.conf-box { display: grid; gap: 8px; }
+.conf-paste { width: 100%; box-sizing: border-box; resize: vertical; font-size: .84rem; line-height: 1.45; margin: 0 !important; }
+.conf-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.conf-note { font-size: .86rem; }
+.warn-text { color: var(--warn); }
+.conf-sum { position: relative; border: 1px solid var(--line-soft); border-radius: 9px; padding: 12px 14px; }
+.conf-grid { margin-top: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 18px; }
+.conf-grid > :first-child { grid-column: 1 / -1; }
+.btn.conf-again { margin: 10px 0 0 -10px; }
+.conf-wrap .addr-list { margin: 0; }
+.conf-wrap + .btns, .dialog .conf-wrap { margin-bottom: 18px; }
+/* the configs on the server */
+.conf-title { font-size: 1.05rem; margin: 28px 0 12px; }
+.conf-list { padding: 0; }
+.conf-item { display: grid; grid-template-columns: minmax(0, 1fr) auto 150px; gap: 14px; align-items: center;
+  padding: 12px 16px; border-top: 1px solid var(--line-soft); }
+.conf-item:first-child { border-top: 0; }
+.conf-name { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.conf-name .chip { font-size: .74rem; padding: 1px 8px; font-weight: 500; }
+.conf-path { font-size: .8rem; color: var(--dim); overflow-wrap: anywhere; margin-top: 2px; }
+.conf-ep { font-size: .84rem; white-space: nowrap; }
+.conf-acts { display: flex; gap: 6px; justify-content: flex-end; }
+@media (max-width: 720px) {
+  .conf-item { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .conf-ep { white-space: normal; overflow-wrap: anywhere; }
+  .conf-acts { justify-content: flex-start; }
+}
+@media (max-width: 720px) { .conf-grid { grid-template-columns: minmax(0, 1fr); } }
 .vpn-card code, .vpn-foot code { white-space: nowrap; }
 @media (max-width: 720px) { .vpn-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; } }
 .meter { margin-bottom: 14px; }

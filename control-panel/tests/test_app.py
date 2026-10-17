@@ -384,3 +384,49 @@ def test_vpn_change_server_takes_only_an_ipv4_address(client):
     act = actions.resolve("vpn.use", {"ip": "203.0.113.24"})
     assert act.args == ("use-address", "203.0.113.24") and act.confirm is None
     assert actions.resolve("vpn.update").args == ("update",)
+
+
+def test_vpn_change_config_checks_it_and_never_sends_keys_back(client):
+    from tests.test_wgconf import GOOD, PRIV, PUB
+    assert client.post("/api/vpn/config", json={"conf": GOOD}).status_code == 401
+    login(client)
+    for bad in ({}, {"conf": ""}, {"conf": "hello"}, {"conf": GOOD * 40}):
+        assert client.post("/api/vpn/config", json=bad).status_code == 400
+    r = client.post("/api/vpn/config", json={"conf": GOOD})
+    assert r.status_code == 200 and r.json()["endpoint_host"] == "nl.wg.example-vpn.net"
+    assert PRIV not in r.text and PUB not in r.text
+    assert client.get("/api/vpn/config/addresses").json()["addresses"]
+    assert client.post("/api/actions/vpn.config", json={"params": {"ip": "1.2.3.4; reboot"}}).status_code == 400
+    act = actions.resolve("vpn.config", {"ip": "203.0.113.120"})
+    assert act.args == ("use-config", "203.0.113.120") and act.confirm is None
+
+
+def test_vpn_config_list_delete_and_use_only_listed_files(client):
+    assert client.get("/api/vpn/configs").status_code == 401
+    login(client)
+    rows = client.get("/api/vpn/configs").json()
+    in_use = next(c for c in rows if c["in_use"])
+    spare = next(c for c in rows if c["kind"] == "file" and not c["in_use"])
+    assert not any("key" in k.lower() for c in rows for k in c)
+    for path in (in_use["path"], "/etc/passwd", "/home/ubuntu/../../etc/shadow", ""):
+        assert client.post("/api/actions/vpn.delete", json={"params": {"path": path}}).status_code == 400
+        assert client.post("/api/actions/vpn.file", json={"params": {"path": path, "ip": "203.0.113.120"}}).status_code == 400
+    assert client.post("/api/actions/vpn.file", json={"params": {"path": spare["path"], "ip": "nope"}}).status_code == 400
+    assert client.get("/api/vpn/configs/addresses", params={"path": "/etc/passwd"}).status_code == 400
+    assert client.get("/api/vpn/configs/addresses", params={"path": spare["path"]}).json()["addresses"]
+    r = client.post("/api/actions/vpn.delete", json={"params": {"path": spare["path"]}})
+    assert r.status_code == 200 and wait_job(client, r.json()["id"])["code"] == 0
+
+
+def test_vpn_config_in_use_deletable_only_with_the_vpn_off(client, monkeypatch):
+    from app import main
+    login(client)
+    in_use = next(c for c in client.get("/api/vpn/configs").json() if c["in_use"])
+    monkeypatch.setattr(main.backend, "vpn", "on")
+    assert client.post("/api/actions/vpn.delete", json={"params": {"path": in_use["path"]}}).status_code == 400
+    monkeypatch.setattr(main.backend, "vpn", "off")
+    r = client.post("/api/actions/vpn.delete", json={"params": {"path": in_use["path"]}})
+    assert r.status_code == 200 and wait_job(client, r.json()["id"])["code"] == 0
+    assert client.get("/api/vpn").json()["has_config"] is False
+    assert actions.resolve("vpn.config", {"ip": "203.0.113.120", "on": True}).args == ("use-config", "203.0.113.120", "on")
+    assert actions.resolve("vpn.config", {"ip": "203.0.113.120", "on": "yes"}).args == ("use-config", "203.0.113.120")

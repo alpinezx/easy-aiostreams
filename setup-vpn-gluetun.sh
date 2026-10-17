@@ -470,6 +470,8 @@ confirm_vpn_disruption() {
         2)
             info "Stopping AIOStreams so nothing is served during the switch"
             docker compose stop aiostreams || warn "Stop had issues, continuing anyway."
+            # A deliberate stop, like the main script's: the switch leaves it stopped
+            touch "$INSTALL_DIR/aiostreams-stopped-on-purpose"
             return 0
             ;;
         *)
@@ -585,14 +587,14 @@ apply_mode() {
         info "Confirming the WireGuard tunnel is actually connected..."
         local tunnel_confirmed=false tunnel_attempt ip_svc
         local ip_svcs=("ifconfig.me/ip" "icanhazip.com" "ipinfo.io/ip")
+        # One service per attempt, taking turns (so one being down doesn't
+        # matter): about 7 seconds an attempt, a minute at most in all.
         for (( tunnel_attempt=1; tunnel_attempt<=8; tunnel_attempt++ )); do
-            for ip_svc in "${ip_svcs[@]}"; do
-                if docker exec gluetun wget -qO- --timeout=5 "$ip_svc" 2>/dev/null | grep -qE '^[0-9]'; then
-                    tunnel_confirmed=true
-                    break
-                fi
-            done
-            [[ "$tunnel_confirmed" == "true" ]] && break
+            ip_svc=${ip_svcs[$(( (tunnel_attempt - 1) % ${#ip_svcs[@]} ))]}
+            if docker exec gluetun wget -qO- --timeout=5 "$ip_svc" 2>/dev/null | grep -qE '^[0-9]'; then
+                tunnel_confirmed=true
+                break
+            fi
             echo "  Tunnel not confirmed yet (attempt ${tunnel_attempt}/8)..."
             sleep 2
         done
@@ -618,9 +620,9 @@ this."
                 echo "  docker exec gluetun wget -qO- ifconfig.me/ip"
             fi
             check_dns_dot
-        else
-            warn "Couldn't confirm the exit IP automatically. Check manually with:"
-            echo "  docker exec gluetun wget -qO- ifconfig.me/ip"
+        elif [[ "$skip_aiostreams" == "true" ]]; then
+            # (With AIOStreams to start, the block below says this and more)
+            warn "The tunnel couldn't be confirmed connected. Check with: docker compose logs gluetun"
         fi
 
         if [[ "$skip_aiostreams" != "true" ]]; then
@@ -678,8 +680,11 @@ this."
     fi
 
 
-    echo ""
-    echo -e "Confirm at \033[1;36mhttps://${domain}\033[0m"
+    # Only when the stack came up as asked (not after an unconfirmed tunnel)
+    if [[ "$mode" != "vpn" || "${tunnel_confirmed:-}" == "true" ]]; then
+        echo ""
+        echo -e "Confirm at \033[1;36mhttps://${domain}\033[0m"
+    fi
 }
 
 check_dns_dot() {
@@ -1149,14 +1154,27 @@ do_reconfigure_vpn() {
     fi
 }
 
+# A config is saved for VPN mode (the control panel can delete it while the
+# VPN is off, leaving none).
+vpn_config_saved() {
+    [[ -f "$VPN_COMPOSE" ]] && grep -q 'WIREGUARD_PRIVATE_KEY=.' "$VPN_COMPOSE"
+}
+
+# AIOStreams is stopped on purpose (the main script's Stop, or "Stop
+# AIOStreams first" above), so a switch leaves it stopped. Stopped for any
+# other reason, say a tunnel that didn't connect, a switch starts it again.
+aio_stays_stopped() {
+    [[ -f "$INSTALL_DIR/aiostreams-stopped-on-purpose" ]] && \
+        [[ "$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo false)" != "true" ]]
+}
+
 # Turn VPN ON (menu option 2, and option 4's "use it now"). No
 # confirm_vpn_disruption gate, unlike OFF, this direction never exposes
-# anything. skip_aio purely avoids resurrecting AIOStreams if it was
-# deliberately left stopped beforehand.
+# anything. skip_aio only keeps a deliberately stopped AIOStreams stopped.
 turn_vpn_on() {
-    local aio_running_now skip_aio="false"
-    aio_running_now=$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo "false")
-    [[ "$aio_running_now" == "true" ]] || skip_aio="true"
+    vpn_config_saved || error "There's no VPN config saved, so the VPN can't be turned on. Add one first: Change config on the control panel's VPN page, or this script's Reconfigure VPN (option 4)."
+    local skip_aio="false"
+    if aio_stays_stopped; then skip_aio="true"; fi
     apply_mode "vpn" "$skip_aio"
 }
 
@@ -1164,9 +1182,8 @@ turn_vpn_on() {
 # command). Checked after any "Stop AIOStreams first" choice, so a stopped
 # AIOStreams isn't started again.
 turn_vpn_off() {
-    local aio_running_now skip_aio="false"
-    aio_running_now=$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo "false")
-    [[ "$aio_running_now" == "true" ]] || skip_aio="true"
+    local skip_aio="false"
+    if aio_stays_stopped; then skip_aio="true"; fi
     apply_mode "direct" "$skip_aio"
 }
 
@@ -1208,24 +1225,133 @@ if [[ "${1:-}" == "on" || "${1:-}" == "off" ]]; then
         echo "The VPN is already $1. Nothing to do."
         exit 0
     fi
+    want_aio=true
+    if aio_stays_stopped; then want_aio=false; fi
     if [[ "$1" == "on" ]]; then turn_vpn_on; else turn_vpn_off; fi
+    # Fail (for the panel) when AIOStreams should be running and isn't, say the tunnel didn't connect
+    if $want_aio && [[ "$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo false)" != "true" ]]; then
+        echo ""
+        echo "AIOStreams didn't start. See the lines above for why."
+        exit 1
+    fi
     exit 0
 fi
 
+# The control panel's Change config. The panel checks a pasted config and
+# saves it as UPLOAD_CONF (root only); use-config keeps everything in use now
+# in PREV_DIR, then switches. revert-config puts that back.
+UPLOAD_CONF="$STATE_DIR/upload.conf"
+PREV_DIR="$STATE_DIR/previous"
+
+valid_ipv4() {
+    [[ "$1" =~ ^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$ ]] && \
+        (( 10#${BASH_REMATCH[1]} <= 255 && 10#${BASH_REMATCH[2]} <= 255 && 10#${BASH_REMATCH[3]} <= 255 && 10#${BASH_REMATCH[4]} <= 255 ))
+}
+
+# Switches to $WG_PATH at $WG_ENDPOINT_IP (both set by the caller) and, with
+# the VPN on (or "on" given, to turn it on with this config), uses it now.
+# Fails when AIOStreams was running before but the tunnel didn't connect, so
+# the panel shows the switch as failed.
+switch_config_now() {
+    local mode want_aio=true
+    if aio_stays_stopped; then want_aio=false; fi
+    mode=$(cat "$ACTIVE_MARKER" 2>/dev/null || true)
+    echo "$WG_PATH" > "$LAST_CONF_MARKER"
+    write_vpn_files
+    if [[ "$mode" != "vpn" && "${1:-}" != on ]]; then
+        echo "Saved. It's used the next time the VPN is turned on."
+        return 0
+    fi
+    turn_vpn_on
+    if $want_aio && [[ "$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo false)" != "true" ]]; then
+        echo ""
+        echo "The tunnel didn't connect with this config, so AIOStreams is stopped."
+        echo "To go back, press Use on Previous config in the control panel's VPN page, or run:"
+        echo "  sudo bash $INSTALL_DIR/setup-vpn-gluetun.sh revert-config"
+        exit 1
+    fi
+}
+
+# Every WireGuard config on the server, for the control panel's list. One line
+# each, "kind|path|endpoint|in-use" (in-use is 1 or 0), kinds: pasted (the
+# config pasted in), previous (kept for revert-config), prev-paste (the one
+# before the last paste), upload (saved by the panel, not used yet) and file
+# (a .conf in /root or the login user's home, as Reconfigure finds them).
+looks_like_wireguard() {
+    grep -qi '^[[:space:]]*\[Interface\]' "$1" 2>/dev/null && grep -qi '^[[:space:]]*\[Peer\]' "$1" 2>/dev/null && \
+        grep -qi '^[[:space:]]*PrivateKey' "$1" 2>/dev/null && grep -qi '^[[:space:]]*Endpoint' "$1" 2>/dev/null
+}
+
+list_configs() {
+    local in_use f kind ep
+    in_use=$(cat "$LAST_CONF_MARKER" 2>/dev/null || true)
+    local rows=("pasted|$PASTED_CONF" "previous|$PREV_DIR/wireguard.conf" "prev-paste|$PASTED_CONF.prev" "upload|$UPLOAD_CONF")
+    local scan_dirs=("/root")
+    [[ "$REAL_HOME" != "/root" ]] && scan_dirs+=("$REAL_HOME")
+    while IFS= read -r -d '' f; do
+        rows+=("file|$f")
+    done < <(find "${scan_dirs[@]}" -maxdepth 1 -type f -name '*.conf' -print0 2>/dev/null | sort -z)
+    for row in "${rows[@]}"; do
+        kind=${row%%|*}; f=${row#*|}
+        [[ -f "$f" && "$f" != *"|"* ]] || continue
+        looks_like_wireguard "$f" || continue
+        ep=$(grep -i '^[[:space:]]*Endpoint' "$f" | head -1 | cut -d= -f2- | tr -d ' \r' || true)
+        ep=${ep%:*}
+        [[ "$ep" =~ ^[A-Za-z0-9.-]+$ ]] || ep=""
+        echo "$kind|$f|$ep|$([[ "$f" == "$in_use" ]] && echo 1 || echo 0)"
+    done
+}
+
+# The kind of a listed config that isn't in use, or nothing.
+listed_not_in_use() {
+    local line
+    while IFS= read -r line; do
+        IFS='|' read -r kind path _ use <<<"$line"
+        [[ "$path" == "$1" && "$use" == 0 ]] && { echo "$kind"; return 0; }
+    done < <(list_configs)
+    return 1
+}
+
+# "<kind> <in-use>" for a listed config that may be deleted: any not in use,
+# and the one in use too while the VPN is off.
+deletable_config() {
+    local line mode
+    mode=$(cat "$ACTIVE_MARKER" 2>/dev/null || true)
+    while IFS= read -r line; do
+        IFS='|' read -r kind path _ use <<<"$line"
+        [[ "$path" == "$1" ]] || continue
+        [[ "$use" == 0 || "$mode" == direct ]] && { echo "$kind $use"; return 0; }
+        return 1
+    done < <(list_configs)
+    return 1
+}
+
 # For the control panel, all without questions, and only once the VPN is set
-# up. "update": menu option 5. "addresses": the current config's server
-# addresses, fastest first, one line each: "<ip> <ms, or - for no reply>"
-# then "in-use" and "recommended" where they apply. "use-address <ip>": point
-# the current config at that address (option 4's choice 3), and use it now
-# if the VPN is on.
-if [[ "${1:-}" == "update" || "${1:-}" == "addresses" || "${1:-}" == "use-address" ]]; then
+# up. "update": menu option 5. "addresses [name]": the current config's
+# server addresses (or a name's, for Change config), fastest first, one line
+# each: "<ip> <ms, or - for no reply>" then "in-use" and "recommended" where
+# they apply. "use-address <ip>": point the current config at that address
+# (option 4's choice 3), and use it now if the VPN is on. "use-config <ip>":
+# switch to the config the panel saved, at that address (with "on" after
+# it, turn the VPN on with it too). "revert-config":
+# go back to the config before the last use-config. "forget-config": delete
+# that kept config instead (it holds a private key). "list-configs": see
+# list_configs. "delete-config <path>": delete one listed config that isn't
+# in use (or is, while the VPN is off: then none is left). "use-file <path>
+# <ip> [on]": switch to a listed .conf file, as use-config does with a
+# pasted one.
+if [[ "${1:-}" =~ ^(update|addresses|use-address|use-config|revert-config|forget-config|list-configs|delete-config|use-file)$ ]]; then
     [[ -f "$ACTIVE_MARKER" ]] || error "The VPN isn't set up on this server yet. Run this script without arguments first."
     case "$1" in
         update) do_update_gluetun ;;
         addresses)
-            current_repickable_conf || error "The VPN config's Endpoint is an IP address, so there are no other addresses to pick from."
             EP_QUIET=1
-            endpoint_candidates "$(cat "$ENDPOINT_HOST_FILE")"
+            if [[ -n "${2:-}" ]]; then
+                endpoint_candidates "$2"
+            else
+                current_repickable_conf || error "The VPN config's Endpoint is an IP address, so there are no other addresses to pick from."
+                endpoint_candidates "$(cat "$ENDPOINT_HOST_FILE")"
+            fi
             i=1
             for row in "${EP_ROWS[@]}"; do
                 ms=${row%% *}; ip=${row#* }
@@ -1238,9 +1364,7 @@ if [[ "${1:-}" == "update" || "${1:-}" == "addresses" || "${1:-}" == "use-addres
             ;;
         use-address)
             ip="${2:-}"
-            [[ "$ip" =~ ^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$ ]] && \
-                (( 10#${BASH_REMATCH[1]} <= 255 && 10#${BASH_REMATCH[2]} <= 255 && 10#${BASH_REMATCH[3]} <= 255 && 10#${BASH_REMATCH[4]} <= 255 )) || \
-                error "Give an IPv4 address, like 203.0.113.16."
+            valid_ipv4 "$ip" || error "Give an IPv4 address, like 203.0.113.16."
             current_repickable_conf || error "The VPN config's Endpoint is an IP address, so there's no other address to switch to. Use Reconfigure VPN instead."
             try_read_existing_values "$COMPOSE_FILE" || read_existing_values "$DIRECT_COMPOSE"
             parse_conf "$CURRENT_CONF"
@@ -1258,6 +1382,106 @@ if [[ "${1:-}" == "update" || "${1:-}" == "addresses" || "${1:-}" == "use-addres
             else
                 echo "Saved. It's used the next time the VPN is turned on."
             fi
+            ;;
+        list-configs) list_configs ;;
+        delete-config)
+            found=$(deletable_config "${2:-}") || error "That isn't one of the configs listed, or it's in use with the VPN on. Nothing was deleted."
+            read -r kind use <<<"$found"
+            if [[ "$kind" == previous ]]; then rm -rf "$PREV_DIR"; else rm -f -- "$2"; fi
+            # A backup's staged copy of a home-folder file goes too (backups refresh it anyway)
+            if [[ "$kind" == file ]]; then
+                rm -f -- "$STATE_DIR/original-confs/root/$(basename "$2")" "$STATE_DIR/original-confs/user/$(basename "$2")"
+            fi
+            echo "Deleted $2."
+            if [[ "$use" == 1 ]]; then
+                # The key is in the saved VPN settings too: take it out, so no config is left
+                rm -f "$VPN_COMPOSE" "$LAST_CONF_MARKER" "$ENDPOINT_HOST_FILE"
+                echo "That was the VPN's config, so none is saved now. Turning the VPN on asks for a new one."
+            fi
+            ;;
+        use-config|use-file)
+            if [[ "$1" == use-file ]]; then
+                kind=$(listed_not_in_use "${2:-}") || error "That isn't one of the configs listed, or it's the one in use."
+                # Staged before anything moves, so the previous config can be used too
+                # (the one in use then becomes the previous one)
+                if [[ "$2" != "$UPLOAD_CONF" ]]; then
+                    ( umask 077; tr -d '\r' < "$2" > "$UPLOAD_CONF" )
+                    chmod 600 "$UPLOAD_CONF"
+                fi
+                if [[ "$kind" == file ]]; then
+                    echo "Using $2 (copied into vpn-state, so the file can be deleted afterwards)."
+                else
+                    echo "Using $2."
+                fi
+                shift
+            fi
+            ip="${2:-}"
+            valid_ipv4 "$ip" || error "Give an IPv4 address, like 203.0.113.16."
+            [[ -f "$UPLOAD_CONF" ]] || error "There's no new config waiting. Paste it on the control panel's VPN page first."
+            body=$(tr -d '\r' < "$UPLOAD_CONF" | sed 's/^[[:space:]]*//')
+            grep -qi '^\[Interface\]' <<<"$body" && grep -qi '^\[Peer\]' <<<"$body" && \
+                grep -qi '^PrivateKey' <<<"$body" && grep -qi '^Endpoint' <<<"$body" || \
+                error "The new config doesn't look like a WireGuard config. Nothing changed."
+            try_read_existing_values "$COMPOSE_FILE" || read_existing_values "$DIRECT_COMPOSE"
+
+            # Keep what's in use now: the config's contents (its file may be
+            # one in a home folder that changes later), its name and address.
+            old_conf=$(cat "$LAST_CONF_MARKER" 2>/dev/null || true)
+            old_ip=$(grep -oP '(?<=WIREGUARD_ENDPOINT_IP=).*' "$VPN_COMPOSE" 2>/dev/null | head -1 || true)
+            keep=false
+            if vpn_config_saved; then
+                [[ -n "$old_conf" && -f "$old_conf" && -n "$old_ip" ]] || error "Couldn't find the config in use now, so it couldn't be kept. Nothing changed."
+                keep=true
+            fi
+            if $keep; then
+                rm -rf "$PREV_DIR"
+                ( umask 077; mkdir -p "$PREV_DIR"; tr -d '\r' < "$old_conf" > "$PREV_DIR/wireguard.conf" )
+                echo "$old_ip" > "$PREV_DIR/endpoint-ip"
+                [[ -f "$ENDPOINT_HOST_FILE" ]] && cp "$ENDPOINT_HOST_FILE" "$PREV_DIR/endpoint-host"
+                date +%s > "$PREV_DIR/changed-at"
+                chmod 700 "$PREV_DIR"; chmod 600 "$PREV_DIR"/*
+            fi
+
+            ( umask 077; printf '%s\n' "$body" > "$PASTED_CONF" )
+            chmod 600 "$PASTED_CONF"
+            rm -f "$UPLOAD_CONF" "$PASTED_CONF.prev"
+            WG_PATH="$PASTED_CONF"
+            parse_conf "$WG_PATH"
+            if valid_ipv4 "$WG_ENDPOINT_IP"; then
+                rm -f "$ENDPOINT_HOST_FILE"         # an IP endpoint is used as it is
+            else
+                [[ "$WG_ENDPOINT_IP" =~ ^[A-Za-z0-9.-]+$ ]] || error "The new config's Endpoint isn't an IPv4 address or a host name."
+                echo "$WG_ENDPOINT_IP" > "$ENDPOINT_HOST_FILE"
+                chmod 600 "$ENDPOINT_HOST_FILE"
+                WG_ENDPOINT_IP="$ip"
+            fi
+            echo "New config: endpoint $(cat "$ENDPOINT_HOST_FILE" 2>/dev/null || echo "$WG_ENDPOINT_IP"), server address $WG_ENDPOINT_IP:$WG_ENDPOINT_PORT"
+            if $keep; then echo "Kept the config used until now, as Previous config."; fi
+            switch_config_now "${3:-}"
+            ;;
+        revert-config)
+            [[ -f "$PREV_DIR/wireguard.conf" && -f "$PREV_DIR/endpoint-ip" ]] || error "There's no earlier config to go back to."
+            try_read_existing_values "$COMPOSE_FILE" || read_existing_values "$DIRECT_COMPOSE"
+            ( umask 077; cp "$PREV_DIR/wireguard.conf" "$PASTED_CONF" )
+            chmod 600 "$PASTED_CONF"
+            if [[ -f "$PREV_DIR/endpoint-host" ]]; then
+                cp "$PREV_DIR/endpoint-host" "$ENDPOINT_HOST_FILE"
+                chmod 600 "$ENDPOINT_HOST_FILE"
+            else
+                rm -f "$ENDPOINT_HOST_FILE"
+            fi
+            WG_PATH="$PASTED_CONF"
+            parse_conf "$WG_PATH"
+            WG_ENDPOINT_IP=$(cat "$PREV_DIR/endpoint-ip")
+            valid_ipv4 "$WG_ENDPOINT_IP" || error "The earlier config's saved server address isn't valid. Use Reconfigure VPN instead."
+            rm -rf "$PREV_DIR"
+            echo "Putting back the config from before the last change (server address $WG_ENDPOINT_IP:$WG_ENDPOINT_PORT)."
+            switch_config_now
+            ;;
+        forget-config)
+            [[ -d "$PREV_DIR" ]] || { echo "There's no old config kept. Nothing to delete."; exit 0; }
+            rm -rf "$PREV_DIR"
+            echo "Deleted the old config kept from before the last change. The config in use isn't touched."
             ;;
     esac
     exit 0
@@ -1293,7 +1517,13 @@ while true; do
 
     case "$CHOICE" in
         1) do_status ;;
-        2) turn_vpn_on ;;
+        2)
+            if ! vpn_config_saved; then
+                echo "There's no VPN config saved yet. Add one now, and the VPN turns on with it."
+                do_reconfigure_vpn
+            fi
+            turn_vpn_on
+            ;;
         3) if confirm_vpn_disruption; then turn_vpn_off; fi ;;
         4) do_reconfigure_vpn menu ;;
         5) do_update_gluetun ;;
