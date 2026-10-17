@@ -585,14 +585,14 @@ apply_mode() {
         info "Confirming the WireGuard tunnel is actually connected..."
         local tunnel_confirmed=false tunnel_attempt ip_svc
         local ip_svcs=("ifconfig.me/ip" "icanhazip.com" "ipinfo.io/ip")
+        # One service per attempt, taking turns (so one being down doesn't
+        # matter): about 7 seconds an attempt, a minute at most in all.
         for (( tunnel_attempt=1; tunnel_attempt<=8; tunnel_attempt++ )); do
-            for ip_svc in "${ip_svcs[@]}"; do
-                if docker exec gluetun wget -qO- --timeout=5 "$ip_svc" 2>/dev/null | grep -qE '^[0-9]'; then
-                    tunnel_confirmed=true
-                    break
-                fi
-            done
-            [[ "$tunnel_confirmed" == "true" ]] && break
+            ip_svc=${ip_svcs[$(( (tunnel_attempt - 1) % ${#ip_svcs[@]} ))]}
+            if docker exec gluetun wget -qO- --timeout=5 "$ip_svc" 2>/dev/null | grep -qE '^[0-9]'; then
+                tunnel_confirmed=true
+                break
+            fi
             echo "  Tunnel not confirmed yet (attempt ${tunnel_attempt}/8)..."
             sleep 2
         done
@@ -618,9 +618,9 @@ this."
                 echo "  docker exec gluetun wget -qO- ifconfig.me/ip"
             fi
             check_dns_dot
-        else
-            warn "Couldn't confirm the exit IP automatically. Check manually with:"
-            echo "  docker exec gluetun wget -qO- ifconfig.me/ip"
+        elif [[ "$skip_aiostreams" == "true" ]]; then
+            # (With AIOStreams to start, the block below says this and more)
+            warn "The tunnel couldn't be confirmed connected. Check with: docker compose logs gluetun"
         fi
 
         if [[ "$skip_aiostreams" != "true" ]]; then
@@ -678,8 +678,11 @@ this."
     fi
 
 
-    echo ""
-    echo -e "Confirm at \033[1;36mhttps://${domain}\033[0m"
+    # Only when the stack came up as asked (not after an unconfirmed tunnel)
+    if [[ "$mode" != "vpn" || "${tunnel_confirmed:-}" == "true" ]]; then
+        echo ""
+        echo -e "Confirm at \033[1;36mhttps://${domain}\033[0m"
+    fi
 }
 
 check_dns_dot() {

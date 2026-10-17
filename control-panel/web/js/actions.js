@@ -151,7 +151,7 @@ function addLine(term, k, t) {
 function finish(job, code) {
   const ok = code === 0;
   $("#drawer-title").textContent = ok ? job.done : `${job.label} failed`;
-  $("#drawer-sub").textContent = ok ? "Finished without errors." : "Open the lines marked red to see why. Nothing else was changed.";
+  $("#drawer-sub").textContent = ok ? "Finished without errors." : "Open the lines marked red to see why.";
   const foot = $("#drawer-foot"); clear(foot);
   // A restore leaves this panel looking at the folder it moved aside, until it restarts.
   const restored = ok && job.action === "stack.restore";
