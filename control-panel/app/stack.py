@@ -36,6 +36,23 @@ def backup_path(b: dict) -> str:
     return f"{d}/{b['name']}"
 
 
+VPN_CONF_KINDS = ("pasted", "previous", "prev-paste", "upload", "file")
+
+
+def parse_vpn_configs(out: str, code: int) -> list[dict]:
+    """setup-vpn-gluetun.sh list-configs: 'kind|path|endpoint|in-use' per line."""
+    rows = []
+    if code != 0:
+        return rows
+    for line in out.splitlines():
+        parts = line.strip().split("|")
+        if len(parts) != 4 or parts[0] not in VPN_CONF_KINDS or not parts[1].startswith("/") or parts[3] not in ("0", "1"):
+            continue
+        ep = parts[2] if re.fullmatch(r"[A-Za-z0-9.-]+", parts[2]) else None
+        rows.append({"kind": parts[0], "path": parts[1], "endpoint": ep, "in_use": parts[3] == "1"})
+    return rows
+
+
 def parse_vpn_addresses(out: str, code: int) -> dict:
     """setup-vpn-gluetun.sh addresses prints '<ip> <ms or -> [in-use] [recommended]'
     per line, fastest first; on failure, an 'XX  reason' line."""
@@ -574,15 +591,40 @@ class Backend:
             return {"host": None, "addresses": [], "error": "Its Endpoint is already an address."}
         return {"host": info["endpoint_host"], **self._run_addresses(info["endpoint_host"])}
 
-    def _run_addresses(self, host: str | None = None) -> dict:
+    # Who is at the keyboard, for the scripts (see run): the owner of the home with a ~/aiostreams shortcut
+    _WHO = ('u=""; for h in /home/*/; do [ -d "${h}aiostreams" ] && u=$(stat -c %U "$h" 2>/dev/null) && break; done; '
+            'if [ -n "$u" ] && [ "$u" != root ] && id "$u" >/dev/null 2>&1; then '
+            'export SUDO_USER="$u" SUDO_UID="$(id -u "$u")" SUDO_GID="$(id -g "$u")"; fi; ')
+
+    def _vpn_script(self, args: list[str], timeout: int) -> subprocess.CompletedProcess:
+        """A quick, question-free setup-vpn-gluetun.sh command, as the login user would run it."""
+        inner = self._WHO + "cd {d} && exec bash setup-vpn-gluetun.sh {a}".format(
+            d=shlex.quote(str(config.INSTALL_DIR)), a=" ".join(shlex.quote(x) for x in args))
         cmd = ["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "env", "-i",
-               f"HOME={self.home}", f"PATH={HOST_PATH}", "TERM=dumb", "LANG=C.UTF-8",
-               "bash", str(config.INSTALL_DIR / "setup-vpn-gluetun.sh"), "addresses", *([host] if host else [])]
+               f"HOME={self.home}", f"PATH={HOST_PATH}", "TERM=dumb", "LANG=C.UTF-8", "bash", "-c", inner]
+        return subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=timeout)
+
+    def _run_addresses(self, host: str | None = None) -> dict:
         try:
-            r = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=90)
+            r = self._vpn_script(["addresses", *([host] if host else [])], 90)
             return parse_vpn_addresses(r.stdout + r.stderr, r.returncode)
         except subprocess.TimeoutExpired:
             return {"addresses": [], "error": "The lookup took too long."}
+
+    def vpn_configs(self) -> list[dict]:
+        """Every WireGuard config on the server (vpn-state, /root, the login
+        user's home), which is in use, and each one's endpoint. Never the keys."""
+        if not self.p("vpn-state/active").exists():
+            return []
+        try:
+            r = self._vpn_script(["list-configs"], 30)
+        except subprocess.TimeoutExpired:
+            return []
+        return parse_vpn_configs(r.stdout, r.returncode)
+
+    def vpn_host_addresses(self, host: str) -> dict:
+        """The addresses a listed config's endpoint name has, fastest first."""
+        return {"host": host, **self._run_addresses(host)}
 
     def vpn_addresses(self) -> dict:
         """The VPN config's server addresses, fastest first, timed from this

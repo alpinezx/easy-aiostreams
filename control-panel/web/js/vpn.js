@@ -25,7 +25,7 @@ function toggle() {
   const mode = (st && st.vpn) || (last && last.mode);   // the live status first: it follows a switch within seconds
   const id = mode === "on" ? "vpn.off" : mode === "off" ? "vpn.on" : null;
   const act = id && st && st.actions.find((a) => a.id === id);
-  for (const x of document.querySelectorAll("#vpn-root .vpn-card-acts .btn")) x.disabled = !!(st && st.busy);
+  for (const x of document.querySelectorAll("#vpn-root .vpn-card-acts .btn, #vpn-root .conf-acts .btn, #vpn-root .vpn-prev .btn")) x.disabled = !!(st && st.busy);
   b.hidden = !(act && act.available);
   if (b.hidden) return;
   b.textContent = act.label;
@@ -137,6 +137,68 @@ async function changeConfig() {
   if (res && res.ip) runAction(act, res);
 }
 
+// ---- the configs on the server ----
+// Every WireGuard config the script finds: the one in use, the ones the page
+// keeps, and .conf files in /root and the login user's home. Never the keys.
+const KIND = {
+  pasted: "Pasted config", previous: "Kept for Put the old config back", "prev-paste": "Pasted before that",
+  upload: "Pasted, not used yet",
+};
+const isIp = (x) => /^\d{1,3}(\.\d{1,3}){3}$/.test(x || "");
+
+async function useFile(c) {
+  if (!last) return;
+  let chosen = isIp(c.endpoint) ? c.endpoint : null;
+  const list = h("div", { class: "addr-list", role: "radiogroup", "aria-label": "Server addresses" });
+  const then = last.mode === "on" ? "The stack restarts with it, so streams pause for up to a minute."
+    : "It's used the next time the VPN is turned on.";
+  const answer = ask({ title: "Use this config", confirmLabel: "Use this config",
+    body: `${c.path}${c.endpoint ? `, for ${c.endpoint}` : ""}. It's copied into the VPN's own folder, so the file can be deleted afterwards, and the config in use now is kept for Put the old config back. ${then}`,
+    options: { el: chosen ? null : list, read: () => ({ path: c.path, ip: chosen }) } });
+  if (chosen) {
+    const res = await answer;
+    if (res) runAction({ id: "vpn.file", label: "Use this config" }, res);
+    return;
+  }
+  const ok = document.querySelector("#dialog .btn.primary");
+  ok.disabled = true;
+  list.append(waiting(`Looking up ${c.endpoint} and timing each address from this server. This takes a few seconds.`));
+  try {
+    fillAddresses(list, await api(`/api/vpn/configs/addresses?path=${encodeURIComponent(c.path)}`), (a) => { chosen = a.ip; ok.disabled = false; });
+  } catch (e) {
+    clear(list);
+    list.append(h("p", { class: "vpn-note", text: e.message || "Couldn't look the addresses up." }));
+  }
+  const res = await answer;
+  if (res && res.ip) runAction({ id: "vpn.file", label: "Use this config" }, res);
+}
+
+function deleteFile(c) {
+  const what = c.kind === "previous" ? "The config kept for Put the old config back" : c.path;
+  runAction({ id: "vpn.delete", label: "Delete this config",
+    confirm: `${what} will be deleted, private key and all. The config in use isn't touched. This can't be undone.` }, { path: c.path });
+}
+
+async function showConfigs(box) {
+  let rows;
+  try { rows = await api("/api/vpn/configs"); } catch (_) { return; }
+  if (!rows.length || !box.isConnected) return;
+  const busy = !!(st && st.busy);
+  const list = h("div", { class: "panel conf-list" });
+  for (const c of rows) {
+    const name = c.kind === "file" ? c.path.split("/").pop() : KIND[c.kind] || c.kind;
+    list.append(h("div", { class: "conf-item" },
+      h("div", { class: "conf-what" },
+        h("div", { class: "conf-name" }, h("span", { text: name }), c.in_use ? h("span", { class: "chip ok", text: "In use" }) : null),
+        h("div", { class: "conf-path mono", text: c.path })),
+      h("div", { class: "conf-ep mono", text: c.endpoint || "" }),
+      h("div", { class: "conf-acts" },
+        c.kind === "file" && !c.in_use ? h("button", { class: "btn small", type: "button", text: "Use", disabled: busy, onclick: () => useFile(c) }) : null,
+        !c.in_use ? h("button", { class: "btn small danger", type: "button", text: "Delete", disabled: busy, onclick: () => deleteFile(c) }) : null)));
+  }
+  box.append(h("h3", { class: "conf-title", text: "Configs on this server" }), list);
+}
+
 // Another address for the same config: the script looks the endpoint's name
 // up again and times each address from this server, fastest first.
 async function changeServer() {
@@ -232,4 +294,5 @@ function render(v) {
         title: "Pull the newest gluetun v3 release", onclick: () => runAction(upd) }) : null));
   }
   box.append(card);
+  showConfigs(box);
 }

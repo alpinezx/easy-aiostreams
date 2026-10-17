@@ -400,3 +400,20 @@ def test_vpn_change_config_checks_it_and_never_sends_keys_back(client):
     act = actions.resolve("vpn.config", {"ip": "203.0.113.120"})
     assert act.args == ("use-config", "203.0.113.120") and act.confirm is None
     assert actions.resolve("vpn.revert").args == ("revert-config",)
+
+
+def test_vpn_config_list_delete_and_use_only_listed_files(client):
+    assert client.get("/api/vpn/configs").status_code == 401
+    login(client)
+    rows = client.get("/api/vpn/configs").json()
+    in_use = next(c for c in rows if c["in_use"])
+    spare = next(c for c in rows if c["kind"] == "file" and not c["in_use"])
+    assert not any("key" in k.lower() for c in rows for k in c)
+    for path in (in_use["path"], "/etc/passwd", "/home/ubuntu/../../etc/shadow", ""):
+        assert client.post("/api/actions/vpn.delete", json={"params": {"path": path}}).status_code == 400
+        assert client.post("/api/actions/vpn.file", json={"params": {"path": path, "ip": "203.0.113.120"}}).status_code == 400
+    assert client.post("/api/actions/vpn.file", json={"params": {"path": spare["path"], "ip": "nope"}}).status_code == 400
+    assert client.get("/api/vpn/configs/addresses", params={"path": "/etc/passwd"}).status_code == 400
+    assert client.get("/api/vpn/configs/addresses", params={"path": spare["path"]}).json()["addresses"]
+    r = client.post("/api/actions/vpn.delete", json={"params": {"path": spare["path"]}})
+    assert r.status_code == 200

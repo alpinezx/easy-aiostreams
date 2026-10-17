@@ -169,6 +169,23 @@ def build_use_config(ip) -> Action:
                   needs=("setup-vpn-gluetun.sh", "vpn-state/active"))
 
 
+def build_delete_config(path: str) -> Action:
+    """Deletes one config from the VPN page's list. main.py has matched the
+    path against the list just made, and the script checks it again."""
+    return Action("vpn.delete", "Delete this config", "Deleting a VPN config", "VPN config deleted", "setup-vpn-gluetun.sh",
+                  args=("delete-config", path), timeout=60, needs=("setup-vpn-gluetun.sh", "vpn-state/active"))
+
+
+def build_use_file(path: str, ip) -> Action:
+    """Switches to a listed .conf file at the address picked; like Change config."""
+    try:
+        addr = ipaddress.IPv4Address(str(ip))
+    except ValueError:
+        raise BadAction("Pick one of the listed addresses.")
+    return Action("vpn.file", "Use this config", "Changing the VPN config", "VPN config changed", "setup-vpn-gluetun.sh",
+                  args=("use-file", path, str(addr)), timeout=420, needs=("setup-vpn-gluetun.sh", "vpn-state/active"))
+
+
 def resolve(action_id: str, params: dict | None = None) -> Action:
     params = params or {}
     if action_id == "stack.update":
@@ -184,7 +201,8 @@ def resolve(action_id: str, params: dict | None = None) -> Action:
 
 
 def catalog() -> list[Action]:
-    return list(_STATIC.values()) + [build_update(True, None), build_use_address("192.0.2.1"), build_use_config("192.0.2.1")]
+    return list(_STATIC.values()) + [build_update(True, None), build_use_address("192.0.2.1"), build_use_config("192.0.2.1"),
+                                     build_delete_config("/"), build_use_file("/", "192.0.2.1")]
 
 
 # The stack's scripts, in the order the Terminal tab lists them. Only the first

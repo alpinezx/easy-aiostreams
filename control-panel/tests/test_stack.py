@@ -414,3 +414,15 @@ def test_parse_vpn_addresses():
     got = stack.parse_vpn_addresses(bad, 1)
     assert got["addresses"] == [] and got["error"].startswith("The VPN config's Endpoint is an IP address")
     assert stack.parse_vpn_addresses("noise\n", 0)["error"] == "The lookup found no addresses."
+
+
+def test_parse_vpn_configs():
+    out = ("pasted|/opt/aiostreams/vpn-state/wireguard.conf|se.wg.example-vpn.net|1\n"
+           "file|/home/ubuntu/NL.conf|203.0.113.16|0\n"
+           "weird|/etc/x.conf|a|0\nfile|relative.conf|a|0\nfile|/root/x.conf|bad;name|0\n")
+    got = stack.parse_vpn_configs(out, 0)
+    assert got == [
+        {"kind": "pasted", "path": "/opt/aiostreams/vpn-state/wireguard.conf", "endpoint": "se.wg.example-vpn.net", "in_use": True},
+        {"kind": "file", "path": "/home/ubuntu/NL.conf", "endpoint": "203.0.113.16", "in_use": False},
+        {"kind": "file", "path": "/root/x.conf", "endpoint": None, "in_use": False}]
+    assert stack.parse_vpn_configs(out, 1) == []

@@ -245,8 +245,12 @@ one per line: the address, its ping in ms or `-`, then `in-use` and
 `recommended` where they apply), `use-address <ip>` (option 4's choice 3:
 points the current config at that address, and uses it straight away when
 the VPN is on), `use-config <ip>` (switches to a config the panel saved as
-`vpn-state/upload.conf`, keeping the one in use in `vpn-state/previous/`)
-and `revert-config` (puts that one back).
+`vpn-state/upload.conf`, keeping the one in use in `vpn-state/previous/`),
+`revert-config` (puts that one back), `forget-config` (deletes it instead),
+`list-configs` (every WireGuard config on the server, one per line:
+`kind|path|endpoint|in-use`), `use-file <path> <ip>` (switches to a listed
+`.conf` file, copying it into `vpn-state`) and `delete-config <path>`
+(deletes a listed config that isn't in use).
 
 ---
 

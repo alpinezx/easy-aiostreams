@@ -1246,6 +1246,46 @@ switch_config_now() {
     fi
 }
 
+# Every WireGuard config on the server, for the control panel's list. One line
+# each, "kind|path|endpoint|in-use" (in-use is 1 or 0), kinds: pasted (the
+# config pasted in), previous (kept for revert-config), prev-paste (the one
+# before the last paste), upload (saved by the panel, not used yet) and file
+# (a .conf in /root or the login user's home, as Reconfigure finds them).
+looks_like_wireguard() {
+    grep -qi '^[[:space:]]*\[Interface\]' "$1" 2>/dev/null && grep -qi '^[[:space:]]*\[Peer\]' "$1" 2>/dev/null && \
+        grep -qi '^[[:space:]]*PrivateKey' "$1" 2>/dev/null && grep -qi '^[[:space:]]*Endpoint' "$1" 2>/dev/null
+}
+
+list_configs() {
+    local in_use f kind ep
+    in_use=$(cat "$LAST_CONF_MARKER" 2>/dev/null || true)
+    local rows=("pasted|$PASTED_CONF" "previous|$PREV_DIR/wireguard.conf" "prev-paste|$PASTED_CONF.prev" "upload|$UPLOAD_CONF")
+    local scan_dirs=("/root")
+    [[ "$REAL_HOME" != "/root" ]] && scan_dirs+=("$REAL_HOME")
+    while IFS= read -r -d '' f; do
+        rows+=("file|$f")
+    done < <(find "${scan_dirs[@]}" -maxdepth 1 -type f -name '*.conf' -print0 2>/dev/null | sort -z)
+    for row in "${rows[@]}"; do
+        kind=${row%%|*}; f=${row#*|}
+        [[ -f "$f" && "$f" != *"|"* ]] || continue
+        looks_like_wireguard "$f" || continue
+        ep=$(grep -i '^[[:space:]]*Endpoint' "$f" | head -1 | cut -d= -f2- | tr -d ' \r' || true)
+        ep=${ep%:*}
+        [[ "$ep" =~ ^[A-Za-z0-9.-]+$ ]] || ep=""
+        echo "$kind|$f|$ep|$([[ "$f" == "$in_use" ]] && echo 1 || echo 0)"
+    done
+}
+
+# The kind of a listed config that isn't in use, or nothing.
+listed_not_in_use() {
+    local line
+    while IFS= read -r line; do
+        IFS='|' read -r kind path _ use <<<"$line"
+        [[ "$path" == "$1" && "$use" == 0 ]] && { echo "$kind"; return 0; }
+    done < <(list_configs)
+    return 1
+}
+
 # For the control panel, all without questions, and only once the VPN is set
 # up. "update": menu option 5. "addresses [name]": the current config's
 # server addresses (or a name's, for Change config), fastest first, one line
@@ -1254,8 +1294,11 @@ switch_config_now() {
 # (option 4's choice 3), and use it now if the VPN is on. "use-config <ip>":
 # switch to the config the panel saved, at that address. "revert-config":
 # go back to the config before the last use-config. "forget-config": delete
-# that kept config instead (it holds a private key).
-if [[ "${1:-}" =~ ^(update|addresses|use-address|use-config|revert-config|forget-config)$ ]]; then
+# that kept config instead (it holds a private key). "list-configs": see
+# list_configs. "delete-config <path>": delete one listed config that isn't
+# in use. "use-file <path> <ip>": switch to a listed .conf file, as
+# use-config does with a pasted one.
+if [[ "${1:-}" =~ ^(update|addresses|use-address|use-config|revert-config|forget-config|list-configs|delete-config|use-file)$ ]]; then
     [[ -f "$ACTIVE_MARKER" ]] || error "The VPN isn't set up on this server yet. Run this script without arguments first."
     case "$1" in
         update) do_update_gluetun ;;
@@ -1298,7 +1341,20 @@ if [[ "${1:-}" =~ ^(update|addresses|use-address|use-config|revert-config|forget
                 echo "Saved. It's used the next time the VPN is turned on."
             fi
             ;;
-        use-config)
+        list-configs) list_configs ;;
+        delete-config)
+            kind=$(listed_not_in_use "${2:-}") || error "That isn't one of the configs listed, or it's the one in use. Nothing was deleted."
+            if [[ "$kind" == previous ]]; then rm -rf "$PREV_DIR"; else rm -f -- "$2"; fi
+            echo "Deleted $2."
+            ;;
+        use-config|use-file)
+            if [[ "$1" == use-file ]]; then
+                kind=$(listed_not_in_use "${2:-}") && [[ "$kind" == file ]] || error "That isn't one of the .conf files listed, or it's the one in use."
+                ( umask 077; tr -d '\r' < "$2" > "$UPLOAD_CONF" )
+                chmod 600 "$UPLOAD_CONF"
+                echo "Using $2 (copied into vpn-state, so the file can be deleted afterwards)."
+                shift
+            fi
             ip="${2:-}"
             valid_ipv4 "$ip" || error "Give an IPv4 address, like 203.0.113.16."
             [[ -f "$UPLOAD_CONF" ]] || error "There's no new config waiting. Paste it on the control panel's VPN page first."

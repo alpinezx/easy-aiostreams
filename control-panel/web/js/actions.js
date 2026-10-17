@@ -101,7 +101,7 @@ export async function runAction(act, params) {
     if (res.channel && res.channel === channelNow) res.channel = null;
     params = res;
   } else if (act.confirm) {
-    const ok = await ask({ title: `${act.label}?`, body: act.confirm, confirmLabel: act.label, danger: /stop|forget/i.test(act.id) });
+    const ok = await ask({ title: `${act.label}?`, body: act.confirm, confirmLabel: act.label, danger: /stop|forget|delete/i.test(act.id) });
     if (!ok) return;
   }
   try {
