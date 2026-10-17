@@ -638,13 +638,13 @@ async def run_action(action_id: str, request: Request, user: str = Depends(curre
     params = body.get("params") if isinstance(body, dict) else None
     params = params if isinstance(params, dict) else None
     if action_id in ("vpn.delete", "vpn.file"):
-        # Only a config the list has just found, never the one in use; Use only for .conf files
+        # Only a config the list has just found, never the one in use
         # (Delete may take the one in use too while the VPN is off; none is left then.)
         path = str((params or {}).get("path", ""))
         vpn_off = await asyncio.to_thread(backend.vpn_mode) == "off"
         found = next((c for c in await asyncio.to_thread(backend.vpn_configs)
                       if c["path"] == path and (not c["in_use"] or (action_id == "vpn.delete" and vpn_off))), None)
-        if not found or (action_id == "vpn.file" and found["kind"] != "file"):
+        if not found or (action_id == "vpn.file" and found["in_use"]):
             raise HTTPException(400, "That config isn't on the list any more, or it's in use. Reload the page.")
         try:
             action = build_delete_config(path) if action_id == "vpn.delete" else \

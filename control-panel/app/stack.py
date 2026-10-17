@@ -556,7 +556,7 @@ class Backend:
         return parse_backup_info(r.stdout) if r.returncode == 0 else None
 
     def _vpn_previous(self) -> dict | None:
-        """The config kept by the last Change config, for Put the old config back."""
+        """The config used before the last change (Previous config), and the address it used."""
         if not (self.p("vpn-state/previous/endpoint-ip").exists() and self.p("vpn-state/previous/wireguard.conf").exists()):
             return None
         try:
@@ -564,7 +564,9 @@ class Backend:
         except ValueError:
             changed = None
         host = _read(self.p("vpn-state/previous/endpoint-host")).strip()
-        return {"changed_at": changed, "endpoint_host": host if re.fullmatch(r"[A-Za-z0-9.-]+", host) else None}
+        ip = _read(self.p("vpn-state/previous/endpoint-ip")).strip()
+        return {"changed_at": changed, "endpoint_host": host if re.fullmatch(r"[A-Za-z0-9.-]+", host) else None,
+                "endpoint_ip": ip if re.fullmatch(r"\d{1,3}(\.\d{1,3}){3}", ip) else None}
 
     def vpn_stage_config(self, conf: str) -> dict:
         """Checks a pasted config and saves it where only root can read it,

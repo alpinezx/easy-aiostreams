@@ -84,14 +84,6 @@ _STATIC: dict[str, Action] = {a.id: a for a in [
            args=("update",), timeout=600, needs=("setup-vpn-gluetun.sh", "vpn-state/active"),
            confirm="Pulls the newest gluetun v3 release. If there is one and the VPN is on, the stack restarts "
                    "and streams pause for up to a minute. Already on the newest, nothing restarts."),
-    Action("vpn.revert", "Put the old config back", "Putting the old config back", "Old config back", "setup-vpn-gluetun.sh",
-           args=("revert-config",), timeout=420, needs=("setup-vpn-gluetun.sh", "vpn-state/active", "vpn-state/previous/endpoint-ip"),
-           confirm="Goes back to the config you used before the last change, at the same server address. "
-                   "With the VPN on, the stack restarts and streams pause for up to a minute."),
-    Action("vpn.forget", "Delete the old config", "Deleting the old config", "Old config deleted", "setup-vpn-gluetun.sh",
-           args=("forget-config",), timeout=60, needs=("setup-vpn-gluetun.sh", "vpn-state/active", "vpn-state/previous"),
-           confirm="Deletes the config kept from before the last change, private key and all. Put the old config back "
-                   "goes with it. The config in use isn't touched. This can't be undone."),
     Action("watchdog.start", "Start", "Starting", "Start finished", "setup-watchdog.sh",
            args=("install-timer",), timeout=60,
            needs=("setup-watchdog.sh", "watchdog-state/config")),
@@ -177,7 +169,8 @@ def build_delete_config(path: str) -> Action:
 
 
 def build_use_file(path: str, ip, on: bool = False) -> Action:
-    """Switches to a listed .conf file at the address picked; like Change config."""
+    """Switches to a listed config not in use (a .conf file, the previous config,
+    an earlier paste) at the address picked; like Change config."""
     try:
         addr = ipaddress.IPv4Address(str(ip))
     except ValueError:

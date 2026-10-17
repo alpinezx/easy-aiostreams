@@ -399,7 +399,6 @@ def test_vpn_change_config_checks_it_and_never_sends_keys_back(client):
     assert client.post("/api/actions/vpn.config", json={"params": {"ip": "1.2.3.4; reboot"}}).status_code == 400
     act = actions.resolve("vpn.config", {"ip": "203.0.113.120"})
     assert act.args == ("use-config", "203.0.113.120") and act.confirm is None
-    assert actions.resolve("vpn.revert").args == ("revert-config",)
 
 
 def test_vpn_config_list_delete_and_use_only_listed_files(client):

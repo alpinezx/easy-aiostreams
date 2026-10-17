@@ -285,21 +285,16 @@ class DemoBackend:
         elif action.id == "vpn.config":
             ip = action.args[1]
             st = self.staged or {}
-            for l in [f"Config: {st.get('endpoint_host') or ip}, server address {ip}:51820", "Kept the previous config, for Put the old config back.",
+            for l in [f"Config: {st.get('endpoint_host') or ip}, server address {ip}:51820", "Kept the config used until now, as Previous config.",
                       "==> Stopping the current stack", "==> Starting the stack in 'vpn' mode",
                       "==> Confirming the WireGuard tunnel is actually connected...", "VPN is up. gluetun's exit IP: 203.0.113.121",
                       "==> Tunnel confirmed, starting AIOStreams"]:
                 say(l, 0.5)
             if self.has_config:
-                self.previous = {"changed_at": time.time(), "endpoint_host": self.vpn_host}
+                self.previous = {"changed_at": time.time(), "endpoint_host": self.vpn_host, "endpoint_ip": self.vpn_ip}
             self.vpn_host, self.vpn_ip, self.has_config = st.get("endpoint_host") or ip, ip, True
             if action.args[-1] == "on":
                 self.vpn = "on"
-        elif action.id == "vpn.revert":
-            for l in ["Putting back the config from before the last change", "==> Stopping the current stack",
-                      "==> Starting the stack in 'vpn' mode", "VPN is up. gluetun's exit IP: 203.0.113.17"]:
-                say(l, 0.5)
-            self.vpn_host, self.vpn_ip, self.previous = "nl.wg.example-vpn.net", "203.0.113.16", None
         elif action.id == "vpn.delete":
             path = action.args[1]
             say(f"Deleted {path}.")
@@ -311,20 +306,18 @@ class DemoBackend:
             self._gone.add(path)
         elif action.id == "vpn.file":
             path, ip = action.args[1], action.args[2]
-            host = next((c["endpoint"] for c in self.demo_files if c["path"] == path), ip)
+            prev = self.previous if path.endswith("previous/wireguard.conf") else None
+            host = prev["endpoint_host"] if prev else next((c["endpoint"] for c in self.demo_files if c["path"] == path), ip)
             for l in [f"Using {path} (copied into vpn-state, so the file can be deleted afterwards).",
-                      f"New config: endpoint {host}, server address {ip}:51820", "Kept the previous config, for Put the old config back.",
+                      f"New config: endpoint {host}, server address {ip}:51820", "Kept the config used until now, as Previous config.",
                       "==> Stopping the current stack", "==> Starting the stack in 'vpn' mode", "VPN is up. gluetun's exit IP: 203.0.113.121",
                       "==> Tunnel confirmed, starting AIOStreams"]:
                 say(l, 0.5)
             if self.has_config:
-                self.previous = {"changed_at": time.time(), "endpoint_host": self.vpn_host}
+                self.previous = {"changed_at": time.time(), "endpoint_host": self.vpn_host, "endpoint_ip": self.vpn_ip}
             self.vpn_host, self.vpn_ip, self.has_config = host, ip, True
             if action.args[-1] == "on":
                 self.vpn = "on"
-        elif action.id == "vpn.forget":
-            say("Deleted the old config kept from before the last change. The config in use isn't touched.")
-            self.previous = None
         elif action.id == "vpn.update":
             for l in ["==> Pulling latest gluetun (v3 stable channel)", "Status: Image is up to date for qmcgaw/gluetun:v3",
                       "gluetun is already on the newest v3 release. Nothing restarted."]:

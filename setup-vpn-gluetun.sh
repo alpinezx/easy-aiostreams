@@ -1248,7 +1248,7 @@ switch_config_now() {
     if [[ "$was_running" == "true" && "$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo false)" != "true" ]]; then
         echo ""
         echo "The tunnel didn't connect with this config, so AIOStreams is stopped."
-        echo "Use Put the old config back on the control panel's VPN page, or run:"
+        echo "To go back, press Use on Previous config in the control panel's VPN page, or run:"
         echo "  sudo bash $INSTALL_DIR/setup-vpn-gluetun.sh revert-config"
         exit 1
     fi
@@ -1383,10 +1383,18 @@ if [[ "${1:-}" =~ ^(update|addresses|use-address|use-config|revert-config|forget
             ;;
         use-config|use-file)
             if [[ "$1" == use-file ]]; then
-                kind=$(listed_not_in_use "${2:-}") && [[ "$kind" == file ]] || error "That isn't one of the .conf files listed, or it's the one in use."
-                ( umask 077; tr -d '\r' < "$2" > "$UPLOAD_CONF" )
-                chmod 600 "$UPLOAD_CONF"
-                echo "Using $2 (copied into vpn-state, so the file can be deleted afterwards)."
+                kind=$(listed_not_in_use "${2:-}") || error "That isn't one of the configs listed, or it's the one in use."
+                # Staged before anything moves, so the previous config can be used too
+                # (the one in use then becomes the previous one)
+                if [[ "$2" != "$UPLOAD_CONF" ]]; then
+                    ( umask 077; tr -d '\r' < "$2" > "$UPLOAD_CONF" )
+                    chmod 600 "$UPLOAD_CONF"
+                fi
+                if [[ "$kind" == file ]]; then
+                    echo "Using $2 (copied into vpn-state, so the file can be deleted afterwards)."
+                else
+                    echo "Using $2."
+                fi
                 shift
             fi
             ip="${2:-}"
@@ -1430,7 +1438,7 @@ if [[ "${1:-}" =~ ^(update|addresses|use-address|use-config|revert-config|forget
                 WG_ENDPOINT_IP="$ip"
             fi
             echo "New config: endpoint $(cat "$ENDPOINT_HOST_FILE" 2>/dev/null || echo "$WG_ENDPOINT_IP"), server address $WG_ENDPOINT_IP:$WG_ENDPOINT_PORT"
-            if $keep; then echo "Kept the previous config, for Put the old config back."; fi
+            if $keep; then echo "Kept the config used until now, as Previous config."; fi
             switch_config_now "${3:-}"
             ;;
         revert-config)

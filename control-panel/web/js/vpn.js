@@ -25,7 +25,7 @@ function toggle() {
   const mode = (st && st.vpn) || (last && last.mode);   // the live status first: it follows a switch within seconds
   const id = mode === "on" ? "vpn.off" : mode === "off" ? "vpn.on" : null;
   const act = id && st && st.actions.find((a) => a.id === id);
-  for (const x of document.querySelectorAll("#vpn-root .vpn-card-acts .btn, #vpn-root .conf-acts .btn, #vpn-root .vpn-prev .btn")) x.disabled = !!(st && st.busy);
+  for (const x of document.querySelectorAll("#vpn-root .vpn-card-acts .btn, #vpn-root .conf-acts .btn")) x.disabled = !!(st && st.busy);
   b.hidden = !(act && act.available);
   if (b.hidden) return;
   b.textContent = act.label;
@@ -39,20 +39,24 @@ const waiting = (text) => h("p", { class: "dim addr-wait", role: "status" }, h("
 
 // The address list in Change server and Change config: fastest first, the
 // fastest one not in use picked to start with. pick(a) runs on each choice.
-function fillAddresses(list, r, pick) {
+function fillAddresses(list, r, pick, before) {
   clear(list);
-  if (!r.addresses.length) list.append(h("p", { class: "vpn-note", text: r.error || "The lookup found no addresses." }));
+  let rows = r.addresses;
+  // The address a config used before goes in even if the lookup didn't return it, and is picked to start with
+  if (before && !rows.some((a) => a.ip === before)) rows = [...rows, { ip: before, ms: undefined, in_use: false, recommended: false }];
+  if (!rows.length) list.append(h("p", { class: "vpn-note", text: r.error || "The lookup found no addresses." }));
   let first = null;
-  for (const a of r.addresses) {
+  for (const a of rows) {
     const radio = h("input", { type: "radio", name: "vpn-addr", value: a.ip });
     radio.addEventListener("change", () => pick(a));
-    if (!first && !a.in_use) first = radio;
+    if (before ? a.ip === before : !first && !a.in_use) first = radio;
     list.append(h("label", { class: "addr" }, radio,
       h("span", { class: "mono", text: a.ip }),
       h("span", { class: "addr-tags" },
         a.recommended ? h("span", { class: "chip ok", text: "Recommended" }) : null,
-        a.in_use ? h("span", { class: "chip", text: "In use now" }) : null),
-      h("span", { class: "addr-ms", text: a.ms == null ? "no reply" : `${a.ms} ms` })));
+        a.in_use ? h("span", { class: "chip", text: "In use now" }) : null,
+        before && a.ip === before ? h("span", { class: "chip", text: "Used before" }) : null),
+      h("span", { class: "addr-ms", text: a.ms === undefined ? "" : a.ms == null ? "no reply" : `${a.ms} ms` })));
   }
   if (first) { first.checked = true; first.dispatchEvent(new Event("change")); }
 }
@@ -67,7 +71,7 @@ function looksLikeWireGuard(t) {
 // A new WireGuard config, pasted or from a file. The server checks it and
 // keeps it where only root can read it; the key never comes back to the
 // page. With a name as its endpoint, the addresses are listed as in Change
-// server. The config in use now is kept, for Put the old config back.
+// server. The config in use now is kept, as Previous config in the list.
 async function changeConfig(turnOn = false) {
   const act = actFor("vpn.config");
   if (!act || !last) return;
@@ -145,7 +149,7 @@ async function changeConfig(turnOn = false) {
 // Every WireGuard config the script finds: the one in use, the ones the page
 // keeps, and .conf files in /root and the login user's home. Never the keys.
 const KIND = {
-  pasted: "Pasted config", previous: "Kept for Put the old config back", "prev-paste": "Pasted before that",
+  pasted: "Pasted config", previous: "Previous config", "prev-paste": "Pasted before that",
   upload: "Pasted, not used yet",
 };
 const isIp = (x) => /^\d{1,3}(\.\d{1,3}){3}$/.test(x || "");
@@ -153,11 +157,14 @@ const isIp = (x) => /^\d{1,3}(\.\d{1,3}){3}$/.test(x || "");
 async function useFile(c) {
   if (!last) return;
   let chosen = isIp(c.endpoint) ? c.endpoint : null;
+  const before = c.kind === "previous" && last.previous ? last.previous.endpoint_ip : null;
   const list = h("div", { class: "addr-list", role: "radiogroup", "aria-label": "Server addresses" });
   const then = last.mode === "on" ? "The stack restarts with it, so streams pause for up to a minute."
     : "It's used the next time the VPN is turned on.";
   const answer = ask({ title: "Use this config", confirmLabel: "Use this config",
-    body: `${c.path}${c.endpoint ? `, for ${c.endpoint}` : ""}. It's copied into the VPN's own folder, so the file can be deleted afterwards, and the config in use now is kept for Put the old config back. ${then}`,
+    body: c.kind === "file"
+      ? `${c.path}${c.endpoint ? `, for ${c.endpoint}` : ""}. It's copied into the VPN's own folder, so the file can be deleted afterwards, and the config in use now becomes Previous config. ${then}`
+      : `${KIND[c.kind] || c.kind}${c.endpoint ? `, for ${c.endpoint}` : ""}. The config in use now becomes Previous config, so you can switch back. ${then}`,
     options: { el: chosen ? null : list, read: () => ({ path: c.path, ip: chosen }) } });
   if (chosen) {
     const res = await answer;
@@ -168,7 +175,7 @@ async function useFile(c) {
   ok.disabled = true;
   list.append(waiting(`Looking up ${c.endpoint} and timing each address from this server. This takes a few seconds.`));
   try {
-    fillAddresses(list, await api(`/api/vpn/configs/addresses?path=${encodeURIComponent(c.path)}`), (a) => { chosen = a.ip; ok.disabled = false; });
+    fillAddresses(list, await api(`/api/vpn/configs/addresses?path=${encodeURIComponent(c.path)}`), (a) => { chosen = a.ip; ok.disabled = false; }, before);
   } catch (e) {
     clear(list);
     list.append(h("p", { class: "vpn-note", text: e.message || "Couldn't look the addresses up." }));
@@ -178,7 +185,7 @@ async function useFile(c) {
 }
 
 function deleteFile(c) {
-  const what = c.kind === "previous" ? "The config kept for Put the old config back" : c.path;
+  const what = c.kind === "previous" ? "The previous config" : c.path;
   const rest = c.in_use ? "It's the config the VPN uses when it's on, so none is left: Turn VPN on will ask for a new one."
     : "The config in use isn't touched.";
   runAction({ id: "vpn.delete", label: "Delete this config",
@@ -201,7 +208,7 @@ async function showConfigs(box) {
         h("div", { class: "conf-path mono", text: c.path })),
       h("div", { class: "conf-ep mono", text: c.endpoint || "" }),
       h("div", { class: "conf-acts" },
-        c.kind === "file" && !c.in_use ? h("button", { class: "btn small", type: "button", text: "Use", disabled: busy, onclick: () => useFile(c) }) : null,
+        !c.in_use ? h("button", { class: "btn small", type: "button", text: "Use", disabled: busy, onclick: () => useFile(c) }) : null,
         !c.in_use || off ? h("button", { class: "btn small danger", type: "button", text: "Delete", disabled: busy, onclick: () => deleteFile(c) }) : null)));
   }
   box.append(h("h3", { class: "conf-title", text: "Configs on this server" }), list);
@@ -284,16 +291,7 @@ function render(v) {
       ? "AIOStreams is using a direct connection, so its traffic leaves from this server's own IP. There's no VPN config saved: Turn VPN on asks for one."
       : "AIOStreams is using a direct connection, so its traffic leaves from this server's own IP. Turn VPN on switches it back." }));
   }
-  const use = actFor("vpn.use"), upd = actFor("vpn.update"), conf = actFor("vpn.config"), back = actFor("vpn.revert");
-  const forget = actFor("vpn.forget");
-  if (v.previous && back) {
-    card.append(h("div", { class: "vpn-prev" },
-      h("span", { class: "dim", text: `Config changed ${ago(v.previous.changed_at)}${v.previous.endpoint_host ? `, from ${v.previous.endpoint_host}` : ""}.` }),
-      h("span", { class: "vpn-prev-acts" },
-        h("button", { class: "btn small", type: "button", text: "Put the old config back", disabled: !!(st && st.busy), onclick: () => runAction(back) }),
-        forget ? h("button", { class: "btn small danger", type: "button", text: "Delete", disabled: !!(st && st.busy),
-          title: "Delete the old config kept for Put the old config back", onclick: () => runAction(forget) }) : null)));
-  }
+  const use = actFor("vpn.use"), upd = actFor("vpn.update"), conf = actFor("vpn.config");
   if (use || upd || conf) {
     card.append(h("div", { class: "vpn-card-acts" },
       use ? h("button", { class: "btn small", type: "button", text: "Change server", disabled: !!(st && st.busy),
