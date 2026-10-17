@@ -470,6 +470,8 @@ confirm_vpn_disruption() {
         2)
             info "Stopping AIOStreams so nothing is served during the switch"
             docker compose stop aiostreams || warn "Stop had issues, continuing anyway."
+            # A deliberate stop, like the main script's: the switch leaves it stopped
+            touch "$INSTALL_DIR/aiostreams-stopped-on-purpose"
             return 0
             ;;
         *)
@@ -1152,21 +1154,27 @@ do_reconfigure_vpn() {
     fi
 }
 
-# Turn VPN ON (menu option 2, and option 4's "use it now"). No
-# confirm_vpn_disruption gate, unlike OFF, this direction never exposes
-# anything. skip_aio purely avoids resurrecting AIOStreams if it was
-# deliberately left stopped beforehand.
 # A config is saved for VPN mode (the control panel can delete it while the
 # VPN is off, leaving none).
 vpn_config_saved() {
     [[ -f "$VPN_COMPOSE" ]] && grep -q 'WIREGUARD_PRIVATE_KEY=.' "$VPN_COMPOSE"
 }
 
+# AIOStreams is stopped on purpose (the main script's Stop, or "Stop
+# AIOStreams first" above), so a switch leaves it stopped. Stopped for any
+# other reason, say a tunnel that didn't connect, a switch starts it again.
+aio_stays_stopped() {
+    [[ -f "$INSTALL_DIR/aiostreams-stopped-on-purpose" ]] && \
+        [[ "$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo false)" != "true" ]]
+}
+
+# Turn VPN ON (menu option 2, and option 4's "use it now"). No
+# confirm_vpn_disruption gate, unlike OFF, this direction never exposes
+# anything. skip_aio only keeps a deliberately stopped AIOStreams stopped.
 turn_vpn_on() {
     vpn_config_saved || error "There's no VPN config saved, so the VPN can't be turned on. Add one first: Change config on the control panel's VPN page, or this script's Reconfigure VPN (option 4)."
-    local aio_running_now skip_aio="false"
-    aio_running_now=$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo "false")
-    [[ "$aio_running_now" == "true" ]] || skip_aio="true"
+    local skip_aio="false"
+    if aio_stays_stopped; then skip_aio="true"; fi
     apply_mode "vpn" "$skip_aio"
 }
 
@@ -1174,9 +1182,8 @@ turn_vpn_on() {
 # command). Checked after any "Stop AIOStreams first" choice, so a stopped
 # AIOStreams isn't started again.
 turn_vpn_off() {
-    local aio_running_now skip_aio="false"
-    aio_running_now=$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo "false")
-    [[ "$aio_running_now" == "true" ]] || skip_aio="true"
+    local skip_aio="false"
+    if aio_stays_stopped; then skip_aio="true"; fi
     apply_mode "direct" "$skip_aio"
 }
 
@@ -1218,7 +1225,15 @@ if [[ "${1:-}" == "on" || "${1:-}" == "off" ]]; then
         echo "The VPN is already $1. Nothing to do."
         exit 0
     fi
+    want_aio=true
+    if aio_stays_stopped; then want_aio=false; fi
     if [[ "$1" == "on" ]]; then turn_vpn_on; else turn_vpn_off; fi
+    # Fail (for the panel) when AIOStreams should be running and isn't, say the tunnel didn't connect
+    if $want_aio && [[ "$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo false)" != "true" ]]; then
+        echo ""
+        echo "AIOStreams didn't start. See the lines above for why."
+        exit 1
+    fi
     exit 0
 fi
 
@@ -1238,8 +1253,8 @@ valid_ipv4() {
 # Fails when AIOStreams was running before but the tunnel didn't connect, so
 # the panel shows the switch as failed.
 switch_config_now() {
-    local was_running mode
-    was_running=$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo "false")
+    local mode want_aio=true
+    if aio_stays_stopped; then want_aio=false; fi
     mode=$(cat "$ACTIVE_MARKER" 2>/dev/null || true)
     echo "$WG_PATH" > "$LAST_CONF_MARKER"
     write_vpn_files
@@ -1248,7 +1263,7 @@ switch_config_now() {
         return 0
     fi
     turn_vpn_on
-    if [[ "$was_running" == "true" && "$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo false)" != "true" ]]; then
+    if $want_aio && [[ "$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo false)" != "true" ]]; then
         echo ""
         echo "The tunnel didn't connect with this config, so AIOStreams is stopped."
         echo "To go back, press Use on Previous config in the control panel's VPN page, or run:"
