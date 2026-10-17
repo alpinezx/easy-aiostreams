@@ -33,6 +33,9 @@ function toggle() {
   b.onclick = () => runAction(act);
 }
 
+// A "working on it" line with the spinner, so a few seconds' wait doesn't look like a hang
+const waiting = (text) => h("p", { class: "dim addr-wait", role: "status" }, h("span", { class: "spin", "aria-hidden": "true" }), h("span", { text }));
+
 // The address list in Change server and Change config: fastest first, the
 // fastest one not in use picked to start with. pick(a) runs on each choice.
 function fillAddresses(list, r, pick) {
@@ -91,7 +94,8 @@ async function changeConfig() {
       note.className = "conf-note " + (text.trim() ? "warn-text" : "dim");
       return;
     }
-    note.textContent = "Checking it…"; note.className = "conf-note dim";
+    clear(note); note.className = "conf-note dim conf-checking";
+    note.append(h("span", { class: "spin", "aria-hidden": "true" }), h("span", { text: "Checking it…" }));
     try {
       checked = await api("/api/vpn/config", { method: "POST", body: JSON.stringify({ conf: text }) });
     } catch (e) {
@@ -112,7 +116,7 @@ async function changeConfig() {
     if (checked.endpoint_ip) { chosen = checked.endpoint_ip; ok.disabled = false; return; }
     list.hidden = false;
     clear(list);
-    list.append(h("p", { class: "dim addr-wait", text: `Looking up ${checked.endpoint_host} and timing each address from this server…` }));
+    list.append(waiting(`Looking up ${checked.endpoint_host} and timing each address from this server. This takes a few seconds.`));
     try {
       fillAddresses(list, await api("/api/vpn/config/addresses"), (a) => { chosen = a.ip; ok.disabled = false; });
     } catch (e) {
@@ -140,7 +144,7 @@ async function changeServer() {
   if (!act || !last) return;
   let chosen = null;
   const list = h("div", { class: "addr-list", role: "radiogroup", "aria-label": "Server addresses" },
-    h("p", { class: "dim addr-wait", text: "Looking the addresses up and timing each one from this server…" }));
+    waiting("Looking the addresses up and timing each one from this server. This takes a few seconds."));
   const then = last.mode === "on" ? "Switching restarts the stack, so streams pause for up to a minute."
     : "It's used the next time the VPN is turned on.";
   const answer = ask({ title: "Change server", confirmLabel: "Use this server",

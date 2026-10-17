@@ -292,7 +292,8 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .addr-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .addr-tags .chip { font-size: .74rem; padding: 1px 8px; }
 .addr-ms { color: var(--dim); font-size: .88rem; font-variant-numeric: tabular-nums; text-align: right; }
-.addr-wait { margin: 0; }
+.addr-wait, .conf-checking { display: flex; align-items: center; gap: 10px; margin: 0; }
+.addr-wait .spin, .conf-checking .spin { flex: none; }
 /* Change config */
 .dialog:has(.conf-wrap) { width: min(520px, calc(100vw - 32px)); }
 .conf-wrap { display: grid; gap: 12px; }
