@@ -179,12 +179,26 @@ def build_use_file(path: str, ip, on: bool = False) -> Action:
                   args=("use-file", path, str(addr), *(("on",) if on is True else ())), timeout=420, needs=("setup-vpn-gluetun.sh", "vpn-state/active"))
 
 
+def build_vpn_uninstall(remove_image: bool, delete_confs: bool) -> Action:
+    """Uninstall VPN layer (the script's option 7), its two questions answered up front.
+    main.py also wants "uninstall" typed, like the restore's "restore"."""
+    opts = (("remove-image",) if remove_image is True else ()) + (("delete-confs",) if delete_confs is True else ())
+    return Action("vpn.uninstall", "Uninstall VPN", "Uninstalling the VPN", "VPN uninstalled", "setup-vpn-gluetun.sh",
+                  args=("uninstall", *opts), timeout=600, needs=("setup-vpn-gluetun.sh", "vpn-state/active"))
+
+
+# Each add-on script's state folder: while it's there, the add-on is set up and its script stays
+ADDON_STATE = {"vpn": "vpn-state", "mediaflow": "mediaflow-state", "watchdog": "watchdog-state", "webhook": "webhook-relay-state"}
+
+
 def resolve(action_id: str, params: dict | None = None) -> Action:
     params = params or {}
     if action_id == "stack.update":
         return build_update(params.get("backup", True), params.get("channel"))
     if action_id == "vpn.use":
         return build_use_address(params.get("ip"))
+    if action_id == "vpn.uninstall":
+        return build_vpn_uninstall(params.get("remove_image") is True, params.get("delete_confs") is True)
     if action_id == "vpn.config":
         return build_use_config(params.get("ip"), params.get("on") is True)
     act = _STATIC.get(action_id)
@@ -195,7 +209,7 @@ def resolve(action_id: str, params: dict | None = None) -> Action:
 
 def catalog() -> list[Action]:
     return list(_STATIC.values()) + [build_update(True, None), build_use_address("192.0.2.1"), build_use_config("192.0.2.1"),
-                                     build_delete_config("/"), build_use_file("/", "192.0.2.1")]
+                                     build_delete_config("/"), build_use_file("/", "192.0.2.1"), build_vpn_uninstall(False, False)]
 
 
 # The stack's scripts, in the order the Terminal tab lists them. Only the first

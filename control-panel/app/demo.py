@@ -69,6 +69,7 @@ class DemoBackend:
         self.staged = None
         self.previous = None
         self.has_config = True
+        self.removed_scripts: set[str] = set()
         self.demo_files = [
             {"kind": "file", "path": "/home/ubuntu/NL-Amsterdam.conf", "endpoint": "nl.wg.example-vpn.net", "in_use": False},
             {"kind": "file", "path": "/home/ubuntu/SE-Stockholm.conf", "endpoint": "se.wg.example-vpn.net", "in_use": False}]
@@ -109,6 +110,16 @@ class DemoBackend:
 
     def vpn_mode(self) -> str:
         return self.vpn
+
+    def remove_script(self, script_id: str) -> str:
+        from .actions import ADDON_STATE, SCRIPTS
+        found = next(((i, f) for i, _, f in SCRIPTS if i == script_id), None)
+        if not found or script_id not in ADDON_STATE:
+            raise ValueError("Only an add-on's script can be removed.")
+        if script_id == "vpn" and self.vpn != "none":
+            raise ValueError("It's still set up. Uninstall it with its own menu first.")
+        self.removed_scripts.add(script_id)
+        return found[1]
 
     def vpn_configs(self) -> list[dict]:
         if self.vpn == "none":
@@ -163,7 +174,9 @@ class DemoBackend:
             "installed": True, "docker_ok": True, "domain": "streams.example.com", "channel": self.channel, "version": "2.35.9",
             "build_tag": time.strftime("%Y.%m.%d.%H%M-nightly", time.gmtime(time.time() - 30 * 3600)) if self.channel == "nightly" else "v2.35.9",
             "vpn": self.vpn, "install_dir": "/opt/aiostreams", "user_copy": self.user_copy(),
-            "scripts": [{"id": i, "label": l, "file": f, "present": i in ("aiostreams", "mediaflow", "webhook")} for i, l, f in SCRIPTS], "overall": overall, "headline": headline, "services": services,
+            "scripts": [{"id": i, "label": l, "file": f,
+                         "present": i in ("aiostreams", "vpn", "mediaflow", "webhook") and i not in self.removed_scripts,
+                         "in_use": i != "vpn" or self.vpn != "none"} for i, l, f in SCRIPTS], "overall": overall, "headline": headline, "services": services,
             "watchdog": {"configured": True, "running": True, "last_check": "09 Oct 2026, 16:02:11 UTC OK", "alert_state": "up"},
             "host": {"cpus": 2, "load": [0.21, 0.34, 0.29], "mem_total": 4 * GB, "mem_used": int(1.6 * GB),
                      "uptime": 41 * 86400 + 3 * 3600, "disk_total": 80 * GB, "disk_used": 23 * GB},
@@ -318,6 +331,14 @@ class DemoBackend:
             self.vpn_host, self.vpn_ip, self.has_config = host, ip, True
             if action.args[-1] == "on":
                 self.vpn = "on"
+        elif action.id == "vpn.uninstall":
+            for l in ["==> Switching back to direct mode first", "==> Removing gluetun container, if it still exists",
+                      *(["==> Removing the gluetun Docker image"] if "remove-image" in action.args else []),
+                      "==> Removing saved VPN state (vpn-state/). This is where the private key was stored for toggling",
+                      *([f"Deleted {c['path']}." for c in self.demo_files] if "delete-confs" in action.args else []),
+                      "Done. You're back on a plain AIOStreams + Caddy stack with no VPN layer."]:
+                say(l, 0.5)
+            self.vpn = "none"
         elif action.id == "vpn.update":
             for l in ["==> Pulling latest gluetun (v3 stable channel)", "Status: Image is up to date for qmcgaw/gluetun:v3",
                       "gluetun is already on the newest v3 release. Nothing restarted."]:

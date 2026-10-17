@@ -251,7 +251,10 @@ the VPN is on), `use-config <ip>` (switches to a config the panel saved as
 `kind|path|endpoint|in-use`), `use-file <path> <ip>` (switches to any
 listed config not in use, copying it into `vpn-state`) and `delete-config <path>`
 (deletes a listed config that isn't in use; with the VPN off, also the one
-it would use, which leaves no config saved). With no config saved, **Turn
+it would use, which leaves no config saved), and `uninstall [remove-image]
+[delete-confs]` (option 7 without its questions; `delete-confs` deletes
+the `.conf` files `list-configs` finds in `/root` and the login user's
+home). With no config saved, **Turn
 VPN ON** asks for one first, the same way Reconfigure does.
 
 ---

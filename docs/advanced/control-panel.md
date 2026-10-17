@@ -58,8 +58,10 @@ It is still root-equivalent on your server, because it has to run the scripts an
 | Change server, Update VPN | `setup-vpn-gluetun.sh addresses` for the list, then `use-address <ip>`; `update` (menu option 5) |
 | Change config | `setup-vpn-gluetun.sh addresses <name>` for the new config's list, then `use-config <ip>` |
 | Configs on this server: the list, Use, Delete | `list-configs`; `use-file <path> <ip>`; `delete-config <path>` |
+| Uninstall VPN | `setup-aiostreams.sh backup` first if ticked, then `setup-vpn-gluetun.sh uninstall` with `remove-image` and `delete-confs` as ticked (menu option 7's questions) |
+| Remove (Scripts tab) | deletes an add-on's script from the install folder, only while that add-on's state folder is gone (it isn't set up) |
 
-The scripts run on the host with a terminal attached, like an SSH session. The main script's Reconfigure, the VPN's first-time setup and the uninstalls have no button.
+The scripts run on the host with a terminal attached, like an SSH session. The main script's Reconfigure, the VPN's first-time setup and the other add-ons' uninstalls have no button.
 
 The version chip on the Overview tab is read from the running AIOStreams container's own `package.json`, once per container (an update recreates it, so the chip follows).
 
@@ -74,6 +76,8 @@ It appears on the rail once `setup-vpn-gluetun.sh` has set the VPN up, on or off
 **Change config** sends the pasted config (or the file's contents, read in the browser) to the panel once, over HTTPS. The panel checks it has both sections, real-looking keys and a valid endpoint, saves it as `vpn-state/upload.conf` (root only, mode 600) and sends back only the endpoint and address; the paste box is emptied. The script's `use-config` then keeps the config in use, its server name and address in `vpn-state/previous/` (listed as **Previous config**), installs the new one as `vpn-state/wireguard.conf`, and switches with the usual tunnel check. If AIOStreams was running and the tunnel doesn't connect, it reports a failure and leaves AIOStreams stopped rather than unprotected; **Use** on Previous config goes back.
 
 **Configs on this server** lists what `list-configs` finds: the pasted config, the previous one, an earlier paste, one pasted but not used yet, and `.conf` files in `/root` and the login user's home that have `[Interface]`, `[Peer]`, `PrivateKey` and `Endpoint` (the same files Reconfigure offers). Each shows its path and endpoint, never its keys. **Use** (any config not in use) copies it into `vpn-state` and switches to it as Change config does, so a file can be deleted afterwards; the config left becomes Previous config, so two can be swapped back and forth. On Previous config, the address it used is picked to start with. **Delete** takes only a path the list has just found, and the config in use only while the VPN is off; the script checks that again before deleting. Deleting that one also takes its key out of the saved VPN settings (`vpn-state/docker-compose.vpn.yml`), so no config is left: **Turn VPN on** then opens the paste dialog and turns the VPN on with the config given (`use-config <ip> on`).
+
+**Uninstall VPN** asks for `uninstall` to be typed, like a restore, and runs the script's `uninstall`: it switches to direct first, removes the gluetun container (and image, if ticked), and deletes `vpn-state` only once AIOStreams and Caddy are confirmed running, refusing otherwise with nothing deleted. **Delete the .conf files** deletes the ones the list shows in `/root` and the login user's home. **Back up first** runs a normal backup and stops if it fails. The page disappears once the VPN is gone.
 
 ## Backups and restores
 

@@ -789,6 +789,28 @@ do_uninstall_vpn() {
         *) echo "Cancelled."; return ;;
     esac
 
+    local rm_image=no
+    read -rp "Also remove the gluetun Docker image (qmcgaw/gluetun)? [y/N]: " RM_IMAGE
+    case "$RM_IMAGE" in y|Y|yes|Yes) rm_image=yes ;; esac
+
+    local orig_conf="" confs=()
+    [[ -f "$LAST_CONF_MARKER" ]] && orig_conf=$(cat "$LAST_CONF_MARKER" 2>/dev/null || true)
+    if [[ -n "$orig_conf" && -f "$orig_conf" && "$orig_conf" != "$STATE_DIR"/* ]]; then
+        echo ""
+        echo "Your original WireGuard config is still at: $orig_conf"
+        echo "It contains your private key in plain text."
+        read -rp "Delete it too? [y/N]: " RM_CONF
+        case "$RM_CONF" in y|Y|yes|Yes) confs+=("$orig_conf") ;; esac
+    fi
+    uninstall_vpn_now "$rm_image" "${confs[@]}"
+}
+
+# The uninstall itself, without questions: $1 is "yes" to remove the gluetun
+# image, then any .conf files to delete. Used by the menu above and the
+# control panel's "uninstall" command.
+uninstall_vpn_now() {
+    local rm_image="$1" f
+    shift
     local active
     active=$(cat "$ACTIVE_MARKER" 2>/dev/null || echo "unknown")
     if [[ "$active" == "vpn" ]]; then
@@ -799,24 +821,10 @@ do_uninstall_vpn() {
     info "Removing gluetun container, if it still exists"
     docker rm -f gluetun 2>/dev/null || true
 
-    read -rp "Also remove the gluetun Docker image (qmcgaw/gluetun)? [y/N]: " RM_IMAGE
-    case "$RM_IMAGE" in
-        y|Y|yes|Yes)
-            docker images qmcgaw/gluetun --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | xargs -r docker rmi 2>/dev/null || \
-                warn "Couldn't remove the image, it may be in use or already gone."
-            ;;
-    esac
-
-    local orig_conf=""
-    [[ -f "$LAST_CONF_MARKER" ]] && orig_conf=$(cat "$LAST_CONF_MARKER" 2>/dev/null || true)
-    if [[ -n "$orig_conf" && -f "$orig_conf" && "$orig_conf" != "$STATE_DIR"/* ]]; then
-        echo ""
-        echo "Your original WireGuard config is still at: $orig_conf"
-        echo "It contains your private key in plain text."
-        read -rp "Delete it too? [y/N]: " RM_CONF
-        case "$RM_CONF" in
-            y|Y|yes|Yes) rm -f "$orig_conf" && echo "Deleted $orig_conf." ;;
-        esac
+    if [[ "$rm_image" == yes ]]; then
+        info "Removing the gluetun Docker image"
+        docker images qmcgaw/gluetun --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | xargs -r docker rmi 2>/dev/null || \
+            warn "Couldn't remove the image, it may be in use or already gone."
     fi
 
     info "Removing saved VPN state (vpn-state/). This is where the private key was stored for toggling"
@@ -831,6 +839,10 @@ do_uninstall_vpn() {
         [[ "$state" == "true" ]] || error "Refusing to delete VPN state. '$svc' isn't confirmed running. Nothing was deleted. Check 'docker ps -a' and 'docker compose logs', get the stack healthy, then re-run Uninstall VPN layer."
     done
 
+    # Only now, so a refused uninstall deletes nothing
+    for f in "$@"; do
+        rm -f -- "$f" && echo "Deleted $f."
+    done
     rm -rf "$STATE_DIR"
 
     echo ""
@@ -1340,7 +1352,10 @@ deletable_config() {
 # in use (or is, while the VPN is off: then none is left). "use-file <path>
 # <ip> [on]": switch to a listed .conf file, as use-config does with a
 # pasted one.
-if [[ "${1:-}" =~ ^(update|addresses|use-address|use-config|revert-config|forget-config|list-configs|delete-config|use-file)$ ]]; then
+# "uninstall [remove-image] [delete-confs]": Uninstall VPN layer (option 7)
+# without questions; delete-confs deletes the .conf files list-configs finds
+# in /root and the login user's home.
+if [[ "${1:-}" =~ ^(update|addresses|use-address|use-config|revert-config|forget-config|list-configs|delete-config|use-file|uninstall)$ ]]; then
     [[ -f "$ACTIVE_MARKER" ]] || error "The VPN isn't set up on this server yet. Run this script without arguments first."
     case "$1" in
         update) do_update_gluetun ;;
@@ -1384,6 +1399,21 @@ if [[ "${1:-}" =~ ^(update|addresses|use-address|use-config|revert-config|forget
             fi
             ;;
         list-configs) list_configs ;;
+        uninstall)
+            rm_image=no; confs=()
+            for opt in "${@:2}"; do
+                case "$opt" in
+                    remove-image) rm_image=yes ;;
+                    delete-confs)
+                        while IFS='|' read -r kind path _ _; do
+                            [[ "$kind" == file ]] && confs+=("$path")
+                        done < <(list_configs)
+                        ;;
+                    *) error "Unknown option: $opt" ;;
+                esac
+            done
+            uninstall_vpn_now "$rm_image" "${confs[@]}"
+            ;;
         delete-config)
             found=$(deletable_config "${2:-}") || error "That isn't one of the configs listed, or it's in use with the VPN on. Nothing was deleted."
             read -r kind use <<<"$found"
