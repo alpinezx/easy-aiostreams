@@ -38,14 +38,14 @@ async function loadReleases(force) {
 }
 
 function updateBits(st) {
-  if (!st.version) return [];
+  if (!st.version) return [null, [], false];
   const running = runningTag(st);
   if (!running) {
     return [h("span", { class: "chip warn", text: "Couldn't tell which nightly is running",
-      title: "The running image has no nightly tag in its metadata, so there's nothing to compare. An Update usually fixes it." }), []];
+      title: "The running image has no nightly tag in its metadata, so there's nothing to compare. An Update usually fixes it." }), [], false];
   }
   const nightly = relChannel(st) === "nightly";
-  let chip;
+  let chip, fresh = false;
   if (!rel) {
     chip = h("span", { class: "chip", text: "Checking for updates…" });
   } else if (!rel.releases.length) {
@@ -57,6 +57,7 @@ function updateBits(st) {
       chip = h("span", { class: "chip ok", title: checked, text: "Up to date" });
     } else {
       const top = newer[0];
+      fresh = true;
       const when = top.published ? `, newest released ${ago(Date.parse(top.published) / 1000)}` : "";
       const title = `${count} behind${when}. Click for what's new; use Update to get it. ${checked}`;
       chip = h("button", { class: "chip warn", type: "button", title, text: nightly ? "Newer nightly available" : `${top.tag} available`,
@@ -69,7 +70,7 @@ function updateBits(st) {
     tail.push(h("button", { class: "btn small", type: "button", text: "All releases",
       title: `What changed in each AIOStreams ${nightly ? "nightly build" : "release"}`, onclick: () => openReleases(rel, running) }));
   }
-  return [chip, tail];
+  return [chip, tail, fresh];
 }
 
 const RESTARTABLE = new Set(["aiostreams", "mediaflow", "webhook"]);
@@ -117,7 +118,7 @@ export function render(st, goLogs) {
 function vpnChip(st, text) {
   return st.vpn === "on"
     ? h("span", { class: "chip ok", text })
-    : h("span", { class: "chip warn", title: "The VPN is installed but switched off, so traffic leaves from this server's own IP address.", text });
+    : h("span", { class: "chip", title: "The VPN is installed but switched off, so traffic leaves from this server's own IP address.", text });
 }
 
 function certChip(st, long) {
@@ -141,7 +142,7 @@ function hero(st) {
     if (st.domain) el.append(h("div", { class: "hero-open" }, h("a", { class: "btn small open-site", href: `https://${st.domain}`, target: "_blank", rel: "noopener noreferrer",
       title: `Opens https://${st.domain} in a new tab` }, "Open AIOStreams", extIcon())));
     const meta = h("div", { class: "hero-meta" });
-    const [updChip, updTail] = updateBits(st);
+    const [updChip, updTail, fresh] = updateBits(st);
     const nightlyTag = relChannel(st) === "nightly" && runningTag(st);
     const chan = st.channel ? `AIOStreams ${st.channel === "nightly" ? "nightly" : "latest"}` : "AIOStreams";
     const ver = st.version ? (nightlyTag ? `v${st.version} · ${nightlyTag.slice(0, -8)}` : `v${st.version}`) : "";
@@ -149,29 +150,24 @@ function hero(st) {
       title: [st.channel === "nightly" ? "AIOStreams' nightly builds (Docker tag: nightly). Switch with Update." : st.channel ? "AIOStreams' stable releases (Docker tag: latest). Switch with Update." : "",
         st.version ? (nightlyTag ? `Running v${st.version}, from the nightly build ${nightlyTag}.` : `Running v${st.version}.`) : ""].filter(Boolean).join(" ") }));
     if (updChip) meta.append(updChip);
-    if (updTail) meta.append(...updTail);
-    // VPN and certificate live in This server; they come up here, after the AIOStreams items, only when they need attention.
-    if (st.vpn === "off") meta.append(vpnChip(st, "VPN off"));
+    // Update sits with the chips, the same size as Check now; blue only when a newer release is out
+    const upd = st.installed && avail["stack.update"];
+    if (upd && upd.available) meta.append(h("button", { class: "btn small" + (fresh ? " primary" : ""), type: "button", text: "Update",
+      disabled: !!st.busy, title: "Update AIOStreams, or switch between stable and nightly", onclick: () => runAction(upd) }));
+    meta.append(...updTail);
+    // The certificate lives in This server; it comes up here, after the AIOStreams items, only when it needs attention.
     if (st.cert && (!st.cert.ok || st.cert.days_left < 21)) meta.append(certChip(st, true));
     el.append(meta);
 
-    const bar = h("div", { class: "toolbar" });
-    const btn = (id, cls, label) => {
-      const a = avail[id];
-      if (!a || !a.available) return null;
-      return h("button", { class: `btn ${cls || ""}`, type: "button", text: label || a.label, disabled: !!st.busy, onclick: () => runAction(a) });
-    };
     if (!st.installed) {
       el.append(h("p", { class: "empty", text: "AIOStreams isn't installed on this server yet. Run setup-aiostreams.sh over SSH first." }));
       return;
     }
     // Start and Stop sit on AIOStreams' row in Services, and Restart stack on the request path.
-    bar.append(btn("stack.update", "primary", "Update \u2022 Switch build"));
     if (st.busy) {
-      bar.append(h("span", { class: "busy-note" }, h("span", { class: "spin", "aria-hidden": "true" }), "An action is running",
-        h("button", { class: "btn small", type: "button", text: "View output", onclick: () => openJob(st.busy) })));
+      el.append(h("div", { class: "toolbar" }, h("span", { class: "busy-note" }, h("span", { class: "spin", "aria-hidden": "true" }), "An action is running",
+        h("button", { class: "btn small", type: "button", text: "View output", onclick: () => openJob(st.busy) }))));
     }
-    el.append(bar);
   });
 }
 
@@ -254,10 +250,12 @@ function rows(st, goLogs) {
       h("span", { class: "num", text: "CPU" }), h("span", { class: "num", text: "Memory" }), h("span", { class: "spark-cell", text: "Recent CPU" }), h("span")));
     for (const s of st.services) {
       const sx = stateOf(s);
-      const acts = h("div", { class: "acts" });
-      if (s.present) acts.append(h("button", { class: "btn small quiet", type: "button", text: "Logs", onclick: () => goLogs(s.container) }));
+      // Three fixed slots (Logs, Restart, Start/Stop), left empty when a service lacks one, so the buttons line up down the table
+      const slot = [h("span", { class: "slot" }), h("span", { class: "slot" }), h("span", { class: "slot" })];
+      const acts = h("div", { class: "acts" }, ...slot);
+      if (s.present) slot[0].append(h("button", { class: "btn small", type: "button", text: "Logs", onclick: () => goLogs(s.container) }));
       if (RESTARTABLE.has(s.key) && s.present) {
-        acts.append(h("button", { class: "btn small", type: "button", text: "Restart",
+        slot[1].append(h("button", { class: "btn small", type: "button", text: "Restart",
           disabled: !!st.busy || s.state !== "running",
           title: s.state === "running" ? `Restart only ${s.name}` : "Only available while it's running",
           onclick: () => restartService(s) }));
@@ -266,7 +264,7 @@ function rows(st, goLogs) {
       if (s.addon || s.key === "aiostreams") {
         const id = `${s.addon ? s.key : "stack"}.${s.state === "running" ? "stop" : "start"}`;
         const a = avail[id];
-        if (a && a.available) acts.append(h("button", { class: "btn small" + (s.state === "running" ? " danger" : ""), type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
+        if (a && a.available) slot[2].append(h("button", { class: "btn small" + (s.state === "running" ? " danger" : ""), type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
       }
       el.append(h("div", { class: "row", dataset: { svc: s.key } },
         // What the service does is on hover, keeping each row to the name
