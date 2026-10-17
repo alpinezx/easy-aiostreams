@@ -639,12 +639,16 @@ async def run_action(action_id: str, request: Request, user: str = Depends(curre
     params = params if isinstance(params, dict) else None
     if action_id in ("vpn.delete", "vpn.file"):
         # Only a config the list has just found, never the one in use; Use only for .conf files
+        # (Delete may take the one in use too while the VPN is off; none is left then.)
         path = str((params or {}).get("path", ""))
-        found = next((c for c in await asyncio.to_thread(backend.vpn_configs) if c["path"] == path and not c["in_use"]), None)
+        vpn_off = await asyncio.to_thread(backend.vpn_mode) == "off"
+        found = next((c for c in await asyncio.to_thread(backend.vpn_configs)
+                      if c["path"] == path and (not c["in_use"] or (action_id == "vpn.delete" and vpn_off))), None)
         if not found or (action_id == "vpn.file" and found["kind"] != "file"):
-            raise HTTPException(400, "That config isn't on the list any more. Reload the page.")
+            raise HTTPException(400, "That config isn't on the list any more, or it's in use. Reload the page.")
         try:
-            action = build_delete_config(path) if action_id == "vpn.delete" else build_use_file(path, (params or {}).get("ip"))
+            action = build_delete_config(path) if action_id == "vpn.delete" else \
+                build_use_file(path, (params or {}).get("ip"), (params or {}).get("on") is True)
         except BadAction as e:
             raise HTTPException(400, str(e))
         return jobs.summary(jobs.start(action, params, None))

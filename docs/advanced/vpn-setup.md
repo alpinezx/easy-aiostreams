@@ -250,7 +250,9 @@ the VPN is on), `use-config <ip>` (switches to a config the panel saved as
 `list-configs` (every WireGuard config on the server, one per line:
 `kind|path|endpoint|in-use`), `use-file <path> <ip>` (switches to a listed
 `.conf` file, copying it into `vpn-state`) and `delete-config <path>`
-(deletes a listed config that isn't in use).
+(deletes a listed config that isn't in use; with the VPN off, also the one
+it would use, which leaves no config saved). With no config saved, **Turn
+VPN ON** asks for one first, the same way Reconfigure does.
 
 ---
 

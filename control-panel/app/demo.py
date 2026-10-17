@@ -68,6 +68,7 @@ class DemoBackend:
         self.vpn_host = "nl.wg.example-vpn.net"
         self.staged = None
         self.previous = None
+        self.has_config = True
         self.demo_files = [
             {"kind": "file", "path": "/home/ubuntu/NL-Amsterdam.conf", "endpoint": "nl.wg.example-vpn.net", "in_use": False},
             {"kind": "file", "path": "/home/ubuntu/SE-Stockholm.conf", "endpoint": "se.wg.example-vpn.net", "in_use": False}]
@@ -88,7 +89,8 @@ class DemoBackend:
                "checked_at": None, "error": None}
         if self.vpn == "none":
             return out
-        out.update(endpoint_host=self.vpn_host, endpoint_ip=self.vpn_ip, endpoint_port="51820", previous=self.previous)
+        out.update(endpoint_host=self.vpn_host if self.has_config else None, endpoint_ip=self.vpn_ip if self.has_config else None,
+                   endpoint_port="51820" if self.has_config else None, previous=self.previous, has_config=self.has_config)
         if self.vpn == "on":
             out.update(connected=self.running.get("gluetun", False), exit_ip="203.0.113.17", city="Amsterdam",
                        region="North Holland", country="NL", org="AS64500 Example VPN", checked_at=time.time())
@@ -105,10 +107,13 @@ class DemoBackend:
         return {"host": (self.staged or {}).get("endpoint_host"), "error": None,
                 "addresses": [{"ip": ip, "ms": ms, "in_use": False, "recommended": n == 0} for n, (ip, ms) in enumerate(ips)]}
 
+    def vpn_mode(self) -> str:
+        return self.vpn
+
     def vpn_configs(self) -> list[dict]:
         if self.vpn == "none":
             return []
-        rows = [{"kind": "pasted", "path": "/opt/aiostreams/vpn-state/wireguard.conf", "endpoint": self.vpn_host, "in_use": True}]
+        rows = [{"kind": "pasted", "path": "/opt/aiostreams/vpn-state/wireguard.conf", "endpoint": self.vpn_host, "in_use": True}] if self.has_config else []
         if self.previous:
             rows.append({"kind": "previous", "path": "/opt/aiostreams/vpn-state/previous/wireguard.conf", "endpoint": self.previous["endpoint_host"], "in_use": False})
         rows += [c for c in self.demo_files if c["path"] not in self._gone]
@@ -285,8 +290,11 @@ class DemoBackend:
                       "==> Confirming the WireGuard tunnel is actually connected...", "VPN is up. gluetun's exit IP: 203.0.113.121",
                       "==> Tunnel confirmed, starting AIOStreams"]:
                 say(l, 0.5)
-            self.previous = {"changed_at": time.time(), "endpoint_host": self.vpn_host}
-            self.vpn_host, self.vpn_ip = st.get("endpoint_host") or ip, ip
+            if self.has_config:
+                self.previous = {"changed_at": time.time(), "endpoint_host": self.vpn_host}
+            self.vpn_host, self.vpn_ip, self.has_config = st.get("endpoint_host") or ip, ip, True
+            if action.args[-1] == "on":
+                self.vpn = "on"
         elif action.id == "vpn.revert":
             for l in ["Putting back the config from before the last change", "==> Stopping the current stack",
                       "==> Starting the stack in 'vpn' mode", "VPN is up. gluetun's exit IP: 203.0.113.17"]:
@@ -295,6 +303,9 @@ class DemoBackend:
         elif action.id == "vpn.delete":
             path = action.args[1]
             say(f"Deleted {path}.")
+            if path == "/opt/aiostreams/vpn-state/wireguard.conf":
+                say("That was the VPN's config, so none is saved now. Turning the VPN on asks for a new one.")
+                self.has_config = False
             if path.endswith("previous/wireguard.conf"):
                 self.previous = None
             self._gone.add(path)
@@ -306,8 +317,11 @@ class DemoBackend:
                       "==> Stopping the current stack", "==> Starting the stack in 'vpn' mode", "VPN is up. gluetun's exit IP: 203.0.113.121",
                       "==> Tunnel confirmed, starting AIOStreams"]:
                 say(l, 0.5)
-            self.previous = {"changed_at": time.time(), "endpoint_host": self.vpn_host}
-            self.vpn_host, self.vpn_ip = host, ip
+            if self.has_config:
+                self.previous = {"changed_at": time.time(), "endpoint_host": self.vpn_host}
+            self.vpn_host, self.vpn_ip, self.has_config = host, ip, True
+            if action.args[-1] == "on":
+                self.vpn = "on"
         elif action.id == "vpn.forget":
             say("Deleted the old config kept from before the last change. The config in use isn't touched.")
             self.previous = None

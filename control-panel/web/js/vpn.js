@@ -30,7 +30,8 @@ function toggle() {
   if (b.hidden) return;
   b.textContent = act.label;
   b.disabled = !!st.busy;
-  b.onclick = () => runAction(act);
+  const noConfig = id === "vpn.on" && last && last.has_config === false;
+  b.onclick = noConfig ? () => changeConfig(true) : () => runAction(act);
 }
 
 // A "working on it" line with the spinner, so a few seconds' wait doesn't look like a hang
@@ -67,7 +68,7 @@ function looksLikeWireGuard(t) {
 // keeps it where only root can read it; the key never comes back to the
 // page. With a name as its endpoint, the addresses are listed as in Change
 // server. The config in use now is kept, for Put the old config back.
-async function changeConfig() {
+async function changeConfig(turnOn = false) {
   const act = actFor("vpn.config");
   if (!act || !last) return;
   let checked = null, chosen = null, timer = null;
@@ -79,18 +80,21 @@ async function changeConfig() {
     h("div", { class: "conf-row" }, h("button", { class: "btn small", type: "button", text: "Choose file", onclick: () => file.click() }), file, note));
   const summary = h("div", { class: "conf-sum", hidden: true });
   const list = h("div", { class: "addr-list", role: "radiogroup", "aria-label": "Server addresses", hidden: true });
-  const then = last.mode === "on" ? "The stack restarts with it, so streams pause for up to a minute."
+  const then = turnOn ? "There's no VPN config saved, so add one: the VPN turns on with it, and streams pause for up to a minute."
+    : last.mode === "on" ? "The stack restarts with it, so streams pause for up to a minute."
     : "It's used the next time the VPN is turned on.";
-  const answer = ask({ title: "Change config", confirmLabel: "Use this config",
-    body: `Paste your VPN provider's WireGuard config, or choose its .conf file. ${then}`,
-    options: { el: h("div", { class: "conf-wrap" }, pasteBox, summary, list), read: () => ({ ip: chosen }) } });
+  if (turnOn) note.textContent = "Your traffic goes through the VPN once it connects.";
+  const answer = ask({ title: turnOn ? "Turn VPN on" : "Change config", confirmLabel: turnOn ? "Turn VPN on" : "Use this config",
+    body: turnOn ? then : `Paste your VPN provider's WireGuard config, or choose its .conf file. ${then}`,
+    options: { el: h("div", { class: "conf-wrap" }, pasteBox, summary, list), read: () => ({ ip: chosen, ...(turnOn ? { on: true } : {}) }) } });
   const ok = document.querySelector("#dialog .btn.primary");
   ok.disabled = true;
 
   const check = async () => {
     const text = area.value;
     if (!looksLikeWireGuard(text)) {
-      note.textContent = text.trim() ? "That doesn't look like a whole WireGuard config yet." : "Your current config is kept, so you can go back to it.";
+      note.textContent = text.trim() ? "That doesn't look like a whole WireGuard config yet."
+        : turnOn ? "Your traffic goes through the VPN once it connects." : "Your current config is kept, so you can go back to it.";
       note.className = "conf-note " + (text.trim() ? "warn-text" : "dim");
       return;
     }
@@ -175,8 +179,10 @@ async function useFile(c) {
 
 function deleteFile(c) {
   const what = c.kind === "previous" ? "The config kept for Put the old config back" : c.path;
+  const rest = c.in_use ? "It's the config the VPN uses when it's on, so none is left: Turn VPN on will ask for a new one."
+    : "The config in use isn't touched.";
   runAction({ id: "vpn.delete", label: "Delete this config",
-    confirm: `${what} will be deleted, private key and all. The config in use isn't touched. This can't be undone.` }, { path: c.path });
+    confirm: `${what} will be deleted, private key and all. ${rest} This can't be undone.` }, { path: c.path });
 }
 
 async function showConfigs(box) {
@@ -184,17 +190,19 @@ async function showConfigs(box) {
   try { rows = await api("/api/vpn/configs"); } catch (_) { return; }
   if (!rows.length || !box.isConnected) return;
   const busy = !!(st && st.busy);
+  const off = last && last.mode === "off";
   const list = h("div", { class: "panel conf-list" });
   for (const c of rows) {
     const name = c.kind === "file" ? c.path.split("/").pop() : KIND[c.kind] || c.kind;
     list.append(h("div", { class: "conf-item" },
       h("div", { class: "conf-what" },
-        h("div", { class: "conf-name" }, h("span", { text: name }), c.in_use ? h("span", { class: "chip ok", text: "In use" }) : null),
+        h("div", { class: "conf-name" }, h("span", { text: name }),
+          c.in_use ? h("span", { class: off ? "chip" : "chip ok", text: off ? "Used when the VPN is on" : "In use" }) : null),
         h("div", { class: "conf-path mono", text: c.path })),
       h("div", { class: "conf-ep mono", text: c.endpoint || "" }),
       h("div", { class: "conf-acts" },
         c.kind === "file" && !c.in_use ? h("button", { class: "btn small", type: "button", text: "Use", disabled: busy, onclick: () => useFile(c) }) : null,
-        !c.in_use ? h("button", { class: "btn small danger", type: "button", text: "Delete", disabled: busy, onclick: () => deleteFile(c) }) : null)));
+        !c.in_use || off ? h("button", { class: "btn small danger", type: "button", text: "Delete", disabled: busy, onclick: () => deleteFile(c) }) : null)));
   }
   box.append(h("h3", { class: "conf-title", text: "Configs on this server" }), list);
 }
@@ -255,7 +263,7 @@ function render(v) {
   toggle();
   clear(box);
   btn.disabled = v.mode !== "on";
-  const [lamp, word] = v.mode !== "on" ? ["", "Off, using a direct connection"]
+  const [lamp, word] = v.mode !== "on" ? ["", v.has_config === false ? "Off, no config saved" : "Off, using a direct connection"]
     : v.connected ? ["ok", "Connected"] : ["down", "Not connected"];
   const card = h("div", { class: "panel vpn-card" },
     h("div", { class: "vpn-head" },
@@ -272,7 +280,9 @@ function render(v) {
   for (const g of [where, server]) if (g.childElementCount) card.append(g);
   if (v.mode === "on" && !v.connected && v.error) card.append(h("p", { class: "vpn-note", text: v.error }));
   if (v.mode === "off") {
-    card.append(h("p", { class: "vpn-note dim", text: "AIOStreams is using a direct connection, so its traffic leaves from this server's own IP. Turn VPN on switches it back." }));
+    card.append(h("p", { class: "vpn-note dim", text: v.has_config === false
+      ? "AIOStreams is using a direct connection, so its traffic leaves from this server's own IP. There's no VPN config saved: Turn VPN on asks for one."
+      : "AIOStreams is using a direct connection, so its traffic leaves from this server's own IP. Turn VPN on switches it back." }));
   }
   const use = actFor("vpn.use"), upd = actFor("vpn.update"), conf = actFor("vpn.config"), back = actFor("vpn.revert");
   const forget = actFor("vpn.forget");

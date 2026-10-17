@@ -1153,7 +1153,14 @@ do_reconfigure_vpn() {
 # confirm_vpn_disruption gate, unlike OFF, this direction never exposes
 # anything. skip_aio purely avoids resurrecting AIOStreams if it was
 # deliberately left stopped beforehand.
+# A config is saved for VPN mode (the control panel can delete it while the
+# VPN is off, leaving none).
+vpn_config_saved() {
+    [[ -f "$VPN_COMPOSE" ]] && grep -q 'WIREGUARD_PRIVATE_KEY=.' "$VPN_COMPOSE"
+}
+
 turn_vpn_on() {
+    vpn_config_saved || error "There's no VPN config saved, so the VPN can't be turned on. Add one first: Change config on the control panel's VPN page, or this script's Reconfigure VPN (option 4)."
     local aio_running_now skip_aio="false"
     aio_running_now=$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo "false")
     [[ "$aio_running_now" == "true" ]] || skip_aio="true"
@@ -1224,15 +1231,16 @@ valid_ipv4() {
 }
 
 # Switches to $WG_PATH at $WG_ENDPOINT_IP (both set by the caller) and, with
-# the VPN on, uses it now. Fails when AIOStreams was running before but the
-# tunnel didn't connect, so the panel shows the switch as failed.
+# the VPN on (or "on" given, to turn it on with this config), uses it now.
+# Fails when AIOStreams was running before but the tunnel didn't connect, so
+# the panel shows the switch as failed.
 switch_config_now() {
     local was_running mode
     was_running=$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo "false")
     mode=$(cat "$ACTIVE_MARKER" 2>/dev/null || true)
     echo "$WG_PATH" > "$LAST_CONF_MARKER"
     write_vpn_files
-    if [[ "$mode" != "vpn" ]]; then
+    if [[ "$mode" != "vpn" && "${1:-}" != on ]]; then
         echo "Saved. It's used the next time the VPN is turned on."
         return 0
     fi
@@ -1286,18 +1294,34 @@ listed_not_in_use() {
     return 1
 }
 
+# "<kind> <in-use>" for a listed config that may be deleted: any not in use,
+# and the one in use too while the VPN is off.
+deletable_config() {
+    local line mode
+    mode=$(cat "$ACTIVE_MARKER" 2>/dev/null || true)
+    while IFS= read -r line; do
+        IFS='|' read -r kind path _ use <<<"$line"
+        [[ "$path" == "$1" ]] || continue
+        [[ "$use" == 0 || "$mode" == direct ]] && { echo "$kind $use"; return 0; }
+        return 1
+    done < <(list_configs)
+    return 1
+}
+
 # For the control panel, all without questions, and only once the VPN is set
 # up. "update": menu option 5. "addresses [name]": the current config's
 # server addresses (or a name's, for Change config), fastest first, one line
 # each: "<ip> <ms, or - for no reply>" then "in-use" and "recommended" where
 # they apply. "use-address <ip>": point the current config at that address
 # (option 4's choice 3), and use it now if the VPN is on. "use-config <ip>":
-# switch to the config the panel saved, at that address. "revert-config":
+# switch to the config the panel saved, at that address (with "on" after
+# it, turn the VPN on with it too). "revert-config":
 # go back to the config before the last use-config. "forget-config": delete
 # that kept config instead (it holds a private key). "list-configs": see
 # list_configs. "delete-config <path>": delete one listed config that isn't
-# in use. "use-file <path> <ip>": switch to a listed .conf file, as
-# use-config does with a pasted one.
+# in use (or is, while the VPN is off: then none is left). "use-file <path>
+# <ip> [on]": switch to a listed .conf file, as use-config does with a
+# pasted one.
 if [[ "${1:-}" =~ ^(update|addresses|use-address|use-config|revert-config|forget-config|list-configs|delete-config|use-file)$ ]]; then
     [[ -f "$ACTIVE_MARKER" ]] || error "The VPN isn't set up on this server yet. Run this script without arguments first."
     case "$1" in
@@ -1343,9 +1367,19 @@ if [[ "${1:-}" =~ ^(update|addresses|use-address|use-config|revert-config|forget
             ;;
         list-configs) list_configs ;;
         delete-config)
-            kind=$(listed_not_in_use "${2:-}") || error "That isn't one of the configs listed, or it's the one in use. Nothing was deleted."
+            found=$(deletable_config "${2:-}") || error "That isn't one of the configs listed, or it's in use with the VPN on. Nothing was deleted."
+            read -r kind use <<<"$found"
             if [[ "$kind" == previous ]]; then rm -rf "$PREV_DIR"; else rm -f -- "$2"; fi
+            # A backup's staged copy of a home-folder file goes too (backups refresh it anyway)
+            if [[ "$kind" == file ]]; then
+                rm -f -- "$STATE_DIR/original-confs/root/$(basename "$2")" "$STATE_DIR/original-confs/user/$(basename "$2")"
+            fi
             echo "Deleted $2."
+            if [[ "$use" == 1 ]]; then
+                # The key is in the saved VPN settings too: take it out, so no config is left
+                rm -f "$VPN_COMPOSE" "$LAST_CONF_MARKER" "$ENDPOINT_HOST_FILE"
+                echo "That was the VPN's config, so none is saved now. Turning the VPN on asks for a new one."
+            fi
             ;;
         use-config|use-file)
             if [[ "$1" == use-file ]]; then
@@ -1368,13 +1402,19 @@ if [[ "${1:-}" =~ ^(update|addresses|use-address|use-config|revert-config|forget
             # one in a home folder that changes later), its name and address.
             old_conf=$(cat "$LAST_CONF_MARKER" 2>/dev/null || true)
             old_ip=$(grep -oP '(?<=WIREGUARD_ENDPOINT_IP=).*' "$VPN_COMPOSE" 2>/dev/null | head -1 || true)
-            [[ -n "$old_conf" && -f "$old_conf" && -n "$old_ip" ]] || error "Couldn't find the config in use now, so it couldn't be kept. Nothing changed."
-            rm -rf "$PREV_DIR"
-            ( umask 077; mkdir -p "$PREV_DIR"; tr -d '\r' < "$old_conf" > "$PREV_DIR/wireguard.conf" )
-            echo "$old_ip" > "$PREV_DIR/endpoint-ip"
-            [[ -f "$ENDPOINT_HOST_FILE" ]] && cp "$ENDPOINT_HOST_FILE" "$PREV_DIR/endpoint-host"
-            date +%s > "$PREV_DIR/changed-at"
-            chmod 700 "$PREV_DIR"; chmod 600 "$PREV_DIR"/*
+            keep=false
+            if vpn_config_saved; then
+                [[ -n "$old_conf" && -f "$old_conf" && -n "$old_ip" ]] || error "Couldn't find the config in use now, so it couldn't be kept. Nothing changed."
+                keep=true
+            fi
+            if $keep; then
+                rm -rf "$PREV_DIR"
+                ( umask 077; mkdir -p "$PREV_DIR"; tr -d '\r' < "$old_conf" > "$PREV_DIR/wireguard.conf" )
+                echo "$old_ip" > "$PREV_DIR/endpoint-ip"
+                [[ -f "$ENDPOINT_HOST_FILE" ]] && cp "$ENDPOINT_HOST_FILE" "$PREV_DIR/endpoint-host"
+                date +%s > "$PREV_DIR/changed-at"
+                chmod 700 "$PREV_DIR"; chmod 600 "$PREV_DIR"/*
+            fi
 
             ( umask 077; printf '%s\n' "$body" > "$PASTED_CONF" )
             chmod 600 "$PASTED_CONF"
@@ -1390,8 +1430,8 @@ if [[ "${1:-}" =~ ^(update|addresses|use-address|use-config|revert-config|forget
                 WG_ENDPOINT_IP="$ip"
             fi
             echo "New config: endpoint $(cat "$ENDPOINT_HOST_FILE" 2>/dev/null || echo "$WG_ENDPOINT_IP"), server address $WG_ENDPOINT_IP:$WG_ENDPOINT_PORT"
-            echo "Kept the previous config, for Put the old config back."
-            switch_config_now
+            if $keep; then echo "Kept the previous config, for Put the old config back."; fi
+            switch_config_now "${3:-}"
             ;;
         revert-config)
             [[ -f "$PREV_DIR/wireguard.conf" && -f "$PREV_DIR/endpoint-ip" ]] || error "There's no earlier config to go back to."
@@ -1451,7 +1491,13 @@ while true; do
 
     case "$CHOICE" in
         1) do_status ;;
-        2) turn_vpn_on ;;
+        2)
+            if ! vpn_config_saved; then
+                echo "There's no VPN config saved yet. Add one now, and the VPN turns on with it."
+                do_reconfigure_vpn
+            fi
+            turn_vpn_on
+            ;;
         3) if confirm_vpn_disruption; then turn_vpn_off; fi ;;
         4) do_reconfigure_vpn menu ;;
         5) do_update_gluetun ;;

@@ -335,7 +335,8 @@ class Backend:
         out = {"mode": mode, "endpoint_host": host if re.fullmatch(r"[A-Za-z0-9.-]+", host) else None,
                "endpoint_ip": ip.group(1) if ip else None, "endpoint_port": port.group(1) if port else None,
                "connected": None, "exit_ip": None, "city": None, "region": None, "country": None, "org": None,
-               "checked_at": None, "error": None, "previous": self._vpn_previous()}
+               "checked_at": None, "error": None, "previous": self._vpn_previous(),
+               "has_config": "WIREGUARD_PRIVATE_KEY=" in saved}
         if mode != "on":
             return out
         now = time.time()
@@ -610,6 +611,12 @@ class Backend:
             return parse_vpn_addresses(r.stdout + r.stderr, r.returncode)
         except subprocess.TimeoutExpired:
             return {"addresses": [], "error": "The lookup took too long."}
+
+    def vpn_mode(self) -> str:
+        """on, off or none, from the files alone (quick, unlike vpn_info)."""
+        if "container_name: gluetun" in _read(self.p("docker-compose.yml")):
+            return "on"
+        return "off" if self.p("vpn-state/active").exists() else "none"
 
     def vpn_configs(self) -> list[dict]:
         """Every WireGuard config on the server (vpn-state, /root, the login

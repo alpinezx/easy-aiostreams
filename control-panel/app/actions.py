@@ -157,7 +157,7 @@ def build_use_address(ip) -> Action:
                   needs=("setup-vpn-gluetun.sh", "vpn-state/active", "vpn-state/endpoint-host"))
 
 
-def build_use_config(ip) -> Action:
+def build_use_config(ip, on: bool = False) -> Action:
     """Switches to the config the VPN page checked and staged in vpn-state,
     at the server address picked (IPv4 only); the script keeps the old one."""
     try:
@@ -165,7 +165,7 @@ def build_use_config(ip) -> Action:
     except ValueError:
         raise BadAction("Pick one of the listed addresses.")
     return Action("vpn.config", "Change config", "Changing the VPN config", "VPN config changed", "setup-vpn-gluetun.sh",
-                  args=("use-config", str(addr)), timeout=420,
+                  args=("use-config", str(addr), *(("on",) if on is True else ())), timeout=420,
                   needs=("setup-vpn-gluetun.sh", "vpn-state/active"))
 
 
@@ -176,14 +176,14 @@ def build_delete_config(path: str) -> Action:
                   args=("delete-config", path), timeout=60, needs=("setup-vpn-gluetun.sh", "vpn-state/active"))
 
 
-def build_use_file(path: str, ip) -> Action:
+def build_use_file(path: str, ip, on: bool = False) -> Action:
     """Switches to a listed .conf file at the address picked; like Change config."""
     try:
         addr = ipaddress.IPv4Address(str(ip))
     except ValueError:
         raise BadAction("Pick one of the listed addresses.")
     return Action("vpn.file", "Use this config", "Changing the VPN config", "VPN config changed", "setup-vpn-gluetun.sh",
-                  args=("use-file", path, str(addr)), timeout=420, needs=("setup-vpn-gluetun.sh", "vpn-state/active"))
+                  args=("use-file", path, str(addr), *(("on",) if on is True else ())), timeout=420, needs=("setup-vpn-gluetun.sh", "vpn-state/active"))
 
 
 def resolve(action_id: str, params: dict | None = None) -> Action:
@@ -193,7 +193,7 @@ def resolve(action_id: str, params: dict | None = None) -> Action:
     if action_id == "vpn.use":
         return build_use_address(params.get("ip"))
     if action_id == "vpn.config":
-        return build_use_config(params.get("ip"))
+        return build_use_config(params.get("ip"), params.get("on") is True)
     act = _STATIC.get(action_id)
     if act is None:
         raise BadAction("unknown action")

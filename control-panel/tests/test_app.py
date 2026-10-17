@@ -416,4 +416,18 @@ def test_vpn_config_list_delete_and_use_only_listed_files(client):
     assert client.get("/api/vpn/configs/addresses", params={"path": "/etc/passwd"}).status_code == 400
     assert client.get("/api/vpn/configs/addresses", params={"path": spare["path"]}).json()["addresses"]
     r = client.post("/api/actions/vpn.delete", json={"params": {"path": spare["path"]}})
-    assert r.status_code == 200
+    assert r.status_code == 200 and wait_job(client, r.json()["id"])["code"] == 0
+
+
+def test_vpn_config_in_use_deletable_only_with_the_vpn_off(client, monkeypatch):
+    from app import main
+    login(client)
+    in_use = next(c for c in client.get("/api/vpn/configs").json() if c["in_use"])
+    monkeypatch.setattr(main.backend, "vpn", "on")
+    assert client.post("/api/actions/vpn.delete", json={"params": {"path": in_use["path"]}}).status_code == 400
+    monkeypatch.setattr(main.backend, "vpn", "off")
+    r = client.post("/api/actions/vpn.delete", json={"params": {"path": in_use["path"]}})
+    assert r.status_code == 200 and wait_job(client, r.json()["id"])["code"] == 0
+    assert client.get("/api/vpn").json()["has_config"] is False
+    assert actions.resolve("vpn.config", {"ip": "203.0.113.120", "on": True}).args == ("use-config", "203.0.113.120", "on")
+    assert actions.resolve("vpn.config", {"ip": "203.0.113.120", "on": "yes"}).args == ("use-config", "203.0.113.120")
