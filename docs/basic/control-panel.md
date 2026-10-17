@@ -87,7 +87,7 @@ The pages are icons down the left; point at one to see its name. On a phone it a
 
 ![The Scripts tab, with the panel's own version and update at the top](../images/control-panel/scripts.png)
 
-**VPN (once you've set it up with the [VPN script](./vpn-setup.md)).** Whether the tunnel is connected, where your traffic leaves from (IP, city and network), and which server it uses. **Turn VPN off** and **Turn VPN on** switch modes with the same checks as the script. To change server or config, use the script's **Reconfigure VPN**.
+**VPN (once you've set it up with the [VPN script](./vpn-setup.md)).** Whether the tunnel is connected, where your traffic leaves from (IP, city and network), and which server it uses. **Turn VPN off** and **Turn VPN on** switch modes with the same checks as the script. **Change server** lists the other addresses your config's server name has, timed from your server and fastest first, and switches to the one you pick; handy when one turns slow. **Update VPN** gets the newest gluetun release, and only restarts anything if there was one. To use a different config, use the script's **Reconfigure VPN**.
 
 **Terminal (optional, off until you switch it on).** A shell on the server in your browser, behind a second key of its own. Handy on a phone. See below.
 

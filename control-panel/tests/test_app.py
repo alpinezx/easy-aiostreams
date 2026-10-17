@@ -371,3 +371,16 @@ def test_vpn_page_needs_login_and_shows_no_keys(client):
     v = client.get("/api/vpn").json()
     assert v["mode"] in ("on", "off", "none")
     assert not any("key" in k.lower() for k in v)
+
+
+def test_vpn_change_server_takes_only_an_ipv4_address(client):
+    assert client.get("/api/vpn/addresses").status_code == 401
+    assert client.post("/api/actions/vpn.use", json={"params": {"ip": "203.0.113.24"}}).status_code == 401
+    login(client)
+    r = client.get("/api/vpn/addresses").json()
+    assert r["host"] and r["addresses"] and sum(a["in_use"] for a in r["addresses"]) == 1
+    for bad in ("", "nope", "1.2.3", "300.1.1.1", "1.2.3.4; reboot", "::1", None):
+        assert client.post("/api/actions/vpn.use", json={"params": {"ip": bad}}).status_code == 400
+    act = actions.resolve("vpn.use", {"ip": "203.0.113.24"})
+    assert act.args == ("use-address", "203.0.113.24") and act.confirm is None
+    assert actions.resolve("vpn.update").args == ("update",)

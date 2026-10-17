@@ -400,3 +400,17 @@ def test_vpn_info_on_asks_gluetun_where_traffic_leaves(tmp_path, monkeypatch):
     assert len(asked) == 1
     b.vpn_info(fresh=True)             # Check now asks again
     assert len(asked) == 2
+
+
+def test_parse_vpn_addresses():
+    out = "192.0.2.10 0.8 in-use recommended\n203.0.113.9 -\n198.51.100.4 1.1\n"
+    got = stack.parse_vpn_addresses(out, 0)
+    assert got["error"] is None
+    assert got["addresses"] == [
+        {"ip": "192.0.2.10", "ms": 0.8, "in_use": True, "recommended": True},
+        {"ip": "203.0.113.9", "ms": None, "in_use": False, "recommended": False},
+        {"ip": "198.51.100.4", "ms": 1.1, "in_use": False, "recommended": False}]
+    bad = "\x1b[1;31mXX \x1b[0m The VPN config's Endpoint is an IP address, so there are no other addresses to pick from.\n"
+    got = stack.parse_vpn_addresses(bad, 1)
+    assert got["addresses"] == [] and got["error"].startswith("The VPN config's Endpoint is an IP address")
+    assert stack.parse_vpn_addresses("noise\n", 0)["error"] == "The lookup found no addresses."

@@ -8,10 +8,12 @@ That matters: do_backup ends with '[[ -t 0 ]] && read ...', which returns
 failure (and kills the script under set -e) when stdin is not a terminal.
 On a terminal it waits for Enter, which the "\n" answers below supply.
 Nothing here accepts free text from the browser; the only inputs are an
-action id and, for update, two validated options.
+action id and, for update, two validated options (for the VPN's Change
+server, one validated IPv4 address).
 """
 from __future__ import annotations
 
+import ipaddress
 from dataclasses import dataclass
 
 
@@ -78,6 +80,10 @@ _STATIC: dict[str, Action] = {a.id: a for a in [
            args=("off",), timeout=420, needs=("setup-vpn-gluetun.sh", "vpn-state/active"),
            confirm="AIOStreams switches to a direct connection, so its traffic leaves from "
                    "this server's own IP from now on. Streams pause for a few seconds, and this page reconnects by itself."),
+    Action("vpn.update", "Update VPN", "Updating the VPN", "VPN update finished", "setup-vpn-gluetun.sh",
+           args=("update",), timeout=600, needs=("setup-vpn-gluetun.sh", "vpn-state/active"),
+           confirm="Pulls the newest gluetun v3 release. If there is one and the VPN is on, the stack restarts "
+                   "and streams pause for up to a minute. Already on the newest, nothing restarts."),
     Action("watchdog.start", "Start", "Starting", "Start finished", "setup-watchdog.sh",
            args=("install-timer",), timeout=60,
            needs=("setup-watchdog.sh", "watchdog-state/config")),
@@ -130,10 +136,25 @@ def build_restore(path: str) -> Action:
                   env=("AIOS_UI_TERMINAL=1",))
 
 
+def build_use_address(ip) -> Action:
+    """Points the VPN config in use at another of its server's addresses (the
+    script re-checks it's an IPv4 address and that the config's endpoint is a
+    name). The address list on the VPN page is the confirmation, so no modal."""
+    try:
+        addr = ipaddress.IPv4Address(str(ip))
+    except ValueError:
+        raise BadAction("Pick one of the listed addresses.")
+    return Action("vpn.use", "Change server", "Switching server", "Server switched", "setup-vpn-gluetun.sh",
+                  args=("use-address", str(addr)), timeout=420,
+                  needs=("setup-vpn-gluetun.sh", "vpn-state/active", "vpn-state/endpoint-host"))
+
+
 def resolve(action_id: str, params: dict | None = None) -> Action:
     params = params or {}
     if action_id == "stack.update":
         return build_update(params.get("backup", True), params.get("channel"))
+    if action_id == "vpn.use":
+        return build_use_address(params.get("ip"))
     act = _STATIC.get(action_id)
     if act is None:
         raise BadAction("unknown action")
@@ -141,7 +162,7 @@ def resolve(action_id: str, params: dict | None = None) -> Action:
 
 
 def catalog() -> list[Action]:
-    return list(_STATIC.values()) + [build_update(True, None)]
+    return list(_STATIC.values()) + [build_update(True, None), build_use_address("192.0.2.1")]
 
 
 # The stack's scripts, in the order the Terminal tab lists them. Only the first

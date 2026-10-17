@@ -207,8 +207,10 @@ sudo bash /opt/aiostreams/setup-vpn-gluetun.sh
   file, pick an address, and with the VPN on, it offers to use it straight
   away (a stack restart). When the current config's endpoint is a name, a
   third choice keeps the config and just picks a different server address.
-- **Update gluetun** .  pulls the latest gluetun image. In VPN mode it then
-  safely restarts the stack so the new image takes effect; in direct mode
+- **Update gluetun** .  pulls the newest gluetun v3 release (the `v3` tag,
+  gluetun's stable line, never `latest`). In VPN mode, if a new image came
+  down, it then safely restarts the stack so it takes effect; already on the
+  newest, nothing restarts. In direct mode
   nothing restarts .  the fresh image simply gets used next time you turn the
   VPN on. (Note: the main script's **Update** option already refreshes
   gluetun too whenever VPN mode happens to be on, since it updates
@@ -235,6 +237,14 @@ options 2 and 3; `off` keeps AIOStreams live through the switch (the menu's
 "Continue anyway"). Both do nothing when the VPN is already that way, and
 neither sets the VPN up for the first time. The control panel's VPN page
 runs these.
+
+The panel's other VPN buttons use three more commands, also without
+questions and only once the VPN is set up: `update` (option 5),
+`addresses` (lists the current config's server addresses, fastest first,
+one per line: the address, its ping in ms or `-`, then `in-use` and
+`recommended` where they apply) and `use-address <ip>` (option 4's choice
+3: points the current config at that address, and uses it straight away
+when the VPN is on).
 
 ---
 
