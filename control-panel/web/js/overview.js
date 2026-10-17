@@ -186,7 +186,7 @@ function path(st) {
   const restart = st.installed && st.actions.find((a) => a.id === "stack.restart");
   const key = st.services.map((s) => `${s.key}:${stateOf(s)}`).join(",") + st.docker_ok + !!st.busy + !!(restart && restart.available);
   const el = rebuild("#path", key, (el) => {
-    el.append(h("div", { class: "path-head" }, h("h2", { class: "path-title", text: "Where a request goes" }),
+    el.append(h("div", { class: "path-head" }, h("h2", { class: "path-title", text: "Request flow" }),
       restart && restart.available ? h("button", { class: "btn small", type: "button", text: "Restart stack", disabled: !!st.busy,
         title: "Restart Caddy, AIOStreams and anything in between", onclick: () => runAction(restart) }) : null));
     const chain = h("div", { class: "chain" });
