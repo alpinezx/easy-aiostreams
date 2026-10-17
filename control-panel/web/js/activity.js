@@ -170,7 +170,7 @@ function backupRow(it, cmd, restore, status) {
       h("button", { class: "btn small", type: "button", text: "Copy scp command", onclick: () => copy(cmd, cmd.includes("@YOUR_SERVER:")
         ? "Copied. Replace YOUR_SERVER with your server's address."
         : "Copied. Run it in a terminal on your own computer to download this backup.") }),
-      h("button", { class: "btn small", type: "button", text: it.locked ? "Unlock" : "Lock", onclick: async () => {
+      h("button", { class: "btn small", type: "button", text: it.locked ? "Unlock" : "Lock", "aria-pressed": String(!!it.locked), onclick: async () => {
         if (await saveMeta(it, { locked: !it.locked })) toast(it.locked ? "Unlocked." : "Locked. It can't be deleted from here until you unlock it.");
         refresh();
       } }),

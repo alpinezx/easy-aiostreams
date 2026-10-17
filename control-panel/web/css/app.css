@@ -639,7 +639,7 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .sdot-tag[data-s="off"] { color: var(--faint); font-weight: 500; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-/* pressed toggle buttons (Follow, Hide known noise) */
+/* pressed toggle buttons (Follow, Hide known noise, Lock) */
 .btn[aria-pressed="true"] { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); color: var(--text); }
 
 .brand { white-space: nowrap; }
