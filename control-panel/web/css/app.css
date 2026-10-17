@@ -308,6 +308,11 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .btn.conf-again { margin: 10px 0 0 -10px; }
 .conf-wrap .addr-list { margin: 0; }
 .conf-wrap + .btns, .dialog .conf-wrap { margin-bottom: 18px; }
+/* uninstall, at the foot of the VPN page */
+.vpn-remove { display: flex; align-items: center; justify-content: space-between; gap: 12px 18px; flex-wrap: wrap;
+  margin-top: 28px; padding: 14px 16px; border: 1px solid color-mix(in srgb, var(--bad) 30%, var(--line)); border-radius: var(--radius); }
+.vpn-remove-title { font-weight: 600; margin-bottom: 2px; }
+.vpn-remove .dim { font-size: .88rem; }
 /* the configs on the server */
 .conf-title { font-size: 1.05rem; margin: 28px 0 12px; }
 .conf-list { padding: 0; }
@@ -512,7 +517,7 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .dialog .field { display: grid; gap: 6px; }
 .dialog .field > span { font-size: .9rem; font-weight: 600; }
 .check { display: flex; gap: 10px; align-items: center; }
-.check input { width: 18px; height: 18px; accent-color: var(--accent); }
+.check input { width: 18px; height: 18px; flex: none; accent-color: var(--accent); }
 .dialog .btns { display: flex; justify-content: flex-end; gap: 8px; }
 .dialog .check-list { margin: 0 0 4px; padding-left: 20px; font-size: .9rem; display: grid; gap: 4px; }
 .dialog > .check-list { margin-bottom: 18px; }
@@ -635,6 +640,8 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .scripts-panel { font-size: .9rem; }
 .scripts-panel > p { margin: 0 0 10px; }
 .scripts-panel .cmds { margin: 14px 0; }
+@media (min-width: 721px) { .scripts-panel .cmds li { grid-template-columns: minmax(0, 1fr) auto; } }
+.scripts-panel .cmd-label { color: var(--text); font-size: .92rem; }
 .scripts-panel .sub-head { font-size: 15px; font-weight: 600; margin: 22px 0 6px; padding-top: 18px; border-top: 1px solid var(--line-soft); }
 .scripts-panel .addons-note { margin: 0 0 4px; color: var(--text); }
 .scripts-panel .addons-note b { font-weight: 650; }

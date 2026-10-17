@@ -430,3 +430,25 @@ def test_vpn_config_in_use_deletable_only_with_the_vpn_off(client, monkeypatch):
     assert client.get("/api/vpn").json()["has_config"] is False
     assert actions.resolve("vpn.config", {"ip": "203.0.113.120", "on": True}).args == ("use-config", "203.0.113.120", "on")
     assert actions.resolve("vpn.config", {"ip": "203.0.113.120", "on": "yes"}).args == ("use-config", "203.0.113.120")
+
+
+def test_vpn_uninstall_needs_the_word_then_its_script_can_go(client, monkeypatch):
+    from app import main
+    assert client.post("/api/scripts/vpn/remove").status_code == 401
+    login(client)
+    monkeypatch.setattr(main.backend, "vpn", "on")
+    assert client.post("/api/scripts/vpn/remove").status_code == 400          # still set up
+    assert client.post("/api/scripts/aiostreams/remove").status_code == 400   # never the main script
+    assert client.post("/api/scripts/nope/remove").status_code == 400
+    for word in ("", "yes", "Uninstal"):
+        r = client.post("/api/actions/vpn.uninstall", json={"params": {"confirm": word, "remove_image": True}})
+        assert r.status_code == 400
+    assert actions.resolve("vpn.uninstall", {"remove_image": True, "delete_confs": True}).args == ("uninstall", "remove-image", "delete-confs")
+    assert actions.resolve("vpn.uninstall", {"remove_image": "yes"}).args == ("uninstall",)
+    r = client.post("/api/actions/vpn.uninstall", json={"params": {"confirm": " Uninstall ", "remove_image": True}})
+    assert r.status_code == 200 and wait_job(client, r.json()["id"])["code"] == 0
+    assert client.get("/api/vpn").json()["mode"] == "none"
+    vpn = next(s for s in client.get("/api/status").json()["scripts"] if s["id"] == "vpn")
+    assert vpn["present"] and vpn["in_use"] is False
+    assert client.post("/api/scripts/vpn/remove").json() == {"removed": "setup-vpn-gluetun.sh"}
+    assert not next(s for s in client.get("/api/status").json()["scripts"] if s["id"] == "vpn")["present"]

@@ -318,6 +318,20 @@ async def vpn_config_addresses(user: str = Depends(current_user)):
     return await asyncio.to_thread(backend.vpn_staged_addresses)
 
 
+@app.post("/api/scripts/{script_id}/remove")
+async def remove_script(script_id: str, user: str = Depends(current_user)):
+    """Deletes an add-on's script once the add-on isn't set up."""
+    if jobs.current_id():
+        raise HTTPException(409, "Another action is still running. Wait for it to finish.")
+    try:
+        name = await asyncio.to_thread(backend.remove_script, script_id)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    global _status_cache
+    _status_cache = None
+    return {"removed": name}
+
+
 @app.get("/api/vpn/configs")
 async def vpn_configs(user: str = Depends(current_user)):
     """The WireGuard configs on the server: where, which endpoint, which is in use. Never the keys."""
@@ -652,6 +666,8 @@ async def run_action(action_id: str, request: Request, user: str = Depends(curre
         except BadAction as e:
             raise HTTPException(400, str(e))
         return jobs.summary(jobs.start(action, params, None))
+    if action_id == "vpn.uninstall" and str((params or {}).get("confirm", "")).strip().lower() != "uninstall":
+        raise HTTPException(400, "Type uninstall to confirm.")
     if action_id == "stack.restore":
         # Same-server only: the script checks again and refuses rather than asks.
         if str((params or {}).get("confirm", "")).strip().lower() != "restore":

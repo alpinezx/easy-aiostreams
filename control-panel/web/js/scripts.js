@@ -157,20 +157,36 @@ function row(x, cmd, updateCmd, termOn) {
     tags.push(h("span", { class: "chip warn small-chip", text: "Differs from GitHub",
       title: "This copy doesn't match the one on GitHub's main branch. Update fetches GitHub's. (Expected while you're testing changes from dev.)" }));
   }
+  // An add-on's script that's still here once the add-on is uninstalled can go
+  const removable = x.present && x.in_use === false && x.id !== "aiostreams";
   const run = h("button", { class: "btn small", type: "button", text: x.present ? "Run in terminal" : "Get and run", disabled: !termOn,
     title: !termOn ? "Needs the panel's web terminal, which is switched off (see the note above)."
       : x.present ? "Types the command into the panel's terminal. Check it, then press Enter."
       : "Types the command into the panel's terminal: it downloads the script, then runs it. Check it, then press Enter.",
     onclick: () => runInTerminal(cmd) });
+  // The command itself is on Copy's tooltip; spelt out, it crowded the row (and phones)
   return h("li", {},
     h("span", { class: "cmd-label" }, x.label, ...tags),
-    h("code", { class: "mono cmd", text: cmd, title: cmd }),
     h("span", { class: "cmd-btns" }, run,
-      copyBtn("Copy", cmd, "Copied. Paste it into an SSH session or the Terminal tab."),
+      copyBtn("Copy", cmd, "Copied. Paste it into an SSH session or the Terminal tab.", cmd),
       // An invisible stand-in keeps the buttons lined up down the list.
       updateCmd ? copyBtn("Update", updateCmd, "Copied. Paste it into an SSH session or the Terminal tab to fetch the newest version from GitHub.",
           "Copies a command that fetches the newest version from GitHub, without running it")
-        : h("span", { class: "btn small quiet btn-spacer", "aria-hidden": "true", text: "Update" })));
+        : h("span", { class: "btn small quiet btn-spacer", "aria-hidden": "true", text: "Update" }),
+      removable ? h("button", { class: "btn small quiet danger", type: "button", text: "Remove",
+        title: `Deletes ${x.file} from this server. ${x.label} isn't set up, so nothing else changes.`, onclick: () => removeScript(x) })
+        : h("span", { class: "btn small quiet btn-spacer", "aria-hidden": "true", text: "Remove" })));
+}
+
+async function removeScript(x) {
+  const ok = await ask({ title: `Remove ${x.file}?`, confirmLabel: "Remove", danger: true,
+    body: `${x.label} isn't set up on this server, so its script only takes up a line here. Get and run fetches it again any time.` });
+  if (!ok) return;
+  try {
+    await api(`/api/scripts/${encodeURIComponent(x.id)}/remove`, { method: "POST" });
+    toast(`Removed ${x.file}.`);
+    show(await api("/api/status"), last.terminalOn);
+  } catch (e) { toast(e.message || "Couldn't remove it.", true); }
 }
 
 function render() {
