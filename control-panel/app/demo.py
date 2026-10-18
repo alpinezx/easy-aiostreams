@@ -71,6 +71,7 @@ class DemoBackend:
         self.has_config = True
         self.removed_scripts: set[str] = set()
         self.wd_running = True
+        self.wd_configured = True
         self.wd_options = {"updates": False, "weekly": False, "weekly_day": 7, "weekly_hour": 10}
         self.wd_topic = "aios-7f3k29xq81"
         now = time.time()
@@ -147,6 +148,8 @@ class DemoBackend:
 
     def watchdog_info(self) -> dict:
         from .stack import mask_topic
+        if not self.wd_configured:
+            return {"configured": False}
         watches = ["https://streams.example.com", "Disk space", "HTTPS certificate"] + (["VPN tunnel", "AIOStreams through the VPN"] if self.vpn == "on" else []) + ["MediaFlow Proxy"]
         return {"configured": True, "running": self.wd_running, "alert_state": "up", "fails": 0,
                 "warnings": [w for w in os.environ.get("UI_DEMO_WD_WARN", "").split(",") if w],
@@ -162,7 +165,7 @@ class DemoBackend:
         found = next(((i, f) for i, _, f in SCRIPTS if i == script_id), None)
         if not found or script_id not in ADDON_STATE:
             raise ValueError("Only an add-on's script can be removed.")
-        if script_id == "vpn" and self.vpn != "none":
+        if (script_id == "vpn" and self.vpn != "none") or (script_id == "watchdog" and self.wd_configured):
             raise ValueError("It's still set up. Uninstall it with its own menu first.")
         self.removed_scripts.add(script_id)
         return found[1]
@@ -222,8 +225,8 @@ class DemoBackend:
             "vpn": self.vpn, "install_dir": "/opt/aiostreams", "user_copy": self.user_copy(),
             "scripts": [{"id": i, "label": l, "file": f,
                          "present": i in ("aiostreams", "vpn", "mediaflow", "watchdog", "webhook") and i not in self.removed_scripts,
-                         "in_use": i != "vpn" or self.vpn != "none"} for i, l, f in SCRIPTS], "overall": overall, "headline": headline, "services": services,
-            "watchdog": {"configured": True, "running": self.wd_running, "alert_state": "up",
+                         "in_use": (i != "vpn" or self.vpn != "none") and (i != "watchdog" or self.wd_configured)} for i, l, f in SCRIPTS], "overall": overall, "headline": headline, "services": services,
+            "watchdog": {"configured": self.wd_configured, "running": self.wd_running, "alert_state": "up",
                          "last_check": time.strftime("%d %b %Y, %H:%M:%S UTC", time.gmtime(time.time() - 40)) + (" OK" if self.wd_running else "")},
             "host": {"cpus": 2, "load": [0.21, 0.34, 0.29], "mem_total": 4 * GB, "mem_used": int(1.6 * GB),
                      "uptime": 41 * 86400 + 3 * 3600, "disk_total": 80 * GB, "disk_used": 23 * GB},
@@ -378,6 +381,10 @@ class DemoBackend:
             self.vpn_host, self.vpn_ip, self.has_config = host, ip, True
             if action.args[-1] == "on":
                 self.vpn = "on"
+        elif action.id == "watchdog.uninstall":
+            say("Removed the watchdog's timer, services and saved state.", 0.4)
+            self.wd_configured = False
+            self.wd_running = False
         elif action.id in ("watchdog.start", "watchdog.stop", "watchdog.test", "watchdog.topic"):
             if action.id == "watchdog.topic":
                 self.wd_topic = action.stdin.strip()

@@ -663,6 +663,12 @@ do_uninstall() {
         y|Y|yes|Yes) ;;
         *) echo "Cancelled."; return ;;
     esac
+    uninstall_now
+}
+
+# The removal itself, shared by the menu and the question-free "uninstall"
+# the control panel runs.
+uninstall_now() {
     systemctl disable --now aiostreams-watchdog.timer 2>/dev/null || true
     systemctl disable --now aiostreams-watchdog-boot.service 2>/dev/null || true
     rm -f "$SERVICE_FILE" "$TIMER_FILE" "$BOOT_SERVICE_FILE"
@@ -718,6 +724,13 @@ if [[ "${1:-}" == "set-option" ]]; then
     [[ "$v" =~ ^[0-9]+$ ]] && v=$((10#$v))     # "07" -> 7: bash would read 07 as octal, and 08 not at all
     { grep -v "^$2=" "$OPTIONS_FILE" 2>/dev/null || true; echo "$2=$v"; } > "$OPTIONS_FILE.tmp" && mv "$OPTIONS_FILE.tmp" "$OPTIONS_FILE"
     echo "$2 is now $v."
+    exit 0
+fi
+
+# Uninstall without the question (the control panel asks first)
+if [[ "${1:-}" == "uninstall" ]]; then
+    [[ -d "$STATE_DIR" ]] || error "The watchdog isn't set up on this server."
+    uninstall_now
     exit 0
 fi
 
