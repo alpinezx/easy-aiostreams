@@ -71,6 +71,7 @@ class DemoBackend:
         self.has_config = True
         self.removed_scripts: set[str] = set()
         self.wd_running = True
+        self.wd_options = {"updates": False, "weekly": False}
         self.wd_topic = "aios-7f3k29xq81"
         now = time.time()
         # A quiet fortnight with one blip and one real outage, for the Phone alerts page
@@ -130,6 +131,9 @@ class DemoBackend:
     def vpn_mode(self) -> str:
         return self.vpn
 
+    def set_watchdog_option(self, name: str, on: bool) -> None:
+        self.wd_options[name] = on
+
     def clear_watchdog_events(self) -> None:
         self.wd_events = []
 
@@ -141,7 +145,8 @@ class DemoBackend:
                 "last_check": time.strftime("%d %b %Y, %H:%M:%S UTC", time.gmtime(time.time() - 40)) + " OK" if self.wd_running
                 else time.strftime("%d %b %Y, %H:%M:%S UTC", time.gmtime(time.time() - 40)) + " STOPPED (watchdog disabled, no checks running)",
                 "topic": mask_topic(self.wd_topic), "events": self.wd_events, "tally": self.wd_tally,
-                "watches": watches, "every_min": 2, "threshold": 2}
+                "watches": watches, "every_min": 2, "threshold": 2,
+                "options": dict(self.wd_options), "stable": self.channel != "nightly"}
 
     def remove_script(self, script_id: str) -> str:
         from .actions import ADDON_STATE, SCRIPTS

@@ -21,6 +21,7 @@ function parseCheck(line) {
 const KIND = {
   fail: ["Failed", "warn"], alert: ["Alert sent", "bad"], recovered: ["Recovered", "ok"],
   start: ["Started", ""], stop: ["Stopped", ""], test: ["Test alert", ""], topic: ["Topic", ""], reboot: ["Restarted", ""], disk: ["Disk space", ""], cert: ["Certificate", ""],
+  update: ["Update", ""], weekly: ["Weekly", ""],
 };
 
 function when(at) {
@@ -133,7 +134,7 @@ function render(w) {
       h("div", { class: "wd-topic-what" }, h("span", { class: "vpn-label", text: "Alert topic" }),
         h("span", { class: "mono", text: w.topic || "none" })),
       actFor("watchdog.topic") ? h("button", { class: "btn small", type: "button", text: "Change topic", disabled: !!(st && st.busy), onclick: changeTopic }) : null));
-  box.append(card);
+  box.append(card, extras(w));
 
   // What happened lately, newest first
   const list = h("ul", { class: "wd-events" });
@@ -150,6 +151,33 @@ function render(w) {
     w.events.length ? list : h("p", { class: "dim", text: "Nothing yet. Failed checks, alerts and recoveries show here." }));
   if (w.events.length > 12 && !showAll) box.append(h("button", { class: "btn small quiet", type: "button", text: `Show all ${w.events.length}`,
     onclick: () => { showAll = true; render(last); } }));
+}
+
+// The optional alerts, off until switched on. They take effect from the next check.
+function extras(w) {
+  const opt = w.options || {};
+  const row = (name, title, text, disabled) => {
+    const input = h("input", { type: "checkbox", checked: !!opt[name], disabled: !!disabled });
+    input.addEventListener("change", async () => {
+      input.disabled = true;
+      try {
+        await api("/api/watchdog/options", { method: "POST", body: JSON.stringify({ name, on: input.checked }) });
+        toast(`${title}: ${input.checked ? "on" : "off"}.`);
+      } catch (e) {
+        input.checked = !input.checked;
+        toast(e.message || "Couldn't save it.", true);
+      } finally { input.disabled = !!disabled; }
+    });
+    return h("label", { class: "wd-opt" },
+      h("span", {}, h("span", { class: "wd-opt-title", text: title }), h("span", { class: "dim wd-opt-text", text: text })),
+      h("span", { class: "sw" }, input, h("i", { "aria-hidden": "true" })));
+  };
+  return h("div", { class: "panel wd-opts" },
+    h("h3", { text: "Also tell me" }),
+    row("updates", "When a new AIOStreams release is out", w.stable === false
+      ? "Only for the stable channel: this server runs nightly, which changes daily."
+      : "One alert per stable release, with how to update.", w.stable === false),
+    row("weekly", "Weekly check-in", "Sundays after 10:00: the week's checks, alerts and disk space. If it stops arriving, the watchdog itself needs a look."));
 }
 
 async function clearEvents() {

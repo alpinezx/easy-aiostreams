@@ -678,7 +678,26 @@ class Backend:
             "tally": tally,
             "watches": watches,
             "every_min": 2, "threshold": 2,
+            "options": {k: f"{k}=on" in _read(d / "options").split() for k in ("updates", "weekly")},
+            "stable": bool(re.search(r"^\s*image:\s*viren070/aiostreams:latest\s*$", _read(self.p("docker-compose.yml")), re.M)),
         }
+
+    def set_watchdog_option(self, name: str, on: bool) -> None:
+        """The Phone alerts page's switches: update available, weekly check-in.
+        Kept in watchdog-state/options, which the script reads; written on the
+        host, since the install folder is read-only here."""
+        if name not in ("updates", "weekly"):
+            raise ValueError("Unknown option.")
+        if not self.p("watchdog-state/config").exists():
+            raise ValueError("The watchdog isn't set up on this server.")
+        lines = [l for l in _read(self.p("watchdog-state/options")).split() if not l.startswith(name + "=")]
+        body = "\n".join(lines + [f"{name}={'on' if on else 'off'}"]) + "\n"
+        path = str(config.INSTALL_DIR / "watchdog-state" / "options")
+        r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "sh", "-c",
+                            'cat > "$1.tmp" && mv "$1.tmp" "$1"', "sh", path],
+                           input=body, capture_output=True, text=True, timeout=20)
+        if r.returncode != 0:
+            raise ValueError("Couldn't save it.")
 
     def clear_watchdog_events(self) -> None:
         """Empties the Phone alerts page's event list (the daily tally stays).

@@ -30,6 +30,7 @@ LASTCHECK_FILE="$STATE_DIR/last-check"
 EVENTS_FILE="$STATE_DIR/events"     # what happened, newest last: "epoch|kind|text"
 TALLY_FILE="$STATE_DIR/tally"       # checks per day: "YYYY-MM-DD passed failed"
 ALIVE_FILE="$STATE_DIR/last-alive"  # when the last check ran, to tell how long a reboot took
+OPTIONS_FILE="$STATE_DIR/options"   # extra alerts switched on: "updates=on", "weekly=on"
 SCRIPT_COPY="$STATE_DIR/watchdog.sh"
 SERVICE_FILE="/etc/systemd/system/aiostreams-watchdog.service"
 TIMER_FILE="/etc/systemd/system/aiostreams-watchdog.timer"
@@ -184,7 +185,7 @@ run_checks() {
 
 # A short record for "did anything happen overnight?" (the control panel's
 # Phone alerts page reads it). Kinds: fail, alert, recovered, start, stop,
-# test, topic, reboot, disk, cert. Never holds the topic itself. Keeps the last 200.
+# test, topic, reboot, disk, cert, update, weekly. Never holds the topic itself. Keeps the last 200.
 log_event() {
     mkdir -p "$STATE_DIR"
     printf '%s|%s|%s\n' "$(date +%s)" "$1" "${2//$'\n'/ }" >> "$EVENTS_FILE"
@@ -278,17 +279,88 @@ panel_domain() {
     awk 'NF && $1 !~ /^#/ && $2 == "{" {print $1; exit}' "$INSTALL_DIR/caddy.d/60-ui.caddy" 2>/dev/null || true
 }
 
-# send_ntfy <message> [title] [priority 1-5] [tags]
+# send_ntfy <message> [title] [priority 1-5] [tags] [panel page, default alerts]
 # The tags are ntfy's emoji names, shown before the title. Priority 5 makes
 # the phone sound even on silent-ish settings, 2 arrives quietly.
+option_on() {
+    grep -qx "$1=on" "$OPTIONS_FILE" 2>/dev/null
+}
+
+# Optional, off until switched on (the control panel's Phone alerts page, or
+# set-option). Stable only: nightly builds come out daily, so an alert for
+# each would be noise. Asks GitHub every 6 hours and alerts once per release.
+check_updates() {
+    option_on updates || return 0
+    local stamp="$STATE_DIR/update-checked" latest running node
+    if [[ -f "$stamp" ]] && (( $(date +%s) - $(stat -c %Y "$stamp") < 21600 )); then return 0; fi
+    touch "$stamp"
+    grep -qE '^\s*image:\s*viren070/aiostreams:latest\s*$' "$INSTALL_DIR/docker-compose.yml" 2>/dev/null || return 0
+    latest=$(curl -fsS -m 15 https://api.github.com/repos/viren070/aiostreams/releases/latest 2>/dev/null \
+        | grep -oP '"tag_name":\s*"\Kv[0-9]+\.[0-9]+\.[0-9]+(?=")' | head -n 1) || true
+    [[ -n "$latest" ]] || return 0
+    # The image is distroless: node is at /nodejs/bin/node (plain node on older images)
+    for node in /nodejs/bin/node node; do
+        running=$(docker exec aiostreams "$node" -p "require('/app/package.json').version" 2>/dev/null) && break
+    done
+    [[ "$running" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] || return 0
+    running="v$running"
+    [[ "$running" == "$latest" ]] && return 0
+    [[ "$(printf '%s\n%s\n' "$running" "$latest" | sort -V | tail -n 1)" == "$latest" ]] || return 0
+    [[ "$(cat "$STATE_DIR/update-notified" 2>/dev/null)" == "$latest" ]] && return 0
+    echo "$latest" > "$STATE_DIR/update-notified"
+    if send_ntfy "AIOStreams $latest is out; this server runs $running. Update from the control panel's Overview, or: sudo bash setup-aiostreams.sh, option 5." \
+        "Update available" 3 package overview; then
+        log_event update "AIOStreams $latest is out (this server runs $running). Alert sent."
+    else
+        log_event update "AIOStreams $latest is out (this server runs $running). The alert couldn't be sent (ntfy.sh unreachable)."
+    fi
+    return 0
+}
+
+# Optional weekly check-in, Sundays from 10:00: the week's checks, alerts
+# and disk space. If it ever stops arriving, the watchdog itself needs a look.
+check_weekly() {
+    option_on weekly || return 0
+    local now last since passed=0 failed=0 alerts=0 reboots=0 d p f at kind pct msg
+    now=$(date +%s)
+    [[ "$(date +%u)" == 7 && "$(date +%-H)" -ge 10 ]] || return 0
+    last=$(cat "$STATE_DIR/weekly-sent" 2>/dev/null || echo 0)
+    [[ "$last" =~ ^[0-9]+$ ]] || last=0
+    (( now - last > 6 * 86400 )) || return 0
+    echo "$now" > "$STATE_DIR/weekly-sent"
+    since=$(date -d '6 days ago' +%F)
+    while read -r d p f; do
+        [[ "$d" > "$since" || "$d" == "$since" ]] || continue
+        passed=$((passed + p)); failed=$((failed + f))
+    done < <(cat "$TALLY_FILE" 2>/dev/null)
+    while IFS='|' read -r at kind _; do
+        [[ "$at" =~ ^[0-9]+$ ]] && (( now - at < 7 * 86400 )) || continue
+        [[ "$kind" == alert ]] && alerts=$((alerts + 1))
+        [[ "$kind" == reboot ]] && reboots=$((reboots + 1))
+    done < <(cat "$EVENTS_FILE" 2>/dev/null)
+    pct=$(df -P "$INSTALL_DIR" 2>/dev/null | awk 'NR == 2 {print $5}')
+    msg="Last 7 days: $((passed + failed)) checks"
+    (( failed )) && msg+=", $failed failed" || msg+=", all passed"
+    (( alerts )) && msg+=", $alerts alert$( (( alerts > 1 )) && echo s) sent" || msg+=", no alerts"
+    (( reboots )) && msg+=", $reboots restart$( (( reboots > 1 )) && echo s)"
+    msg+="."
+    [[ -n "$pct" ]] && msg+=" Disk ${pct} used."
+    if send_ntfy "$msg" "Weekly check-in" 2 calendar; then
+        log_event weekly "$msg Sent."
+    else
+        log_event weekly "$msg Couldn't be sent (ntfy.sh unreachable)."
+    fi
+    return 0
+}
+
 send_ntfy() {
-    local msg="$1" title="${2:-AIOStreams}" prio="${3:-3}" tags="${4:-}" topic panel
+    local msg="$1" title="${2:-AIOStreams}" prio="${3:-3}" tags="${4:-}" page="${5:-alerts}" topic panel
     topic=$(grep -oP 'NTFY_TOPIC=\K.*' "$CONFIG_FILE" 2>/dev/null || true)
     [[ -n "$topic" ]] || { warn "No ntfy topic configured, run Reconfigure first."; return 1; }
     local args=(-fsS -m 15 -H "Title: $title" -H "Priority: $prio")
     [[ -n "$tags" ]] && args+=(-H "Tags: $tags")
     panel=$(panel_domain)
-    [[ -n "$panel" ]] && args+=(-H "Click: https://$panel/#alerts")
+    [[ -n "$panel" ]] && args+=(-H "Click: https://$panel/#$page")
     curl "${args[@]}" -d "$msg" "https://ntfy.sh/$topic" >/dev/null 2>&1 || { warn "Couldn't reach ntfy.sh."; return 1; }
 }
 
@@ -332,6 +404,8 @@ do_run_check() {
 
     check_disk || true
     check_cert || true
+    check_updates || true
+    check_weekly || true
 }
 
 # "about 4 min", "about 2 h"
@@ -591,6 +665,15 @@ command -v systemctl >/dev/null || error "systemd not found. This script relies 
 if [[ "${1:-}" == "set-topic" ]]; then
     do_set_topic
     exit $?
+fi
+
+# set-option <updates|weekly> <on|off>: the optional alerts, without questions
+if [[ "${1:-}" == "set-option" ]]; then
+    [[ "${2:-}" =~ ^(updates|weekly)$ && "${3:-}" =~ ^(on|off)$ ]] || error "Usage: set-option updates|weekly on|off"
+    [[ -f "$CONFIG_FILE" ]] || error "Not configured yet. Set the watchdog up first."
+    { grep -v "^$2=" "$OPTIONS_FILE" 2>/dev/null || true; echo "$2=$3"; } > "$OPTIONS_FILE.tmp" && mv "$OPTIONS_FILE.tmp" "$OPTIONS_FILE"
+    echo "$2 is now $3."
+    exit 0
 fi
 
 if [[ "${1:-}" == "test" ]]; then

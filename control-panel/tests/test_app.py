@@ -483,3 +483,13 @@ def test_phone_alerts_history_can_be_cleared(client):
     assert client.post("/api/watchdog/events/clear").json() == {"cleared": True}
     w = client.get("/api/watchdog").json()
     assert w["events"] == [] and w["tally"]          # the daily tally stays
+
+
+def test_phone_alerts_switches(client):
+    assert client.post("/api/watchdog/options", json={"name": "weekly", "on": True}).status_code == 401
+    login(client)
+    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "weekly": False}
+    for bad in ({"name": "nope", "on": True}, {"name": "weekly", "on": "yes"}, {}):
+        assert client.post("/api/watchdog/options", json=bad).status_code == 400
+    assert client.post("/api/watchdog/options", json={"name": "weekly", "on": True}).json() == {"weekly": True}
+    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "weekly": True}

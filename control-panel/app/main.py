@@ -295,6 +295,24 @@ async def watchdog(user: str = Depends(current_user)):
     return await asyncio.to_thread(backend.watchdog_info)
 
 
+@app.post("/api/watchdog/options")
+async def watchdog_option(request: Request, user: str = Depends(current_user)):
+    """The Phone alerts page's switches: {"name": "updates"|"weekly", "on": bool}."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    name = body.get("name") if isinstance(body, dict) else None
+    on = body.get("on") if isinstance(body, dict) else None
+    if name not in ("updates", "weekly") or not isinstance(on, bool):
+        raise HTTPException(400, "Unknown option.")
+    try:
+        await asyncio.to_thread(backend.set_watchdog_option, name, on)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {name: on}
+
+
 @app.post("/api/watchdog/events/clear")
 async def watchdog_clear_events(user: str = Depends(current_user)):
     """Clear history on the Phone alerts page."""
