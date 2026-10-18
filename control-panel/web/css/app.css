@@ -742,17 +742,19 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .scripts-panel a { color: var(--accent); }
 .scripts-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
 .scripts-foot .btn { margin-left: auto; }
-.chip.small-chip { font-size: .74rem; padding: 1px 8px; }
+.chip.small-chip { font-size: .74rem; padding: 1px 8px; white-space: nowrap; }
 /* The panel's version, under the logo in the rail */
 .ver-chip { font-size: .7rem; padding: 1px 7px; text-decoration: none; white-space: nowrap; }
 .ver-chip:hover { color: var(--text); }
-.panel-ver { margin-bottom: 14px; display: grid; gap: 10px; }
+/* minmax(0, 1fr): a long line in the update output wraps or scrolls inside its box, never widens the page */
+.panel-ver { margin-bottom: 14px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.panel-ver details { min-width: 0; }
 .panel-ver-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
 .panel-ver-head h3 { margin: 0; }
 .panel-ver-head .btns { margin-left: auto; display: flex; gap: 8px; }
 .panel-ver p { margin: 0; font-size: .9rem; }
 .panel-ver details summary { cursor: pointer; font-size: .88rem; color: var(--dim); }
-.panel-ver pre { margin: 8px 0 0; max-height: 260px; overflow: auto; padding: 10px 12px; background: var(--sunk); border-radius: 8px; font-family: var(--mono); font-size: .78rem; line-height: 1.5; white-space: pre-wrap; }
+.panel-ver pre { margin: 8px 0 0; max-height: 260px; overflow: auto; padding: 10px 12px; background: var(--sunk); border-radius: 8px; font-family: var(--mono); font-size: .78rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; }
 .btn-spacer { visibility: hidden; pointer-events: none; }
 @media (max-width: 720px) { .btn-spacer { display: none; } }
 .term-scripts-hint { margin: -6px 0 14px; font-size: .9rem; }
@@ -771,7 +773,8 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   .cmds li { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 12px 0; border-top: 1px solid var(--line-soft); }
   .cmds li:first-child { border-top: 0; padding-top: 4px; }
   .cmd { display: none; }
-  .cmd-label { flex-wrap: nowrap; color: var(--text); font-size: .95rem; font-weight: 500; }
+  /* the badge drops under the name in one piece rather than squeezing beside it */
+  .cmd-label { flex-wrap: wrap; row-gap: 6px; color: var(--text); font-size: .95rem; font-weight: 500; }
   .cmd-btns { gap: 8px; }
   .cmd-btns .btn { flex: 1; border-color: var(--line); background: var(--raised); color: var(--text); padding: 8px 12px; }
 }
