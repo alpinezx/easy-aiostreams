@@ -196,9 +196,7 @@ function path(st) {
   const restart = st.installed && st.actions.find((a) => a.id === "stack.restart");
   const key = st.services.map((s) => `${s.key}:${stateOf(s)}`).join(",") + st.docker_ok + !!st.busy + !!(restart && restart.available);
   const el = rebuild("#path", key, (el) => {
-    el.append(h("div", { class: "path-head" }, h("h2", { class: "path-title", text: "Request flow" }),
-      restart && restart.available ? h("button", { class: "btn small", type: "button", text: "Restart stack", disabled: !!st.busy,
-        title: "Restart Caddy, AIOStreams and anything in between", onclick: () => runAction(restart) }) : null));
+    el.append(h("div", { class: "path-head" }, h("h2", { class: "path-title", text: "Request flow" })));
     const chain = h("div", { class: "chain" });
     chain.append(h("div", { class: "path-start" }, h("i"), "Visitors"));
     let upstreamOk = true;   // everything before this point is running
@@ -218,9 +216,14 @@ function path(st) {
         ul.append(h("li", { class: ok ? "live" : "broken" }, node(s)));
       });
       wrap.append(ul);
-      el.append(wrap, h("p", { class: "addon-note", text: "Add-ons hang off Caddy, each on its own subdomain." }));
+      el.append(wrap);
       el.dataset.hasAddons = "1";
     }
+    // Buttons that do something substantial sit at the card's bottom right
+    el.append(h("div", { class: "card-foot path-foot" },
+      addons.length ? h("p", { class: "addon-note", text: "Add-ons hang off Caddy, each on its own subdomain." }) : null,
+      restart && restart.available ? h("button", { class: "btn small", type: "button", text: "Restart stack", disabled: !!st.busy,
+        title: "Restart Caddy, AIOStreams and anything in between", onclick: () => runAction(restart) }) : null));
   });
   // line the add-on trunk up under the Caddy node
   const caddyNode = el.querySelector('.node[data-svc="caddy"]');
@@ -332,8 +335,7 @@ function side(st) {
   clear(el);   // small and cheap; its only buttons are the watchdog ones, rebuilt rarely enough below
   const hs = st.host || {};
   const host = h("section", { class: "panel host" },
-    h("div", { class: "card-head" }, h("h3", { text: "This server" }),
-      h("button", { class: "btn small quiet danger", type: "button", text: "Reboot server", onclick: rebootServer })));
+    h("div", { class: "card-head" }, h("h3", { text: "This server" })));
   const grid = h("div", { class: "stat-grid" });
   if (hs.uptime != null) grid.append(stat("Up for", fmtDur(hs.uptime), `since ${dayMonth(Date.now() - hs.uptime * 1000)}`));
   if (st.cert) {
@@ -354,7 +356,8 @@ function side(st) {
     const pct = (used / total) * 100;
     grid.append(stat(label, `${fmtBytes(used)} of ${fmtBytes(total)}`, `${Math.round(pct)}% used, ${fmtBytes(total - used)} free`, tone(pct, warn, 90)));
   }
-  host.append(grid);
+  host.append(grid, h("div", { class: "card-foot" },
+    h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer })));
   el.append(host);
 
   // Phone alerts are an optional add-on: the card only appears once they're set up, so it never
@@ -375,9 +378,9 @@ function side(st) {
       h("div", { class: "vpn-label", text: "Last 14 days" }), days(wdDays),
       h("div", { class: "dim wd-today", text: todayLine(wdDays) })));
   }
-  const btns = h("div", { class: "toolbar" });
+  const btns = h("div", { class: "card-foot" });
   const id = w.running ? "watchdog.stop" : "watchdog.start";
-  for (const [aid, cls] of [[id, ""], ["watchdog.test", "quiet"]]) {
+  for (const [aid, cls] of [[id, ""], ["watchdog.test", ""]]) {
     const a = avail[aid];
     if (a && a.available) btns.append(h("button", { class: `btn small ${cls}`, type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
   }
