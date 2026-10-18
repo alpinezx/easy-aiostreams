@@ -2,6 +2,7 @@ import { $, h, clear, setText, fmtDur, fmtBytes, api, toast, ago, extIcon } from
 import { runAction, openJob, rebootServer, restartService } from "./actions.js";
 import { openReleases, remember, behind } from "./releases.js";
 import { days, todayLine, parseCheck } from "./alerts.js";
+import { pill as scriptsPill } from "./scripts.js";
 
 // ---------------- update check ----------------
 let rel = null, relLoading = false, relFor = null, lastSt = null;
@@ -140,8 +141,12 @@ function hero(st) {
       h("span", { class: "lamp", dataset: { s: st.overall }, "aria-hidden": "true" }),
       h("h1", { class: "headline", text: st.headline })));
     // Open AIOStreams on a line of its own, then one chip for the build and version, then the update bits.
+    // Open AIOStreams, and beside it the "Script updates" pill while a setup script here differs from GitHub
+    const pillEl = h("a", { class: "chip warn scripts-pill", id: "scripts-pill", href: "#scripts", hidden: true });
     if (st.domain) el.append(h("div", { class: "hero-open" }, h("a", { class: "btn small open-site", href: `https://${st.domain}`, target: "_blank", rel: "noopener noreferrer",
-      title: `Opens https://${st.domain} in a new tab` }, "Open AIOStreams", extIcon())));
+      title: `Opens https://${st.domain} in a new tab` }, "Open AIOStreams", extIcon()), pillEl));
+    else el.append(h("div", { class: "hero-open" }, pillEl));
+    scriptsPill();
     // The certificate lives in This server; it comes up here only when it needs attention.
     if (st.cert && (!st.cert.ok || st.cert.days_left < 21)) el.append(h("div", { class: "hero-meta" }, certChip(st, true)));
     // The version card has a slot of its own, so wide screens can put the request flow above it

@@ -138,12 +138,12 @@ export function checkScripts(status) {
   if (!cmpAsked) { cmpAsked = true; loadCompare(false); } else pill();
 }
 
-function pill() {
+// The Overview rebuilds its top row now and then; it calls this to fill the pill in again
+export function pill() {
   const rows = (last && last.status && last.status.scripts) || statusScripts || [];
   const n = cmp && cmp.files && !cmp.error ? rows.filter((x) => x.present && differs(x)).length : 0;
   const branch = cmp && cmp.branch && cmp.branch !== "main" ? ` (${cmp.branch} branch)` : "";
-  for (const id of ["#scripts-pill", "#scripts-pill-top"]) {
-    const el = $(id);
+  for (const el of [$("#scripts-pill")]) {
     if (!el) continue;
     el.hidden = !n;
     el.textContent = n === 1 ? "Script update" : `${n} script updates`;
