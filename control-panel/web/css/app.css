@@ -784,6 +784,10 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   .panel.host { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 0 32px; align-content: start; }
   .panel.host > h3, .panel.host > .reboot { grid-column: 1 / -1; }
   .panel.host .kv.host-facts { border-bottom: 0; margin: 0; padding: 0; align-self: start; }
+  /* alone in the row (no Phone alerts): facts at a readable width, the three meters side by side */
+  .panel.host:only-child { grid-template-columns: minmax(0, 400px) minmax(0, 1fr); gap: 0 48px; }
+  .panel.host:only-child .meters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 32px; align-content: start; }
+  .panel.host:only-child .meter { margin-bottom: 0; }
   .panel.wd { display: flex; flex-direction: column; }
   .panel.wd .kv { grid-template-columns: repeat(3, minmax(0, auto)); grid-template-rows: auto auto; grid-auto-flow: column; gap: 4px 32px; justify-content: start; }
   .panel.wd .kv dd { text-align: left; }
