@@ -679,8 +679,20 @@ class Backend:
             "watches": watches,
             "every_min": 2, "threshold": 2,
             "options": {k: f"{k}=on" in _read(d / "options").split() for k in ("updates", "weekly")},
+            "timezone": self._host_timezone(),
             "stable": bool(re.search(r"^\s*image:\s*viren070/aiostreams:latest\s*$", _read(self.p("docker-compose.yml")), re.M)),
         }
+
+    def _host_timezone(self) -> str | None:
+        """The server's time zone (Europe/London), which the weekly check-in's
+        Sunday 10:00 goes by. Asked of the host; the container has its own."""
+        try:
+            r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "readlink", "-f", "/etc/localtime"],
+                               capture_output=True, text=True, timeout=5)
+        except Exception:
+            return None
+        tz = r.stdout.strip().split("/zoneinfo/")[-1] if r.returncode == 0 and "/zoneinfo/" in r.stdout else ""
+        return tz or None
 
     def set_watchdog_option(self, name: str, on: bool) -> None:
         """The Phone alerts page's switches: update available, weekly check-in.

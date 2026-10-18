@@ -146,7 +146,8 @@ class DemoBackend:
                 else time.strftime("%d %b %Y, %H:%M:%S UTC", time.gmtime(time.time() - 40)) + " STOPPED (watchdog disabled, no checks running)",
                 "topic": mask_topic(self.wd_topic), "events": self.wd_events, "tally": self.wd_tally,
                 "watches": watches, "every_min": 2, "threshold": 2,
-                "options": dict(self.wd_options), "stable": self.channel != "nightly"}
+                "options": dict(self.wd_options), "stable": self.channel != "nightly",
+                "timezone": os.environ.get("UI_DEMO_TZ", "Europe/London")}
 
     def remove_script(self, script_id: str) -> str:
         from .actions import ADDON_STATE, SCRIPTS

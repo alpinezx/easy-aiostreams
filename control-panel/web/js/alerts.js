@@ -153,6 +153,15 @@ function render(w) {
     onclick: () => { showAll = true; render(last); } }));
 }
 
+// The check-in goes by the server's clock, so say which zone that is. A server
+// left on UTC is the usual surprise; the fix is one command.
+function tzNote(tz) {
+  if (!tz) return "server time";
+  if (/^(Etc\/)?(UTC|UCT|GMT|Universal|Zulu)$/.test(tz))
+    return "server time (UTC; for your own, run sudo timedatectl set-timezone Area/City, e.g. Europe/London)";
+  return `server time (${tz})`;
+}
+
 // The optional alerts, off until switched on. They take effect from the next check.
 function extras(w) {
   const opt = w.options || {};
@@ -177,7 +186,8 @@ function extras(w) {
     row("updates", "When a new AIOStreams release is out", w.stable === false
       ? "Only for the stable channel: this server runs nightly, which changes daily."
       : "One alert per stable release, with how to update.", w.stable === false),
-    row("weekly", "Weekly check-in", "Sundays after 10:00: the week's checks, alerts and disk space. If it stops arriving, the watchdog itself needs a look."));
+    row("weekly", "Weekly check-in", `Sundays after 10:00 ${tzNote(w.timezone)}: the week's checks, alerts and disk space. `
+      + "If it stops arriving, the watchdog itself needs a look."));
 }
 
 async function clearEvents() {
