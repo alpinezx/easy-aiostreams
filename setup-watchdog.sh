@@ -642,6 +642,7 @@ do_start() {
     [[ -f "$CONFIG_FILE" ]] || do_configure
     install_systemd_units
     systemctl enable --now aiostreams-watchdog.timer
+    systemctl start --no-block aiostreams-watchdog.service 2>/dev/null || true   # the first check now, not in up to 2 minutes
     systemctl enable aiostreams-watchdog-boot.service >/dev/null 2>&1 || true
     systemctl start aiostreams-watchdog-boot.service >/dev/null 2>&1 || true   # records this boot's shutdown; sends nothing now
     log_event start "Watchdog started."
@@ -952,6 +953,7 @@ if [[ "${1:-}" == "install-timer" ]]; then
     [[ -f "$CONFIG_FILE" ]] || error "No watchdog config found at $CONFIG_FILE, nothing to reinstall."
     install_systemd_units
     systemctl enable --now aiostreams-watchdog.timer
+    systemctl start --no-block aiostreams-watchdog.service 2>/dev/null || true   # the first check now, not in up to 2 minutes
     systemctl enable aiostreams-watchdog-boot.service >/dev/null 2>&1 || true
     systemctl start aiostreams-watchdog-boot.service >/dev/null 2>&1 || true   # records this boot's shutdown; sends nothing now
     log_event start "Watchdog started."
