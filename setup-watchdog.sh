@@ -27,6 +27,8 @@ CONFIG_FILE="$STATE_DIR/config"
 FAILCOUNT_FILE="$STATE_DIR/failcount"
 ALERTSTATE_FILE="$STATE_DIR/alert-state"
 LASTCHECK_FILE="$STATE_DIR/last-check"
+EVENTS_FILE="$STATE_DIR/events"     # what happened, newest last: "epoch|kind|text"
+TALLY_FILE="$STATE_DIR/tally"       # checks per day: "YYYY-MM-DD passed failed"
 SCRIPT_COPY="$STATE_DIR/watchdog.sh"
 SERVICE_FILE="/etc/systemd/system/aiostreams-watchdog.service"
 TIMER_FILE="/etc/systemd/system/aiostreams-watchdog.timer"
@@ -172,6 +174,34 @@ run_checks() {
     return 0
 }
 
+# A short record for "did anything happen overnight?" (the control panel's
+# Phone alerts page reads it). Kinds: fail, alert, recovered, start, stop,
+# test, topic. Never holds the topic itself. Keeps the last 200.
+log_event() {
+    mkdir -p "$STATE_DIR"
+    printf '%s|%s|%s\n' "$(date +%s)" "$1" "${2//$'\n'/ }" >> "$EVENTS_FILE"
+    if (( $(wc -l < "$EVENTS_FILE") > 220 )); then
+        tail -n 200 "$EVENTS_FILE" > "$EVENTS_FILE.tmp" && mv "$EVENTS_FILE.tmp" "$EVENTS_FILE"
+    fi
+    return 0
+}
+
+# One line per day with how many checks passed and failed. Keeps 14 days.
+tally_check() {
+    local today passed=0 failed=0 d p f
+    today=$(date +%F)
+    if [[ -f "$TALLY_FILE" ]] && read -r d p f < <(tail -n 1 "$TALLY_FILE") && [[ "$d" == "$today" ]]; then
+        passed=$p failed=$f
+        sed -i '$d' "$TALLY_FILE"
+    fi
+    if [[ "$1" == ok ]]; then passed=$((passed + 1)); else failed=$((failed + 1)); fi
+    echo "$today $passed $failed" >> "$TALLY_FILE"
+    if (( $(wc -l < "$TALLY_FILE") > 14 )); then
+        tail -n 14 "$TALLY_FILE" > "$TALLY_FILE.tmp" && mv "$TALLY_FILE.tmp" "$TALLY_FILE"
+    fi
+    return 0
+}
+
 send_ntfy() {
     local msg="$1" topic
     topic=$(grep -oP 'NTFY_TOPIC=\K.*' "$CONFIG_FILE" 2>/dev/null || true)
@@ -188,17 +218,30 @@ do_run_check() {
 
     if run_checks; then
         echo "$(date '+%d %b %Y, %H:%M:%S %Z') OK" > "$LASTCHECK_FILE"
+        tally_check ok
         echo 0 > "$FAILCOUNT_FILE"
         if [[ "$alert_state" == "down" ]]; then
-            send_ntfy "✅ AIOStreams: all checks passing again." || true
+            if send_ntfy "✅ AIOStreams: all checks passing again."; then
+                log_event recovered "All checks passing again. All-clear sent."
+            else
+                log_event recovered "All checks passing again. The all-clear couldn't be sent (ntfy.sh unreachable)."
+            fi
             echo "up" > "$ALERTSTATE_FILE"
+        elif [[ "$fails" -gt 0 ]]; then
+            log_event recovered "Passing again before an alert was due, so none was sent."
         fi
     else
         echo "$(date '+%d %b %Y, %H:%M:%S %Z') FAIL: ${FAIL_REASON}" > "$LASTCHECK_FILE"
+        tally_check fail
         fails=$((fails + 1))
         echo "$fails" > "$FAILCOUNT_FILE"
+        [[ "$fails" -eq 1 && "$alert_state" == "up" ]] && log_event fail "$FAIL_REASON"
         if [[ "$fails" -ge "$FAIL_THRESHOLD" && "$alert_state" == "up" ]]; then
-            send_ntfy "🔴 AIOStreams: ${FAIL_REASON}." || true
+            if send_ntfy "🔴 AIOStreams: ${FAIL_REASON}."; then
+                log_event alert "Still failing on the next check. Alert sent."
+            else
+                log_event alert "Still failing on the next check. The alert couldn't be sent (ntfy.sh unreachable)."
+            fi
             echo "down" > "$ALERTSTATE_FILE"
         fi
     fi
@@ -226,6 +269,7 @@ do_configure() {
     chmod 600 "$CONFIG_FILE"
     echo 0 > "$FAILCOUNT_FILE"
     echo "up" > "$ALERTSTATE_FILE"
+    log_event topic "Alert topic set."
 
     info "Sending a test alert"
     echo -e "Subscribe first so you actually see it: open the ntfy app (or visit"
@@ -288,6 +332,7 @@ do_start() {
     [[ -f "$CONFIG_FILE" ]] || do_configure
     install_systemd_units
     systemctl enable --now aiostreams-watchdog.timer
+    log_event start "Watchdog started."
     info "Watchdog started, checking every $CHECK_INTERVAL (alerts after $FAIL_THRESHOLD consecutive failures)."
 }
 
@@ -295,6 +340,7 @@ do_stop() {
     systemctl disable --now aiostreams-watchdog.timer 2>/dev/null || true
     mkdir -p "$STATE_DIR"
     echo "$(date '+%d %b %Y, %H:%M:%S %Z') STOPPED (watchdog disabled, no checks running)" > "$LASTCHECK_FILE"
+    log_event stop "Watchdog stopped."
     echo "Watchdog stopped. Config and alert state are kept. Start picks up where it left off."
 }
 
@@ -326,7 +372,35 @@ do_status() {
 
 do_test_alert() {
     [[ -f "$CONFIG_FILE" ]] || error "Not configured yet, run Start first."
-    send_ntfy "🔔 Test alert from AIOStreams watchdog." && echo "Sent. Check your device."
+    if send_ntfy "🔔 Test alert from AIOStreams watchdog."; then
+        log_event test "Test alert sent."
+        echo "Sent. Check your device."
+    else
+        log_event test "Test alert couldn't be sent (ntfy.sh unreachable)."
+        return 1
+    fi
+}
+
+# ntfy topics: letters, digits, - and _, up to 64 characters.
+valid_topic() {
+    [[ "$1" =~ ^[A-Za-z0-9_-]{1,64}$ ]]
+}
+
+# Question-free topic change for the control panel. The topic comes in on
+# stdin, so it never shows in a process list or the panel's Activity, and
+# isn't printed. A test alert goes to the new topic straight away.
+do_set_topic() {
+    [[ -f "$CONFIG_FILE" ]] || error "Not configured yet. Set the watchdog up over SSH first."
+    local topic
+    IFS= read -r topic || true
+    topic="${topic//[[:space:]]/}"
+    valid_topic "$topic" || error "That topic isn't valid: use letters, numbers, - and _ only, up to 64 characters."
+    (( ${#topic} >= 12 )) || error "That topic is too short to be private. Use at least 12 characters."
+    echo "NTFY_TOPIC=$topic" > "$CONFIG_FILE"
+    chmod 600 "$CONFIG_FILE"
+    log_event topic "Alert topic changed."
+    echo "Topic saved. Sending a test alert to it..."
+    do_test_alert
 }
 
 do_uninstall() {
@@ -364,6 +438,16 @@ command -v systemctl >/dev/null || error "systemd not found. This script relies 
 
 # Errors out rather than risking a hang on an interactive prompt if the
 # config is somehow missing here.
+if [[ "${1:-}" == "set-topic" ]]; then
+    do_set_topic
+    exit $?
+fi
+
+if [[ "${1:-}" == "test" ]]; then
+    do_test_alert
+    exit $?
+fi
+
 if [[ "${1:-}" == "install-timer" ]]; then
     [[ -f "$CONFIG_FILE" ]] || error "No watchdog config found at $CONFIG_FILE, nothing to reinstall."
     install_systemd_units
@@ -387,7 +471,7 @@ while true; do
         1) do_status ;;
         2) do_start ;;
         3) do_stop ;;
-        4) do_test_alert ;;
+        4) do_test_alert || true ;;
         5) do_configure ;;
         6) do_uninstall ;;
         7) exit 0 ;;
