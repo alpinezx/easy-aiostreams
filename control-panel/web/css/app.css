@@ -171,6 +171,8 @@ main { max-width: 1680px; margin: 0 auto; padding: 28px var(--gutter) 96px; }
 .btn.danger:hover:not(:disabled) { border-color: var(--bad); background: var(--bad-soft); }
 .btn.quiet { background: none; border-color: transparent; color: var(--dim); }
 .btn.quiet:hover:not(:disabled) { color: var(--text); background: var(--hover); border-color: transparent; }
+.btn.quiet.danger { color: var(--bad); }
+.btn.quiet.danger:hover:not(:disabled) { color: var(--bad); background: var(--bad-soft); }
 .btn.small { padding: 5px 10px; font-size: .88rem; border-radius: 8px; }
 
 /* ---------- hero ---------- */
@@ -319,6 +321,16 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .wd-day[data-s="ok"] { background: var(--ok); opacity: .75; }
 .wd-day[data-s="warn"] { background: var(--warn); }
 .wd-today { font-size: .88rem; }
+/* This server and Phone alerts on the Overview: labelled values like the version card */
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 28px; }
+.card-head h3 { margin: 0; }
+.card-link { font-size: .86rem; text-decoration: none; }
+.card-link:hover { color: var(--text); text-decoration: underline; }
+.stat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 24px; margin-top: 14px; }
+.stat-value { font-size: 1.05rem; font-weight: 650; letter-spacing: -.01em; overflow-wrap: anywhere; }
+.stat-value.warn { color: var(--warn); } .stat-value.bad { color: var(--bad); }
+.stat .ver-sub { font-size: .8rem; }
+@media (max-width: 720px) { .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .wd-mini { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-soft); display: grid; gap: 6px; }
 .wd-mini .vpn-label { margin: 0; }
 .wd-today-wrap { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; justify-content: flex-end; }
@@ -781,18 +793,10 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   #view-overview .side { order: 2; margin-bottom: 30px; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: stretch; }
   #view-overview .path { order: 3; }
   #view-overview .cols > div { order: 4; }
-  .panel.host { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 0 32px; align-content: start; }
-  .panel.host > h3, .panel.host > .reboot { grid-column: 1 / -1; }
-  .panel.host .kv.host-facts { border-bottom: 0; margin: 0; padding: 0; align-self: start; }
-  /* alone in the row (no Phone alerts): facts at a readable width, the three meters side by side */
-  .panel.host:only-child { grid-template-columns: minmax(0, 400px) minmax(0, 1fr); gap: 0 48px; }
-  .panel.host:only-child .meters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 32px; align-content: start; }
-  .panel.host:only-child .meter { margin-bottom: 0; }
+  /* alone in the row (no Phone alerts): all six in one line */
+  .panel.host:only-child .stat-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .panel.wd { display: flex; flex-direction: column; }
-  .panel.wd .kv { grid-template-columns: repeat(3, minmax(0, auto)); grid-template-rows: auto auto; grid-auto-flow: column; gap: 4px 32px; justify-content: start; }
-  .panel.wd .kv dd { text-align: left; }
   .panel.wd .toolbar { margin-top: auto; padding-top: 14px; }
-  .panel.wd .wd-mini { margin-top: 18px; }
 }
 
 /* ---------- phones ---------- */

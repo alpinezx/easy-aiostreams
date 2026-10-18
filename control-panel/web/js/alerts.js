@@ -11,7 +11,7 @@ let st = null, last = null, loading = false, showAll = false;
 const actFor = (id) => { const a = st && st.actions.find((x) => x.id === id); return a && a.available ? a : null; };
 
 // "18 Oct 2026, 16:02:11 UTC OK" -> when, and what it said
-function parseCheck(line) {
+export function parseCheck(line) {
   const m = (line || "").match(/^(\d{1,2} \w{3} \d{4}), (\d{2}:\d{2}:\d{2}) (\S+) (.*)$/);
   if (!m) return { at: null, result: line || "" };
   const t = Date.parse(`${m[1]} ${m[2]} ${m[3] === "UTC" ? "UTC" : ""}`.trim());

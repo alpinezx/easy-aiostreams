@@ -1,7 +1,7 @@
 import { $, h, clear, setText, fmtDur, fmtBytes, api, toast, ago, extIcon } from "./util.js";
 import { runAction, openJob, rebootServer, restartService } from "./actions.js";
 import { openReleases, remember, behind } from "./releases.js";
-import { days, todayLine } from "./alerts.js";
+import { days, todayLine, parseCheck } from "./alerts.js";
 
 // ---------------- update check ----------------
 let rel = null, relLoading = false, relFor = null, lastSt = null;
@@ -120,13 +120,6 @@ export function render(st, goLogs) {
   if (st.version && relFor !== relChannel(st)) { relFor = relChannel(st); rel = null; loadReleases(false); }
   remember(rel, runningTag(st));
   hero(st); path(st); rows(st, goLogs); side(st);
-}
-
-// "off" means the VPN was installed and switched off; "none" means it never was.
-function vpnChip(st, text) {
-  return st.vpn === "on"
-    ? h("span", { class: "chip ok", text })
-    : h("span", { class: "chip", title: "The VPN is installed but switched off, so traffic leaves from this server's own IP address.", text });
 }
 
 function certChip(st, long) {
@@ -310,16 +303,6 @@ function rows(st, goLogs) {
   }
 }
 
-// ---------------- side panels ----------------
-function meter(label, pct, right) {
-  const cls = pct > 90 ? "bad" : pct > 75 ? "warn" : "";
-  const fill = h("div", { class: `fill ${cls}` });
-  fill.style.setProperty("--v", Math.min(100, Math.max(0, pct)).toFixed(0));
-  return h("div", { class: "meter" },
-    h("div", { class: "meter-top" }, h("span", { text: label }), h("span", { text: right })),
-    h("div", { class: "track", role: "img", "aria-label": `${label} ${Math.round(pct)} percent` }, fill));
-}
-
 // The Phone alerts card's 14-day strip comes from the watchdog's own page data,
 // fetched at most once a minute (the status poll runs every few seconds).
 let wdDays = null, wdDaysAt = 0, wdDaysLoading = false;
@@ -331,48 +314,72 @@ async function loadWdDays() {
   finally { wdDaysLoading = false; }
 }
 
+// ---------------- side panels ----------------
+// One labelled value with a quiet line under it, like the version card and
+// AIOStreams' own System card. Coloured only when it needs a look.
+function stat(label, value, sub, tone) {
+  return h("div", { class: "stat" }, h("div", { class: "ver-label", text: label }),
+    h("div", { class: "stat-value" + (tone ? " " + tone : ""), text: value }),
+    h("div", { class: "ver-sub", text: sub || "" }));
+}
+const tone = (pct, warn, bad) => (pct >= bad ? "bad" : pct >= warn ? "warn" : "");
+const dayMonth = (ms) => new Date(ms).toLocaleDateString([], { day: "numeric", month: "short" });
+
 function side(st) {
   const el = $("#side");
   const w = st.watchdog || {};
   const avail = Object.fromEntries(st.actions.map((a) => [a.id, a]));
   clear(el);   // small and cheap; its only buttons are the watchdog ones, rebuilt rarely enough below
   const hs = st.host || {};
-  const host = h("section", { class: "panel host" }, h("h3", { text: "This server" }));
-  // Facts first (what you'd glance at), then the meters, which change all the time.
-  const kv = h("dl", { class: "kv host-facts" });
-  if (hs.uptime != null) kv.append(h("dt", { text: "Up for" }), h("dd", { text: fmtDur(hs.uptime) }));
-  if (st.cert) kv.append(h("dt", { text: "HTTPS certificate" }), h("dd", {}, certChip(st, false)));
-  if (st.vpn === "on" || st.vpn === "off") kv.append(h("dt", { text: "VPN" }), h("dd", {}, vpnChip(st, st.vpn === "on" ? "On" : "Off")));
-  if (kv.childElementCount) host.append(kv);
-  // The meters in a box of their own: beside the facts on a wide screen, under them otherwise
-  const meters = h("div", { class: "meters" });
-  if (hs.load) meters.append(meter("Load", (hs.load[0] / (hs.cpus || 1)) * 100, `${hs.load[0].toFixed(2)} on ${hs.cpus} CPU${hs.cpus > 1 ? "s" : ""}`));
-  if (hs.mem_total) meters.append(meter("Memory", (hs.mem_used / hs.mem_total) * 100, `${fmtBytes(hs.mem_used)} of ${fmtBytes(hs.mem_total)}`));
-  if (hs.disk_total) meters.append(meter("Disk", (hs.disk_used / hs.disk_total) * 100, `${fmtBytes(hs.disk_used)} of ${fmtBytes(hs.disk_total)}`));
-  if (meters.childElementCount) host.append(meters);
-  host.append(h("button", { class: "btn small danger reboot", type: "button", text: "Reboot server", onclick: rebootServer }));
+  const host = h("section", { class: "panel host" },
+    h("div", { class: "card-head" }, h("h3", { text: "This server" }),
+      h("button", { class: "btn small quiet danger", type: "button", text: "Reboot server", onclick: rebootServer })));
+  const grid = h("div", { class: "stat-grid" });
+  if (hs.uptime != null) grid.append(stat("Up for", fmtDur(hs.uptime), `since ${dayMonth(Date.now() - hs.uptime * 1000)}`));
+  if (st.cert) {
+    const d = st.cert.days_left;
+    grid.append(st.cert.ok
+      ? stat("HTTPS certificate", `${d} day${d === 1 ? "" : "s"} left`, "Caddy renews it by itself", d < 7 ? "bad" : d < 21 ? "warn" : "")
+      : stat("HTTPS certificate", "Couldn't check", "", "warn"));
+  }
+  if (st.vpn === "on" || st.vpn === "off") {
+    grid.append(stat("VPN", st.vpn === "on" ? "On" : "Off", st.vpn === "on" ? "Traffic goes through it" : "A direct connection"));
+  }
+  if (hs.load) {
+    const pct = (hs.load[0] / (hs.cpus || 1)) * 100;
+    grid.append(stat("Load", hs.load[0].toFixed(2), `on ${hs.cpus} CPU${hs.cpus > 1 ? "s" : ""}`, tone(pct, 75, 90)));
+  }
+  for (const [label, used, total, warn] of [["Memory", hs.mem_used, hs.mem_total, 80], ["Disk", hs.disk_used, hs.disk_total, 80]]) {
+    if (!total) continue;
+    const pct = (used / total) * 100;
+    grid.append(stat(label, `${fmtBytes(used)} of ${fmtBytes(total)}`, `${Math.round(pct)}% used, ${fmtBytes(total - used)} free`, tone(pct, warn, 90)));
+  }
+  host.append(grid);
   el.append(host);
 
   // Phone alerts are an optional add-on: the card only appears once they're set up, so it never
   // reads as something missing. The Scripts tab lists the add-on for anyone who wants it.
   if (!w.configured) return;
-  const wd = h("section", { class: "panel wd" }, h("h3", { class: "panel-head-link" }, h("span", { text: "Phone alerts" }),
-    h("a", { href: "#alerts", class: "dim", text: "Details" })));
-  wd.append(h("dl", { class: "kv" },
-    h("dt", { text: "Watchdog" }), h("dd", {}, h("span", { class: "chip " + (w.running ? "ok" : "warn"), text: w.running ? "Running" : "Stopped" })),
-    h("dt", { text: "Last check" }), h("dd", { class: "mono", text: (w.last_check || "none yet").replace(/\s+(OK|FAIL.*|SKIPPED.*|STOPPED.*)$/, "") }),
-    h("dt", { text: "Result" }), h("dd", { text: ((w.last_check || "").match(/(OK|FAIL.*|SKIPPED.*|STOPPED.*)$/) || ["", "—"])[1].slice(0, 90) })));
-  const btns = h("div", { class: "toolbar" });
-  const id = w.running ? "watchdog.stop" : "watchdog.start";
-  for (const [aid, cls] of [[id, ""], ["watchdog.test", "quiet"]]) {
-    const a = avail[aid];
-    if (a && a.available) btns.append(h("button", { class: `btn small ${cls}`, type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
-  }
+  const wd = h("section", { class: "panel wd" }, h("div", { class: "card-head" }, h("h3", { text: "Phone alerts" }),
+    h("a", { href: "#alerts", class: "dim card-link", text: "Details" })));
+  const chk = parseCheck(w.last_check);
+  const failed = /^FAIL/.test(chk.result);
+  wd.append(h("div", { class: "stat-grid" },
+    stat("Watchdog", w.running ? "Running" : "Stopped", w.running ? "Checks every 2 min" : "No checks running", w.running ? "" : "warn"),
+    stat("Last check", chk.at ? ago(chk.at) : "None yet", chk.at ? new Date(chk.at * 1000).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""),
+    stat("Result", !w.running ? "Stopped" : failed ? "Failed" : chk.result === "OK" ? "All passed" : "—",
+      failed ? chk.result.replace(/^FAIL:\s*/, "").slice(0, 70) : "", failed ? "warn" : "")));
   loadWdDays();
   if (wdDays && wdDays.length) {
     wd.append(h("div", { class: "wd-mini" },
       h("div", { class: "vpn-label", text: "Last 14 days" }), days(wdDays),
       h("div", { class: "dim wd-today", text: todayLine(wdDays) })));
+  }
+  const btns = h("div", { class: "toolbar" });
+  const id = w.running ? "watchdog.stop" : "watchdog.start";
+  for (const [aid, cls] of [[id, ""], ["watchdog.test", "quiet"]]) {
+    const a = avail[aid];
+    if (a && a.available) btns.append(h("button", { class: `btn small ${cls}`, type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
   }
   wd.append(btns);
   el.append(wd);
