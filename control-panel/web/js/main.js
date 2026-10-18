@@ -1,3 +1,4 @@
+import "./debugsize.js";
 import { $, api, toast } from "./util.js";
 import { render, record } from "./overview.js";
 import * as logs from "./logs.js";
