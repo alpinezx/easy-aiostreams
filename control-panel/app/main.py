@@ -289,6 +289,12 @@ async def server_address(user: str = Depends(current_user)):
     return {"ip": await asyncio.to_thread(serverip.address)}
 
 
+@app.get("/api/watchdog")
+async def watchdog(user: str = Depends(current_user)):
+    """The Phone alerts page: state, recent events, daily tally. The topic only masked."""
+    return await asyncio.to_thread(backend.watchdog_info)
+
+
 @app.get("/api/vpn")
 async def vpn(fresh: bool = False, user: str = Depends(current_user)):
     """The VPN page: mode, endpoint and, with the tunnel on, where traffic leaves. Never the keys."""

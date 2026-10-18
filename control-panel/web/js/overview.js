@@ -341,7 +341,8 @@ function side(st) {
   // Phone alerts are an optional add-on: the card only appears once they're set up, so it never
   // reads as something missing. The Scripts tab lists the add-on for anyone who wants it.
   if (!w.configured) return;
-  const wd = h("section", { class: "panel" }, h("h3", { text: "Phone alerts" }));
+  const wd = h("section", { class: "panel" }, h("h3", { class: "panel-head-link" }, h("span", { text: "Phone alerts" }),
+    h("a", { href: "#alerts", class: "dim", text: "Details" })));
   wd.append(h("dl", { class: "kv" },
     h("dt", { text: "Watchdog" }), h("dd", {}, h("span", { class: "chip " + (w.running ? "ok" : "warn"), text: w.running ? "Running" : "Stopped" })),
     h("dt", { text: "Last check" }), h("dd", { class: "mono", text: (w.last_check || "none yet").replace(/\s+(OK|FAIL.*|SKIPPED.*|STOPPED.*)$/, "") }),

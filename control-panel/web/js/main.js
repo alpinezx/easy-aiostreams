@@ -7,6 +7,7 @@ import { currentJobId, openJob } from "./actions.js";
 import * as terminal from "./terminal.js";
 import * as scripts from "./scripts.js";
 import * as vpn from "./vpn.js";
+import * as alerts from "./alerts.js";
 
 let status = null;
 let view = "overview";
@@ -14,13 +15,14 @@ let pendingLogs = null;
 let lastBusy = null;
 let timer = null;
 
-const VIEWS = ["overview", "logs", "activity", "backups", "scripts", "vpn", "terminal"];
+const VIEWS = ["overview", "logs", "activity", "backups", "scripts", "vpn", "alerts", "terminal"];
 let terminalOn = false;
 let vpnSetUp = false;     // the VPN page shows once setup-vpn-gluetun.sh has set the VPN up
+let alertsSetUp = false;  // and Phone alerts once setup-watchdog.sh has been set up
 
 function route() {
   const v = location.hash.slice(1).split("/")[0];
-  view = VIEWS.includes(v) && (v !== "terminal" || terminalOn) && (v !== "vpn" || vpnSetUp) ? v : "overview";
+  view = VIEWS.includes(v) && (v !== "terminal" || terminalOn) && (v !== "vpn" || vpnSetUp) && (v !== "alerts" || alertsSetUp) ? v : "overview";
   for (const name of VIEWS) $(`#view-${name}`).hidden = name !== view;
   document.querySelectorAll(".tab").forEach((t) => t.toggleAttribute("aria-current", false));
   const active = document.querySelector(`.tab[data-view="${view}"]`);
@@ -37,6 +39,7 @@ function enter() {
   if (view === "scripts") scripts.show(status, terminalOn);
   if (view === "terminal") terminal.show(status);
   if (view === "vpn") vpn.show(false, status);
+  if (view === "alerts") alerts.show(status);
 }
 
 // Phones: the rail is a drawer, opened from the menu button and closed by its X, the
@@ -98,6 +101,12 @@ async function tick() {
       $("#tab-vpn").hidden = !vpnSetUp;
       if (location.hash.slice(1) === "vpn" || view === "vpn") route();   // opened at #vpn, or the VPN was removed
     }
+    const alertsNow = !!(status.watchdog && status.watchdog.configured);
+    if (alertsNow !== alertsSetUp) {
+      alertsSetUp = alertsNow;
+      $("#tab-alerts").hidden = !alertsSetUp;
+      if (location.hash.slice(1) === "alerts" || view === "alerts") route();
+    }
 
     // an action just finished while the output panel was closed: say so
     if (lastBusy && !status.busy) {
@@ -110,7 +119,9 @@ async function tick() {
       if (view === "activity") showActivity().catch(() => {});
       if (view === "backups") showBackups(status).catch(() => {});
       if (view === "vpn") vpn.show(true, status);     // a VPN switch just finished: check again
+      if (view === "alerts") alerts.show(status);
     }
+    if (view === "alerts") alerts.setStatus(status);
     if (view === "vpn") vpn.setStatus(status);
     lastBusy = status.busy;
   } catch (e) {

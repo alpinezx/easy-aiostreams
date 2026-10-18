@@ -14,6 +14,7 @@ server, one validated IPv4 address).
 from __future__ import annotations
 
 import ipaddress
+import re
 from dataclasses import dataclass
 
 
@@ -91,7 +92,7 @@ _STATIC: dict[str, Action] = {a.id: a for a in [
            stdin="3\n7\n", timeout=60,
            needs=("setup-watchdog.sh", "watchdog-state/config")),
     Action("watchdog.test", "Send test alert", "Sending", "Test alert sent", "setup-watchdog.sh",
-           stdin="4\n7\n", timeout=60,
+           args=("test",), timeout=60,
            needs=("setup-watchdog.sh", "watchdog-state/config")),
 ]}
 
@@ -187,6 +188,22 @@ def build_vpn_uninstall(remove_image: bool, delete_confs: bool) -> Action:
                   args=("uninstall", *opts), timeout=600, needs=("setup-vpn-gluetun.sh", "vpn-state/active"))
 
 
+# ntfy topics: letters, digits, - and _; at least 12 so it stays private (the script checks the same)
+TOPIC_RE = re.compile(r"^[A-Za-z0-9_-]{12,64}$")
+
+
+def build_set_topic(topic) -> Action:
+    """Phone alerts' Change topic: the script's set-topic, then a test alert to the
+    new topic. The topic goes in on stdin, so it's never in a command line, the
+    panel's Activity or its history."""
+    topic = str(topic or "").strip()
+    if not TOPIC_RE.match(topic):
+        raise BadAction("Use 12 to 64 letters, numbers, - and _ for the topic.")
+    return Action("watchdog.topic", "Change alert topic", "Changing the alert topic", "Alert topic changed", "setup-watchdog.sh",
+                  args=("set-topic",), stdin=topic + "\n", timeout=60,
+                  needs=("setup-watchdog.sh", "watchdog-state/config"))
+
+
 # Each add-on script's state folder: while it's there, the add-on is set up and its script stays
 ADDON_STATE = {"vpn": "vpn-state", "mediaflow": "mediaflow-state", "watchdog": "watchdog-state", "webhook": "webhook-relay-state"}
 
@@ -199,6 +216,8 @@ def resolve(action_id: str, params: dict | None = None) -> Action:
         return build_use_address(params.get("ip"))
     if action_id == "vpn.uninstall":
         return build_vpn_uninstall(params.get("remove_image") is True, params.get("delete_confs") is True)
+    if action_id == "watchdog.topic":
+        return build_set_topic(params.get("topic"))
     if action_id == "vpn.config":
         return build_use_config(params.get("ip"), params.get("on") is True)
     act = _STATIC.get(action_id)
@@ -209,7 +228,8 @@ def resolve(action_id: str, params: dict | None = None) -> Action:
 
 def catalog() -> list[Action]:
     return list(_STATIC.values()) + [build_update(True, None), build_use_address("192.0.2.1"), build_use_config("192.0.2.1"),
-                                     build_delete_config("/"), build_use_file("/", "192.0.2.1"), build_vpn_uninstall(False, False)]
+                                     build_delete_config("/"), build_use_file("/", "192.0.2.1"), build_vpn_uninstall(False, False),
+                                     build_set_topic("aios-example-topic")]
 
 
 # The stack's scripts, in the order the Terminal tab lists them. Only the first

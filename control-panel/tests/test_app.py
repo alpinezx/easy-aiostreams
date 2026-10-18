@@ -452,3 +452,25 @@ def test_vpn_uninstall_needs_the_word_then_its_script_can_go(client, monkeypatch
     assert vpn["present"] and vpn["in_use"] is False
     assert client.post("/api/scripts/vpn/remove").json() == {"removed": "setup-vpn-gluetun.sh"}
     assert not next(s for s in client.get("/api/status").json()["scripts"] if s["id"] == "vpn")["present"]
+
+
+def test_phone_alerts_page_never_shows_the_topic_and_changes_it_by_stdin(client):
+    from app.stack import mask_topic
+    assert client.get("/api/watchdog").status_code == 401
+    login(client)
+    w = client.get("/api/watchdog").json()
+    assert w["configured"] and w["topic"] == "aios-••••••81"
+    assert "7f3k29xq81" not in json.dumps(w)
+    assert w["events"] and w["tally"] and w["watches"][0].startswith("https://")
+    assert mask_topic("") is None and mask_topic("abc") == "•" * 8
+    for bad in ("short", "has spaces in it", "x" * 65, "semi;colon-topic", ""):
+        assert client.post("/api/actions/watchdog.topic", json={"params": {"topic": bad}}).status_code == 400
+    a = actions.resolve("watchdog.topic", {"topic": " aios-abcdefghijkl "})
+    assert a.args == ("set-topic",) and a.stdin == "aios-abcdefghijkl\n"   # never on a command line
+    assert actions.resolve("watchdog.test").args == ("test",)
+    r = client.post("/api/actions/watchdog.topic", json={"params": {"topic": "aios-newtopic12345"}})
+    assert r.status_code == 200
+    job = wait_job(client, r.json()["id"])
+    assert job["code"] == 0 and "aios-newtopic12345" not in json.dumps(job)
+    w = client.get("/api/watchdog").json()
+    assert w["topic"].endswith("45") and w["events"][0]["kind"] == "test" and w["events"][1]["kind"] == "topic"

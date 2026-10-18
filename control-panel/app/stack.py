@@ -110,6 +110,13 @@ ADDONS = {"mediaflow", "webhook"}
 RESTARTABLE = {"aiostreams", "mediaflow", "webhook"}
 
 
+def mask_topic(topic: str) -> str | None:
+    """Enough of the topic to tell which one it is, never enough to subscribe to it."""
+    if not topic:
+        return None
+    return topic[:5] + "\u2022" * 6 + topic[-2:] if len(topic) >= 10 else "\u2022" * 8
+
+
 def _read(path) -> str:
     try:
         return path.read_text(errors="replace")
@@ -629,6 +636,47 @@ class Backend:
         if r.returncode != 0:
             raise ValueError("Couldn't remove it.")
         return found[1]
+
+    def watchdog_info(self) -> dict:
+        """The Phone alerts page: the watchdog's state, its recent events and
+        daily tally (setup-watchdog.sh writes them), what it watches, and the
+        topic masked. The topic itself never leaves the server."""
+        d = self.p("watchdog-state")
+        if not (d / "config").exists():
+            return {"configured": False}
+        topic = (re.search(r"^NTFY_TOPIC=(.*)$", _read(d / "config"), re.M) or [None, ""])[1].strip()
+        last = _read(d / "last-check").strip()
+        events = []
+        for line in _read(d / "events").splitlines()[-100:]:
+            parts = line.split("|", 2)
+            if len(parts) == 3 and parts[0].isdigit():
+                events.append({"at": int(parts[0]), "kind": parts[1], "text": parts[2]})
+        tally = []
+        for line in _read(d / "tally").splitlines()[-14:]:
+            parts = line.split()
+            if len(parts) == 3 and parts[1].isdigit() and parts[2].isdigit():
+                tally.append({"day": parts[0], "passed": int(parts[1]), "failed": int(parts[2])})
+        domain = None
+        m = re.search(r"^(\S+)\s*\{", _read(self.p("Caddyfile")), re.M)
+        if m:
+            domain = m.group(1)
+        watches = ([f"https://{domain}"] if domain else ["The site"])
+        if self.vpn_mode() == "on":
+            watches += ["VPN tunnel", "AIOStreams through the VPN"]
+        if (self.p("mediaflow-state") / "config").exists():
+            watches.append("MediaFlow Proxy")
+        return {
+            "configured": True,
+            "running": self._systemd_active("aiostreams-watchdog.timer"),
+            "last_check": last or None,
+            "alert_state": _read(d / "alert-state").strip() or "up",
+            "fails": int(_read(d / "failcount").strip() or 0) if _read(d / "failcount").strip().isdigit() else 0,
+            "topic": mask_topic(topic),
+            "events": events[::-1],
+            "tally": tally,
+            "watches": watches,
+            "every_min": 2, "threshold": 2,
+        }
 
     def vpn_mode(self) -> str:
         """on, off or none, from the files alone (quick, unlike vpn_info)."""
