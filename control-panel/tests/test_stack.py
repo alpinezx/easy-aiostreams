@@ -446,4 +446,4 @@ def test_watchdog_info_reads_events_and_tally_and_masks_the_topic(tmp_path, monk
     assert [e["kind"] for e in w["events"]] == ["recovered", "fail"]            # newest first, junk skipped
     assert w["events"][0]["text"] == "Passing again | still one field"
     assert w["tally"] == [{"day": "2026-10-17", "passed": 720, "failed": 0}, {"day": "2026-10-18", "passed": 400, "failed": 2}]
-    assert w["watches"] == ["https://streams.example.com"] and w["running"] and w["alert_state"] == "up"
+    assert w["watches"] == ["https://streams.example.com", "Disk space", "HTTPS certificate"] and w["running"] and w["alert_state"] == "up"

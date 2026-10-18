@@ -660,7 +660,7 @@ class Backend:
         m = re.search(r"^(\S+)\s*\{", _read(self.p("Caddyfile")), re.M)
         if m:
             domain = m.group(1)
-        watches = ([f"https://{domain}"] if domain else ["The site"])
+        watches = ([f"https://{domain}"] if domain else ["The site"]) + ["Disk space", "HTTPS certificate"]
         if self.vpn_mode() == "on":
             watches += ["VPN tunnel", "AIOStreams through the VPN"]
         if (self.p("mediaflow-state") / "config").exists():
@@ -671,6 +671,8 @@ class Backend:
             "last_check": last or None,
             "alert_state": _read(d / "alert-state").strip() or "up",
             "fails": int(_read(d / "failcount").strip() or 0) if _read(d / "failcount").strip().isdigit() else 0,
+            # warnings that stand until they clear: disk nearly full, certificate not renewing
+            "warnings": [w for w, f in (("disk", "disk-state"), ("cert", "cert-state")) if _read(d / f).strip() == "bad"],
             "topic": mask_topic(topic),
             "events": events[::-1],
             "tally": tally,

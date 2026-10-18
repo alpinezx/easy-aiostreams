@@ -37,6 +37,11 @@ BOOT_SERVICE_FILE="/etc/systemd/system/aiostreams-watchdog-boot.service"
 WEBHOOK_BOOT_UNIT="aios-webhook-boot-notify.service"
 
 FAIL_THRESHOLD=2        # consecutive failed checks before an alert fires
+DISK_WARN_PCT=90        # disk alert at this % used, all-clear once below DISK_CLEAR_PCT
+DISK_CLEAR_PCT=85
+CERT_WARN_DAYS=10       # Caddy renews well before this (30 days left on a 90-day
+                        # certificate, about 15 on a 45-day one), so fewer days
+                        # left means renewal has been failing
 CHECK_INTERVAL="2min"   # how often the timer runs (display string)
                          # (2 fails x 2min = ~4min worst-case detection lag)
 CHECK_INTERVAL_MIN="2"  # same interval, as a bare number of minutes —
@@ -179,7 +184,7 @@ run_checks() {
 
 # A short record for "did anything happen overnight?" (the control panel's
 # Phone alerts page reads it). Kinds: fail, alert, recovered, start, stop,
-# test, topic, reboot. Never holds the topic itself. Keeps the last 200.
+# test, topic, reboot, disk, cert. Never holds the topic itself. Keeps the last 200.
 log_event() {
     mkdir -p "$STATE_DIR"
     printf '%s|%s|%s\n' "$(date +%s)" "$1" "${2//$'\n'/ }" >> "$EVENTS_FILE"
@@ -203,6 +208,62 @@ tally_check() {
         tail -n 14 "$TALLY_FILE" > "$TALLY_FILE.tmp" && mv "$TALLY_FILE.tmp" "$TALLY_FILE"
     fi
     return 0
+}
+
+# Disk space and the certificate are warnings, not outages: one alert when
+# one goes wrong and one when it's fine again, kept in <name>-state.
+# Args: name, now (bad|ok), then the alert and event text for each way.
+flag_change() {
+    local f="$STATE_DIR/$1-state" was msg event
+    was=$(cat "$f" 2>/dev/null || echo ok)
+    [[ "$was" == "$2" ]] && return 0
+    echo "$2" > "$f"
+    if [[ "$2" == bad ]]; then msg=$3 event=$4; else msg=$5 event=$6; fi
+    local what=alert sent="Alert sent."
+    [[ "$2" == ok ]] && what=all-clear sent="All-clear sent."
+    if send_ntfy "$msg"; then
+        log_event "$1" "$event $sent"
+    else
+        log_event "$1" "$event The $what couldn't be sent (ntfy.sh unreachable)."
+    fi
+    return 0
+}
+
+check_disk() {
+    local pct avail free was now
+    read -r pct avail < <(df -P -B1 "$INSTALL_DIR" 2>/dev/null | awk 'NR == 2 {sub("%", "", $5); print $5, $4}') || return 0
+    [[ "$pct" =~ ^[0-9]+$ && "$avail" =~ ^[0-9]+$ ]] || return 0
+    free=$(numfmt --to=iec --suffix=B "$avail" 2>/dev/null || echo "$avail bytes")
+    was=$(cat "$STATE_DIR/disk-state" 2>/dev/null || echo ok)
+    if (( pct >= DISK_WARN_PCT )); then now=bad
+    elif (( pct < DISK_CLEAR_PCT )); then now=ok
+    else now=$was
+    fi
+    flag_change disk "$now" \
+        "⚠️ AIOStreams: the server's disk is ${pct}% full (${free} free). Things start failing when it fills. See what's using it: sudo docker system df" \
+        "Disk ${pct}% full, ${free} free." \
+        "✅ AIOStreams: disk space is fine again (${pct}% used, ${free} free)." \
+        "Disk back to ${pct}% used, ${free} free."
+}
+
+# Every 6 hours is plenty: Caddy renews weeks ahead. Asks this server's own
+# port 443, like the site check. A certificate that's already broken is the
+# site check's job.
+check_cert() {
+    local stamp="$STATE_DIR/cert-checked" domain end days
+    if [[ -f "$stamp" ]] && (( $(date +%s) - $(stat -c %Y "$stamp") < 21600 )); then return 0; fi
+    touch "$stamp"
+    domain=$(site_domain)
+    [[ -n "$domain" ]] || return 0
+    end=$(echo | timeout 10 openssl s_client -connect 127.0.0.1:443 -servername "$domain" 2>/dev/null \
+        | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2) || true
+    [[ -n "$end" ]] || return 0
+    days=$(( ( $(date -d "$end" +%s) - $(date +%s) ) / 86400 ))
+    flag_change cert "$( (( days < CERT_WARN_DAYS )) && echo bad || echo ok)" \
+        "⚠️ AIOStreams: the HTTPS certificate for $domain runs out in $days days and Caddy hasn't renewed it. Check: docker logs caddy" \
+        "The certificate for $domain runs out in $days days and hasn't been renewed." \
+        "✅ AIOStreams: the HTTPS certificate for $domain was renewed ($days days left)." \
+        "Certificate for $domain renewed, $days days left."
 }
 
 send_ntfy() {
@@ -249,6 +310,9 @@ do_run_check() {
             echo "down" > "$ALERTSTATE_FILE"
         fi
     fi
+
+    check_disk || true
+    check_cert || true
 }
 
 # "about 4 min", "about 2 h"

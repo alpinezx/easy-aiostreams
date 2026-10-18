@@ -20,7 +20,7 @@ function parseCheck(line) {
 
 const KIND = {
   fail: ["Failed", "warn"], alert: ["Alert sent", "bad"], recovered: ["Recovered", "ok"],
-  start: ["Started", ""], stop: ["Stopped", ""], test: ["Test alert", ""], topic: ["Topic", ""], reboot: ["Restarted", ""],
+  start: ["Started", ""], stop: ["Stopped", ""], test: ["Test alert", ""], topic: ["Topic", ""], reboot: ["Restarted", ""], disk: ["Disk space", ""], cert: ["Certificate", ""],
 };
 
 function when(at) {
@@ -109,9 +109,11 @@ function render(w) {
   }
   const chk = parseCheck(w.last_check);
   const down = w.alert_state === "down";
+  const warns = (w.warnings || []).map((x) => ({ disk: "disk nearly full", cert: "certificate not renewing" })[x] || x);
   const [lamp, word] = !w.running ? ["", "Stopped, no checks running"]
     : down ? ["down", "Something's down, alert sent"]
-      : w.fails ? ["degraded", "A check just failed"] : ["ok", "Watching"];
+      : w.fails ? ["degraded", "A check just failed"]
+        : warns.length ? ["degraded", `Watching: ${warns.join(", ")}`] : ["ok", "Watching"];
   const passed = chk.result === "OK";
   const result = !w.running ? "No checks while stopped"
     : passed ? "All checks passed" : chk.result.replace(/^FAIL:\s*/, "") || "No check yet";
