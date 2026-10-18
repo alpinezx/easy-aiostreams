@@ -39,7 +39,7 @@ It works on any install. The site, restart, disk and certificate checks always r
 
 Switched from the control panel's Phone alerts page, or over SSH with `sudo bash setup-watchdog.sh set-option <name> <value>`:
 
-9. **A new AIOStreams release** (`set-option updates on`). Every 6 hours it asks GitHub for the latest stable release, compares it with the version running, and alerts once per new release, with how to update (tapping it opens the panel's Overview, where Update is). Stable only: nightly builds come out daily, so an alert for each would be noise.
+9. **A new AIOStreams release** (`set-option updates on`). Every 6 hours it asks GitHub for the latest stable release, compares it with the version running, and alerts once per new release, with how to update (its Open panel button opens the panel's Overview, where Update is). Stable only: nightly builds come out daily, so an alert for each would be noise.
 10. **Weekly check-in** (`set-option weekly on`). Once a week: the last 7 days' checks (from the daily tally), alerts and restarts (from the event list) and disk space. It goes out on the first check after the chosen hour on the chosen day, `set-option weekly_day 1-7` (Monday to Sunday) and `set-option weekly_hour 0-23`, Sunday 10:00 to start with, by the **server's clock**: `timedatectl` shows its time zone, `sudo timedatectl set-timezone Europe/London` (your own Area/City) changes it. Its real job is to fail visibly: a watchdog that has stopped working shows by the check-in not arriving.
 
 ---
@@ -61,7 +61,7 @@ Each alert has a title, an icon and a priority, so your phone can treat them dif
 | ✅ AIOStreams is back, 🔄 Server restarted, 📦 Update available, 🔔 Test alert | normal (3) |
 | ✅ disk or certificate fine again, 📅 Weekly check-in | low (2): arrives quietly |
 
-With the [control panel](./control-panel.md) installed, tapping an alert opens its Phone alerts page (the update alert opens the Overview).
+With the [control panel](./control-panel.md) installed, each alert has an **Open panel** button that opens its Phone alerts page (the update alert's opens the Overview). Tapping the alert itself just opens it in ntfy.
 
 ## When it stays quiet on purpose
 

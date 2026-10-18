@@ -55,7 +55,7 @@ If nothing shows up within a few seconds, don't move on yet. See the [advanced g
 - **⚠️ Disk nearly full** at 90%, and **⚠️ Certificate not renewing** if Caddy hasn't renewed it with 10 days left. Each sends a quiet all-clear once it's fine again.
 - **Silence when you stop something on purpose** from its own menu (Stop AIOStreams in `setup-aiostreams.sh` or the control panel, Stop in `setup-mediaflow.sh`), or turn the VPN off. Only unexpected stops alert.
 
-Tapping an alert opens the control panel's **Phone alerts** page, if you have the [control panel](./control-panel.md).
+With the [control panel](./control-panel.md), each alert has an **Open panel** button that opens its **Phone alerts** page.
 
 Two more you can switch on, from the control panel's Phone alerts page (both off to start with):
 - **When a new AIOStreams release is out**: one alert per stable release, with how to update.

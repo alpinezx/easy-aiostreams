@@ -276,8 +276,8 @@ check_cert() {
         "Certificate for $domain renewed, $days days left."
 }
 
-# The control panel's address, if it's installed, so tapping an alert opens
-# its Phone alerts page.
+# The control panel's address, if it's installed, for the alert's
+# "Open panel" button (its Phone alerts page).
 panel_domain() {
     awk 'NF && $1 !~ /^#/ && $2 == "{" {print $1; exit}' "$INSTALL_DIR/caddy.d/60-ui.caddy" 2>/dev/null || true
 }
@@ -312,7 +312,7 @@ check_updates() {
     [[ "$(cat "$STATE_DIR/update-notified" 2>/dev/null)" == "$latest" ]] && return 0
     echo "$latest" > "$STATE_DIR/update-notified"
     local how="Update with: sudo bash setup-aiostreams.sh, option 5."
-    [[ -n "$(panel_domain)" ]] && how="Tap here, then Update on the control panel's Overview (it offers a backup first)."
+    [[ -n "$(panel_domain)" ]] && how="Use Open panel, then Update on the Overview (it offers a backup first)."
     if send_ntfy "AIOStreams $latest is out; this server runs $running. $how" \
         "Update available" 3 package overview; then
         log_event update "AIOStreams $latest is out (this server runs $running). Alert sent."
@@ -370,7 +370,8 @@ send_ntfy() {
     local args=(-fsS -m 15 -H "Title: $title" -H "Priority: $prio")
     [[ -n "$tags" ]] && args+=(-H "Tags: $tags")
     panel=$(panel_domain)
-    [[ -n "$panel" ]] && args+=(-H "Click: https://$panel/#$page")
+    # A button under the alert rather than a tap action, so tapping the alert just opens it in ntfy
+    [[ -n "$panel" ]] && args+=(-H "Actions: view, Open panel, https://$panel/#$page")
     curl "${args[@]}" -d "$msg" "https://ntfy.sh/$topic" >/dev/null 2>&1 || { warn "Couldn't reach ntfy.sh."; return 1; }
 }
 
