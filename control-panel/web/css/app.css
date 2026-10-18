@@ -127,20 +127,22 @@ body { padding-left: var(--rail); }
     border-bottom: 1px solid var(--line-soft);
   }
   .rail {
-    z-index: 45; width: min(300px, 86vw); align-items: stretch; gap: 18px; padding: 14px 14px 18px;
+    z-index: 45; width: min(300px, 86vw); align-items: stretch; gap: 14px; padding: 12px 14px 14px;
     border-right-color: var(--line); box-shadow: 24px 0 60px rgba(0, 0, 0, .35);
     transform: translateX(-100%); visibility: hidden; transition: transform .2s ease-out, visibility 0s .2s;
   }
   .rail.open { transform: none; visibility: visible; transition: transform .2s ease-out; }
   .nav-x { display: grid; position: absolute; top: 10px; right: 10px; }
-  .rail-top { padding: 26px 0 4px; }
-  .rail-logo svg { width: 44px; height: 44px; }
-  .rail-name { display: block; margin-top: 10px; font-weight: 650; }
+  /* logo and name, then the version and Demo data side by side */
+  .rail-top { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 6px 0 2px; }
+  .rail-logo { flex: 0 0 100%; }
+  .rail-logo svg { width: 38px; height: 38px; }
+  .rail-name { display: block; margin-top: 6px; font-weight: 650; }
   .page-brand { display: none; }
-  .rail-links, .rail-end { justify-items: stretch; gap: 4px; }
-  .rail .tab { width: auto; height: 48px; display: flex; align-items: center; gap: 14px; padding: 0 16px; font-size: 1rem; font-weight: 500; }
+  .rail-links, .rail-end { justify-items: stretch; gap: 2px; }
+  .rail .tab { width: auto; height: 44px; display: flex; align-items: center; gap: 14px; padding: 0 16px; font-size: 1rem; font-weight: 500; }
   .rail .lbl { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
-  .rail-end { padding-top: 12px; border-top: 1px solid var(--line-soft); }
+  .rail-end { padding-top: 10px; border-top: 1px solid var(--line-soft); }
   .nav-scrim { position: fixed; inset: 0; z-index: 44; background: rgba(5, 4, 10, .55); }
   .offline { left: 50%; top: 66px; }
   .tip { display: none !important; }
