@@ -29,7 +29,9 @@ ALERTSTATE_FILE="$STATE_DIR/alert-state"
 LASTCHECK_FILE="$STATE_DIR/last-check"
 EVENTS_FILE="$STATE_DIR/events"     # what happened, newest last: "epoch|kind|text"
 TALLY_FILE="$STATE_DIR/tally"       # checks per day: "YYYY-MM-DD passed failed"
-ALIVE_FILE="$STATE_DIR/last-alive"  # when the last check ran, to tell how long a reboot took
+ALIVE_FILE="$STATE_DIR/last-alive"  # when the last check ran
+SHUTDOWN_FILE="$STATE_DIR/shutdown-at"  # written as the server shuts down cleanly
+BOOT_ID_FILE="$STATE_DIR/boot-reported" # the kernel's boot ID once that boot is reported
 OPTIONS_FILE="$STATE_DIR/options"   # extra alerts: "updates=on", "weekly=on", and the
                                     # check-in's "weekly_day=7" (1 Mon .. 7 Sun), "weekly_hour=10"
 SCRIPT_COPY="$STATE_DIR/watchdog.sh"
@@ -414,42 +416,64 @@ do_run_check() {
     check_weekly || true
 }
 
-# "about 4 min", "about 2 h"
+# "7 seconds", "about 4 min", "about 2 h"
 rough_duration() {
     local s=$1
-    if (( s < 180 )); then echo "a minute or two"
+    if (( s < 90 )); then echo "$s second$( (( s == 1 )) || echo s)"
     elif (( s < 5400 )); then echo "about $(( (s + 30) / 60 )) min"
     elif (( s < 172800 )); then echo "about $(( (s + 1800) / 3600 )) h"
     else echo "about $(( (s + 43200) / 86400 )) days"
     fi
 }
 
-# Runs once at every boot (aiostreams-watchdog-boot.service), while the
-# watchdog is on. How long the server was down comes from the last check
-# before it went (they run every couple of minutes), so it's rough.
+# aiostreams-watchdog-boot.service stays "active" from boot to shutdown, so
+# systemd runs --shutdown as the server goes down cleanly. Its timestamp
+# tells the next boot exactly how long the server was off.
+do_shutdown() {
+    mkdir -p "$STATE_DIR"
+    date +%s > "$SHUTDOWN_FILE"
+}
+
+# Runs at every boot while the watchdog is on. A clean shutdown left its
+# time behind; without one (a crash, a power cut, a forced reset by the
+# host) the last check, from at most a couple of minutes before, says when
+# it was last seen. Only alerts once per boot, and only in its first 15
+# minutes, so starting the unit by hand (Start, a restore) sends nothing.
 do_boot() {
     mkdir -p "$STATE_DIR"
-    local now boot_at last when down="" sent=0 attempt
+    local now up boot_at last shut when down="" sent=0 attempt boot_id
     now=$(date +%s)
-    boot_at=$(( now - $(cut -d. -f1 /proc/uptime) ))
+    up=$(cut -d. -f1 /proc/uptime)
+    boot_at=$(( now - up ))
+    shut=$(cat "$SHUTDOWN_FILE" 2>/dev/null || echo 0)
+    rm -f "$SHUTDOWN_FILE"
+    boot_id=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null || echo unknown)
+    [[ "$(cat "$BOOT_ID_FILE" 2>/dev/null)" == "$boot_id" ]] && return 0
+    echo "$boot_id" > "$BOOT_ID_FILE"
+    (( up < 900 )) || return 0
     last=$(cat "$ALIVE_FILE" 2>/dev/null || echo 0)
     [[ "$last" =~ ^[0-9]+$ ]] || last=0
+    [[ "$shut" =~ ^[0-9]+$ ]] || shut=0
     when=$(date -d "@$boot_at" '+%H:%M')
-    (( last > 0 && boot_at > last )) && down=" It was down for $(rough_duration $(( boot_at - last )))."
+    if (( shut > 0 && shut <= boot_at && shut >= last )); then
+        down=" after a clean shutdown. It was down for $(rough_duration $(( boot_at - shut )))"
+    elif (( last > 0 && last < boot_at )); then
+        down=" without a clean shutdown (a crash or power cut?). It was last seen at $(date -d "@$last" '+%H:%M')"
+    fi
     # The webhook relay can send its own reboot notification; one is enough
     if systemctl is-enabled --quiet "$WEBHOOK_BOOT_UNIT" 2>/dev/null; then
-        log_event reboot "Server restarted at $when.$down The webhook relay sent the notification."
+        log_event reboot "Server restarted at $when$down. The webhook relay sent the notification."
         return 0
     fi
     # A few tries: the network can take a moment after boot
     for attempt in 1 2 3 4 5 6; do
-        if send_ntfy "The server restarted at $when.$down" "Server restarted" 3 arrows_counterclockwise; then sent=1; break; fi
+        if send_ntfy "The server restarted at $when$down." "Server restarted" 3 arrows_counterclockwise; then sent=1; break; fi
         sleep 10
     done
     if (( sent )); then
-        log_event reboot "Server restarted at $when.$down Alert sent."
+        log_event reboot "Server restarted at $when$down. Alert sent."
     else
-        log_event reboot "Server restarted at $when.$down The alert couldn't be sent (ntfy.sh unreachable)."
+        log_event reboot "Server restarted at $when$down. The alert couldn't be sent (ntfy.sh unreachable)."
     fi
     return 0
 }
@@ -540,8 +564,10 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
+RemainAfterExit=yes
 Environment=HOME=$HOME
 ExecStart=/bin/bash $SCRIPT_COPY --boot
+ExecStop=/bin/bash $SCRIPT_COPY --shutdown
 
 [Install]
 WantedBy=multi-user.target
@@ -555,13 +581,14 @@ do_start() {
     install_systemd_units
     systemctl enable --now aiostreams-watchdog.timer
     systemctl enable aiostreams-watchdog-boot.service >/dev/null 2>&1 || true
+    systemctl start aiostreams-watchdog-boot.service >/dev/null 2>&1 || true   # records this boot's shutdown; sends nothing now
     log_event start "Watchdog started."
     info "Watchdog started, checking every $CHECK_INTERVAL (alerts after $FAIL_THRESHOLD consecutive failures)."
 }
 
 do_stop() {
     systemctl disable --now aiostreams-watchdog.timer 2>/dev/null || true
-    systemctl disable aiostreams-watchdog-boot.service 2>/dev/null || true
+    systemctl disable --now aiostreams-watchdog-boot.service 2>/dev/null || true
     mkdir -p "$STATE_DIR"
     echo "$(date '+%d %b %Y, %H:%M:%S %Z') STOPPED (watchdog disabled, no checks running)" > "$LASTCHECK_FILE"
     log_event stop "Watchdog stopped."
@@ -635,7 +662,7 @@ do_uninstall() {
         *) echo "Cancelled."; return ;;
     esac
     systemctl disable --now aiostreams-watchdog.timer 2>/dev/null || true
-    systemctl disable aiostreams-watchdog-boot.service 2>/dev/null || true
+    systemctl disable --now aiostreams-watchdog-boot.service 2>/dev/null || true
     rm -f "$SERVICE_FILE" "$TIMER_FILE" "$BOOT_SERVICE_FILE"
     systemctl daemon-reload
     rm -rf "$STATE_DIR"
@@ -649,6 +676,11 @@ fi
 
 if [[ "${1:-}" == "--boot" ]]; then
     do_boot
+    exit 0
+fi
+
+if [[ "${1:-}" == "--shutdown" ]]; then
+    do_shutdown
     exit 0
 fi
 
@@ -697,6 +729,7 @@ if [[ "${1:-}" == "install-timer" ]]; then
     install_systemd_units
     systemctl enable --now aiostreams-watchdog.timer
     systemctl enable aiostreams-watchdog-boot.service >/dev/null 2>&1 || true
+    systemctl start aiostreams-watchdog-boot.service >/dev/null 2>&1 || true   # records this boot's shutdown; sends nothing now
     log_event start "Watchdog started."
     exit 0
 fi
