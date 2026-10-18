@@ -678,6 +678,17 @@ class Backend:
             "every_min": 2, "threshold": 2,
         }
 
+    def clear_watchdog_events(self) -> None:
+        """Empties the Phone alerts page's event list (the daily tally stays).
+        The install folder is read-only here, so it's done on the host."""
+        path = str(config.INSTALL_DIR / "watchdog-state" / "events")
+        if not self.p("watchdog-state/config").exists():
+            raise ValueError("The watchdog isn't set up on this server.")
+        r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "sh", "-c",
+                            '[ ! -e "$1" ] || : > "$1"', "sh", path], capture_output=True, text=True, timeout=20)
+        if r.returncode != 0:
+            raise ValueError("Couldn't clear it.")
+
     def vpn_mode(self) -> str:
         """on, off or none, from the files alone (quick, unlike vpn_info)."""
         if "container_name: gluetun" in _read(self.p("docker-compose.yml")):

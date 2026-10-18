@@ -143,10 +143,23 @@ function render(w) {
       h("span", { class: "chip" + (cls ? " " + cls : ""), text: name }),
       h("span", { class: "wd-text", text: e.text })));
   }
-  box.append(h("h3", { class: "wd-sub", text: "Recent events" }),
+  box.append(h("div", { class: "wd-sub" }, h("h3", { text: "Recent events" }),
+    w.events.length ? h("button", { class: "btn small quiet", type: "button", text: "Clear history", onclick: clearEvents }) : null),
     w.events.length ? list : h("p", { class: "dim", text: "Nothing yet. Failed checks, alerts and recoveries show here." }));
   if (w.events.length > 12 && !showAll) box.append(h("button", { class: "btn small quiet", type: "button", text: `Show all ${w.events.length}`,
     onclick: () => { showAll = true; render(last); } }));
+}
+
+async function clearEvents() {
+  const ok = await ask({ title: "Clear the event history?", confirmLabel: "Clear history", danger: true,
+    body: "Removes every event from this list. The watchdog keeps checking, and new events show here as they happen. The 14-day strip stays." });
+  if (!ok) return;
+  try {
+    await api("/api/watchdog/events/clear", { method: "POST" });
+    showAll = false;
+    toast("Event history cleared.");
+    render(await api("/api/watchdog"));
+  } catch (e) { toast(e.message || "Couldn't clear it.", true); }
 }
 
 // Hard to guess but easy to read back: three groups of four from 31 characters with

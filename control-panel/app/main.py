@@ -295,6 +295,16 @@ async def watchdog(user: str = Depends(current_user)):
     return await asyncio.to_thread(backend.watchdog_info)
 
 
+@app.post("/api/watchdog/events/clear")
+async def watchdog_clear_events(user: str = Depends(current_user)):
+    """Clear history on the Phone alerts page."""
+    try:
+        await asyncio.to_thread(backend.clear_watchdog_events)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"cleared": True}
+
+
 @app.get("/api/vpn")
 async def vpn(fresh: bool = False, user: str = Depends(current_user)):
     """The VPN page: mode, endpoint and, with the tunnel on, where traffic leaves. Never the keys."""

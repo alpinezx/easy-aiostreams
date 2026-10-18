@@ -130,6 +130,9 @@ class DemoBackend:
     def vpn_mode(self) -> str:
         return self.vpn
 
+    def clear_watchdog_events(self) -> None:
+        self.wd_events = []
+
     def watchdog_info(self) -> dict:
         from .stack import mask_topic
         watches = ["https://streams.example.com"] + (["VPN tunnel", "AIOStreams through the VPN"] if self.vpn == "on" else []) + ["MediaFlow Proxy"]
