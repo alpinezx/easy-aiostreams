@@ -195,19 +195,22 @@ function extras(w) {
   // When the check-in goes out, shown while it's on
   const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   const day = h("select", { class: "input", "aria-label": "Day" }, ...DAYS.map((d, i) => h("option", { value: String(i + 1), text: d })));
-  const hour = h("select", { class: "input", "aria-label": "From" },
-    ...Array.from({ length: 24 }, (_, i) => h("option", { value: String(i), text: `${String(i).padStart(2, "0")}:00` })));
+  // Any time of day, to the minute; Set saves it (the day saves as soon as it's picked)
+  const time = h("input", { class: "input", type: "time", step: "60", value: opt.weekly_time || "10:00", "aria-label": "Time" });
+  const setBtn = h("button", { class: "btn small", type: "button", text: "Set" });
   day.value = String(opt.weekly_day || 7);
-  hour.value = String(opt.weekly_hour ?? 10);
-  for (const [sel, name] of [[day, "weekly_day"], [hour, "weekly_hour"]]) {
-    sel.addEventListener("change", async () => {
-      try { await save(name, Number(sel.value)); toast(`Check-in: ${DAYS[Number(day.value) - 1]}s from ${hour.selectedOptions[0].text}.`); }
-      catch (e) { toast(e.message || "Couldn't save it.", true); }
-    });
-  }
+  day.addEventListener("change", async () => {
+    try { await save("weekly_day", Number(day.value)); toast(`Check-in: ${DAYS[Number(day.value) - 1]}s from ${time.value}.`); }
+    catch (e) { toast(e.message || "Couldn't save it.", true); }
+  });
+  setBtn.addEventListener("click", async () => {
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time.value)) { toast("Pick a time, for example 10:15.", true); return; }
+    try { await save("weekly_time", time.value); toast(`Check-in: ${DAYS[Number(day.value) - 1]}s from ${time.value}.`); }
+    catch (e) { toast(e.message || "Couldn't save it.", true); }
+  });
   const when = h("div", { class: "wd-when-row", hidden: !opt.weekly },
-    h("span", { class: "dim", text: "Send it on" }), day, h("span", { class: "dim", text: "from" }), hour,
-    h("span", { class: "dim", text: tzNote(w.timezone) }));
+    h("span", { class: "dim", text: "Send it on" }), day, h("span", { class: "dim", text: "from" }), time, setBtn,
+    h("span", { class: "dim", text: `${tzNote(w.timezone)}, within 2 minutes of it` }));
   return h("div", { class: "panel wd-opts" },
     h("h3", { text: "Also tell me" }),
     row("updates", "When a new AIOStreams release is out", w.stable === false

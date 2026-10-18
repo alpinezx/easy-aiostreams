@@ -72,7 +72,7 @@ class DemoBackend:
         self.removed_scripts: set[str] = set()
         self.wd_running = True
         self.wd_configured = True
-        self.wd_options = {"updates": False, "weekly": False, "weekly_day": 7, "weekly_hour": 10}
+        self.wd_options = {"updates": False, "weekly": False, "weekly_day": 7, "weekly_time": "10:00"}
         self.wd_topic = "aios-7f3k29xq81"
         now = time.time()
         # A quiet fortnight with one blip and one real outage, for the Phone alerts page
@@ -133,11 +133,15 @@ class DemoBackend:
         return self.vpn
 
     def set_watchdog_option(self, name: str, value) -> None:
+        from .stack import TIME_RE
         ok = (name in ("updates", "weekly") and isinstance(value, bool)) or \
             (name == "weekly_day" and type(value) is int and 1 <= value <= 7) or \
-            (name == "weekly_hour" and type(value) is int and 0 <= value <= 23)
+            (name == "weekly_time" and isinstance(value, str) and bool(TIME_RE.match(value.strip())))
         if not ok:
             raise ValueError("Unknown option.")
+        if name == "weekly_time":
+            hh, mm = value.strip().split(":")
+            value = f"{int(hh):02d}:{int(mm):02d}"
         self.wd_options[name] = value
 
     def clear_watchdog_events(self, which: str = "events") -> None:

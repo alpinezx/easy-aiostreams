@@ -33,7 +33,8 @@ ALIVE_FILE="$STATE_DIR/last-alive"  # when the last check ran
 SHUTDOWN_FILE="$STATE_DIR/shutdown-at"  # written as the server shuts down cleanly
 BOOT_ID_FILE="$STATE_DIR/boot-reported" # the kernel's boot ID once that boot is reported
 OPTIONS_FILE="$STATE_DIR/options"   # extra alerts: "updates=on", "weekly=on", and the
-                                    # check-in's "weekly_day=7" (1 Mon .. 7 Sun), "weekly_hour=10"
+                                    # check-in's "weekly_day=7" (1 Mon .. 7 Sun), "weekly_time=10:15"
+                                    # (older copies saved "weekly_hour=10", still read as 10:00)
 SCRIPT_COPY="$STATE_DIR/watchdog.sh"
 SERVICE_FILE="/etc/systemd/system/aiostreams-watchdog.service"
 TIMER_FILE="/etc/systemd/system/aiostreams-watchdog.timer"
@@ -285,6 +286,21 @@ panel_domain() {
 # send_ntfy <message> [title] [priority 1-5] [tags] [panel page, default alerts]
 # The tags are ntfy's emoji names, shown before the title. Priority 5 makes
 # the phone sound even on silent-ish settings, 2 arrives quietly.
+# Saves one setting in the options file (the panel writes the same lines)
+set_option() {
+    local k=$1 v=$2
+    [[ "$v" =~ ^[0-9]+$ ]] && v=$((10#$v))     # "07" -> 7: bash would read 07 as octal, and 08 not at all
+    if [[ "$k" == weekly_hour ]]; then k=weekly_time; v=$(printf '%02d:00' "$v"); fi
+    if [[ "$k" == weekly_time ]]; then v=$(printf '%02d:%02d' "$((10#${v%%:*}))" "$((10#${v##*:}))"); fi
+    mkdir -p "$STATE_DIR"
+    # a new time replaces an older copy's weekly_hour; anything else leaves it be
+    local drop="^$k="
+    [[ "$k" == weekly_time ]] && drop="^(weekly_time|weekly_hour)="
+    { grep -v -E "$drop" "$OPTIONS_FILE" 2>/dev/null || true; echo "$k=$v"; } > "$OPTIONS_FILE.tmp" \
+        && mv "$OPTIONS_FILE.tmp" "$OPTIONS_FILE"
+    echo "$k is now $v."
+}
+
 option_on() {
     grep -qx "$1=on" "$OPTIONS_FILE" 2>/dev/null
 }
@@ -322,18 +338,31 @@ check_updates() {
     return 0
 }
 
+weekly_day() {
+    grep -oP '^weekly_day=\K[1-7]$' "$OPTIONS_FILE" 2>/dev/null || echo 7
+}
+
+# HH:MM, from weekly_time, or an older weekly_hour, or 10:00
+weekly_time() {
+    local t h
+    t=$(grep -oP '^weekly_time=\K([01][0-9]|2[0-3]):[0-5][0-9]$' "$OPTIONS_FILE" 2>/dev/null) && { echo "$t"; return; }
+    h=$(grep -oP '^weekly_hour=\K([01]?[0-9]|2[0-3])$' "$OPTIONS_FILE" 2>/dev/null) && { printf '%02d:00\n' "$((10#$h))"; return; }
+    echo "10:00"
+}
+
 # Optional weekly check-in (Sundays from 10:00 unless set otherwise, by the
 # server's clock): the week's checks, alerts and disk space. Each check looks
 # whether it's due, so any day and hour works. If it ever stops arriving, the
 # watchdog itself needs a look.
 check_weekly() {
     option_on weekly || return 0
-    local now last since passed=0 failed=0 alerts=0 reboots=0 d p f at kind pct msg wday whour
+    local now last since passed=0 failed=0 alerts=0 reboots=0 d p f at kind pct msg wday wtime
     now=$(date +%s)
-    wday=$(grep -oP '^weekly_day=\K[1-7]$' "$OPTIONS_FILE" 2>/dev/null || echo 7)
-    whour=$(grep -oP '^weekly_hour=\K([01]?[0-9]|2[0-3])$' "$OPTIONS_FILE" 2>/dev/null || echo 10)
-    whour=$((10#$whour))
-    [[ "$(date +%u)" == "$wday" && "$(date +%-H)" -ge "$whour" ]] || return 0
+    wday=$(weekly_day)
+    wtime=$(weekly_time)
+    # due from that minute on (the first check at or after it, so within 2 minutes)
+    (( 10#$(date +%H) * 60 + 10#$(date +%M) >= 10#${wtime%%:*} * 60 + 10#${wtime##*:} )) || return 0
+    [[ "$(date +%u)" == "$wday" ]] || return 0
     last=$(cat "$STATE_DIR/weekly-sent" 2>/dev/null || echo 0)
     [[ "$last" =~ ^[0-9]+$ ]] || last=0
     (( now - last > 6 * 86400 )) || return 0
@@ -349,7 +378,7 @@ check_weekly() {
         [[ "$kind" == reboot ]] && reboots=$((reboots + 1))
     done < <(cat "$EVENTS_FILE" 2>/dev/null)
     pct=$(df -P "$INSTALL_DIR" 2>/dev/null | awk 'NR == 2 {print $5}')
-    msg="Last 7 days: $((passed + failed)) checks"
+    msg="Last 7 days: $((passed + failed)) check$( (( passed + failed == 1 )) || echo s)"
     (( failed )) && msg+=", $failed failed" || msg+=", all passed"
     (( alerts )) && msg+=", $alerts alert$( (( alerts > 1 )) && echo s) sent" || msg+=", no alerts"
     (( reboots )) && msg+=", $reboots restart$( (( reboots > 1 )) && echo s)"
@@ -481,6 +510,45 @@ do_boot() {
     return 0
 }
 
+# A topic that's hard to guess but easy to read back, like the control panel's:
+# aios-xxxx-xxxx-xxxx from 31 letters and digits with no look-alikes. od reads
+# exactly 12 bytes, so nothing closes a pipe early (with pipefail on, a
+# "tr | head" pipe would kill the script here).
+suggest_topic() {
+    local abc=abcdefghjkmnpqrstuvwxyz23456789 out="" n=0 b
+    for b in $(od -An -N12 -tu1 /dev/urandom); do
+        out+=${abc:$(( b % 31 )):1}
+        n=$((n + 1))
+        if (( n % 4 == 0 && n < 12 )); then out+="-"; fi
+    done
+    echo "aios-$out"
+}
+
+# Sets TOPIC, asking again until it's one ntfy accepts. Returns 1 if the
+# input ends (Ctrl+D) so nothing is saved.
+ask_topic() {
+    local suggestion
+    suggestion=$(suggest_topic)
+    while true; do
+        read -rp "Topic name [Enter to use '$suggestion']: " TOPIC || { echo; return 1; }
+        TOPIC="${TOPIC:-$suggestion}"
+        TOPIC="${TOPIC//[[:space:]]/}"
+        if ! valid_topic "$TOPIC"; then
+            warn "Letters, numbers, - and _ only (no #, spaces or other symbols), up to 64 characters."
+        elif (( ${#TOPIC} < 12 )); then
+            warn "At least 12 characters, so nobody can guess it."
+        else
+            return 0
+        fi
+    done
+}
+
+# The topic with most of it hidden: it works like a password
+mask_topic() {
+    local t=$1
+    if (( ${#t} >= 10 )); then echo "${t:0:5}••••••${t: -2}"; else echo "••••••••"; fi
+}
+
 do_configure() {
     mkdir -p "$STATE_DIR"
     chmod 700 "$STATE_DIR"
@@ -488,16 +556,7 @@ do_configure() {
     info "ntfy.sh alert topic"
     echo "This is just a name, think of it as a private URL. Pick something long"
     echo "and hard to guess (anyone who knows it can see your alerts)."
-    # $RANDOM rather than piping /dev/urandom through tr | head. That pipe
-    # dies to SIGPIPE the instant head closes it early, and with pipefail
-    # on (needed for this script's other error-checking) that silently
-    # kills the whole script here with no error message. Not cryptographic,
-    # just a convenience suggestion, type your own topic for something
-    # stronger.
-    local suggestion
-    suggestion="aios-${RANDOM}${RANDOM}"
-    read -rp "Topic name [Enter to use '$suggestion']: " TOPIC
-    TOPIC="${TOPIC:-$suggestion}"
+    ask_topic || return 0
 
     echo "NTFY_TOPIC=$TOPIC" > "$CONFIG_FILE"
     chmod 600 "$CONFIG_FILE"
@@ -598,30 +657,164 @@ do_stop() {
     echo "Watchdog stopped. Config and alert state are kept. Start picks up where it left off."
 }
 
+server_timezone() {
+    local tz
+    tz=$(readlink -f /etc/localtime 2>/dev/null) || true
+    tz=${tz##*/zoneinfo/}
+    echo "${tz:-$(date +%Z)}"
+}
+
+DAY_NAMES=(Monday Tuesday Wednesday Thursday Friday Saturday Sunday)
+
+extras_line() {
+    local u w
+    option_on updates && u="on" || u="off"
+    if option_on weekly; then
+        w="on, ${DAY_NAMES[$(( $(weekly_day) - 1 ))]}s from $(weekly_time) ($(server_timezone))"
+    else
+        w="off"
+    fi
+    echo "new releases $u; weekly check-in $w"
+}
+
+# One square per day for the last 14: green all passed, amber some failed, grey no checks
+days_strip() {
+    local n d line p f out=""
+    for n in 13 12 11 10 9 8 7 6 5 4 3 2 1 0; do
+        d=$(date -d "$n days ago" +%F)
+        line=$(grep -m1 "^$d " "$TALLY_FILE" 2>/dev/null) || line=""
+        read -r _ p f <<< "$line"
+        if [[ -z "$line" || $(( ${p:-0} + ${f:-0} )) -eq 0 ]]; then out+=$'\033[2m■\033[0m'
+        elif (( f > 0 )); then out+=$'\033[33m■\033[0m'
+        else out+=$'\033[32m■\033[0m'
+        fi
+    done
+    echo -e "$out"
+}
+
+today_line() {
+    local line p f n
+    line=$(grep -m1 "^$(date +%F) " "$TALLY_FILE" 2>/dev/null) || { echo "no checks yet"; return; }
+    read -r _ p f <<< "$line"
+    n=$((p + f))
+    if (( f )); then echo "$n check$( (( n == 1 )) || echo s), $f failed"
+    else echo "$n check$( (( n == 1 )) || echo s), all passed"
+    fi
+}
+
 do_status() {
     echo ""
-    local running=0
-    if systemctl is-active --quiet aiostreams-watchdog.timer 2>/dev/null; then
-        echo "Watchdog:     RUNNING (checking every $CHECK_INTERVAL)"
-        running=1
-    else
-        echo "Watchdog:     STOPPED"
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        echo "Not set up yet. Choose 2) Start."
+        return
     fi
-    if [[ -f "$CONFIG_FILE" ]]; then
-        echo "ntfy topic:   $(grep -oP 'NTFY_TOPIC=\K.*' "$CONFIG_FILE" 2>/dev/null || echo unknown)"
+    local running=0 last watches warns=()
+    systemctl is-active --quiet aiostreams-watchdog.timer 2>/dev/null && running=1
+    if (( running )); then
+        echo "Watchdog:      running, checks every $CHECK_INTERVAL_MIN min (alert after $FAIL_THRESHOLD failed in a row)"
     else
-        echo "ntfy topic:   not configured yet"
+        echo "Watchdog:      STOPPED, no checks running"
     fi
+    watches="https://$(site_domain), disk space, HTTPS certificate"
+    vpn_mode_on && watches+=", VPN tunnel, AIOStreams through the VPN"
+    mediaflow_configured && watches+=", MediaFlow Proxy"
+    echo "Watches:       $watches"
     if [[ -f "$LASTCHECK_FILE" ]]; then
-        echo "Last check:   $(cat "$LASTCHECK_FILE")"
+        last=$(cat "$LASTCHECK_FILE")
+        echo "Last check:    $last"
     fi
-    if [[ -f "$ALERTSTATE_FILE" ]]; then
-        if [[ "$running" -eq 1 ]]; then
-            echo "Alert state: $(cat "$ALERTSTATE_FILE")"
-        else
-            echo "Alert state: $(cat "$ALERTSTATE_FILE")  (last known, watchdog is stopped, not live)"
-        fi
+    [[ "$(cat "$ALERTSTATE_FILE" 2>/dev/null)" == down ]] && echo "Alert state:   DOWN, alert sent, waiting for it to recover"
+    [[ "$(cat "$STATE_DIR/disk-state" 2>/dev/null)" == bad ]] && warns+=("disk nearly full")
+    [[ "$(cat "$STATE_DIR/cert-state" 2>/dev/null)" == bad ]] && warns+=("certificate not renewing")
+    (( ${#warns[@]} )) && echo "Warnings:      ${warns[*]}"
+    echo "Today:         $(today_line)"
+    echo "Last 14 days:  $(days_strip)"
+    echo "Alert topic:   $(mask_topic "$(grep -oP 'NTFY_TOPIC=\K.*' "$CONFIG_FILE" 2>/dev/null)")"
+    echo "Extra alerts:  $(extras_line)"
+    return 0
+}
+
+# Change topic, then offer to start the watchdog if it isn't running
+do_change_topic() {
+    do_configure
+    [[ -f "$CONFIG_FILE" ]] || return 0
+    if ! systemctl is-active --quiet aiostreams-watchdog.timer 2>/dev/null; then
+        local c
+        read -rp "The watchdog isn't running. Start it now? [Y/n]: " c || return 0
+        [[ "$c" =~ ^[Nn] ]] || do_start
     fi
+    return 0
+}
+
+# Extra alerts: the optional ones, as on the panel's Phone alerts page
+do_extras() {
+    local c d t
+    [[ -f "$CONFIG_FILE" ]] || { warn "Set the watchdog up first (2) Start)."; return 0; }
+    while true; do
+        echo ""
+        echo "=== Extra alerts ==="
+        echo "1) New AIOStreams release: $(option_on updates && echo on || echo off)  (one alert per stable release)"
+        echo "2) Weekly check-in: $(option_on weekly && echo "on, ${DAY_NAMES[$(( $(weekly_day) - 1 ))]}s from $(weekly_time)" || echo off)"
+        echo "3) Set the check-in's day and time (server time: $(server_timezone))"
+        echo "0) Back"
+        read -rp "Choose [0-3]: " c || return 0
+        case "$c" in
+            1) option_on updates && set_option updates off || set_option updates on ;;
+            2) option_on weekly && set_option weekly off || set_option weekly on ;;
+            3)
+                echo "Days: 1 Monday, 2 Tuesday, 3 Wednesday, 4 Thursday, 5 Friday, 6 Saturday, 7 Sunday"
+                read -rp "Day [Enter for $(weekly_day)]: " d || return 0
+                d=${d:-$(weekly_day)}
+                [[ "$d" =~ ^[1-7]$ ]] || { warn "Pick 1 to 7."; continue; }
+                read -rp "Time, 24-hour HH:MM [Enter for $(weekly_time)]: " t || return 0
+                t=${t:-$(weekly_time)}
+                [[ "$t" =~ ^([01]?[0-9]|2[0-3]):[0-5][0-9]$ ]] || { warn "Use HH:MM, for example 10:15."; continue; }
+                set_option weekly_day "$d" >/dev/null
+                set_option weekly_time "$t" >/dev/null
+                echo "The check-in goes out on ${DAY_NAMES[$((d - 1))]}s from $(weekly_time), server time ($(server_timezone)), within 2 minutes of it."
+                [[ "$(date +%Z)" == UTC ]] && echo "This server is on UTC. For your own time: sudo timedatectl set-timezone Area/City (for example Europe/London)."
+                ;;
+            0|"") return 0 ;;
+            *) warn "Not a valid option." ;;
+        esac
+    done
+}
+
+# Recent events and the daily stats, with Clear history and Reset stats
+do_events() {
+    local c at kind text n=0
+    [[ -f "$CONFIG_FILE" ]] || { warn "Set the watchdog up first (2) Start)."; return 0; }
+    echo ""
+    echo "Today:         $(today_line)"
+    echo "Last 14 days:  $(days_strip)   (green all passed, amber some failed, grey none)"
+    echo ""
+    if [[ -s "$EVENTS_FILE" ]]; then
+        echo "Recent events, newest first:"
+        while IFS='|' read -r at kind text; do
+            [[ "$at" =~ ^[0-9]+$ ]] || continue
+            printf '  %s  %-9s %s\n' "$(date -d "@$at" '+%d %b %H:%M')" "$kind" "$text"
+            n=$((n + 1)); (( n >= 20 )) && break
+        done < <(tac "$EVENTS_FILE")
+    else
+        echo "No events yet. Failed checks, alerts and recoveries show here."
+    fi
+    echo ""
+    echo "1) Clear history   2) Reset stats   0) Back"
+    read -rp "Choose [0-2]: " c || return 0
+    case "$c" in
+        1) : > "$EVENTS_FILE"; echo "Event history cleared." ;;
+        2) : > "$TALLY_FILE"; echo "Stats reset. The 14 days start again from the next check." ;;
+    esac
+    return 0
+}
+
+do_check_now() {
+    echo ""
+    echo "Running every check once (nothing is saved or sent)..."
+    if run_checks; then echo "All checks passed."
+    else echo "FAILED: $FAIL_REASON"
+    fi
+    return 0
 }
 
 do_test_alert() {
@@ -718,13 +911,11 @@ fi
 # weekly_hour <0-23>: the optional alerts, without questions
 if [[ "${1:-}" == "set-option" ]]; then
     [[ ( "${2:-}" =~ ^(updates|weekly)$ && "${3:-}" =~ ^(on|off)$ ) || ( "${2:-}" == weekly_day && "${3:-}" =~ ^[1-7]$ )
-       || ( "${2:-}" == weekly_hour && "${3:-}" =~ ^([01]?[0-9]|2[0-3])$ ) ]] \
-        || error "Usage: set-option updates|weekly on|off, set-option weekly_day 1-7 (Mon-Sun), set-option weekly_hour 0-23"
+       || ( "${2:-}" == weekly_hour && "${3:-}" =~ ^([01]?[0-9]|2[0-3])$ )
+       || ( "${2:-}" == weekly_time && "${3:-}" =~ ^([01]?[0-9]|2[0-3]):[0-5][0-9]$ ) ]] \
+        || error "Usage: set-option updates|weekly on|off, set-option weekly_day 1-7 (Mon-Sun), set-option weekly_time HH:MM"
     [[ -f "$CONFIG_FILE" ]] || error "Not configured yet. Set the watchdog up first."
-    v=$3
-    [[ "$v" =~ ^[0-9]+$ ]] && v=$((10#$v))     # "07" -> 7: bash would read 07 as octal, and 08 not at all
-    { grep -v "^$2=" "$OPTIONS_FILE" 2>/dev/null || true; echo "$2=$v"; } > "$OPTIONS_FILE.tmp" && mv "$OPTIONS_FILE.tmp" "$OPTIONS_FILE"
-    echo "$2 is now $v."
+    set_option "$2" "$3"
     exit 0
 fi
 
@@ -747,6 +938,11 @@ if [[ "${1:-}" == "refresh" ]]; then
     exit 0
 fi
 
+if [[ "${1:-}" == "stop" ]]; then
+    do_stop
+    exit 0
+fi
+
 if [[ "${1:-}" == "test" ]]; then
     do_test_alert
     exit $?
@@ -762,6 +958,8 @@ if [[ "${1:-}" == "install-timer" ]]; then
     exit 0
 fi
 
+# When the input runs out (Ctrl+D, or a control panel that typed its answers
+# and closed), leave quietly rather than with an error.
 while true; do
     echo ""
     echo "=== AIOStreams Watchdog ==="
@@ -769,19 +967,25 @@ while true; do
     echo "2) Start"
     echo "3) Stop"
     echo "4) Send test alert"
-    echo "5) Reconfigure (change ntfy topic)"
-    echo "6) Uninstall"
-    echo "7) Exit"
-    read -rp "Choose an option [1-7]: " CHOICE
+    echo "5) Change topic"
+    echo "6) Extra alerts (new releases, weekly check-in)"
+    echo "7) Recent events and stats"
+    echo "8) Check now"
+    echo "9) Uninstall"
+    echo "0) Exit"
+    read -rp "Choose an option [0-9]: " CHOICE || exit 0
 
     case "$CHOICE" in
         1) do_status ;;
         2) do_start ;;
         3) do_stop ;;
         4) do_test_alert || true ;;
-        5) do_configure ;;
-        6) do_uninstall ;;
-        7) exit 0 ;;
+        5) do_change_topic ;;
+        6) do_extras ;;
+        7) do_events ;;
+        8) do_check_now ;;
+        9) do_uninstall ;;
+        0) exit 0 ;;
         *) warn "Not a valid option." ;;
     esac
 done

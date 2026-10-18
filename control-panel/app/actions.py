@@ -88,8 +88,9 @@ _STATIC: dict[str, Action] = {a.id: a for a in [
     Action("watchdog.start", "Start", "Starting", "Start finished", "setup-watchdog.sh",
            args=("install-timer",), timeout=60,
            needs=("setup-watchdog.sh", "watchdog-state/config")),
+    # "stop" for scripts that have it; an older script ignores it and reads the menu answers
     Action("watchdog.stop", "Stop", "Stopping", "Stop finished", "setup-watchdog.sh",
-           stdin="3\n7\n", timeout=60,
+           args=("stop",), stdin="3\n7\n", timeout=60,
            needs=("setup-watchdog.sh", "watchdog-state/config")),
     Action("watchdog.test", "Send test alert", "Sending", "Test alert sent", "setup-watchdog.sh",
            args=("test",), timeout=60,

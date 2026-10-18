@@ -110,6 +110,19 @@ ADDONS = {"mediaflow", "webhook"}
 RESTARTABLE = {"aiostreams", "mediaflow", "webhook"}
 
 
+TIME_RE = re.compile(r"^([01]?\d|2[0-3]):[0-5]\d$")
+
+
+def weekly_time(kv: dict) -> str:
+    """The weekly check-in's HH:MM: weekly_time, or an older script's weekly_hour, or 10:00."""
+    t = kv.get("weekly_time", "")
+    if TIME_RE.match(t):
+        hh, mm = t.split(":")
+        return f"{int(hh):02d}:{int(mm):02d}"
+    h = kv.get("weekly_hour", "")
+    return f"{int(h):02d}:00" if h.isdigit() and int(h) < 24 else "10:00"
+
+
 def mask_topic(topic: str) -> str | None:
     """Enough of the topic to tell which one it is, never enough to subscribe to it."""
     if not topic:
@@ -696,10 +709,10 @@ class Backend:
 
     def _watchdog_options(self) -> dict:
         kv = dict(l.split("=", 1) for l in _read(self.p("watchdog-state/options")).split() if "=" in l)
-        day, hour = kv.get("weekly_day", "7"), kv.get("weekly_hour", "10")
+        day = kv.get("weekly_day", "7")
         return {"updates": kv.get("updates") == "on", "weekly": kv.get("weekly") == "on",
                 "weekly_day": int(day) if day in {str(i) for i in range(1, 8)} else 7,
-                "weekly_hour": int(hour) if hour in {str(i) for i in range(24)} else 10}
+                "weekly_time": weekly_time(kv)}
 
     def set_watchdog_option(self, name: str, value) -> None:
         """The Phone alerts page's switches (update available, weekly check-in)
@@ -710,13 +723,16 @@ class Backend:
             text = "on" if value else "off"
         elif name == "weekly_day" and isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 7:
             text = str(value)
-        elif name == "weekly_hour" and isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= 23:
-            text = str(value)
+        elif name == "weekly_time" and isinstance(value, str) and TIME_RE.match(value.strip()):
+            hh, mm = value.strip().split(":")
+            text = f"{int(hh):02d}:{int(mm):02d}"
         else:
             raise ValueError("Unknown option.")
         if not self.p("watchdog-state/config").exists():
             raise ValueError("The watchdog isn't set up on this server.")
-        lines = [l for l in _read(self.p("watchdog-state/options")).split() if not l.startswith(name + "=")]
+        # a new time replaces an older script's weekly_hour, as the script's set-option does
+        drop = (name + "=",) + (("weekly_hour=",) if name == "weekly_time" else ())
+        lines = [l for l in _read(self.p("watchdog-state/options")).split() if not l.startswith(drop)]
         body = "\n".join(lines + [f"{name}={text}"]) + "\n"
         path = str(config.INSTALL_DIR / "watchdog-state" / "options")
         r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "sh", "-c",

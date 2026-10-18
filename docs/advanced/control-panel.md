@@ -54,10 +54,10 @@ It is still root-equivalent on your server, because it has to run the scripts an
 | Update | menu option 5, with the backup and build-channel answers from the dialog |
 | Back up now | `setup-aiostreams.sh backup` |
 | MediaFlow, webhook relay | `start-mediaflow`, `start-relay`, and menu option 3 for Stop |
-| Phone alerts: Start, Stop, Send test alert | `setup-watchdog.sh install-timer`, menu option 3, `test` |
-| Phone alerts: Uninstall | `setup-watchdog.sh uninstall` (menu option 6 without its question; the panel asks first) |
+| Phone alerts: Start, Stop, Send test alert | `setup-watchdog.sh install-timer`, `stop` (with menu option 3 typed too, for older copies of the script), `test` |
+| Phone alerts: Uninstall | `setup-watchdog.sh uninstall` (menu option 9 without its question; the panel asks first) |
 | Phone alerts: Change topic | `setup-watchdog.sh set-topic`, with the topic on stdin (never on a command line or in Activity), then a test alert to it |
-| Phone alerts: the switches, the check-in's day and hour, Reset, Clear history | written straight to `watchdog-state/options`, `tally` and `events` (the script's `set-option` does the same over SSH) |
+| Phone alerts: the switches, the check-in's day and time, Reset, Clear history | written straight to `watchdog-state/options`, `tally` and `events` (the script's `set-option` does the same over SSH) |
 | Turn VPN on, Turn VPN off | `setup-vpn-gluetun.sh on`, `off` (the same steps as its menu options 2 and 3) |
 | Change server, Update VPN | `setup-vpn-gluetun.sh addresses` for the list, then `use-address <ip>`; `update` (menu option 5) |
 | Change config | `setup-vpn-gluetun.sh addresses <name>` for the new config's list, then `use-config <ip>` |

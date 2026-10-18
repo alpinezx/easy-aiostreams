@@ -298,7 +298,7 @@ async def watchdog(user: str = Depends(current_user)):
 @app.post("/api/watchdog/options")
 async def watchdog_option(request: Request, user: str = Depends(current_user)):
     """The Phone alerts page's settings: {"name": "updates"|"weekly", "on": bool},
-    or {"name": "weekly_day" (1 Mon .. 7 Sun) | "weekly_hour" (0-23), "value": int}."""
+    or {"name": "weekly_day", "value": 1 (Mon) .. 7 (Sun)}, or {"name": "weekly_time", "value": "HH:MM"}."""
     try:
         body = await request.json()
     except Exception:

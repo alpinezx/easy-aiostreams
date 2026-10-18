@@ -57,9 +57,9 @@ If nothing shows up within a few seconds, don't move on yet. See the [advanced g
 
 With the [control panel](./control-panel.md), each alert has an **Open panel** button that opens its **Phone alerts** page.
 
-Two more you can switch on, from the control panel's Phone alerts page (both off to start with):
+Two more you can switch on, from the script's **Extra alerts** menu or the control panel's Phone alerts page (both off to start with):
 - **When a new AIOStreams release is out**: one alert per stable release, with how to update.
-- **Weekly check-in**: the week's checks, alerts and disk space, on the day and hour you pick (Sunday from 10:00 to start with). If it ever stops arriving, the watchdog itself needs a look.
+- **Weekly check-in**: the week's checks, alerts and disk space, on the day and time you pick (Sunday from 10:00 to start with), within 2 minutes of it. If it ever stops arriving, the watchdog itself needs a look.
 
 The check-in goes by the server's clock, so check its time zone: `timedatectl` shows it, and `sudo timedatectl set-timezone Europe/London` (your own Area/City) changes it.
 
@@ -75,10 +75,13 @@ Over SSH, run the script again any time for a menu:
 ```bash
 sudo bash /opt/aiostreams/setup-watchdog.sh
 ```
-- **Status**: is it running, when did it last check, what the last check found, and the current alert state.
+- **Status**: is it running, what it watches, the last check, today's checks and the last 14 days, any standing warnings, the topic (mostly hidden) and the extra alerts.
 - **Start / Stop**: turn checking on or off. Config is kept either way.
 - **Send test alert**: fire a test message any time, without waiting for a real failure.
-- **Reconfigure**: change the ntfy topic.
+- **Change topic**: a new ntfy topic (it suggests one, and refuses anything ntfy wouldn't accept); it offers to start the watchdog if it's stopped.
+- **Extra alerts**: the release alert and the weekly check-in on or off, and the check-in's day and time.
+- **Recent events and stats**: what happened lately, newest first, with Clear history and Reset stats.
+- **Check now**: run every check once and see the result, without saving or sending anything.
 - **Uninstall**: clean removal (timer, services, saved state).
 
 **One limit:** if the whole server goes down, nothing on it can tell you. For that, point an outside uptime monitor at your domain as well; many free ones can send to ntfy too.
