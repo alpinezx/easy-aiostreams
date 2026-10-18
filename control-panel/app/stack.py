@@ -678,7 +678,7 @@ class Backend:
             "tally": tally,
             "watches": watches,
             "every_min": 2, "threshold": 2,
-            "options": {k: f"{k}=on" in _read(d / "options").split() for k in ("updates", "weekly")},
+            "options": self._watchdog_options(),
             "timezone": self._host_timezone(),
             "stable": bool(re.search(r"^\s*image:\s*viren070/aiostreams:latest\s*$", _read(self.p("docker-compose.yml")), re.M)),
         }
@@ -694,16 +694,30 @@ class Backend:
         tz = r.stdout.strip().split("/zoneinfo/")[-1] if r.returncode == 0 and "/zoneinfo/" in r.stdout else ""
         return tz or None
 
-    def set_watchdog_option(self, name: str, on: bool) -> None:
-        """The Phone alerts page's switches: update available, weekly check-in.
-        Kept in watchdog-state/options, which the script reads; written on the
-        host, since the install folder is read-only here."""
-        if name not in ("updates", "weekly"):
+    def _watchdog_options(self) -> dict:
+        kv = dict(l.split("=", 1) for l in _read(self.p("watchdog-state/options")).split() if "=" in l)
+        day, hour = kv.get("weekly_day", "7"), kv.get("weekly_hour", "10")
+        return {"updates": kv.get("updates") == "on", "weekly": kv.get("weekly") == "on",
+                "weekly_day": int(day) if day in {str(i) for i in range(1, 8)} else 7,
+                "weekly_hour": int(hour) if hour in {str(i) for i in range(24)} else 10}
+
+    def set_watchdog_option(self, name: str, value) -> None:
+        """The Phone alerts page's switches (update available, weekly check-in)
+        and the check-in's day and hour. Kept in watchdog-state/options, which
+        the script reads; written on the host, since the install folder is
+        read-only here."""
+        if name in ("updates", "weekly") and isinstance(value, bool):
+            text = "on" if value else "off"
+        elif name == "weekly_day" and isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 7:
+            text = str(value)
+        elif name == "weekly_hour" and isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= 23:
+            text = str(value)
+        else:
             raise ValueError("Unknown option.")
         if not self.p("watchdog-state/config").exists():
             raise ValueError("The watchdog isn't set up on this server.")
         lines = [l for l in _read(self.p("watchdog-state/options")).split() if not l.startswith(name + "=")]
-        body = "\n".join(lines + [f"{name}={'on' if on else 'off'}"]) + "\n"
+        body = "\n".join(lines + [f"{name}={text}"]) + "\n"
         path = str(config.INSTALL_DIR / "watchdog-state" / "options")
         r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "sh", "-c",
                             'cat > "$1.tmp" && mv "$1.tmp" "$1"', "sh", path],
@@ -711,10 +725,13 @@ class Backend:
         if r.returncode != 0:
             raise ValueError("Couldn't save it.")
 
-    def clear_watchdog_events(self) -> None:
-        """Empties the Phone alerts page's event list (the daily tally stays).
-        The install folder is read-only here, so it's done on the host."""
-        path = str(config.INSTALL_DIR / "watchdog-state" / "events")
+    def clear_watchdog_events(self, which: str = "events") -> None:
+        """Clear history (the event list) or Reset (the daily tally) on the
+        Phone alerts page. The install folder is read-only here, so it's done
+        on the host."""
+        if which not in ("events", "tally"):
+            raise ValueError("Unknown list.")
+        path = str(config.INSTALL_DIR / "watchdog-state" / which)
         if not self.p("watchdog-state/config").exists():
             raise ValueError("The watchdog isn't set up on this server.")
         r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "sh", "-c",

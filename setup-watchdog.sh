@@ -30,7 +30,8 @@ LASTCHECK_FILE="$STATE_DIR/last-check"
 EVENTS_FILE="$STATE_DIR/events"     # what happened, newest last: "epoch|kind|text"
 TALLY_FILE="$STATE_DIR/tally"       # checks per day: "YYYY-MM-DD passed failed"
 ALIVE_FILE="$STATE_DIR/last-alive"  # when the last check ran, to tell how long a reboot took
-OPTIONS_FILE="$STATE_DIR/options"   # extra alerts switched on: "updates=on", "weekly=on"
+OPTIONS_FILE="$STATE_DIR/options"   # extra alerts: "updates=on", "weekly=on", and the
+                                    # check-in's "weekly_day=7" (1 Mon .. 7 Sun), "weekly_hour=10"
 SCRIPT_COPY="$STATE_DIR/watchdog.sh"
 SERVICE_FILE="/etc/systemd/system/aiostreams-watchdog.service"
 TIMER_FILE="/etc/systemd/system/aiostreams-watchdog.timer"
@@ -317,13 +318,17 @@ check_updates() {
     return 0
 }
 
-# Optional weekly check-in, Sundays from 10:00: the week's checks, alerts
-# and disk space. If it ever stops arriving, the watchdog itself needs a look.
+# Optional weekly check-in (Sundays from 10:00 unless set otherwise, by the
+# server's clock): the week's checks, alerts and disk space. Each check looks
+# whether it's due, so any day and hour works. If it ever stops arriving, the
+# watchdog itself needs a look.
 check_weekly() {
     option_on weekly || return 0
-    local now last since passed=0 failed=0 alerts=0 reboots=0 d p f at kind pct msg
+    local now last since passed=0 failed=0 alerts=0 reboots=0 d p f at kind pct msg wday whour
     now=$(date +%s)
-    [[ "$(date +%u)" == 7 && "$(date +%-H)" -ge 10 ]] || return 0
+    wday=$(grep -oP '^weekly_day=\K[1-7]$' "$OPTIONS_FILE" 2>/dev/null || echo 7)
+    whour=$(grep -oP '^weekly_hour=\K([01]?[0-9]|2[0-3])$' "$OPTIONS_FILE" 2>/dev/null || echo 10)
+    [[ "$(date +%u)" == "$wday" && "$(date +%-H)" -ge "$whour" ]] || return 0
     last=$(cat "$STATE_DIR/weekly-sent" 2>/dev/null || echo 0)
     [[ "$last" =~ ^[0-9]+$ ]] || last=0
     (( now - last > 6 * 86400 )) || return 0
@@ -667,9 +672,12 @@ if [[ "${1:-}" == "set-topic" ]]; then
     exit $?
 fi
 
-# set-option <updates|weekly> <on|off>: the optional alerts, without questions
+# set-option <updates|weekly> <on|off>, or set-option weekly_day <1-7> /
+# weekly_hour <0-23>: the optional alerts, without questions
 if [[ "${1:-}" == "set-option" ]]; then
-    [[ "${2:-}" =~ ^(updates|weekly)$ && "${3:-}" =~ ^(on|off)$ ]] || error "Usage: set-option updates|weekly on|off"
+    [[ ( "${2:-}" =~ ^(updates|weekly)$ && "${3:-}" =~ ^(on|off)$ ) || ( "${2:-}" == weekly_day && "${3:-}" =~ ^[1-7]$ )
+       || ( "${2:-}" == weekly_hour && "${3:-}" =~ ^([01]?[0-9]|2[0-3])$ ) ]] \
+        || error "Usage: set-option updates|weekly on|off, set-option weekly_day 1-7 (Mon-Sun), set-option weekly_hour 0-23"
     [[ -f "$CONFIG_FILE" ]] || error "Not configured yet. Set the watchdog up first."
     { grep -v "^$2=" "$OPTIONS_FILE" 2>/dev/null || true; echo "$2=$3"; } > "$OPTIONS_FILE.tmp" && mv "$OPTIONS_FILE.tmp" "$OPTIONS_FILE"
     echo "$2 is now $3."

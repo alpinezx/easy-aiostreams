@@ -129,7 +129,8 @@ function render(w) {
       cell("How often", `Every ${w.every_min} min, alert after ${w.threshold} failed in a row`)),
     h("div", { class: "wd-days-row" },
       h("div", {}, h("div", { class: "vpn-label", text: "Last 14 days" }), days(w.tally)),
-      h("div", { class: "dim wd-today", text: todayLine(w.tally) })),
+      h("div", { class: "wd-today-wrap" }, h("span", { class: "dim wd-today", text: todayLine(w.tally) }),
+        (w.tally || []).length ? h("button", { class: "btn small quiet", type: "button", text: "Reset", title: "Start the 14 days again", onclick: resetTally }) : null)),
     h("div", { class: "vpn-card-acts wd-topic" },
       h("div", { class: "wd-topic-what" }, h("span", { class: "vpn-label", text: "Alert topic" }),
         h("span", { class: "mono", text: w.topic || "none" })),
@@ -165,13 +166,15 @@ function tzNote(tz) {
 // The optional alerts, off until switched on. They take effect from the next check.
 function extras(w) {
   const opt = w.options || {};
-  const row = (name, title, text, disabled) => {
+  const save = (name, value) => api("/api/watchdog/options", { method: "POST", body: JSON.stringify({ name, value }) });
+  const row = (name, title, text, disabled, after) => {
     const input = h("input", { type: "checkbox", checked: !!opt[name], disabled: !!disabled });
     input.addEventListener("change", async () => {
       input.disabled = true;
       try {
-        await api("/api/watchdog/options", { method: "POST", body: JSON.stringify({ name, on: input.checked }) });
+        await save(name, input.checked);
         toast(`${title}: ${input.checked ? "on" : "off"}.`);
+        if (after) after.hidden = !input.checked;
       } catch (e) {
         input.checked = !input.checked;
         toast(e.message || "Couldn't save it.", true);
@@ -181,13 +184,40 @@ function extras(w) {
       h("span", {}, h("span", { class: "wd-opt-title", text: title }), h("span", { class: "dim wd-opt-text", text: text })),
       h("span", { class: "sw" }, input, h("i", { "aria-hidden": "true" })));
   };
+  // When the check-in goes out, shown while it's on
+  const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const day = h("select", { class: "input", "aria-label": "Day" }, ...DAYS.map((d, i) => h("option", { value: String(i + 1), text: d })));
+  const hour = h("select", { class: "input", "aria-label": "From" },
+    ...Array.from({ length: 24 }, (_, i) => h("option", { value: String(i), text: `${String(i).padStart(2, "0")}:00` })));
+  day.value = String(opt.weekly_day || 7);
+  hour.value = String(opt.weekly_hour ?? 10);
+  for (const [sel, name] of [[day, "weekly_day"], [hour, "weekly_hour"]]) {
+    sel.addEventListener("change", async () => {
+      try { await save(name, Number(sel.value)); toast(`Check-in: ${DAYS[Number(day.value) - 1]}s from ${hour.selectedOptions[0].text}.`); }
+      catch (e) { toast(e.message || "Couldn't save it.", true); }
+    });
+  }
+  const when = h("div", { class: "wd-when-row", hidden: !opt.weekly },
+    h("span", { class: "dim", text: "Send it on" }), day, h("span", { class: "dim", text: "from" }), hour,
+    h("span", { class: "dim", text: tzNote(w.timezone) }));
   return h("div", { class: "panel wd-opts" },
     h("h3", { text: "Also tell me" }),
     row("updates", "When a new AIOStreams release is out", w.stable === false
       ? "Only for the stable channel: this server runs nightly, which changes daily."
       : "One alert per stable release, with how to update.", w.stable === false),
-    row("weekly", "Weekly check-in", `Sundays after 10:00 ${tzNote(w.timezone)}: the week's checks, alerts and disk space. `
-      + "If it stops arriving, the watchdog itself needs a look."));
+    row("weekly", "Weekly check-in", "The week's checks, alerts and disk space. "
+      + "If it stops arriving, the watchdog itself needs a look.", false, when), when);
+}
+
+async function resetTally() {
+  const ok = await ask({ title: "Reset the 14-day stats?", confirmLabel: "Reset", danger: true,
+    body: "The day squares and today's count start again from the next check. The event history stays." });
+  if (!ok) return;
+  try {
+    await api("/api/watchdog/tally/clear", { method: "POST" });
+    toast("Stats reset.");
+    render(await api("/api/watchdog"));
+  } catch (e) { toast(e.message || "Couldn't reset them.", true); }
 }
 
 async function clearEvents() {
