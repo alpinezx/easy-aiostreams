@@ -212,16 +212,18 @@ tally_check() {
 
 # Disk space and the certificate are warnings, not outages: one alert when
 # one goes wrong and one when it's fine again, kept in <name>-state.
-# Args: name, now (bad|ok), then the alert and event text for each way.
+# Args: name, now (bad|ok), then for each way: title, message, event text.
 flag_change() {
-    local f="$STATE_DIR/$1-state" was msg event
+    local f="$STATE_DIR/$1-state" was title msg event prio tags
     was=$(cat "$f" 2>/dev/null || echo ok)
     [[ "$was" == "$2" ]] && return 0
     echo "$2" > "$f"
-    if [[ "$2" == bad ]]; then msg=$3 event=$4; else msg=$5 event=$6; fi
+    if [[ "$2" == bad ]]; then title=$3 msg=$4 event=$5 prio=4 tags=warning
+    else title=$6 msg=$7 event=$8 prio=2 tags=white_check_mark
+    fi
     local what=alert sent="Alert sent."
     [[ "$2" == ok ]] && what=all-clear sent="All-clear sent."
-    if send_ntfy "$msg"; then
+    if send_ntfy "$msg" "$title" "$prio" "$tags"; then
         log_event "$1" "$event $sent"
     else
         log_event "$1" "$event The $what couldn't be sent (ntfy.sh unreachable)."
@@ -240,9 +242,11 @@ check_disk() {
     else now=$was
     fi
     flag_change disk "$now" \
-        "⚠️ AIOStreams: the server's disk is ${pct}% full (${free} free). Things start failing when it fills. See what's using it: sudo docker system df" \
+        "Disk nearly full" \
+        "The server's disk is ${pct}% full (${free} free). Things start failing when it fills. See what's using it: sudo docker system df" \
         "Disk ${pct}% full, ${free} free." \
-        "✅ AIOStreams: disk space is fine again (${pct}% used, ${free} free)." \
+        "Disk space is fine again" \
+        "${pct}% used, ${free} free." \
         "Disk back to ${pct}% used, ${free} free."
 }
 
@@ -260,17 +264,32 @@ check_cert() {
     [[ -n "$end" ]] || return 0
     days=$(( ( $(date -d "$end" +%s) - $(date +%s) ) / 86400 ))
     flag_change cert "$( (( days < CERT_WARN_DAYS )) && echo bad || echo ok)" \
-        "⚠️ AIOStreams: the HTTPS certificate for $domain runs out in $days days and Caddy hasn't renewed it. Check: docker logs caddy" \
+        "Certificate not renewing" \
+        "The HTTPS certificate for $domain runs out in $days days and Caddy hasn't renewed it. Check: docker logs caddy" \
         "The certificate for $domain runs out in $days days and hasn't been renewed." \
-        "✅ AIOStreams: the HTTPS certificate for $domain was renewed ($days days left)." \
+        "Certificate renewed" \
+        "The HTTPS certificate for $domain was renewed ($days days left)." \
         "Certificate for $domain renewed, $days days left."
 }
 
+# The control panel's address, if it's installed, so tapping an alert opens
+# its Phone alerts page.
+panel_domain() {
+    awk 'NF && $1 !~ /^#/ && $2 == "{" {print $1; exit}' "$INSTALL_DIR/caddy.d/60-ui.caddy" 2>/dev/null || true
+}
+
+# send_ntfy <message> [title] [priority 1-5] [tags]
+# The tags are ntfy's emoji names, shown before the title. Priority 5 makes
+# the phone sound even on silent-ish settings, 2 arrives quietly.
 send_ntfy() {
-    local msg="$1" topic
+    local msg="$1" title="${2:-AIOStreams}" prio="${3:-3}" tags="${4:-}" topic panel
     topic=$(grep -oP 'NTFY_TOPIC=\K.*' "$CONFIG_FILE" 2>/dev/null || true)
     [[ -n "$topic" ]] || { warn "No ntfy topic configured, run Reconfigure first."; return 1; }
-    curl -fsS -d "$msg" "https://ntfy.sh/$topic" >/dev/null 2>&1 || { warn "Couldn't reach ntfy.sh."; return 1; }
+    local args=(-fsS -m 15 -H "Title: $title" -H "Priority: $prio")
+    [[ -n "$tags" ]] && args+=(-H "Tags: $tags")
+    panel=$(panel_domain)
+    [[ -n "$panel" ]] && args+=(-H "Click: https://$panel/#alerts")
+    curl "${args[@]}" -d "$msg" "https://ntfy.sh/$topic" >/dev/null 2>&1 || { warn "Couldn't reach ntfy.sh."; return 1; }
 }
 
 do_run_check() {
@@ -286,7 +305,7 @@ do_run_check() {
         tally_check ok
         echo 0 > "$FAILCOUNT_FILE"
         if [[ "$alert_state" == "down" ]]; then
-            if send_ntfy "✅ AIOStreams: all checks passing again."; then
+            if send_ntfy "All checks passing again." "AIOStreams is back" 3 white_check_mark; then
                 log_event recovered "All checks passing again. All-clear sent."
             else
                 log_event recovered "All checks passing again. The all-clear couldn't be sent (ntfy.sh unreachable)."
@@ -302,7 +321,7 @@ do_run_check() {
         echo "$fails" > "$FAILCOUNT_FILE"
         [[ "$fails" -eq 1 && "$alert_state" == "up" ]] && log_event fail "$FAIL_REASON"
         if [[ "$fails" -ge "$FAIL_THRESHOLD" && "$alert_state" == "up" ]]; then
-            if send_ntfy "🔴 AIOStreams: ${FAIL_REASON}."; then
+            if send_ntfy "${FAIL_REASON}." "AIOStreams is down" 5 rotating_light; then
                 log_event alert "Still failing on the next check. Alert sent."
             else
                 log_event alert "Still failing on the next check. The alert couldn't be sent (ntfy.sh unreachable)."
@@ -344,7 +363,7 @@ do_boot() {
     fi
     # A few tries: the network can take a moment after boot
     for attempt in 1 2 3 4 5 6; do
-        if send_ntfy "🔄 AIOStreams: the server restarted at $when.$down"; then sent=1; break; fi
+        if send_ntfy "The server restarted at $when.$down" "Server restarted" 3 arrows_counterclockwise; then sent=1; break; fi
         sleep 10
     done
     if (( sent )); then
@@ -383,7 +402,7 @@ do_configure() {
     echo -e "Subscribe first so you actually see it: open the ntfy app (or visit"
     echo -e "\033[1;36mhttps://ntfy.sh/$TOPIC\033[0m in a browser) and subscribe to topic '$TOPIC'."
     read -rp "Press Enter once you're subscribed and ready... "
-    if send_ntfy "🔔 Test alert from AIOStreams watchdog, if you see this, alerts are working."; then
+    if send_ntfy "If you see this, alerts are working." "Test alert" 3 bell; then
         echo "Sent. Confirm it arrived before continuing."
     else
         warn "Couldn't send it. Check network/DNS, then try option 4 (Send test alert) later."
@@ -497,7 +516,7 @@ do_status() {
 
 do_test_alert() {
     [[ -f "$CONFIG_FILE" ]] || error "Not configured yet, run Start first."
-    if send_ntfy "🔔 Test alert from AIOStreams watchdog."; then
+    if send_ntfy "If you see this, alerts from the AIOStreams watchdog are working." "Test alert" 3 bell; then
         log_event test "Test alert sent."
         echo "Sent. Check your device."
     else
