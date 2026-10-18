@@ -1,6 +1,7 @@
 import { $, h, clear, setText, fmtDur, fmtBytes, api, toast, ago, extIcon } from "./util.js";
 import { runAction, openJob, rebootServer, restartService } from "./actions.js";
 import { openReleases, remember, behind } from "./releases.js";
+import { days, todayLine } from "./alerts.js";
 
 // ---------------- update check ----------------
 let rel = null, relLoading = false, relFor = null, lastSt = null;
@@ -319,29 +320,43 @@ function meter(label, pct, right) {
     h("div", { class: "track", role: "img", "aria-label": `${label} ${Math.round(pct)} percent` }, fill));
 }
 
+// The Phone alerts card's 14-day strip comes from the watchdog's own page data,
+// fetched at most once a minute (the status poll runs every few seconds).
+let wdDays = null, wdDaysAt = 0, wdDaysLoading = false;
+async function loadWdDays() {
+  if (wdDaysLoading || Date.now() - wdDaysAt < 60000) return;
+  wdDaysLoading = true;
+  try { wdDays = (await api("/api/watchdog")).tally || []; wdDaysAt = Date.now(); if (lastSt) side(lastSt); }
+  catch (_) { wdDaysAt = Date.now(); }
+  finally { wdDaysLoading = false; }
+}
+
 function side(st) {
   const el = $("#side");
   const w = st.watchdog || {};
   const avail = Object.fromEntries(st.actions.map((a) => [a.id, a]));
   clear(el);   // small and cheap; its only buttons are the watchdog ones, rebuilt rarely enough below
   const hs = st.host || {};
-  const host = h("section", { class: "panel" }, h("h3", { text: "This server" }));
+  const host = h("section", { class: "panel host" }, h("h3", { text: "This server" }));
   // Facts first (what you'd glance at), then the meters, which change all the time.
   const kv = h("dl", { class: "kv host-facts" });
   if (hs.uptime != null) kv.append(h("dt", { text: "Up for" }), h("dd", { text: fmtDur(hs.uptime) }));
   if (st.cert) kv.append(h("dt", { text: "HTTPS certificate" }), h("dd", {}, certChip(st, false)));
   if (st.vpn === "on" || st.vpn === "off") kv.append(h("dt", { text: "VPN" }), h("dd", {}, vpnChip(st, st.vpn === "on" ? "On" : "Off")));
   if (kv.childElementCount) host.append(kv);
-  if (hs.load) host.append(meter("Load", (hs.load[0] / (hs.cpus || 1)) * 100, `${hs.load[0].toFixed(2)} on ${hs.cpus} CPU${hs.cpus > 1 ? "s" : ""}`));
-  if (hs.mem_total) host.append(meter("Memory", (hs.mem_used / hs.mem_total) * 100, `${fmtBytes(hs.mem_used)} of ${fmtBytes(hs.mem_total)}`));
-  if (hs.disk_total) host.append(meter("Disk", (hs.disk_used / hs.disk_total) * 100, `${fmtBytes(hs.disk_used)} of ${fmtBytes(hs.disk_total)}`));
+  // The meters in a box of their own: beside the facts on a wide screen, under them otherwise
+  const meters = h("div", { class: "meters" });
+  if (hs.load) meters.append(meter("Load", (hs.load[0] / (hs.cpus || 1)) * 100, `${hs.load[0].toFixed(2)} on ${hs.cpus} CPU${hs.cpus > 1 ? "s" : ""}`));
+  if (hs.mem_total) meters.append(meter("Memory", (hs.mem_used / hs.mem_total) * 100, `${fmtBytes(hs.mem_used)} of ${fmtBytes(hs.mem_total)}`));
+  if (hs.disk_total) meters.append(meter("Disk", (hs.disk_used / hs.disk_total) * 100, `${fmtBytes(hs.disk_used)} of ${fmtBytes(hs.disk_total)}`));
+  if (meters.childElementCount) host.append(meters);
   host.append(h("button", { class: "btn small danger reboot", type: "button", text: "Reboot server", onclick: rebootServer }));
   el.append(host);
 
   // Phone alerts are an optional add-on: the card only appears once they're set up, so it never
   // reads as something missing. The Scripts tab lists the add-on for anyone who wants it.
   if (!w.configured) return;
-  const wd = h("section", { class: "panel" }, h("h3", { class: "panel-head-link" }, h("span", { text: "Phone alerts" }),
+  const wd = h("section", { class: "panel wd" }, h("h3", { class: "panel-head-link" }, h("span", { text: "Phone alerts" }),
     h("a", { href: "#alerts", class: "dim", text: "Details" })));
   wd.append(h("dl", { class: "kv" },
     h("dt", { text: "Watchdog" }), h("dd", {}, h("span", { class: "chip " + (w.running ? "ok" : "warn"), text: w.running ? "Running" : "Stopped" })),
@@ -352,6 +367,12 @@ function side(st) {
   for (const [aid, cls] of [[id, ""], ["watchdog.test", "quiet"]]) {
     const a = avail[aid];
     if (a && a.available) btns.append(h("button", { class: `btn small ${cls}`, type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
+  }
+  loadWdDays();
+  if (wdDays && wdDays.length) {
+    wd.append(h("div", { class: "wd-mini" },
+      h("div", { class: "vpn-label", text: "Last 14 days" }), days(wdDays),
+      h("div", { class: "dim wd-today", text: todayLine(wdDays) })));
   }
   wd.append(btns);
   el.append(wd);

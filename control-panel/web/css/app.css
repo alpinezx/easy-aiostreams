@@ -152,7 +152,7 @@ body { padding-left: var(--rail); }
 }
 @media (prefers-reduced-motion: reduce) { .rail { transition: none !important; } }
 
-main { max-width: 1180px; margin: 0 auto; padding: 28px var(--gutter) 96px; }
+main { max-width: 1680px; margin: 0 auto; padding: 28px var(--gutter) 96px; }
 .view[hidden] { display: none; }
 
 /* ---------- buttons ---------- */
@@ -319,6 +319,8 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .wd-day[data-s="ok"] { background: var(--ok); opacity: .75; }
 .wd-day[data-s="warn"] { background: var(--warn); }
 .wd-today { font-size: .88rem; }
+.wd-mini { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-soft); display: grid; gap: 6px; }
+.wd-mini .vpn-label { margin: 0; }
 .wd-today-wrap { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; justify-content: flex-end; }
 .wd-when-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 0 14px; font-size: .88rem; }
 .wd-when-row[hidden] { display: none; }
@@ -768,14 +770,26 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 
 .brand { white-space: nowrap; }
 
-/* mid widths: the side panel leaves too little room for the sparkline plus three buttons */
-@media (min-width: 1011px) and (max-width: 1280px) {
-  .row { grid-template-columns: minmax(110px, 1fr) minmax(0, 1.4fr) 56px 70px 216px; gap: 10px; }
-  .row .spark-cell { display: none; }
+/* Wide screens: wide cards in rows, like AIOStreams' own dashboard. The version card,
+   then This server and Phone alerts side by side (This server alone takes the row),
+   then the request flow and the services, full width. Narrower screens keep one column
+   in the page's own order: version, request flow, services, then the server cards. */
+@media (min-width: 1141px) {
+  #view-overview:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr); }
+  #view-overview .cols { display: contents; }
+  #view-overview .hero { order: 1; }
+  #view-overview .side { order: 2; margin-bottom: 30px; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: stretch; }
+  #view-overview .path { order: 3; }
+  #view-overview .cols > div { order: 4; }
+  .panel.host { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 0 32px; align-content: start; }
+  .panel.host > h3, .panel.host > .reboot { grid-column: 1 / -1; }
+  .panel.host .kv.host-facts { border-bottom: 0; margin: 0; padding: 0; align-self: start; }
+  .panel.wd { display: flex; flex-direction: column; }
+  .panel.wd .kv { grid-template-columns: repeat(3, minmax(0, auto)); grid-template-rows: auto auto; grid-auto-flow: column; gap: 4px 32px; justify-content: start; }
+  .panel.wd .kv dd { text-align: left; }
+  .panel.wd .toolbar { margin-top: auto; padding-top: 14px; }
+  .panel.wd .wd-mini { margin-top: 18px; }
 }
-
-/* line the side cards up with the top of the services table, not its heading */
-@media (min-width: 1141px) { .side { margin-top: 38px; } }
 
 /* ---------- phones ---------- */
 @media (max-width: 720px) {

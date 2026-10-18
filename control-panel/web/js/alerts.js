@@ -74,7 +74,7 @@ function cell(label, ...value) {
 }
 
 // One square per day for the last 14: green all passed, amber some failed, faint no checks
-function days(tally) {
+export function days(tally) {
   const by = Object.fromEntries((tally || []).map((t) => [t.day, t]));
   const strip = h("div", { class: "wd-days", role: "list", "aria-label": "Checks per day, last 14 days" });
   for (let back = 13; back >= 0; back--) {
@@ -90,8 +90,8 @@ function days(tally) {
   return strip;
 }
 
-function todayLine(tally) {
-  const t = (tally || [])[tally.length - 1];
+export function todayLine(tally) {
+  const t = (tally || [])[(tally || []).length - 1];
   const d = new Date();
   const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   if (!t || t.day !== key) return "No checks yet today.";
