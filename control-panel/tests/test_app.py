@@ -38,7 +38,7 @@ def test_login_flow_and_cookie_flags(client):
     r = login(client)
     assert r.status_code == 200
     sc = r.headers["set-cookie"].lower()
-    assert "httponly" in sc and "samesite=strict" in sc
+    assert "httponly" in sc and "samesite=lax" in sc
     assert client.get("/api/me").json()["user"] == "me"
     assert client.get("/api/status").json()["services"]
     assert client.post("/api/logout").status_code == 200

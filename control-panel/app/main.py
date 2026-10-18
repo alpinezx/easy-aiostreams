@@ -113,7 +113,7 @@ async def login(request: Request, response: Response):
     token = auth.make_session(cfg.secret, cfg.user)
     secure = request.url.scheme == "https"
     response.set_cookie(COOKIE, token, max_age=config.SESSION_DAYS * 86400, httponly=True,
-                        secure=secure, samesite="strict", path="/")
+                        secure=secure, samesite="lax", path="/")   # lax: tapping a phone alert opens the panel
     return {"ok": True}
 
 

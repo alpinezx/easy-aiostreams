@@ -116,17 +116,21 @@ write_caddy_snippet() {
     mkdir -p "$CADDY_DROPIN_DIR"
     rm -f "${CADDY_SNIPPET}.rejected"
     # Visitors without the cookie get a plain 404, so the login page isn't
-    # even discoverable. Opening /unlock/<token> once sets the cookie.
+    # even discoverable. Opening /unlock/<token> once sets the cookie. It's
+    # SameSite=Lax, so a link from another app (tapping a phone alert) still
+    # gets in; Strict left those on "Not found". Every visit sets it again,
+    # which also moves older Strict cookies over.
     cat > "$CADDY_SNIPPET" << CADDY_EOF
 ${domain} {
     @unlock path /unlock/${token}
     handle @unlock {
-        header Set-Cookie "ui_gate=${token}; Path=/; Max-Age=31536000; HttpOnly; Secure; SameSite=Strict"
+        header Set-Cookie "ui_gate=${token}; Path=/; Max-Age=31536000; HttpOnly; Secure; SameSite=Lax"
         redir * / 302
     }
 
     @gated header Cookie *ui_gate=${token}*
     handle @gated {
+        header Set-Cookie "ui_gate=${token}; Path=/; Max-Age=31536000; HttpOnly; Secure; SameSite=Lax"
         reverse_proxy ${CONTAINER_NAME}:${INTERNAL_PORT}
     }
 
@@ -361,6 +365,23 @@ do_update() {
     exec bash "$PANEL_DIR/setup-ui.sh" rebuild
 }
 
+# A newer version of this script may write the Caddy site differently; bring
+# it up to date (same domain and unlock link) and reload Caddy only if it changed.
+refresh_caddy_snippet() {
+    [[ -f "$CADDY_SNIPPET" && -f "$GATE_FILE" && -f "$CONFIG_FILE" ]] || return 0
+    local before
+    before=$(cat "$CADDY_SNIPPET")
+    write_caddy_snippet "$(grep -oP '^DOMAIN=\K.*' "$CONFIG_FILE")" "$(cat "$GATE_FILE")"
+    [[ "$(cat "$CADDY_SNIPPET")" == "$before" ]] && return 0
+    if ! reload_caddy; then
+        # Caddy kept the old site running; put its file back so a restart keeps it too
+        printf '%s
+' "$before" > "$CADDY_SNIPPET"
+        rm -f "${CADDY_SNIPPET}.rejected"
+    fi
+    return 0
+}
+
 do_rebuild() {
     refuse_in_terminal && return
     info "Rebuilding from $PANEL_DIR"
@@ -368,6 +389,7 @@ do_rebuild() {
     write_compose
     (cd "$STATE_DIR" && docker compose -f "$UI_COMPOSE" build && docker compose -f "$UI_COMPOSE" up -d --force-recreate)
     wait_until_up || warn "The panel didn't answer within 30s. Check: docker logs $CONTAINER_NAME"
+    refresh_caddy_snippet
     echo "Rebuilt. Your login and unlock link are unchanged."
 }
 
