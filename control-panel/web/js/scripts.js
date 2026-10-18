@@ -124,8 +124,31 @@ async function loadCompare(force) {
   try { cmp = await api(`/api/scripts/compare${force ? "?force=1" : ""}`); }
   catch (e) { cmp = { files: {}, error: e.message }; }
   cmpLoading = false;
+  pill();
   if (last) render();
   if (force) toast(cmp.error ? `Couldn't compare with GitHub. ${cmp.error}` : "Compared with GitHub.", !!cmp.error);
+}
+
+// The "Script updates" pill at the top: how many rows here differ from GitHub's copy.
+// Checked once when the panel opens (GitHub's answer is kept for hours), and again
+// whenever the Scripts tab compares or updates.
+let statusScripts = null;
+export function checkScripts(status) {
+  statusScripts = (status && status.scripts) || statusScripts;
+  if (!cmpAsked) { cmpAsked = true; loadCompare(false); } else pill();
+}
+
+// The Overview rebuilds its top row now and then; it calls this to fill the pill in again
+export function pill() {
+  const rows = (last && last.status && last.status.scripts) || statusScripts || [];
+  const n = cmp && cmp.files && !cmp.error ? rows.filter((x) => x.present && differs(x)).length : 0;
+  const branch = cmp && cmp.branch && cmp.branch !== "main" ? ` (${cmp.branch} branch)` : "";
+  for (const el of [$("#scripts-pill")]) {
+    if (!el) continue;
+    el.hidden = !n;
+    el.textContent = n === 1 ? "Script update" : `${n} script updates`;
+    el.title = `${n === 1 ? "A script" : `${n} scripts`} here ${n === 1 ? "differs" : "differ"} from GitHub's copy${branch}. Update ${n === 1 ? "it" : "them"} on the Scripts tab.`;
+  }
 }
 
 export function show(status, terminalOn) {
@@ -155,7 +178,7 @@ function row(x, cmd, updateCmd, termOn) {
     : h("span", { class: "sdot-tag", "data-s": "off", text: "Not installed" })];
   if (x.present && differs(x)) {
     tags.push(h("span", { class: "chip warn small-chip", text: "Differs from GitHub",
-      title: "This copy doesn't match the one on GitHub's main branch. Update fetches GitHub's. (Expected while you're testing changes from dev.)" }));
+      title: `This copy doesn't match the one on GitHub (${(cmp && cmp.branch) || "main"} branch). Update fetches GitHub's.` }));
   }
   // An add-on's script that's still here once the add-on is uninstalled can go
   const removable = x.present && x.in_use === false && x.id !== "aiostreams";
@@ -170,12 +193,32 @@ function row(x, cmd, updateCmd, termOn) {
     h("span", { class: "cmd-btns" }, run,
       copyBtn("Copy", cmd, "Copied. Paste it into an SSH session or the Terminal tab.", cmd),
       // An invisible stand-in keeps the buttons lined up down the list.
-      updateCmd ? copyBtn("Update", updateCmd, "Copied. Paste it into an SSH session or the Terminal tab to fetch the newest version from GitHub.",
-          "Copies a command that fetches the newest version from GitHub, without running it")
+      updateCmd ? h("button", { class: "btn small quiet", type: "button", text: "Update",
+          title: `Replace it with GitHub's newest copy (${(cmp && cmp.branch) || "main"} branch)`, onclick: () => updateScript(x, updateCmd) })
         : h("span", { class: "btn small quiet btn-spacer", "aria-hidden": "true", text: "Update" }),
       removable ? h("button", { class: "btn small quiet danger", type: "button", text: "Remove",
         title: `Deletes ${x.file} from this server. ${x.label} isn't set up, so nothing else changes.`, onclick: () => removeScript(x) })
         : h("span", { class: "btn small quiet btn-spacer", "aria-hidden": "true", text: "Remove" })));
+}
+
+// Update replaces the script here with GitHub's main copy, checked before anything changes.
+// The command is still offered, for anyone who'd rather run it over SSH.
+async function updateScript(x, cmd) {
+  const files = [x.file, ...(UPDATE_WITH[x.id] || [])].join(" and ");
+  const copy = h("button", { class: "btn small quiet", type: "button", text: "Copy the command instead", onclick: async () => {
+    try { await navigator.clipboard.writeText(cmd); toast("Copied. Paste it into an SSH session or the Terminal tab."); } catch (_) { toast(cmd); }
+  } });
+  const ok = await ask({ title: `Update ${x.label}?`, confirmLabel: "Update",
+    body: `Replaces ${files} on this server with GitHub's newest copy (the ${(cmp && cmp.branch) || "main"} branch, which this panel follows). `
+      + "It's downloaded and checked first, so a failed download changes nothing.",
+    options: { el: h("div", { class: "opts upd-opts" }, copy), read: () => true } });
+  if (!ok) return;
+  try {
+    const r = await api(`/api/scripts/${encodeURIComponent(x.id)}/update`, { method: "POST" });
+    toast(`Updated ${r.updated.join(" and ")}.` + (r.note ? ` ${r.note}` : ""), false);
+    await loadCompare(false);
+    show(await api("/api/status"), last.terminalOn);
+  } catch (e) { toast(e.message || "Couldn't update it.", true); }
 }
 
 async function removeScript(x) {
@@ -214,7 +257,7 @@ function render() {
 
   const checked = cmpLoading ? "Comparing with GitHub…"
     : !cmp ? "" : cmp.error ? `Couldn't compare with GitHub: ${cmp.error}`
-    : `Compared with GitHub ${ago(cmp.checked_at)}.`;
+    : `Compared with GitHub${cmp.branch && cmp.branch !== "main" ? ` (${cmp.branch} branch, for testing)` : ""} ${ago(cmp.checked_at)}.`;
 
   box.append(panelSection());
   if (!terminalOn) {
@@ -231,5 +274,5 @@ function render() {
     h("div", { class: "scripts-foot" },
       h("span", { class: "dim", text: checked }),
       h("button", { class: "btn small", type: "button", text: cmpLoading ? "Checking…" : "Check now", disabled: cmpLoading,
-        title: "Compare the scripts here with GitHub's main branch now", onclick: () => loadCompare(true) }))));
+        title: "Compare the scripts here with GitHub's copies now", onclick: () => loadCompare(true) }))));
 }

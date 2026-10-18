@@ -298,7 +298,7 @@ async def watchdog(user: str = Depends(current_user)):
 @app.post("/api/watchdog/options")
 async def watchdog_option(request: Request, user: str = Depends(current_user)):
     """The Phone alerts page's settings: {"name": "updates"|"weekly", "on": bool},
-    or {"name": "weekly_day" (1 Mon .. 7 Sun) | "weekly_hour" (0-23), "value": int}."""
+    or {"name": "weekly_day", "value": 1 (Mon) .. 7 (Sun)}, or {"name": "weekly_time", "value": "HH:MM"}."""
     try:
         body = await request.json()
     except Exception:
@@ -373,6 +373,20 @@ async def remove_script(script_id: str, user: str = Depends(current_user)):
     global _status_cache
     _status_cache = None
     return {"removed": name}
+
+
+@app.post("/api/scripts/{script_id}/update")
+async def update_script(script_id: str, user: str = Depends(current_user)):
+    """Replaces a script with GitHub's main copy (verified), on the host."""
+    if jobs.current_id():
+        raise HTTPException(409, "Another action is still running. Wait for it to finish.")
+    try:
+        res = await asyncio.to_thread(backend.update_script, script_id)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    global _status_cache
+    _status_cache = None
+    return res
 
 
 @app.get("/api/vpn/configs")

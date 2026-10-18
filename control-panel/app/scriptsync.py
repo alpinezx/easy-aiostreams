@@ -1,5 +1,5 @@
 """Whether the setup-*.sh scripts on this server match the ones on GitHub's
-main branch. One request lists every file in the repo's root with its git
+branch the panel follows for its own updates (main, or dev while testing). One request lists every file in the repo's root with its git
 blob SHA, kept for a few hours like the release check; each script here is
 hashed the same way on every ask, so an Update shows at once."""
 from __future__ import annotations
@@ -10,6 +10,8 @@ import time
 from pathlib import Path
 
 import requests
+
+from . import config
 
 URL = "https://api.github.com/repos/alpinezx/easy-aiostreams/contents/"
 FRESH = 3 * 3600
@@ -26,7 +28,7 @@ def blob_sha(data: bytes) -> str:
 
 
 def _fetch() -> dict[str, str]:
-    r = requests.get(URL, params={"ref": "main"}, timeout=10,
+    r = requests.get(URL, params={"ref": config.UPDATE_BRANCH}, timeout=10,
                      headers={"Accept": "application/vnd.github+json", "User-Agent": "easy-aiostreams-panel"})
     if r.status_code in (403, 429):
         raise RuntimeError("GitHub's rate limit was reached. Try again in a while.")
@@ -66,10 +68,37 @@ def compare(install_dir: Path, files: list[str], force: bool = False) -> dict:
             continue
         remote = (shas or {}).get(name)
         out[name] = {"present": True, "differs": None if remote is None else local != remote}
-    return {"checked_at": at, "error": error if not shas else None, "files": out}
+    return {"checked_at": at, "error": error if not shas else None, "files": out, "branch": config.UPDATE_BRANCH}
+
+
+def fetch_main(name: str) -> bytes:
+    """GitHub's copy of one file on the panel's branch (main, or dev while testing), through the API (the raw links can be
+    minutes stale after a push), checked against the SHA GitHub lists for it.
+    Raises RuntimeError with a reason."""
+    shas, error, _ = _remote(True)
+    want = (shas or {}).get(name)
+    if not want:
+        raise RuntimeError(error or f"GitHub doesn't list {name}.")
+    try:
+        r = requests.get(URL + name, params={"ref": config.UPDATE_BRANCH}, timeout=20,
+                         headers={"Accept": "application/vnd.github.raw", "User-Agent": "easy-aiostreams-panel"})
+    except Exception:
+        raise RuntimeError("Couldn't reach GitHub.")
+    if r.status_code in (403, 429):
+        raise RuntimeError("GitHub's rate limit was reached. Try again in a while.")
+    if not r.ok:
+        raise RuntimeError(f"GitHub answered {r.status_code}.")
+    data = r.content
+    if blob_sha(data) != want or not data.startswith(b"#!"):
+        raise RuntimeError("The download didn't match GitHub's listing. GitHub may still be updating; try again in a few minutes.")
+    return data
+
+
+DEMO_SAME: set[str] = set()     # demo scripts "updated" this run
 
 
 def demo(files: list[str]) -> dict:
-    here = {"setup-aiostreams.sh", "setup-backup.sh", "setup-mediaflow.sh", "setup-webhook.sh"}
+    here = {"setup-aiostreams.sh", "setup-backup.sh", "setup-mediaflow.sh", "setup-webhook.sh", "setup-watchdog.sh"}
     return {"checked_at": time.time(), "error": None,
-            "files": {f: {"present": f in here, "differs": (f == "setup-mediaflow.sh") if f in here else None} for f in files}}
+            "files": {f: {"present": f in here, "differs": (f == "setup-mediaflow.sh" and f not in DEMO_SAME) if f in here else None}
+                      for f in files}, "branch": "main"}

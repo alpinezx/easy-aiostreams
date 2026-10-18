@@ -447,3 +447,11 @@ def test_watchdog_info_reads_events_and_tally_and_masks_the_topic(tmp_path, monk
     assert w["events"][0]["text"] == "Passing again | still one field"
     assert w["tally"] == [{"day": "2026-10-17", "passed": 720, "failed": 0}, {"day": "2026-10-18", "passed": 400, "failed": 2}]
     assert w["watches"] == ["https://streams.example.com", "Disk space", "HTTPS certificate"] and w["running"] and w["alert_state"] == "up"
+
+
+def test_weekly_time_reads_new_and_old_settings():
+    assert stack.weekly_time({"weekly_time": "07:05"}) == "07:05"
+    assert stack.weekly_time({"weekly_time": "7:05"}) == "07:05"
+    assert stack.weekly_time({"weekly_hour": "8"}) == "08:00"          # an older script's setting carries over
+    assert stack.weekly_time({"weekly_time": "25:00", "weekly_hour": "x"}) == "10:00"
+    assert stack.weekly_time({}) == "10:00"

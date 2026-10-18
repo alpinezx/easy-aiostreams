@@ -93,6 +93,9 @@ body { padding-left: var(--rail); }
 .rail-name { display: none; }
 /* The panel's name across the top of every page on desktop; phones have it in the top bar */
 .page-brand { display: flex; align-items: center; gap: 10px; margin: -6px 0 12px; font-weight: 650; font-size: 1.05rem; letter-spacing: -.01em; }
+/* "Script updates": only while a script here differs from GitHub's copy */
+.scripts-pill { font-size: .88rem; font-weight: 500; text-decoration: none; padding: 4px 12px; }
+.scripts-pill:hover { text-decoration: underline; }
 .page-brand-sub { font-weight: 500; font-size: .86rem; color: var(--faint); padding-left: 10px; border-left: 1px solid var(--line); letter-spacing: 0; }
 .rail-links, .rail-end { display: grid; gap: 6px; justify-items: center; }
 .rail-end { margin-top: auto; }
@@ -177,7 +180,7 @@ main { max-width: 1680px; margin: 0 auto; padding: 28px var(--gutter) 96px; }
 
 /* ---------- hero ---------- */
 .hero { display: grid; gap: 12px; padding: 0 0 26px; }
-.hero-open { display: flex; }
+.hero-open { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .hero-head { display: flex; align-items: center; gap: 12px; }
 .lamp { flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--faint); position: relative; }
 .lamp[data-s="ok"] { background: var(--ok); box-shadow: 0 0 0 4px var(--ok-soft); }
@@ -202,7 +205,6 @@ button.chip:hover { text-decoration: underline; }
 .busy-note { color: var(--dim); font-size: .92rem; display: inline-flex; gap: 8px; align-items: center; }
 
 /* the AIOStreams version card under the headline (its slot follows the hero) */
-.ver-slot { margin: -14px 0 26px; }
 .ver-slot:empty { display: none; }
 .ver-card { padding: 16px 20px 18px; }
 .ver-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -224,8 +226,8 @@ button.chip:hover { text-decoration: underline; }
 }
 
 /* ---------- signal path ---------- */
-.path { margin: 4px 0 30px; padding: 26px 22px 22px; background: var(--sunk); border: 1px solid var(--line-soft); border-radius: var(--radius); }
-.path-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -6px 0 18px; }
+.path { margin: 4px 0 30px; padding: 18px 22px 16px; background: var(--sunk); border: 1px solid var(--line-soft); border-radius: var(--radius); }
+.path-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 14px; }
 .path-title { margin: 0; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--faint); }
 .chain { display: flex; align-items: stretch; }
 .path-start { align-self: center; display: flex; align-items: center; gap: 8px; color: var(--faint); font-size: .9rem; padding-right: 10px; }
@@ -258,13 +260,19 @@ button.chip:hover { text-decoration: underline; }
 
 .addons { margin: 0 0 0 var(--trunk, 120px); padding: 0; list-style: none; }
 .addons-wrap { position: relative; }
-.addons li { position: relative; margin-top: 14px; padding-left: 28px; width: fit-content; }
-.addons li:first-child { margin-top: 0; padding-top: 16px; }
-.addons li .node { min-width: 220px; }
-.addons li::before { content: ""; position: absolute; left: 0; top: -14px; height: calc(50% + 14px); width: 2px; background: var(--faint); opacity: .6; }
-.addons li:first-child::before { top: 0; height: calc(50% + 8px); }
+/* the add-ons hang off Caddy as slim one-line boxes, so each adds about 50px, not 90 */
+.addons li { position: relative; margin-top: 8px; padding-left: 28px; width: fit-content; }
+.addons li:first-child { margin-top: 0; padding-top: 8px; }
+@media (min-width: 721px) {
+  .addons li .node { display: flex; align-items: baseline; gap: 10px; min-width: 0; padding: 7px 14px 7px 16px; }
+  .addons li .node::before { top: 7px; bottom: 7px; }
+  .addons li .node-name { font-size: .95rem; }
+  .addons li .node-state { margin: 0; }
+}
+.addons li::before { content: ""; position: absolute; left: 0; top: -8px; height: calc(50% + 8px); width: 2px; background: var(--faint); opacity: .6; }
+.addons li:first-child::before { top: 0; height: calc(50% + 4px); }
 .addons li::after { content: ""; position: absolute; left: 0; top: calc(50% + 0px); width: 22px; height: 2px; background: var(--faint); opacity: .6; }
-.addons li:first-child::after { top: calc(50% + 8px); }
+.addons li:first-child::after { top: calc(50% + 4px); }
 .addons li.live::before, .addons li.live::after { background: var(--accent); opacity: 1; }
 .addons li.broken::before, .addons li.broken::after { background: var(--bad); opacity: .9; }
 .addon-note { margin: 14px 0 0; font-size: .86rem; color: var(--faint); }
@@ -327,6 +335,7 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 /* substantial buttons (reboot, restart, start/stop) at the card's bottom right */
 .card-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-top: auto; padding-top: 16px; }
 .path-foot .addon-note { margin: 0 auto 0 0; }
+.path .path-foot { padding-top: 12px; }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 28px; }
 .card-head h3 { margin: 0; }
 .card-link { font-size: .86rem; text-decoration: none; }
@@ -662,14 +671,6 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   .row .acts { grid-column: 1 / -1; justify-content: start; }
 }
 @media (max-width: 720px) {
-  .chain { flex-direction: column; align-items: stretch; }
-  .link { flex: none; width: 3px; height: 26px; min-width: 0; align-self: flex-start; margin-left: 24px; background: repeating-linear-gradient(180deg, var(--faint) 0 4px, transparent 4px 9px); }
-  .link.live { background: repeating-linear-gradient(180deg, var(--accent) 0 10px, transparent 10px 18px); background-size: 3px 18px; animation-name: flowv; width: 3px; height: 26px; }
-  .link.broken { background: repeating-linear-gradient(180deg, var(--bad) 0 4px, transparent 4px 9px); }
-  @keyframes flowv { to { background-position: 0 18px; } }
-  /* the circle sits right above the dashed line (24px in, 3px wide) */
-  .path-start { padding: 0 0 4px 19.5px; align-self: flex-start; }
-  .addons { margin-left: 24px; }
   .item { grid-template-columns: minmax(0, 1fr) auto; }
   .item .when-col { grid-column: 1 / -1; }
   .item > .chip { justify-self: start; }
@@ -741,17 +742,19 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .scripts-panel a { color: var(--accent); }
 .scripts-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
 .scripts-foot .btn { margin-left: auto; }
-.chip.small-chip { font-size: .74rem; padding: 1px 8px; }
+.chip.small-chip { font-size: .74rem; padding: 1px 8px; white-space: nowrap; }
 /* The panel's version, under the logo in the rail */
 .ver-chip { font-size: .7rem; padding: 1px 7px; text-decoration: none; white-space: nowrap; }
 .ver-chip:hover { color: var(--text); }
-.panel-ver { margin-bottom: 14px; display: grid; gap: 10px; }
+/* minmax(0, 1fr): a long line in the update output wraps or scrolls inside its box, never widens the page */
+.panel-ver { margin-bottom: 14px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.panel-ver details { min-width: 0; }
 .panel-ver-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
 .panel-ver-head h3 { margin: 0; }
 .panel-ver-head .btns { margin-left: auto; display: flex; gap: 8px; }
 .panel-ver p { margin: 0; font-size: .9rem; }
 .panel-ver details summary { cursor: pointer; font-size: .88rem; color: var(--dim); }
-.panel-ver pre { margin: 8px 0 0; max-height: 260px; overflow: auto; padding: 10px 12px; background: var(--sunk); border-radius: 8px; font-family: var(--mono); font-size: .78rem; line-height: 1.5; white-space: pre-wrap; }
+.panel-ver pre { margin: 8px 0 0; max-height: 260px; overflow: auto; padding: 10px 12px; background: var(--sunk); border-radius: 8px; font-family: var(--mono); font-size: .78rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; }
 .btn-spacer { visibility: hidden; pointer-events: none; }
 @media (max-width: 720px) { .btn-spacer { display: none; } }
 .term-scripts-hint { margin: -6px 0 14px; font-size: .9rem; }
@@ -770,7 +773,8 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   .cmds li { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 12px 0; border-top: 1px solid var(--line-soft); }
   .cmds li:first-child { border-top: 0; padding-top: 4px; }
   .cmd { display: none; }
-  .cmd-label { flex-wrap: nowrap; color: var(--text); font-size: .95rem; font-weight: 500; }
+  /* the badge drops under the name in one piece rather than squeezing beside it */
+  .cmd-label { flex-wrap: wrap; row-gap: 6px; color: var(--text); font-size: .95rem; font-weight: 500; }
   .cmd-btns { gap: 8px; }
   .cmd-btns .btn { flex: 1; border-color: var(--line); background: var(--raised); color: var(--text); padding: 8px 12px; }
 }
@@ -787,19 +791,20 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 
 .brand { white-space: nowrap; }
 
-/* Wide screens: wide cards in rows, like AIOStreams' own dashboard. The version card,
-   then This server and Phone alerts side by side (This server alone takes the row),
-   then the request flow and the services, full width. Narrower screens keep one column
-   in the page's own order: version, request flow, services, then the server cards. */
+/* The Overview's order at every width: the headline, the request flow it illustrates,
+   the version card, This server and Phone alerts, then the services. */
+#view-overview:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr); }
+#view-overview .cols { display: contents; }
+#view-overview .hero { order: 1; }
+#view-overview .path { order: 2; }
+#view-overview .ver-slot { order: 3; margin: 0 0 30px; }
+#view-overview .side { order: 4; margin: 0 0 30px; }
+#view-overview .cols > div { order: 5; }
+
+/* Wide screens: wide cards in rows, like AIOStreams' own dashboard, with This server and
+   Phone alerts side by side (This server alone takes the row). */
 @media (min-width: 1141px) {
-  #view-overview:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr); }
-  #view-overview .cols { display: contents; }
-  /* the request flow first, right under the headline it illustrates */
-  #view-overview .hero { order: 1; }
-  #view-overview .path { order: 2; }
-  #view-overview .ver-slot { order: 3; margin: 0 0 30px; }
-  #view-overview .side { order: 4; margin-bottom: 30px; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: stretch; }
-  #view-overview .cols > div { order: 5; }
+  #view-overview .side { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: stretch; }
   /* alone in the row (no Phone alerts): all six in one line */
   .panel.host:only-child .stat-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .panel.host, .panel.wd { display: flex; flex-direction: column; }
@@ -874,3 +879,39 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .term-gate .input { width: 100%; max-width: 100%; box-sizing: border-box; }
 .term-gate .form-err.note-ok { color: var(--dim); }
 @media (max-width: 720px) { .term-gate { margin: 20px 0; padding: 18px; } }
+
+/* Update's confirm: the copy-instead link sits with the text */
+.upd-opts { justify-items: start; }
+.upd-opts .btn { margin-left: -10px; }
+
+/* Phones: the request flow on one line of small status pills, the add-ons on a line under
+   it, uptimes left to Services. A tall chain of boxes used to fill a screen and a half. */
+@media (max-width: 720px) {
+  #view-overview .ver-slot, #view-overview .side { margin-bottom: 22px; }
+  .path { margin: 0 0 22px; padding: 16px 14px 14px; }
+  .path-head { margin: 0 0 12px; }
+  .chain { flex-direction: row; align-items: center; }
+  .path-start { padding: 0 2px 0 0; font-size: 0; gap: 0; }          /* the circle stays, the word goes */
+  .path-start i { width: 10px; height: 10px; }
+  .link { flex: 1 1 10px; min-width: 8px; height: 2px; margin: 0; align-self: center;
+    background: repeating-linear-gradient(90deg, var(--faint) 0 3px, transparent 3px 6px); }
+  .link.live { height: 2px; background: repeating-linear-gradient(90deg, var(--accent) 0 5px, transparent 5px 9px);
+    background-size: 9px 2px; animation-name: flowm; }
+  .link.broken { background: repeating-linear-gradient(90deg, var(--bad) 0 3px, transparent 3px 6px); }
+  @keyframes flowm { to { background-position: 9px 0; } }
+  .node { flex: 0 1 auto; min-width: 0; padding: 6px 8px 6px 10px; border-radius: 8px; }
+  .node::before { top: 6px; bottom: 6px; }
+  .node-name { font-size: .82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .node-state { display: none; }
+  /* the add-ons hang off Caddy as on desktop, in miniature */
+  .addons { margin-left: var(--trunk, 40px); }
+  .addons li { margin-top: 8px; padding-left: 16px; }
+  .addons li:first-child { padding-top: 10px; }
+  .addons li::before { top: -8px; height: calc(50% + 8px); }
+  .addons li:first-child::before { height: calc(50% + 5px); }
+  .addons li::after { width: 12px; }
+  .addons li:first-child::after { top: calc(50% + 5px); }
+  .addons li .node { min-width: 0; }
+  .path-foot { padding-top: 12px; }
+  .path-foot .addon-note { display: none; }
+}

@@ -2,6 +2,7 @@ import { $, h, clear, setText, fmtDur, fmtBytes, api, toast, ago, extIcon } from
 import { runAction, openJob, rebootServer, restartService } from "./actions.js";
 import { openReleases, remember, behind } from "./releases.js";
 import { days, todayLine, parseCheck } from "./alerts.js";
+import { pill as scriptsPill } from "./scripts.js";
 
 // ---------------- update check ----------------
 let rel = null, relLoading = false, relFor = null, lastSt = null;
@@ -140,8 +141,12 @@ function hero(st) {
       h("span", { class: "lamp", dataset: { s: st.overall }, "aria-hidden": "true" }),
       h("h1", { class: "headline", text: st.headline })));
     // Open AIOStreams on a line of its own, then one chip for the build and version, then the update bits.
+    // Open AIOStreams, and beside it the "Script updates" pill while a setup script here differs from GitHub
+    const pillEl = h("a", { class: "chip warn scripts-pill", id: "scripts-pill", href: "#scripts", hidden: true });
     if (st.domain) el.append(h("div", { class: "hero-open" }, h("a", { class: "btn small open-site", href: `https://${st.domain}`, target: "_blank", rel: "noopener noreferrer",
-      title: `Opens https://${st.domain} in a new tab` }, "Open AIOStreams", extIcon())));
+      title: `Opens https://${st.domain} in a new tab` }, "Open AIOStreams", extIcon()), pillEl));
+    else el.append(h("div", { class: "hero-open" }, pillEl));
+    scriptsPill();
     // The certificate lives in This server; it comes up here only when it needs attention.
     if (st.cert && (!st.cert.ok || st.cert.days_left < 21)) el.append(h("div", { class: "hero-meta" }, certChip(st, true)));
     // The version card has a slot of its own, so wide screens can put the request flow above it
@@ -187,7 +192,8 @@ function versionCard(st, avail) {
 // ---------------- signal path ----------------
 function node(s) {
   const st = stateOf(s);
-  return h("div", { class: "node", dataset: { s: st, svc: s.key } },
+  // On phones only the name shows, so the state is on its tooltip and for screen readers too
+  return h("div", { class: "node", dataset: { s: st, svc: s.key }, title: `${s.name}: ${STATE_WORD[st] || st}` },
     h("div", { class: "node-name", text: s.name }),
     h("div", { class: "node-state" }, h("span", { class: "word", text: STATE_WORD[st] || st }),
       " ", h("span", { class: "dim", dataset: { up: s.key }, text: uptime(s) })));
@@ -231,10 +237,10 @@ function path(st) {
   // line the add-on trunk up under the Caddy node
   const caddyNode = el.querySelector('.node[data-svc="caddy"]');
   const ul = el.querySelector(".addons");
-  if (caddyNode && ul && window.innerWidth > 720) {
+  if (caddyNode && ul) {
     const r = el.querySelector(".chain").getBoundingClientRect();
     const c = caddyNode.getBoundingClientRect();
-    ul.style.setProperty("--trunk", `${Math.round(c.left - r.left + 22)}px`);
+    ul.style.setProperty("--trunk", `${Math.round(c.left - r.left + (window.innerWidth > 720 ? 22 : 14))}px`);
   }
   for (const s of st.services) setText(el, `[data-up="${s.key}"]`, uptime(s));
 }

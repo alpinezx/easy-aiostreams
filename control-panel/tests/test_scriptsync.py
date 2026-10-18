@@ -56,3 +56,22 @@ def test_github_failure_is_reported_not_guessed(tmp_path, monkeypatch):
     monkeypatch.setattr(scriptsync, "_fetch", boom)
     out = scriptsync.compare(tmp_path, ["setup-aiostreams.sh"])
     assert "rate limit" in out["error"] and out["files"]["setup-aiostreams.sh"]["differs"] is None
+
+
+def test_fetch_main_only_returns_a_copy_matching_githubs_listing(monkeypatch):
+    good = b"#!/usr/bin/env bash\necho hi\n"
+    monkeypatch.setattr(scriptsync, "_remote", lambda force: ({"setup-x.sh": scriptsync.blob_sha(good)}, None, 0))
+
+    class R:
+        def __init__(self, data, code=200):
+            self.content, self.status_code, self.ok = data, code, code < 400
+    monkeypatch.setattr(scriptsync.requests, "get", lambda *a, **k: R(good))
+    assert scriptsync.fetch_main("setup-x.sh") == good
+    monkeypatch.setattr(scriptsync.requests, "get", lambda *a, **k: R(b"#!/bin/sh\nstale\n"))
+    with pytest.raises(RuntimeError, match="didn't match"):
+        scriptsync.fetch_main("setup-x.sh")
+    monkeypatch.setattr(scriptsync.requests, "get", lambda *a, **k: R(b"", 429))
+    with pytest.raises(RuntimeError, match="rate limit"):
+        scriptsync.fetch_main("setup-x.sh")
+    with pytest.raises(RuntimeError):
+        scriptsync.fetch_main("setup-missing.sh")
