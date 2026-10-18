@@ -144,7 +144,10 @@ function hero(st) {
       title: `Opens https://${st.domain} in a new tab` }, "Open AIOStreams", extIcon())));
     // The certificate lives in This server; it comes up here only when it needs attention.
     if (st.cert && (!st.cert.ok || st.cert.days_left < 21)) el.append(h("div", { class: "hero-meta" }, certChip(st, true)));
-    if (st.version) el.append(versionCard(st, avail));
+    // The version card has a slot of its own, so wide screens can put the request flow above it
+    const ver = $("#ver");
+    clear(ver);
+    if (st.version) ver.append(versionCard(st, avail));
 
     if (!st.installed) {
       el.append(h("p", { class: "empty", text: "AIOStreams isn't installed on this server yet. Run setup-aiostreams.sh over SSH first." }));
