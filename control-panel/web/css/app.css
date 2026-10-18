@@ -202,7 +202,6 @@ button.chip:hover { text-decoration: underline; }
 .busy-note { color: var(--dim); font-size: .92rem; display: inline-flex; gap: 8px; align-items: center; }
 
 /* the AIOStreams version card under the headline (its slot follows the hero) */
-.ver-slot { margin: -14px 0 26px; }
 .ver-slot:empty { display: none; }
 .ver-card { padding: 16px 20px 18px; }
 .ver-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -662,14 +661,6 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   .row .acts { grid-column: 1 / -1; justify-content: start; }
 }
 @media (max-width: 720px) {
-  .chain { flex-direction: column; align-items: stretch; }
-  .link { flex: none; width: 3px; height: 26px; min-width: 0; align-self: flex-start; margin-left: 24px; background: repeating-linear-gradient(180deg, var(--faint) 0 4px, transparent 4px 9px); }
-  .link.live { background: repeating-linear-gradient(180deg, var(--accent) 0 10px, transparent 10px 18px); background-size: 3px 18px; animation-name: flowv; width: 3px; height: 26px; }
-  .link.broken { background: repeating-linear-gradient(180deg, var(--bad) 0 4px, transparent 4px 9px); }
-  @keyframes flowv { to { background-position: 0 18px; } }
-  /* the circle sits right above the dashed line (24px in, 3px wide) */
-  .path-start { padding: 0 0 4px 19.5px; align-self: flex-start; }
-  .addons { margin-left: 24px; }
   .item { grid-template-columns: minmax(0, 1fr) auto; }
   .item .when-col { grid-column: 1 / -1; }
   .item > .chip { justify-self: start; }
@@ -787,19 +778,20 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 
 .brand { white-space: nowrap; }
 
-/* Wide screens: wide cards in rows, like AIOStreams' own dashboard. The version card,
-   then This server and Phone alerts side by side (This server alone takes the row),
-   then the request flow and the services, full width. Narrower screens keep one column
-   in the page's own order: version, request flow, services, then the server cards. */
+/* The Overview's order at every width: the headline, the request flow it illustrates,
+   the version card, This server and Phone alerts, then the services. */
+#view-overview:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr); }
+#view-overview .cols { display: contents; }
+#view-overview .hero { order: 1; }
+#view-overview .path { order: 2; }
+#view-overview .ver-slot { order: 3; margin: 0 0 30px; }
+#view-overview .side { order: 4; margin: 0 0 30px; }
+#view-overview .cols > div { order: 5; }
+
+/* Wide screens: wide cards in rows, like AIOStreams' own dashboard, with This server and
+   Phone alerts side by side (This server alone takes the row). */
 @media (min-width: 1141px) {
-  #view-overview:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr); }
-  #view-overview .cols { display: contents; }
-  /* the request flow first, right under the headline it illustrates */
-  #view-overview .hero { order: 1; }
-  #view-overview .path { order: 2; }
-  #view-overview .ver-slot { order: 3; margin: 0 0 30px; }
-  #view-overview .side { order: 4; margin-bottom: 30px; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: stretch; }
-  #view-overview .cols > div { order: 5; }
+  #view-overview .side { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: stretch; }
   /* alone in the row (no Phone alerts): all six in one line */
   .panel.host:only-child .stat-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .panel.host, .panel.wd { display: flex; flex-direction: column; }
@@ -878,3 +870,32 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 /* Update's confirm: the copy-instead link sits with the text */
 .upd-opts { justify-items: start; }
 .upd-opts .btn { margin-left: -10px; }
+
+/* Phones: the request flow on one line of small status pills, the add-ons on a line under
+   it, uptimes left to Services. A tall chain of boxes used to fill a screen and a half. */
+@media (max-width: 720px) {
+  #view-overview .ver-slot, #view-overview .side { margin-bottom: 22px; }
+  .path { margin: 0 0 22px; padding: 16px 14px 14px; }
+  .path-head { margin: 0 0 12px; }
+  .chain { flex-direction: row; align-items: center; }
+  .path-start { padding: 0 2px 0 0; font-size: 0; gap: 0; }          /* the circle stays, the word goes */
+  .path-start i { width: 10px; height: 10px; }
+  .link { flex: 1 1 10px; min-width: 8px; height: 2px; margin: 0; align-self: center;
+    background: repeating-linear-gradient(90deg, var(--faint) 0 3px, transparent 3px 6px); }
+  .link.live { height: 2px; background: repeating-linear-gradient(90deg, var(--accent) 0 5px, transparent 5px 9px);
+    background-size: 9px 2px; animation-name: flowm; }
+  .link.broken { background: repeating-linear-gradient(90deg, var(--bad) 0 3px, transparent 3px 6px); }
+  @keyframes flowm { to { background-position: 9px 0; } }
+  .node { flex: 0 1 auto; min-width: 0; padding: 6px 8px 6px 10px; border-radius: 8px; }
+  .node::before { top: 6px; bottom: 6px; }
+  .node-name { font-size: .82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .node-state { display: none; }
+  .addons-wrap { margin-top: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .addons-wrap::before { content: "Add-ons"; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); }
+  .addons { margin: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+  .addons li, .addons li:first-child { margin: 0; padding: 0; width: auto; }
+  .addons li::before, .addons li::after { display: none; }
+  .addons li .node { min-width: 0; }
+  .path-foot { padding-top: 12px; }
+  .path-foot .addon-note { display: none; }
+}

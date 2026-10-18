@@ -187,7 +187,8 @@ function versionCard(st, avail) {
 // ---------------- signal path ----------------
 function node(s) {
   const st = stateOf(s);
-  return h("div", { class: "node", dataset: { s: st, svc: s.key } },
+  // On phones only the name shows, so the state is on its tooltip and for screen readers too
+  return h("div", { class: "node", dataset: { s: st, svc: s.key }, title: `${s.name}: ${STATE_WORD[st] || st}` },
     h("div", { class: "node-name", text: s.name }),
     h("div", { class: "node-state" }, h("span", { class: "word", text: STATE_WORD[st] || st }),
       " ", h("span", { class: "dim", dataset: { up: s.key }, text: uptime(s) })));
