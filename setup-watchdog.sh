@@ -328,6 +328,7 @@ check_weekly() {
     now=$(date +%s)
     wday=$(grep -oP '^weekly_day=\K[1-7]$' "$OPTIONS_FILE" 2>/dev/null || echo 7)
     whour=$(grep -oP '^weekly_hour=\K([01]?[0-9]|2[0-3])$' "$OPTIONS_FILE" 2>/dev/null || echo 10)
+    whour=$((10#$whour))
     [[ "$(date +%u)" == "$wday" && "$(date +%-H)" -ge "$whour" ]] || return 0
     last=$(cat "$STATE_DIR/weekly-sent" 2>/dev/null || echo 0)
     [[ "$last" =~ ^[0-9]+$ ]] || last=0
@@ -679,8 +680,10 @@ if [[ "${1:-}" == "set-option" ]]; then
        || ( "${2:-}" == weekly_hour && "${3:-}" =~ ^([01]?[0-9]|2[0-3])$ ) ]] \
         || error "Usage: set-option updates|weekly on|off, set-option weekly_day 1-7 (Mon-Sun), set-option weekly_hour 0-23"
     [[ -f "$CONFIG_FILE" ]] || error "Not configured yet. Set the watchdog up first."
-    { grep -v "^$2=" "$OPTIONS_FILE" 2>/dev/null || true; echo "$2=$3"; } > "$OPTIONS_FILE.tmp" && mv "$OPTIONS_FILE.tmp" "$OPTIONS_FILE"
-    echo "$2 is now $3."
+    v=$3
+    [[ "$v" =~ ^[0-9]+$ ]] && v=$((10#$v))     # "07" -> 7: bash would read 07 as octal, and 08 not at all
+    { grep -v "^$2=" "$OPTIONS_FILE" 2>/dev/null || true; echo "$2=$v"; } > "$OPTIONS_FILE.tmp" && mv "$OPTIONS_FILE.tmp" "$OPTIONS_FILE"
+    echo "$2 is now $v."
     exit 0
 fi
 
