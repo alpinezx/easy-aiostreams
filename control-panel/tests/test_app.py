@@ -498,3 +498,17 @@ def test_phone_alerts_switches(client):
     assert client.get("/api/watchdog").json()["options"] == {"updates": False, "weekly": True, "weekly_day": 1, "weekly_hour": 0}
     assert client.post("/api/watchdog/tally/clear").json() == {"cleared": True}
     assert client.get("/api/watchdog").json()["tally"] == []
+
+
+def test_phone_alerts_uninstall_then_its_script_can_go(client):
+    login(client)
+    a = actions.resolve("watchdog.uninstall")
+    assert a.args == ("uninstall",) and a.confirm
+    assert client.post("/api/scripts/watchdog/remove").status_code == 400          # still set up
+    r = client.post("/api/actions/watchdog.uninstall", json={"params": {}})
+    assert r.status_code == 200 and wait_job(client, r.json()["id"])["code"] == 0
+    assert client.get("/api/watchdog").json() == {"configured": False}
+    assert client.get("/api/status").json()["watchdog"]["configured"] is False
+    wd = next(s for s in client.get("/api/status").json()["scripts"] if s["id"] == "watchdog")
+    assert wd["present"] and wd["in_use"] is False
+    assert client.post("/api/scripts/watchdog/remove").json() == {"removed": "setup-watchdog.sh"}

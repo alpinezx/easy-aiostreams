@@ -94,6 +94,12 @@ _STATIC: dict[str, Action] = {a.id: a for a in [
     Action("watchdog.test", "Send test alert", "Sending", "Test alert sent", "setup-watchdog.sh",
            args=("test",), timeout=60,
            needs=("setup-watchdog.sh", "watchdog-state/config")),
+    Action("watchdog.uninstall", "Uninstall phone alerts", "Uninstalling phone alerts", "Phone alerts uninstalled", "setup-watchdog.sh",
+           args=("uninstall",), timeout=60,
+           confirm="Stops the checks and removes the watchdog's timer, its restart alert, and everything it saved: "
+                   "the topic, the event history and the daily stats. Your subscription in the ntfy app isn't touched; "
+                   "unsubscribe there if you won't set it up again. Setting it up again is the script's Start, over SSH.",
+           needs=("setup-watchdog.sh", "watchdog-state/config")),
 ]}
 
 

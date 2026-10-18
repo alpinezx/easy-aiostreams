@@ -67,7 +67,9 @@ The check-in goes by the server's clock, so check its time zone: `timedatectl` s
 
 ## Everyday use
 
-The control panel's **Phone alerts** page shows whether it's watching, the last check, a square per day for the last 14 days (green all passed, amber some failed), and recent events. It has Start/Stop, Send test alert, Change topic (with a Copy button, to paste into the ntfy app) and the two switches above.
+The control panel's **Phone alerts** page shows whether it's watching, the last check, a square per day for the last 14 days (green all passed, amber some failed), and recent events. It has Start/Stop, Send test alert, Change topic (with a Copy button, to paste into the ntfy app), the two switches above, and Uninstall at the foot.
+
+![The control panel's Phone alerts page](../images/control-panel/alerts.png)
 
 Over SSH, run the script again any time for a menu:
 ```bash
