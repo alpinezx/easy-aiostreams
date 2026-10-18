@@ -512,3 +512,15 @@ def test_phone_alerts_uninstall_then_its_script_can_go(client):
     wd = next(s for s in client.get("/api/status").json()["scripts"] if s["id"] == "watchdog")
     assert wd["present"] and wd["in_use"] is False
     assert client.post("/api/scripts/watchdog/remove").json() == {"removed": "setup-watchdog.sh"}
+
+
+def test_scripts_update_replaces_with_mains_copy(client):
+    assert client.post("/api/scripts/mediaflow/update").status_code == 401
+    login(client)
+    differs = lambda: client.get("/api/scripts/compare").json()["files"]["setup-mediaflow.sh"]["differs"]
+    assert differs() is True
+    assert client.post("/api/scripts/nope/update").status_code == 400
+    r = client.post("/api/scripts/mediaflow/update").json()
+    assert r["updated"] == ["setup-mediaflow.sh"]
+    assert differs() is False
+    assert client.post("/api/scripts/aiostreams/update").json()["updated"] == ["setup-aiostreams.sh", "setup-backup.sh"]

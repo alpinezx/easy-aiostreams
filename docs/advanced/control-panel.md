@@ -63,6 +63,7 @@ It is still root-equivalent on your server, because it has to run the scripts an
 | Change config | `setup-vpn-gluetun.sh addresses <name>` for the new config's list, then `use-config <ip>` |
 | Configs on this server: the list, Use, Delete | `list-configs`; `use-file <path> <ip>`; `delete-config <path>` |
 | Uninstall VPN | `setup-aiostreams.sh backup` first if ticked, then `setup-vpn-gluetun.sh uninstall` with `remove-image` and `delete-confs` as ticked (menu option 7's questions) |
+| Update (Scripts tab) | downloads GitHub's main copy through the API (raw links can be minutes stale), checks it against the SHA GitHub lists, then replaces the script on the host; the AIOStreams menu's also replaces `setup-backup.sh`, and the watchdog's runs `setup-watchdog.sh refresh` so its timer's copy follows (starting nothing) |
 | Remove (Scripts tab) | deletes an add-on's script from the install folder, only while that add-on's state folder is gone (it isn't set up) |
 
 The scripts run on the host with a terminal attached, like an SSH session. The main script's Reconfigure, the VPN's first-time setup and the other add-ons' uninstalls have no button.

@@ -160,6 +160,16 @@ class DemoBackend:
                 "options": dict(self.wd_options), "stable": self.channel != "nightly",
                 "timezone": os.environ.get("UI_DEMO_TZ", "Europe/London")}
 
+    def update_script(self, script_id: str) -> dict:
+        from .actions import SCRIPTS
+        from . import scriptsync
+        found = next(((i, f) for i, _, f in SCRIPTS if i == script_id), None)
+        if not found:
+            raise ValueError("Unknown script.")
+        files = [found[1]] + (["setup-backup.sh"] if script_id == "aiostreams" else [])
+        scriptsync.DEMO_SAME.update(files)
+        return {"updated": files, "note": None}
+
     def remove_script(self, script_id: str) -> str:
         from .actions import ADDON_STATE, SCRIPTS
         found = next(((i, f) for i, _, f in SCRIPTS if i == script_id), None)

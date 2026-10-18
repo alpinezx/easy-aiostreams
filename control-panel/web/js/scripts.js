@@ -170,12 +170,32 @@ function row(x, cmd, updateCmd, termOn) {
     h("span", { class: "cmd-btns" }, run,
       copyBtn("Copy", cmd, "Copied. Paste it into an SSH session or the Terminal tab.", cmd),
       // An invisible stand-in keeps the buttons lined up down the list.
-      updateCmd ? copyBtn("Update", updateCmd, "Copied. Paste it into an SSH session or the Terminal tab to fetch the newest version from GitHub.",
-          "Copies a command that fetches the newest version from GitHub, without running it")
+      updateCmd ? h("button", { class: "btn small quiet", type: "button", text: "Update",
+          title: "Replace it with GitHub's newest copy (main)", onclick: () => updateScript(x, updateCmd) })
         : h("span", { class: "btn small quiet btn-spacer", "aria-hidden": "true", text: "Update" }),
       removable ? h("button", { class: "btn small quiet danger", type: "button", text: "Remove",
         title: `Deletes ${x.file} from this server. ${x.label} isn't set up, so nothing else changes.`, onclick: () => removeScript(x) })
         : h("span", { class: "btn small quiet btn-spacer", "aria-hidden": "true", text: "Remove" })));
+}
+
+// Update replaces the script here with GitHub's main copy, checked before anything changes.
+// The command is still offered, for anyone who'd rather run it over SSH.
+async function updateScript(x, cmd) {
+  const files = [x.file, ...(UPDATE_WITH[x.id] || [])].join(" and ");
+  const copy = h("button", { class: "btn small quiet", type: "button", text: "Copy the command instead", onclick: async () => {
+    try { await navigator.clipboard.writeText(cmd); toast("Copied. Paste it into an SSH session or the Terminal tab."); } catch (_) { toast(cmd); }
+  } });
+  const ok = await ask({ title: `Update ${x.label}?`, confirmLabel: "Update",
+    body: `Replaces ${files} on this server with GitHub's newest copy (the main branch). It's downloaded and checked first, so a failed `
+      + "download changes nothing. If you're testing a script from dev, this puts main's back.",
+    options: { el: h("div", { class: "opts upd-opts" }, copy), read: () => true } });
+  if (!ok) return;
+  try {
+    const r = await api(`/api/scripts/${encodeURIComponent(x.id)}/update`, { method: "POST" });
+    toast(`Updated ${r.updated.join(" and ")}.` + (r.note ? ` ${r.note}` : ""), false);
+    await loadCompare(false);
+    show(await api("/api/status"), last.terminalOn);
+  } catch (e) { toast(e.message || "Couldn't update it.", true); }
 }
 
 async function removeScript(x) {

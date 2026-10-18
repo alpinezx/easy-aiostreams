@@ -734,6 +734,18 @@ if [[ "${1:-}" == "uninstall" ]]; then
     exit 0
 fi
 
+# After the script itself is replaced (the control panel's Update): bring the
+# timer's copy and the systemd units up to date. Starts nothing that's off.
+if [[ "${1:-}" == "refresh" ]]; then
+    [[ -f "$CONFIG_FILE" ]] || exit 0
+    install_systemd_units
+    if systemctl is-enabled --quiet aiostreams-watchdog-boot.service 2>/dev/null; then
+        systemctl start aiostreams-watchdog-boot.service >/dev/null 2>&1 || true   # sends nothing now
+    fi
+    echo "The watchdog's running copy is up to date."
+    exit 0
+fi
+
 if [[ "${1:-}" == "test" ]]; then
     do_test_alert
     exit $?

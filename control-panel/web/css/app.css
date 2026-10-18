@@ -874,3 +874,7 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .term-gate .input { width: 100%; max-width: 100%; box-sizing: border-box; }
 .term-gate .form-err.note-ok { color: var(--dim); }
 @media (max-width: 720px) { .term-gate { margin: 20px 0; padding: 18px; } }
+
+/* Update's confirm: the copy-instead link sits with the text */
+.upd-opts { justify-items: start; }
+.upd-opts .btn { margin-left: -10px; }

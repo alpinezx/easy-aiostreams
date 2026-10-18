@@ -739,6 +739,40 @@ class Backend:
         if r.returncode != 0:
             raise ValueError("Couldn't clear it.")
 
+    def update_script(self, script_id: str) -> dict:
+        """The Scripts tab's Update: replaces a script (and, for the AIOStreams
+        menu, setup-backup.sh) with GitHub's main copy, verified, on the host.
+        The watchdog's timer runs a copy of its script, so that's refreshed too."""
+        from . import scriptsync
+        found = next(((i, f) for i, _, f in SCRIPTS if i == script_id), None)
+        if not found:
+            raise ValueError("Unknown script.")
+        files = [found[1]] + (["setup-backup.sh"] if script_id == "aiostreams" else [])
+        files = [f for f in files if self.p(f).exists()]
+        if not files:
+            raise ValueError("It isn't on this server. Use Get and run instead.")
+        try:
+            got = {f: scriptsync.fetch_main(f) for f in files}     # all downloaded and checked before any is replaced
+        except RuntimeError as e:
+            raise ValueError(str(e))
+        for f, data in got.items():
+            path = str(config.INSTALL_DIR / f)
+            r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "sh", "-c",
+                                'cat > "$1.new" && chmod --reference="$1" "$1.new" && chown --reference="$1" "$1.new" && mv -f "$1.new" "$1"',
+                                "sh", path], input=data, capture_output=True, timeout=30)
+            if r.returncode != 0:
+                raise ValueError(f"Couldn't write {f}.")
+        note = None
+        if script_id == "watchdog" and self.p("watchdog-state/config").exists():
+            r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "env", "-i",
+                                f"HOME={self.home}", f"PATH={HOST_PATH}", "LANG=C.UTF-8", "bash",
+                                str(config.INSTALL_DIR / "setup-watchdog.sh"), "refresh"],
+                               stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
+            note = None if r.returncode == 0 else "The script is updated, but the watchdog's running copy wasn't. Use Start on the Phone alerts page."
+        elif script_id == "webhook" and self.p("webhook-relay-state").exists():
+            note = "The relay keeps running its current version until it's started again (Start in its menu)."
+        return {"updated": files, "note": note}
+
     def vpn_mode(self) -> str:
         """on, off or none, from the files alone (quick, unlike vpn_info)."""
         if "container_name: gluetun" in _read(self.p("docker-compose.yml")):

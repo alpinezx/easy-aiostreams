@@ -83,7 +83,7 @@ The pages are icons down the left; point at one to see its name. On a phone it a
 
 ![The Backup & Restore tab](../images/control-panel/backups.png)
 
-**Scripts.** At the top, the panel's own version, whether GitHub has a newer one, and **Update** (see [Updating the panel](#updating-the-panel)). Below it, every setup script: whether it's on this server, and **Differs from GitHub** when your copy doesn't match the current one. **Copy** gives the command to run it over SSH (point at Copy to see it), **Update** the command to fetch the newest copy, and **Run in terminal** types the command into the panel's terminal for you to check and send with Enter (greyed out while the terminal is off). Once an add-on is uninstalled, **Remove** deletes its script from the server too; **Get and run** fetches it again any time.
+**Scripts.** At the top, the panel's own version, whether GitHub has a newer one, and **Update** (see [Updating the panel](#updating-the-panel)). Below it, every setup script: whether it's on this server, and **Differs from GitHub** when your copy doesn't match the current one. **Copy** gives the command to run it over SSH (point at Copy to see it), **Update** replaces it with GitHub's newest copy after a confirm (downloaded and checked first, so a failed download changes nothing; the command is still there to copy if you'd rather use SSH), and **Run in terminal** types the command into the panel's terminal for you to check and send with Enter (greyed out while the terminal is off). Once an add-on is uninstalled, **Remove** deletes its script from the server too; **Get and run** fetches it again any time.
 
 ![The Scripts tab, with the panel's own version and update at the top](../images/control-panel/scripts.png)
 
