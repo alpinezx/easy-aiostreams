@@ -1,4 +1,4 @@
-import { $, h, clear, api, ago } from "./util.js";
+import { $, h, clear, api, ago, toast } from "./util.js";
 import { runAction, ask } from "./actions.js";
 
 // The Phone alerts page: what the watchdog (setup-watchdog.sh) is doing, what it
@@ -76,8 +76,8 @@ function cell(label, ...value) {
 function days(tally) {
   const by = Object.fromEntries((tally || []).map((t) => [t.day, t]));
   const strip = h("div", { class: "wd-days", role: "list", "aria-label": "Checks per day, last 14 days" });
-  for (let n = 13; n >= 0; n--) {
-    const d = new Date(Date.now() - n * 86400000);
+  for (let back = 13; back >= 0; back--) {
+    const d = new Date(Date.now() - back * 86400000);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     const t = by[key];
     const label = d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" });
@@ -149,18 +149,25 @@ function render(w) {
     onclick: () => { showAll = true; render(last); } }));
 }
 
-// A long random topic is hard to guess; ntfy topics are letters, digits, - and _
+// Hard to guess but easy to read back: three groups of four from 31 characters with
+// no look-alikes (no 0/o, 1/l/i), about 59 bits. ntfy topics are letters, digits, - and _
 function suggestTopic() {
-  const abc = "abcdefghijkmnpqrstuvwxyz23456789";
-  const r = crypto.getRandomValues(new Uint8Array(16));
-  return "aios-" + Array.from(r, (x) => abc[x % abc.length]).join("");
+  const abc = "abcdefghjkmnpqrstuvwxyz23456789";
+  const r = crypto.getRandomValues(new Uint8Array(12));
+  const c = Array.from(r, (x) => abc[x % abc.length]).join("");
+  return `aios-${c.slice(0, 4)}-${c.slice(4, 8)}-${c.slice(8)}`;
 }
 
 async function changeTopic() {
   const act = actFor("watchdog.topic");
   if (!act) return;
   const input = h("input", { class: "input mono", type: "text", value: suggestTopic(), autocomplete: "off", spellcheck: "false",
-    "aria-label": "New topic", maxlength: "64" });
+    autocapitalize: "off", "aria-label": "New topic", maxlength: "64" });
+  // Copy, to paste into the ntfy app rather than typing it (one wrong character and nothing arrives)
+  const copy = h("button", { class: "btn small", type: "button", text: "Copy", onclick: async () => {
+    try { await navigator.clipboard.writeText(input.value.trim()); toast("Copied. Paste it into the ntfy app's Subscribe to topic."); }
+    catch (_) { input.select(); toast("Couldn't copy. It's selected, so copy it from there.", true); }
+  } });
   const link = h("a", { target: "_blank", rel: "noopener noreferrer" });
   const err = h("p", { class: "wd-topic-err", hidden: true });
   const sync = () => {
@@ -175,9 +182,9 @@ async function changeTopic() {
   };
   input.addEventListener("input", sync);
   const el = h("div", { class: "opts" },
-    h("label", { class: "field" }, h("span", { text: "New topic" }), input), err,
-    h("p", { class: "dim wd-topic-how" }, "Subscribe to it first in the ntfy app, or at ", link,
-      ". Anyone who knows the topic can read your alerts, so keep it long. A test alert goes to it as soon as it's saved."));
+    h("label", { class: "field" }, h("span", { text: "New topic" }), h("span", { class: "wd-topic-input" }, input, copy)), err,
+    h("p", { class: "dim wd-topic-how" }, "Copy it and subscribe to it in the ntfy app first (or at ", link,
+      "). Anyone who knows the topic can read your alerts, so keep it long. A test alert goes to it as soon as it's saved."));
   setTimeout(sync, 0);
   const res = await ask({ title: "Change the alert topic", confirmLabel: "Save and send test",
     body: "Alerts go to the new topic from the next check. The old one stops getting them.",

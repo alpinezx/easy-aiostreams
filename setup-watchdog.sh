@@ -452,6 +452,7 @@ if [[ "${1:-}" == "install-timer" ]]; then
     [[ -f "$CONFIG_FILE" ]] || error "No watchdog config found at $CONFIG_FILE, nothing to reinstall."
     install_systemd_units
     systemctl enable --now aiostreams-watchdog.timer
+    log_event start "Watchdog started."
     exit 0
 fi
 

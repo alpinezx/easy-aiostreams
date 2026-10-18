@@ -331,6 +331,8 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .wd-text { font-size: .92rem; overflow-wrap: anywhere; }
 #dialog .wd-topic-err, .wd-topic-err { margin: -4px 0 0; color: var(--warn); font-size: .88rem; }
 .wd-topic-how { font-size: .88rem; margin: 0; }
+.wd-topic-input { display: flex; gap: 8px; }
+.wd-topic-input .input { flex: 1; min-width: 0; }
 .wd-topic-how a { overflow-wrap: anywhere; }
 @media (max-width: 720px) {
   .wd-events li { grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; }
