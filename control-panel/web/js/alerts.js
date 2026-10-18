@@ -82,7 +82,8 @@ function days(tally) {
     const t = by[key];
     const label = d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" });
     const s = !t || t.passed + t.failed === 0 ? "none" : t.failed ? "warn" : "ok";
-    const tip = !t ? `${label}: no checks` : `${label}: ${t.passed + t.failed} checks${t.failed ? `, ${t.failed} failed` : ", all passed"}`;
+    const n = t ? t.passed + t.failed : 0;
+    const tip = !t ? `${label}: no checks` : `${label}: ${n} check${n === 1 ? "" : "s"}${t.failed ? `, ${t.failed} failed` : n === 1 ? ", passed" : ", all passed"}`;
     strip.append(h("span", { class: "wd-day", dataset: { s }, role: "listitem", title: tip, "aria-label": tip }));
   }
   return strip;
@@ -94,7 +95,8 @@ function todayLine(tally) {
   const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   if (!t || t.day !== key) return "No checks yet today.";
   const n = t.passed + t.failed;
-  return t.failed ? `Today: ${n} checks, ${t.failed} failed.` : `Today: ${n} checks, all passed.`;
+  const checks = `${n} check${n === 1 ? "" : "s"}`;
+  return t.failed ? `Today: ${checks}, ${t.failed} failed.` : n === 1 ? "Today: 1 check, passed." : `Today: ${checks}, all passed.`;
 }
 
 function render(w) {
@@ -142,9 +144,9 @@ function render(w) {
       h("span", { class: "wd-text", text: e.text })));
   }
   box.append(h("h3", { class: "wd-sub", text: "Recent events" }),
-    w.events.length ? list : h("p", { class: "dim", text: "Nothing yet. Failed checks, alerts and recoveries show here." }),
-    w.events.length > 12 && !showAll ? h("button", { class: "btn small quiet", type: "button", text: `Show all ${w.events.length}`,
-      onclick: () => { showAll = true; render(last); } }) : null);
+    w.events.length ? list : h("p", { class: "dim", text: "Nothing yet. Failed checks, alerts and recoveries show here." }));
+  if (w.events.length > 12 && !showAll) box.append(h("button", { class: "btn small quiet", type: "button", text: `Show all ${w.events.length}`,
+    onclick: () => { showAll = true; render(last); } }));
 }
 
 // A long random topic is hard to guess; ntfy topics are letters, digits, - and _
