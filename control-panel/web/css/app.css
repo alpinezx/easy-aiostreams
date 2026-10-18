@@ -208,7 +208,10 @@ button.chip:hover { text-decoration: underline; }
 .ver-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 @media (max-width: 720px) {
   .ver-grid { grid-template-columns: minmax(0, 1fr); }
-  .ver-btns { justify-content: flex-start; }
+  /* a little less padding so all three buttons share one line on a phone; they still wrap with big text */
+  .ver-card { padding: 16px 16px 18px; }
+  .ver-btns { justify-content: flex-start; gap: 6px; }
+  .ver-btns .btn { padding-left: 8px; padding-right: 8px; }
 }
 
 /* ---------- signal path ---------- */
