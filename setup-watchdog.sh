@@ -27,11 +27,25 @@ CONFIG_FILE="$STATE_DIR/config"
 FAILCOUNT_FILE="$STATE_DIR/failcount"
 ALERTSTATE_FILE="$STATE_DIR/alert-state"
 LASTCHECK_FILE="$STATE_DIR/last-check"
+EVENTS_FILE="$STATE_DIR/events"     # what happened, newest last: "epoch|kind|text"
+TALLY_FILE="$STATE_DIR/tally"       # checks per day: "YYYY-MM-DD passed failed"
+ALIVE_FILE="$STATE_DIR/last-alive"  # when the last check ran
+SHUTDOWN_FILE="$STATE_DIR/shutdown-at"  # written as the server shuts down cleanly
+BOOT_ID_FILE="$STATE_DIR/boot-reported" # the kernel's boot ID once that boot is reported
+OPTIONS_FILE="$STATE_DIR/options"   # extra alerts: "updates=on", "weekly=on", and the
+                                    # check-in's "weekly_day=7" (1 Mon .. 7 Sun), "weekly_hour=10"
 SCRIPT_COPY="$STATE_DIR/watchdog.sh"
 SERVICE_FILE="/etc/systemd/system/aiostreams-watchdog.service"
 TIMER_FILE="/etc/systemd/system/aiostreams-watchdog.timer"
+BOOT_SERVICE_FILE="/etc/systemd/system/aiostreams-watchdog-boot.service"
+WEBHOOK_BOOT_UNIT="aios-webhook-boot-notify.service"
 
 FAIL_THRESHOLD=2        # consecutive failed checks before an alert fires
+DISK_WARN_PCT=90        # disk alert at this % used, all-clear once below DISK_CLEAR_PCT
+DISK_CLEAR_PCT=85
+CERT_WARN_DAYS=10       # Caddy renews well before this (30 days left on a 90-day
+                        # certificate, about 15 on a 45-day one), so fewer days
+                        # left means renewal has been failing
 CHECK_INTERVAL="2min"   # how often the timer runs (display string)
                          # (2 fails x 2min = ~4min worst-case detection lag)
 CHECK_INTERVAL_MIN="2"  # same interval, as a bare number of minutes —
@@ -76,6 +90,35 @@ aiostreams_running() {
     [[ "$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null)" == "true" ]]
 }
 
+# The main site, the first one in the Caddyfile (the add-ons live in caddy.d/).
+site_domain() {
+    awk 'NF && $1 !~ /^#/ && $2 == "{" {print $1; exit}' "$INSTALL_DIR/Caddyfile" 2>/dev/null || true
+}
+
+# Loads the site the way a visitor would, HTTPS and certificate included, but
+# through this server's own port 443 (--resolve) rather than DNS, so a DNS
+# hiccup elsewhere or a cloud that can't reach its own public IP doesn't
+# count as the site being down. Any answer below 500 means it's up (AIOStreams
+# answers / with a page or a redirect).
+check_site() {
+    local domain code rc=0
+    domain=$(site_domain)
+    [[ -n "$domain" ]] || return 0
+    code=$(curl -s -o /dev/null -w '%{http_code}' -m 15 --resolve "$domain:443:127.0.0.1" "https://$domain/") || rc=$?
+    case "$rc" in
+        0) ;;
+        7) FAIL_REASON="nothing is answering on port 443, so Caddy looks down and https://$domain is unreachable. Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"; return 1 ;;
+        28) FAIL_REASON="https://$domain didn't answer within 15 seconds. Check: docker logs caddy, docker logs aiostreams"; return 1 ;;
+        35|51|58|60) FAIL_REASON="the HTTPS certificate for $domain isn't valid (expired, or Caddy couldn't get one). Check: docker logs caddy"; return 1 ;;
+        *) FAIL_REASON="https://$domain couldn't be loaded (curl error $rc). Check: docker logs caddy"; return 1 ;;
+    esac
+    case "$code" in
+        502|503|504) FAIL_REASON="https://$domain is up but AIOStreams isn't answering behind it (HTTP $code). Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"; return 1 ;;
+        5??) FAIL_REASON="https://$domain answered with a server error (HTTP $code). Check: docker logs aiostreams"; return 1 ;;
+    esac
+    return 0
+}
+
 # MediaFlow Proxy Light has no published port, so the health check goes
 # through the caddy container (same aios_shared network, and its image has
 # wget). Caddy being down is checked first, since that takes out the
@@ -103,16 +146,11 @@ check_mediaflow() {
     return 0
 }
 
-# Sets FAIL_REASON on failure, for the alert text. VPN checks only run in
-# VPN mode, MediaFlow checks only if it's set up; do_run_check skips
-# entirely when neither applies.
+# Sets FAIL_REASON on failure, for the alert text. The site is checked in
+# every mode; the VPN checks only in VPN mode, MediaFlow only if it's set up.
 run_checks() {
     FAIL_REASON=""
-    if mediaflow_configured && ! vpn_mode_on; then
-        check_mediaflow
-        return
-    fi
-    if ! check_gluetun_tunnel; then
+    if vpn_mode_on && ! check_gluetun_tunnel; then
         FAIL_REASON="gluetun tunnel appears to be DOWN (health check failing)"
         return 1
     fi
@@ -120,45 +158,225 @@ run_checks() {
     # "Stop AIOStreams" in setup-aiostreams.sh leaves this marker. Honor it
     # only while aiostreams is actually stopped; once anything starts it
     # again, the marker is stale, so clear it and go back to checking.
+    local aio_paused=0
     if [[ -f "$STOPPED_MARKER" ]]; then
         if aiostreams_running; then
             rm -f "$STOPPED_MARKER"
         else
-            return 0
+            aio_paused=1
         fi
     fi
 
-    if ! aiostreams_running; then
-        FAIL_REASON="aiostreams is NOT running (tunnel is fine). In VPN mode nothing restarts it automatically. Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"
-        return 1
-    fi
-    if ! check_aiostreams_reachable; then
-        FAIL_REASON="aiostreams is running but unreachable through gluetun (likely stranded after a gluetun restart). Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"
-        return 1
+    if (( ! aio_paused )); then
+        if vpn_mode_on; then
+            if ! aiostreams_running; then
+                FAIL_REASON="aiostreams is NOT running (tunnel is fine). In VPN mode nothing restarts it automatically. Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"
+                return 1
+            fi
+            if ! check_aiostreams_reachable; then
+                FAIL_REASON="aiostreams is running but unreachable through gluetun (likely stranded after a gluetun restart). Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"
+                return 1
+            fi
+        fi
+        check_site || return 1
     fi
     if mediaflow_configured; then
-        check_mediaflow
-        return
+        check_mediaflow || return 1
+    fi
+    return 0
+}
+
+# A short record for "did anything happen overnight?" (the control panel's
+# Phone alerts page reads it). Kinds: fail, alert, recovered, start, stop,
+# test, topic, reboot, disk, cert, update, weekly. Never holds the topic itself. Keeps the last 200.
+log_event() {
+    mkdir -p "$STATE_DIR"
+    printf '%s|%s|%s\n' "$(date +%s)" "$1" "${2//$'\n'/ }" >> "$EVENTS_FILE"
+    if (( $(wc -l < "$EVENTS_FILE") > 220 )); then
+        tail -n 200 "$EVENTS_FILE" > "$EVENTS_FILE.tmp" && mv "$EVENTS_FILE.tmp" "$EVENTS_FILE"
+    fi
+    return 0
+}
+
+# One line per day with how many checks passed and failed. Keeps 14 days.
+tally_check() {
+    local today passed=0 failed=0 d p f
+    today=$(date +%F)
+    if [[ -f "$TALLY_FILE" ]] && read -r d p f < <(tail -n 1 "$TALLY_FILE") && [[ "$d" == "$today" ]]; then
+        passed=$p failed=$f
+        sed -i '$d' "$TALLY_FILE"
+    fi
+    if [[ "$1" == ok ]]; then passed=$((passed + 1)); else failed=$((failed + 1)); fi
+    echo "$today $passed $failed" >> "$TALLY_FILE"
+    if (( $(wc -l < "$TALLY_FILE") > 14 )); then
+        tail -n 14 "$TALLY_FILE" > "$TALLY_FILE.tmp" && mv "$TALLY_FILE.tmp" "$TALLY_FILE"
+    fi
+    return 0
+}
+
+# Disk space and the certificate are warnings, not outages: one alert when
+# one goes wrong and one when it's fine again, kept in <name>-state.
+# Args: name, now (bad|ok), then for each way: title, message, event text.
+flag_change() {
+    local f="$STATE_DIR/$1-state" was title msg event prio tags
+    was=$(cat "$f" 2>/dev/null || echo ok)
+    [[ "$was" == "$2" ]] && return 0
+    echo "$2" > "$f"
+    if [[ "$2" == bad ]]; then title=$3 msg=$4 event=$5 prio=4 tags=warning
+    else title=$6 msg=$7 event=$8 prio=2 tags=white_check_mark
+    fi
+    local what=alert sent="Alert sent."
+    [[ "$2" == ok ]] && what=all-clear sent="All-clear sent."
+    if send_ntfy "$msg" "$title" "$prio" "$tags"; then
+        log_event "$1" "$event $sent"
+    else
+        log_event "$1" "$event The $what couldn't be sent (ntfy.sh unreachable)."
+    fi
+    return 0
+}
+
+check_disk() {
+    local pct avail free was now
+    read -r pct avail < <(df -P -B1 "$INSTALL_DIR" 2>/dev/null | awk 'NR == 2 {sub("%", "", $5); print $5, $4}') || return 0
+    [[ "$pct" =~ ^[0-9]+$ && "$avail" =~ ^[0-9]+$ ]] || return 0
+    free=$(numfmt --to=iec --suffix=B "$avail" 2>/dev/null || echo "$avail bytes")
+    was=$(cat "$STATE_DIR/disk-state" 2>/dev/null || echo ok)
+    if (( pct >= DISK_WARN_PCT )); then now=bad
+    elif (( pct < DISK_CLEAR_PCT )); then now=ok
+    else now=$was
+    fi
+    flag_change disk "$now" \
+        "Disk nearly full" \
+        "The server's disk is ${pct}% full (${free} free). Things start failing when it fills. See what's using it: sudo docker system df" \
+        "Disk ${pct}% full, ${free} free." \
+        "Disk space is fine again" \
+        "${pct}% used, ${free} free." \
+        "Disk back to ${pct}% used, ${free} free."
+}
+
+# Every 6 hours is plenty: Caddy renews weeks ahead. Asks this server's own
+# port 443, like the site check. A certificate that's already broken is the
+# site check's job.
+check_cert() {
+    local stamp="$STATE_DIR/cert-checked" domain end days
+    if [[ -f "$stamp" ]] && (( $(date +%s) - $(stat -c %Y "$stamp") < 21600 )); then return 0; fi
+    touch "$stamp"
+    domain=$(site_domain)
+    [[ -n "$domain" ]] || return 0
+    end=$(echo | timeout 10 openssl s_client -connect 127.0.0.1:443 -servername "$domain" 2>/dev/null \
+        | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2) || true
+    [[ -n "$end" ]] || return 0
+    days=$(( ( $(date -d "$end" +%s) - $(date +%s) ) / 86400 ))
+    flag_change cert "$( (( days < CERT_WARN_DAYS )) && echo bad || echo ok)" \
+        "Certificate not renewing" \
+        "The HTTPS certificate for $domain runs out in $days days and Caddy hasn't renewed it. Check: docker logs caddy" \
+        "The certificate for $domain runs out in $days days and hasn't been renewed." \
+        "Certificate renewed" \
+        "The HTTPS certificate for $domain was renewed ($days days left)." \
+        "Certificate for $domain renewed, $days days left."
+}
+
+# The control panel's address, if it's installed, so tapping an alert opens
+# its Phone alerts page.
+panel_domain() {
+    awk 'NF && $1 !~ /^#/ && $2 == "{" {print $1; exit}' "$INSTALL_DIR/caddy.d/60-ui.caddy" 2>/dev/null || true
+}
+
+# send_ntfy <message> [title] [priority 1-5] [tags] [panel page, default alerts]
+# The tags are ntfy's emoji names, shown before the title. Priority 5 makes
+# the phone sound even on silent-ish settings, 2 arrives quietly.
+option_on() {
+    grep -qx "$1=on" "$OPTIONS_FILE" 2>/dev/null
+}
+
+# Optional, off until switched on (the control panel's Phone alerts page, or
+# set-option). Stable only: nightly builds come out daily, so an alert for
+# each would be noise. Asks GitHub every 6 hours and alerts once per release.
+check_updates() {
+    option_on updates || return 0
+    local stamp="$STATE_DIR/update-checked" latest running node
+    if [[ -f "$stamp" ]] && (( $(date +%s) - $(stat -c %Y "$stamp") < 21600 )); then return 0; fi
+    touch "$stamp"
+    grep -qE '^\s*image:\s*viren070/aiostreams:latest\s*$' "$INSTALL_DIR/docker-compose.yml" 2>/dev/null || return 0
+    latest=$(curl -fsS -m 15 https://api.github.com/repos/viren070/aiostreams/releases/latest 2>/dev/null \
+        | grep -oP '"tag_name":\s*"\Kv[0-9]+\.[0-9]+\.[0-9]+(?=")' | head -n 1) || true
+    [[ -n "$latest" ]] || return 0
+    # The image is distroless: node is at /nodejs/bin/node (plain node on older images)
+    for node in /nodejs/bin/node node; do
+        running=$(docker exec aiostreams "$node" -p "require('/app/package.json').version" 2>/dev/null) && break
+    done
+    [[ "$running" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] || return 0
+    running="v$running"
+    [[ "$running" == "$latest" ]] && return 0
+    [[ "$(printf '%s\n%s\n' "$running" "$latest" | sort -V | tail -n 1)" == "$latest" ]] || return 0
+    [[ "$(cat "$STATE_DIR/update-notified" 2>/dev/null)" == "$latest" ]] && return 0
+    echo "$latest" > "$STATE_DIR/update-notified"
+    local how="Update with: sudo bash setup-aiostreams.sh, option 5."
+    [[ -n "$(panel_domain)" ]] && how="Tap here, then Update on the control panel's Overview (it offers a backup first)."
+    if send_ntfy "AIOStreams $latest is out; this server runs $running. $how" \
+        "Update available" 3 package overview; then
+        log_event update "AIOStreams $latest is out (this server runs $running). Alert sent."
+    else
+        log_event update "AIOStreams $latest is out (this server runs $running). The alert couldn't be sent (ntfy.sh unreachable)."
+    fi
+    return 0
+}
+
+# Optional weekly check-in (Sundays from 10:00 unless set otherwise, by the
+# server's clock): the week's checks, alerts and disk space. Each check looks
+# whether it's due, so any day and hour works. If it ever stops arriving, the
+# watchdog itself needs a look.
+check_weekly() {
+    option_on weekly || return 0
+    local now last since passed=0 failed=0 alerts=0 reboots=0 d p f at kind pct msg wday whour
+    now=$(date +%s)
+    wday=$(grep -oP '^weekly_day=\K[1-7]$' "$OPTIONS_FILE" 2>/dev/null || echo 7)
+    whour=$(grep -oP '^weekly_hour=\K([01]?[0-9]|2[0-3])$' "$OPTIONS_FILE" 2>/dev/null || echo 10)
+    whour=$((10#$whour))
+    [[ "$(date +%u)" == "$wday" && "$(date +%-H)" -ge "$whour" ]] || return 0
+    last=$(cat "$STATE_DIR/weekly-sent" 2>/dev/null || echo 0)
+    [[ "$last" =~ ^[0-9]+$ ]] || last=0
+    (( now - last > 6 * 86400 )) || return 0
+    echo "$now" > "$STATE_DIR/weekly-sent"
+    since=$(date -d '6 days ago' +%F)
+    while read -r d p f; do
+        [[ "$d" > "$since" || "$d" == "$since" ]] || continue
+        passed=$((passed + p)); failed=$((failed + f))
+    done < <(cat "$TALLY_FILE" 2>/dev/null)
+    while IFS='|' read -r at kind _; do
+        [[ "$at" =~ ^[0-9]+$ ]] && (( now - at < 7 * 86400 )) || continue
+        [[ "$kind" == alert ]] && alerts=$((alerts + 1))
+        [[ "$kind" == reboot ]] && reboots=$((reboots + 1))
+    done < <(cat "$EVENTS_FILE" 2>/dev/null)
+    pct=$(df -P "$INSTALL_DIR" 2>/dev/null | awk 'NR == 2 {print $5}')
+    msg="Last 7 days: $((passed + failed)) checks"
+    (( failed )) && msg+=", $failed failed" || msg+=", all passed"
+    (( alerts )) && msg+=", $alerts alert$( (( alerts > 1 )) && echo s) sent" || msg+=", no alerts"
+    (( reboots )) && msg+=", $reboots restart$( (( reboots > 1 )) && echo s)"
+    msg+="."
+    [[ -n "$pct" ]] && msg+=" Disk ${pct} used."
+    if send_ntfy "$msg" "Weekly check-in" 2 calendar; then
+        log_event weekly "$msg Sent."
+    else
+        log_event weekly "$msg Couldn't be sent (ntfy.sh unreachable)."
     fi
     return 0
 }
 
 send_ntfy() {
-    local msg="$1" topic
+    local msg="$1" title="${2:-AIOStreams}" prio="${3:-3}" tags="${4:-}" page="${5:-alerts}" topic panel
     topic=$(grep -oP 'NTFY_TOPIC=\K.*' "$CONFIG_FILE" 2>/dev/null || true)
     [[ -n "$topic" ]] || { warn "No ntfy topic configured, run Reconfigure first."; return 1; }
-    curl -fsS -d "$msg" "https://ntfy.sh/$topic" >/dev/null 2>&1 || { warn "Couldn't reach ntfy.sh."; return 1; }
+    local args=(-fsS -m 15 -H "Title: $title" -H "Priority: $prio")
+    [[ -n "$tags" ]] && args+=(-H "Tags: $tags")
+    panel=$(panel_domain)
+    [[ -n "$panel" ]] && args+=(-H "Click: https://$panel/#$page")
+    curl "${args[@]}" -d "$msg" "https://ntfy.sh/$topic" >/dev/null 2>&1 || { warn "Couldn't reach ntfy.sh."; return 1; }
 }
 
 do_run_check() {
     mkdir -p "$STATE_DIR"
-
-    # Nothing to watch: VPN off (on purpose, shouldn't page you) and no
-    # MediaFlow. With MediaFlow set up, it's still checked in direct mode.
-    if ! vpn_mode_on && ! mediaflow_configured; then
-        echo "$(date '+%d %b %Y, %H:%M:%S %Z') SKIPPED (VPN mode not active, MediaFlow not set up)" > "$LASTCHECK_FILE"
-        return 0
-    fi
+    date +%s > "$ALIVE_FILE"
 
     local fails alert_state
     fails=$(cat "$FAILCOUNT_FILE" 2>/dev/null || echo 0)
@@ -166,26 +384,103 @@ do_run_check() {
 
     if run_checks; then
         echo "$(date '+%d %b %Y, %H:%M:%S %Z') OK" > "$LASTCHECK_FILE"
+        tally_check ok
         echo 0 > "$FAILCOUNT_FILE"
         if [[ "$alert_state" == "down" ]]; then
-            send_ntfy "✅ AIOStreams: all checks passing again." || true
+            if send_ntfy "All checks passing again." "AIOStreams is back" 3 white_check_mark; then
+                log_event recovered "All checks passing again. All-clear sent."
+            else
+                log_event recovered "All checks passing again. The all-clear couldn't be sent (ntfy.sh unreachable)."
+            fi
             echo "up" > "$ALERTSTATE_FILE"
+        elif [[ "$fails" -gt 0 ]]; then
+            log_event recovered "Passing again before an alert was due, so none was sent."
         fi
     else
         echo "$(date '+%d %b %Y, %H:%M:%S %Z') FAIL: ${FAIL_REASON}" > "$LASTCHECK_FILE"
+        tally_check fail
         fails=$((fails + 1))
         echo "$fails" > "$FAILCOUNT_FILE"
+        [[ "$fails" -eq 1 && "$alert_state" == "up" ]] && log_event fail "$FAIL_REASON"
         if [[ "$fails" -ge "$FAIL_THRESHOLD" && "$alert_state" == "up" ]]; then
-            send_ntfy "🔴 AIOStreams: ${FAIL_REASON}." || true
+            if send_ntfy "${FAIL_REASON}." "AIOStreams is down" 5 rotating_light; then
+                log_event alert "Still failing on the next check. Alert sent."
+            else
+                log_event alert "Still failing on the next check. The alert couldn't be sent (ntfy.sh unreachable)."
+            fi
             echo "down" > "$ALERTSTATE_FILE"
         fi
     fi
+
+    check_disk || true
+    check_cert || true
+    check_updates || true
+    check_weekly || true
+}
+
+# "7 seconds", "about 4 min", "about 2 h"
+rough_duration() {
+    local s=$1
+    if (( s < 90 )); then echo "$s second$( (( s == 1 )) || echo s)"
+    elif (( s < 5400 )); then echo "about $(( (s + 30) / 60 )) min"
+    elif (( s < 172800 )); then echo "about $(( (s + 1800) / 3600 )) h"
+    else echo "about $(( (s + 43200) / 86400 )) days"
+    fi
+}
+
+# aiostreams-watchdog-boot.service stays "active" from boot to shutdown, so
+# systemd runs --shutdown as the server goes down cleanly. Its timestamp
+# tells the next boot exactly how long the server was off.
+do_shutdown() {
+    mkdir -p "$STATE_DIR"
+    date +%s > "$SHUTDOWN_FILE"
+}
+
+# Runs at every boot while the watchdog is on. A clean shutdown left its
+# time behind; without one (a crash, a power cut, a forced reset by the
+# host) the last check, from at most a couple of minutes before, says when
+# it was last seen. Only alerts once per boot, and only in its first 15
+# minutes, so starting the unit by hand (Start, a restore) sends nothing.
+do_boot() {
+    mkdir -p "$STATE_DIR"
+    local now up boot_at last shut when down="" sent=0 attempt boot_id
+    now=$(date +%s)
+    up=$(cut -d. -f1 /proc/uptime)
+    boot_at=$(( now - up ))
+    shut=$(cat "$SHUTDOWN_FILE" 2>/dev/null || echo 0)
+    rm -f "$SHUTDOWN_FILE"
+    boot_id=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null || echo unknown)
+    [[ "$(cat "$BOOT_ID_FILE" 2>/dev/null)" == "$boot_id" ]] && return 0
+    echo "$boot_id" > "$BOOT_ID_FILE"
+    (( up < 900 )) || return 0
+    last=$(cat "$ALIVE_FILE" 2>/dev/null || echo 0)
+    [[ "$last" =~ ^[0-9]+$ ]] || last=0
+    [[ "$shut" =~ ^[0-9]+$ ]] || shut=0
+    when=$(date -d "@$boot_at" '+%H:%M')
+    if (( shut > 0 && shut <= boot_at && shut >= last )); then
+        down=" after a clean shutdown. It was down for $(rough_duration $(( boot_at - shut )))"
+    elif (( last > 0 && last < boot_at )); then
+        down=" without a clean shutdown (a crash or power cut?). It was last seen at $(date -d "@$last" '+%H:%M')"
+    fi
+    # The webhook relay can send its own reboot notification; one is enough
+    if systemctl is-enabled --quiet "$WEBHOOK_BOOT_UNIT" 2>/dev/null; then
+        log_event reboot "Server restarted at $when$down. The webhook relay sent the notification."
+        return 0
+    fi
+    # A few tries: the network can take a moment after boot
+    for attempt in 1 2 3 4 5 6; do
+        if send_ntfy "The server restarted at $when$down." "Server restarted" 3 arrows_counterclockwise; then sent=1; break; fi
+        sleep 10
+    done
+    if (( sent )); then
+        log_event reboot "Server restarted at $when$down. Alert sent."
+    else
+        log_event reboot "Server restarted at $when$down. The alert couldn't be sent (ntfy.sh unreachable)."
+    fi
+    return 0
 }
 
 do_configure() {
-    [[ -f "$VPN_ACTIVE_MARKER" ]] || mediaflow_configured || \
-        error "Nothing to watch yet. This watchdog checks the VPN tunnel (setup-vpn-gluetun.sh) and MediaFlow Proxy (setup-mediaflow.sh). Set up at least one of those first."
-
     mkdir -p "$STATE_DIR"
     chmod 700 "$STATE_DIR"
 
@@ -207,12 +502,13 @@ do_configure() {
     chmod 600 "$CONFIG_FILE"
     echo 0 > "$FAILCOUNT_FILE"
     echo "up" > "$ALERTSTATE_FILE"
+    log_event topic "Alert topic set."
 
     info "Sending a test alert"
     echo -e "Subscribe first so you actually see it: open the ntfy app (or visit"
     echo -e "\033[1;36mhttps://ntfy.sh/$TOPIC\033[0m in a browser) and subscribe to topic '$TOPIC'."
     read -rp "Press Enter once you're subscribed and ready... "
-    if send_ntfy "🔔 Test alert from AIOStreams watchdog, if you see this, alerts are working."; then
+    if send_ntfy "If you see this, alerts are working." "Test alert" 3 bell; then
         echo "Sent. Confirm it arrived before continuing."
     else
         warn "Couldn't send it. Check network/DNS, then try option 4 (Send test alert) later."
@@ -262,6 +558,23 @@ Persistent=true
 WantedBy=timers.target
 EOF
 
+    cat > "$BOOT_SERVICE_FILE" << EOF
+[Unit]
+Description=AIOStreams watchdog: alert when the server has restarted
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Environment=HOME=$HOME
+ExecStart=/bin/bash $SCRIPT_COPY --boot
+ExecStop=/bin/bash $SCRIPT_COPY --shutdown
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
     systemctl daemon-reload
 }
 
@@ -269,13 +582,18 @@ do_start() {
     [[ -f "$CONFIG_FILE" ]] || do_configure
     install_systemd_units
     systemctl enable --now aiostreams-watchdog.timer
+    systemctl enable aiostreams-watchdog-boot.service >/dev/null 2>&1 || true
+    systemctl start aiostreams-watchdog-boot.service >/dev/null 2>&1 || true   # records this boot's shutdown; sends nothing now
+    log_event start "Watchdog started."
     info "Watchdog started, checking every $CHECK_INTERVAL (alerts after $FAIL_THRESHOLD consecutive failures)."
 }
 
 do_stop() {
     systemctl disable --now aiostreams-watchdog.timer 2>/dev/null || true
+    systemctl disable --now aiostreams-watchdog-boot.service 2>/dev/null || true
     mkdir -p "$STATE_DIR"
     echo "$(date '+%d %b %Y, %H:%M:%S %Z') STOPPED (watchdog disabled, no checks running)" > "$LASTCHECK_FILE"
+    log_event stop "Watchdog stopped."
     echo "Watchdog stopped. Config and alert state are kept. Start picks up where it left off."
 }
 
@@ -307,7 +625,35 @@ do_status() {
 
 do_test_alert() {
     [[ -f "$CONFIG_FILE" ]] || error "Not configured yet, run Start first."
-    send_ntfy "🔔 Test alert from AIOStreams watchdog." && echo "Sent. Check your device."
+    if send_ntfy "If you see this, alerts from the AIOStreams watchdog are working." "Test alert" 3 bell; then
+        log_event test "Test alert sent."
+        echo "Sent. Check your device."
+    else
+        log_event test "Test alert couldn't be sent (ntfy.sh unreachable)."
+        return 1
+    fi
+}
+
+# ntfy topics: letters, digits, - and _, up to 64 characters.
+valid_topic() {
+    [[ "$1" =~ ^[A-Za-z0-9_-]{1,64}$ ]]
+}
+
+# Question-free topic change for the control panel. The topic comes in on
+# stdin, so it never shows in a process list or the panel's Activity, and
+# isn't printed. A test alert goes to the new topic straight away.
+do_set_topic() {
+    [[ -f "$CONFIG_FILE" ]] || error "Not configured yet. Set the watchdog up over SSH first."
+    local topic
+    IFS= read -r topic || true
+    topic="${topic//[[:space:]]/}"
+    valid_topic "$topic" || error "That topic isn't valid: use letters, numbers, - and _ only, up to 64 characters."
+    (( ${#topic} >= 12 )) || error "That topic is too short to be private. Use at least 12 characters."
+    echo "NTFY_TOPIC=$topic" > "$CONFIG_FILE"
+    chmod 600 "$CONFIG_FILE"
+    log_event topic "Alert topic changed."
+    echo "Topic saved. Sending a test alert to it..."
+    do_test_alert
 }
 
 do_uninstall() {
@@ -318,7 +664,8 @@ do_uninstall() {
         *) echo "Cancelled."; return ;;
     esac
     systemctl disable --now aiostreams-watchdog.timer 2>/dev/null || true
-    rm -f "$SERVICE_FILE" "$TIMER_FILE"
+    systemctl disable --now aiostreams-watchdog-boot.service 2>/dev/null || true
+    rm -f "$SERVICE_FILE" "$TIMER_FILE" "$BOOT_SERVICE_FILE"
     systemctl daemon-reload
     rm -rf "$STATE_DIR"
     echo "Done. Running this script again starts fresh from first-time setup."
@@ -329,6 +676,24 @@ if [[ "${1:-}" == "--run-check" ]]; then
     exit 0
 fi
 
+if [[ "${1:-}" == "--boot" ]]; then
+    do_boot
+    exit 0
+fi
+
+if [[ "${1:-}" == "--shutdown" ]]; then
+    do_shutdown
+    exit 0
+fi
+
+# Runs the checks once and prints the result, without touching the saved
+# state or sending anything. Exit 1 if a check fails.
+if [[ "${1:-}" == "check" ]]; then
+    if run_checks; then echo "OK"; exit 0; fi
+    echo "FAIL: ${FAIL_REASON}"
+    exit 1
+fi
+
 [[ $EUID -eq 0 ]] || error "Run as root: sudo bash setup-watchdog.sh"
 command -v docker    >/dev/null || error "Docker not found. Run this on the same server as setup-aiostreams.sh."
 command -v curl      >/dev/null || error "curl not found. Install it first (apt install curl)."
@@ -337,10 +702,37 @@ command -v systemctl >/dev/null || error "systemd not found. This script relies 
 
 # Errors out rather than risking a hang on an interactive prompt if the
 # config is somehow missing here.
+if [[ "${1:-}" == "set-topic" ]]; then
+    do_set_topic
+    exit $?
+fi
+
+# set-option <updates|weekly> <on|off>, or set-option weekly_day <1-7> /
+# weekly_hour <0-23>: the optional alerts, without questions
+if [[ "${1:-}" == "set-option" ]]; then
+    [[ ( "${2:-}" =~ ^(updates|weekly)$ && "${3:-}" =~ ^(on|off)$ ) || ( "${2:-}" == weekly_day && "${3:-}" =~ ^[1-7]$ )
+       || ( "${2:-}" == weekly_hour && "${3:-}" =~ ^([01]?[0-9]|2[0-3])$ ) ]] \
+        || error "Usage: set-option updates|weekly on|off, set-option weekly_day 1-7 (Mon-Sun), set-option weekly_hour 0-23"
+    [[ -f "$CONFIG_FILE" ]] || error "Not configured yet. Set the watchdog up first."
+    v=$3
+    [[ "$v" =~ ^[0-9]+$ ]] && v=$((10#$v))     # "07" -> 7: bash would read 07 as octal, and 08 not at all
+    { grep -v "^$2=" "$OPTIONS_FILE" 2>/dev/null || true; echo "$2=$v"; } > "$OPTIONS_FILE.tmp" && mv "$OPTIONS_FILE.tmp" "$OPTIONS_FILE"
+    echo "$2 is now $v."
+    exit 0
+fi
+
+if [[ "${1:-}" == "test" ]]; then
+    do_test_alert
+    exit $?
+fi
+
 if [[ "${1:-}" == "install-timer" ]]; then
     [[ -f "$CONFIG_FILE" ]] || error "No watchdog config found at $CONFIG_FILE, nothing to reinstall."
     install_systemd_units
     systemctl enable --now aiostreams-watchdog.timer
+    systemctl enable aiostreams-watchdog-boot.service >/dev/null 2>&1 || true
+    systemctl start aiostreams-watchdog-boot.service >/dev/null 2>&1 || true   # records this boot's shutdown; sends nothing now
+    log_event start "Watchdog started."
     exit 0
 fi
 
@@ -360,7 +752,7 @@ while true; do
         1) do_status ;;
         2) do_start ;;
         3) do_stop ;;
-        4) do_test_alert ;;
+        4) do_test_alert || true ;;
         5) do_configure ;;
         6) do_uninstall ;;
         7) exit 0 ;;

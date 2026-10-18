@@ -1,3 +1,4 @@
+import json
 """Status parsing and output cleanup, using a stand-in Docker client."""
 import re
 import pytest
@@ -426,3 +427,23 @@ def test_parse_vpn_configs():
         {"kind": "file", "path": "/home/ubuntu/NL.conf", "endpoint": "203.0.113.16", "in_use": False},
         {"kind": "file", "path": "/root/x.conf", "endpoint": None, "in_use": False}]
     assert stack.parse_vpn_configs(out, 1) == []
+
+
+def test_watchdog_info_reads_events_and_tally_and_masks_the_topic(tmp_path, monkeypatch):
+    b = make_backend(tmp_path, monkeypatch, [container("caddy"), container("aiostreams")])
+    assert b.watchdog_info() == {"configured": False}
+    d = tmp_path / "aiostreams" / "watchdog-state"
+    d.mkdir()
+    (d / "config").write_text("NTFY_TOPIC=aios-secret-topic-99\n")
+    (d / "last-check").write_text("18 Oct 2026, 16:02:11 UTC OK\n")
+    (d / "events").write_text("1792335872|fail|https://x is up but AIOStreams isn't answering\n"
+                              "garbage line\n1792335990|recovered|Passing again | still one field\n")
+    (d / "tally").write_text("2026-10-17 720 0\n2026-10-18 400 2\nbad\n")
+    (tmp_path / "aiostreams" / "Caddyfile").write_text("# main site\nstreams.example.com {\n    reverse_proxy aiostreams:3000\n}\n")
+    monkeypatch.setattr(b, "_systemd_active", lambda unit: True)
+    w = b.watchdog_info()
+    assert "aios-secret-topic-99" not in json.dumps(w) and w["topic"].startswith("aios-") and w["topic"].endswith("99")
+    assert [e["kind"] for e in w["events"]] == ["recovered", "fail"]            # newest first, junk skipped
+    assert w["events"][0]["text"] == "Passing again | still one field"
+    assert w["tally"] == [{"day": "2026-10-17", "passed": 720, "failed": 0}, {"day": "2026-10-18", "passed": 400, "failed": 2}]
+    assert w["watches"] == ["https://streams.example.com", "Disk space", "HTTPS certificate"] and w["running"] and w["alert_state"] == "up"

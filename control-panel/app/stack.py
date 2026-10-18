@@ -110,6 +110,13 @@ ADDONS = {"mediaflow", "webhook"}
 RESTARTABLE = {"aiostreams", "mediaflow", "webhook"}
 
 
+def mask_topic(topic: str) -> str | None:
+    """Enough of the topic to tell which one it is, never enough to subscribe to it."""
+    if not topic:
+        return None
+    return topic[:5] + "\u2022" * 6 + topic[-2:] if len(topic) >= 10 else "\u2022" * 8
+
+
 def _read(path) -> str:
     try:
         return path.read_text(errors="replace")
@@ -629,6 +636,108 @@ class Backend:
         if r.returncode != 0:
             raise ValueError("Couldn't remove it.")
         return found[1]
+
+    def watchdog_info(self) -> dict:
+        """The Phone alerts page: the watchdog's state, its recent events and
+        daily tally (setup-watchdog.sh writes them), what it watches, and the
+        topic masked. The topic itself never leaves the server."""
+        d = self.p("watchdog-state")
+        if not (d / "config").exists():
+            return {"configured": False}
+        topic = (re.search(r"^NTFY_TOPIC=(.*)$", _read(d / "config"), re.M) or [None, ""])[1].strip()
+        last = _read(d / "last-check").strip()
+        events = []
+        for line in _read(d / "events").splitlines()[-100:]:
+            parts = line.split("|", 2)
+            if len(parts) == 3 and parts[0].isdigit():
+                events.append({"at": int(parts[0]), "kind": parts[1], "text": parts[2]})
+        tally = []
+        for line in _read(d / "tally").splitlines()[-14:]:
+            parts = line.split()
+            if len(parts) == 3 and parts[1].isdigit() and parts[2].isdigit():
+                tally.append({"day": parts[0], "passed": int(parts[1]), "failed": int(parts[2])})
+        domain = None
+        m = re.search(r"^(\S+)\s*\{", _read(self.p("Caddyfile")), re.M)
+        if m:
+            domain = m.group(1)
+        watches = ([f"https://{domain}"] if domain else ["The site"]) + ["Disk space", "HTTPS certificate"]
+        if self.vpn_mode() == "on":
+            watches += ["VPN tunnel", "AIOStreams through the VPN"]
+        if (self.p("mediaflow-state") / "config").exists():
+            watches.append("MediaFlow Proxy")
+        return {
+            "configured": True,
+            "running": self._systemd_active("aiostreams-watchdog.timer"),
+            "last_check": last or None,
+            "alert_state": _read(d / "alert-state").strip() or "up",
+            "fails": int(_read(d / "failcount").strip() or 0) if _read(d / "failcount").strip().isdigit() else 0,
+            # warnings that stand until they clear: disk nearly full, certificate not renewing
+            "warnings": [w for w, f in (("disk", "disk-state"), ("cert", "cert-state")) if _read(d / f).strip() == "bad"],
+            "topic": mask_topic(topic),
+            "events": events[::-1],
+            "tally": tally,
+            "watches": watches,
+            "every_min": 2, "threshold": 2,
+            "options": self._watchdog_options(),
+            "timezone": self._host_timezone(),
+            "stable": bool(re.search(r"^\s*image:\s*viren070/aiostreams:latest\s*$", _read(self.p("docker-compose.yml")), re.M)),
+        }
+
+    def _host_timezone(self) -> str | None:
+        """The server's time zone (Europe/London), which the weekly check-in's
+        Sunday 10:00 goes by. Asked of the host; the container has its own."""
+        try:
+            r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "readlink", "-f", "/etc/localtime"],
+                               capture_output=True, text=True, timeout=5)
+        except Exception:
+            return None
+        tz = r.stdout.strip().split("/zoneinfo/")[-1] if r.returncode == 0 and "/zoneinfo/" in r.stdout else ""
+        return tz or None
+
+    def _watchdog_options(self) -> dict:
+        kv = dict(l.split("=", 1) for l in _read(self.p("watchdog-state/options")).split() if "=" in l)
+        day, hour = kv.get("weekly_day", "7"), kv.get("weekly_hour", "10")
+        return {"updates": kv.get("updates") == "on", "weekly": kv.get("weekly") == "on",
+                "weekly_day": int(day) if day in {str(i) for i in range(1, 8)} else 7,
+                "weekly_hour": int(hour) if hour in {str(i) for i in range(24)} else 10}
+
+    def set_watchdog_option(self, name: str, value) -> None:
+        """The Phone alerts page's switches (update available, weekly check-in)
+        and the check-in's day and hour. Kept in watchdog-state/options, which
+        the script reads; written on the host, since the install folder is
+        read-only here."""
+        if name in ("updates", "weekly") and isinstance(value, bool):
+            text = "on" if value else "off"
+        elif name == "weekly_day" and isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 7:
+            text = str(value)
+        elif name == "weekly_hour" and isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= 23:
+            text = str(value)
+        else:
+            raise ValueError("Unknown option.")
+        if not self.p("watchdog-state/config").exists():
+            raise ValueError("The watchdog isn't set up on this server.")
+        lines = [l for l in _read(self.p("watchdog-state/options")).split() if not l.startswith(name + "=")]
+        body = "\n".join(lines + [f"{name}={text}"]) + "\n"
+        path = str(config.INSTALL_DIR / "watchdog-state" / "options")
+        r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "sh", "-c",
+                            'cat > "$1.tmp" && mv "$1.tmp" "$1"', "sh", path],
+                           input=body, capture_output=True, text=True, timeout=20)
+        if r.returncode != 0:
+            raise ValueError("Couldn't save it.")
+
+    def clear_watchdog_events(self, which: str = "events") -> None:
+        """Clear history (the event list) or Reset (the daily tally) on the
+        Phone alerts page. The install folder is read-only here, so it's done
+        on the host."""
+        if which not in ("events", "tally"):
+            raise ValueError("Unknown list.")
+        path = str(config.INSTALL_DIR / "watchdog-state" / which)
+        if not self.p("watchdog-state/config").exists():
+            raise ValueError("The watchdog isn't set up on this server.")
+        r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "sh", "-c",
+                            '[ ! -e "$1" ] || : > "$1"', "sh", path], capture_output=True, text=True, timeout=20)
+        if r.returncode != 0:
+            raise ValueError("Couldn't clear it.")
 
     def vpn_mode(self) -> str:
         """on, off or none, from the files alone (quick, unlike vpn_info)."""

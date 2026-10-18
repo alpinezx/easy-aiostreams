@@ -88,4 +88,4 @@ Caddy only picks up a new `caddy.d/` file on restart, which the script already d
 
 ## Removing it
 
-Run `sudo bash /opt/aiostreams/setup-webhook.sh` → **7) Uninstall** — stops and removes the relay container, deletes its Caddy drop-in file (restarting caddy to apply that), and clears all saved state (including your token and event history). Nothing about `setup-aiostreams.sh`, `setup-vpn-gluetun.sh`, or `setup-watchdog.sh` is affected.
+Run `sudo bash /opt/aiostreams/setup-webhook.sh` → **9) Uninstall**: it stops and removes the relay container, deletes its Caddy drop-in file (restarting caddy to apply that), and clears all saved state (including your token and event history). Nothing about `setup-aiostreams.sh`, `setup-vpn-gluetun.sh`, or `setup-watchdog.sh` is affected.

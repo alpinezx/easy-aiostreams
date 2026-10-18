@@ -113,7 +113,7 @@ async def login(request: Request, response: Response):
     token = auth.make_session(cfg.secret, cfg.user)
     secure = request.url.scheme == "https"
     response.set_cookie(COOKIE, token, max_age=config.SESSION_DAYS * 86400, httponly=True,
-                        secure=secure, samesite="strict", path="/")
+                        secure=secure, samesite="lax", path="/")   # lax: tapping a phone alert opens the panel
     return {"ok": True}
 
 
@@ -287,6 +287,49 @@ def builds_for(items: list[dict]) -> tuple[dict, set]:
 @app.get("/api/server-address")
 async def server_address(user: str = Depends(current_user)):
     return {"ip": await asyncio.to_thread(serverip.address)}
+
+
+@app.get("/api/watchdog")
+async def watchdog(user: str = Depends(current_user)):
+    """The Phone alerts page: state, recent events, daily tally. The topic only masked."""
+    return await asyncio.to_thread(backend.watchdog_info)
+
+
+@app.post("/api/watchdog/options")
+async def watchdog_option(request: Request, user: str = Depends(current_user)):
+    """The Phone alerts page's settings: {"name": "updates"|"weekly", "on": bool},
+    or {"name": "weekly_day" (1 Mon .. 7 Sun) | "weekly_hour" (0-23), "value": int}."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    name = body.get("name") if isinstance(body, dict) else None
+    value = body.get("on", body.get("value")) if isinstance(body, dict) else None
+    try:
+        await asyncio.to_thread(backend.set_watchdog_option, name, value)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {name: value}
+
+
+@app.post("/api/watchdog/events/clear")
+async def watchdog_clear_events(user: str = Depends(current_user)):
+    """Clear history on the Phone alerts page."""
+    try:
+        await asyncio.to_thread(backend.clear_watchdog_events, "events")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"cleared": True}
+
+
+@app.post("/api/watchdog/tally/clear")
+async def watchdog_clear_tally(user: str = Depends(current_user)):
+    """Reset on the Phone alerts page: the 14-day strip starts again."""
+    try:
+        await asyncio.to_thread(backend.clear_watchdog_events, "tally")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"cleared": True}
 
 
 @app.get("/api/vpn")

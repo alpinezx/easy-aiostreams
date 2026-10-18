@@ -201,7 +201,9 @@ remove_addons_on_uninstall() {
     local mode="${1:-uninstall}" removed=()
     if [[ -f /etc/systemd/system/aiostreams-watchdog.timer ]]; then
         systemctl disable --now aiostreams-watchdog.timer >/dev/null 2>&1 || true
-        rm -f /etc/systemd/system/aiostreams-watchdog.timer /etc/systemd/system/aiostreams-watchdog.service
+        systemctl disable --now aiostreams-watchdog-boot.service >/dev/null 2>&1 || true
+        rm -f /etc/systemd/system/aiostreams-watchdog.timer /etc/systemd/system/aiostreams-watchdog.service \
+              /etc/systemd/system/aiostreams-watchdog-boot.service
         removed+=("watchdog timer")
     fi
     if [[ -f /etc/systemd/system/aiostreams-vpn-boot.service ]]; then

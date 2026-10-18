@@ -70,6 +70,26 @@ class DemoBackend:
         self.previous = None
         self.has_config = True
         self.removed_scripts: set[str] = set()
+        self.wd_running = True
+        self.wd_options = {"updates": False, "weekly": False, "weekly_day": 7, "weekly_hour": 10}
+        self.wd_topic = "aios-7f3k29xq81"
+        now = time.time()
+        # A quiet fortnight with one blip and one real outage, for the Phone alerts page
+        self.wd_events = [
+            {"at": int(now - 5 * 3600), "kind": "recovered", "text": "Passing again before an alert was due, so none was sent."},
+            {"at": int(now - 5 * 3600 - 120), "kind": "fail", "text": "https://streams.example.com didn't answer within 15 seconds. Check: docker logs caddy, docker logs aiostreams"},
+            {"at": int(now - 3 * 86400 + 1800), "kind": "recovered", "text": "All checks passing again. All-clear sent."},
+            {"at": int(now - 3 * 86400 + 240), "kind": "alert", "text": "Still failing on the next check. Alert sent."},
+            {"at": int(now - 3 * 86400 + 120), "kind": "fail", "text": "gluetun tunnel appears to be DOWN (health check failing)"},
+            {"at": int(now - 9 * 86400), "kind": "test", "text": "Test alert sent."},
+            {"at": int(now - 9 * 86400 - 60), "kind": "start", "text": "Watchdog started."},
+            {"at": int(now - 9 * 86400 - 90), "kind": "topic", "text": "Alert topic set."},
+        ]
+        day = lambda n: time.strftime("%Y-%m-%d", time.localtime(now - n * 86400))
+        self.wd_tally = [{"day": day(n), "passed": 720 if n else int((now % 86400) / 120), "failed": 0} for n in range(9, -1, -1)]
+        self.wd_tally[-4]["passed"] -= 14
+        self.wd_tally[-4]["failed"] = 14
+        self.wd_tally[-1]["failed"] = 1
         self.demo_files = [
             {"kind": "file", "path": "/home/ubuntu/NL-Amsterdam.conf", "endpoint": "nl.wg.example-vpn.net", "in_use": False},
             {"kind": "file", "path": "/home/ubuntu/SE-Stockholm.conf", "endpoint": "se.wg.example-vpn.net", "in_use": False}]
@@ -110,6 +130,32 @@ class DemoBackend:
 
     def vpn_mode(self) -> str:
         return self.vpn
+
+    def set_watchdog_option(self, name: str, value) -> None:
+        ok = (name in ("updates", "weekly") and isinstance(value, bool)) or \
+            (name == "weekly_day" and type(value) is int and 1 <= value <= 7) or \
+            (name == "weekly_hour" and type(value) is int and 0 <= value <= 23)
+        if not ok:
+            raise ValueError("Unknown option.")
+        self.wd_options[name] = value
+
+    def clear_watchdog_events(self, which: str = "events") -> None:
+        if which == "tally":
+            self.wd_tally = []
+        else:
+            self.wd_events = []
+
+    def watchdog_info(self) -> dict:
+        from .stack import mask_topic
+        watches = ["https://streams.example.com", "Disk space", "HTTPS certificate"] + (["VPN tunnel", "AIOStreams through the VPN"] if self.vpn == "on" else []) + ["MediaFlow Proxy"]
+        return {"configured": True, "running": self.wd_running, "alert_state": "up", "fails": 0,
+                "warnings": [w for w in os.environ.get("UI_DEMO_WD_WARN", "").split(",") if w],
+                "last_check": time.strftime("%d %b %Y, %H:%M:%S UTC", time.gmtime(time.time() - 40)) + " OK" if self.wd_running
+                else time.strftime("%d %b %Y, %H:%M:%S UTC", time.gmtime(time.time() - 40)) + " STOPPED (watchdog disabled, no checks running)",
+                "topic": mask_topic(self.wd_topic), "events": self.wd_events, "tally": self.wd_tally,
+                "watches": watches, "every_min": 2, "threshold": 2,
+                "options": dict(self.wd_options), "stable": self.channel != "nightly",
+                "timezone": os.environ.get("UI_DEMO_TZ", "Europe/London")}
 
     def remove_script(self, script_id: str) -> str:
         from .actions import ADDON_STATE, SCRIPTS
@@ -175,9 +221,10 @@ class DemoBackend:
             "build_tag": time.strftime("%Y.%m.%d.%H%M-nightly", time.gmtime(time.time() - 30 * 3600)) if self.channel == "nightly" else "v2.35.9",
             "vpn": self.vpn, "install_dir": "/opt/aiostreams", "user_copy": self.user_copy(),
             "scripts": [{"id": i, "label": l, "file": f,
-                         "present": i in ("aiostreams", "vpn", "mediaflow", "webhook") and i not in self.removed_scripts,
+                         "present": i in ("aiostreams", "vpn", "mediaflow", "watchdog", "webhook") and i not in self.removed_scripts,
                          "in_use": i != "vpn" or self.vpn != "none"} for i, l, f in SCRIPTS], "overall": overall, "headline": headline, "services": services,
-            "watchdog": {"configured": True, "running": True, "last_check": "09 Oct 2026, 16:02:11 UTC OK", "alert_state": "up"},
+            "watchdog": {"configured": True, "running": self.wd_running, "alert_state": "up",
+                         "last_check": time.strftime("%d %b %Y, %H:%M:%S UTC", time.gmtime(time.time() - 40)) + (" OK" if self.wd_running else "")},
             "host": {"cpus": 2, "load": [0.21, 0.34, 0.29], "mem_total": 4 * GB, "mem_used": int(1.6 * GB),
                      "uptime": 41 * 86400 + 3 * 3600, "disk_total": 80 * GB, "disk_used": 23 * GB},
             "cert": {"host": "streams.example.com", "days_left": 61, "ok": True},
@@ -331,6 +378,19 @@ class DemoBackend:
             self.vpn_host, self.vpn_ip, self.has_config = host, ip, True
             if action.args[-1] == "on":
                 self.vpn = "on"
+        elif action.id in ("watchdog.start", "watchdog.stop", "watchdog.test", "watchdog.topic"):
+            if action.id == "watchdog.topic":
+                self.wd_topic = action.stdin.strip()
+                self.wd_events.insert(0, {"at": int(time.time()), "kind": "topic", "text": "Alert topic changed."})
+                say("Topic saved. Sending a test alert to it...", 0.4)
+            if action.id in ("watchdog.test", "watchdog.topic"):
+                self.wd_events.insert(0, {"at": int(time.time()), "kind": "test", "text": "Test alert sent."})
+                say("Sent. Check your device.", 0.4)
+            else:
+                self.wd_running = action.id == "watchdog.start"
+                self.wd_events.insert(0, {"at": int(time.time()), "kind": "start" if self.wd_running else "stop",
+                                          "text": "Watchdog started." if self.wd_running else "Watchdog stopped."})
+                say("Watchdog started, checking every 2min." if self.wd_running else "Watchdog stopped.", 0.4)
         elif action.id == "vpn.uninstall":
             for l in ["==> Switching back to direct mode first", "==> Removing gluetun container, if it still exists",
                       *(["==> Removing the gluetun Docker image"] if "remove-image" in action.args else []),
