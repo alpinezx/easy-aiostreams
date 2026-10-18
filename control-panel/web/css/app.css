@@ -93,6 +93,11 @@ body { padding-left: var(--rail); }
 .rail-name { display: none; }
 /* The panel's name across the top of every page on desktop; phones have it in the top bar */
 .page-brand { display: flex; align-items: center; gap: 10px; margin: -6px 0 12px; font-weight: 650; font-size: 1.05rem; letter-spacing: -.01em; }
+/* "Script updates": only while a script here differs from GitHub's copy */
+.scripts-pill { font-size: .78rem; font-weight: 500; letter-spacing: 0; text-decoration: none; padding: 1px 10px; }
+.scripts-pill:hover { text-decoration: underline; }
+.page-brand .scripts-pill { margin-left: 4px; }
+.topbar .scripts-pill { margin-left: auto; }
 .page-brand-sub { font-weight: 500; font-size: .86rem; color: var(--faint); padding-left: 10px; border-left: 1px solid var(--line); letter-spacing: 0; }
 .rail-links, .rail-end { display: grid; gap: 6px; justify-items: center; }
 .rail-end { margin-top: auto; }

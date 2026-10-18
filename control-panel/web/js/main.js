@@ -93,6 +93,7 @@ async function tick() {
     $("#offline").hidden = true;
     document.title = `${status.headline} - Easy AIOStreams`;
     record(status);
+    scripts.checkScripts(status);     // the "Script updates" pill at the top
     if (view === "overview") render(status, goLogs);
     // The VPN page appears once the VPN has been set up (on or off), never before
     const vpnNow = status.vpn === "on" || status.vpn === "off";
