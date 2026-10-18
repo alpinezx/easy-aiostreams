@@ -131,6 +131,10 @@ body { padding-left: var(--rail); }
     border-right-color: var(--line); box-shadow: 24px 0 60px rgba(0, 0, 0, .35);
     transform: translateX(-100%); visibility: hidden; transition: transform .2s ease-out, visibility 0s .2s;
   }
+  /* The menu's height comes from the screen, not from top/bottom: after signing in, Chrome on a
+     phone sometimes lays the page out taller than the screen (the menu then ran about 1.5 screens
+     tall, with GitHub and Sign out below the fold). dvh follows the screen and its address bar. */
+  .rail { bottom: auto; height: 100vh; height: 100dvh; }
   .rail.open { transform: none; visibility: visible; transition: transform .2s ease-out; }
   .nav-x { display: grid; position: absolute; top: 10px; right: 10px; }
   /* logo and name, then the version and Demo data side by side */
