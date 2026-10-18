@@ -76,6 +76,35 @@ aiostreams_running() {
     [[ "$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null)" == "true" ]]
 }
 
+# The main site, the first one in the Caddyfile (the add-ons live in caddy.d/).
+site_domain() {
+    awk 'NF && $1 !~ /^#/ && $2 == "{" {print $1; exit}' "$INSTALL_DIR/Caddyfile" 2>/dev/null || true
+}
+
+# Loads the site the way a visitor would, HTTPS and certificate included, but
+# through this server's own port 443 (--resolve) rather than DNS, so a DNS
+# hiccup elsewhere or a cloud that can't reach its own public IP doesn't
+# count as the site being down. Any answer below 500 means it's up (AIOStreams
+# answers / with a page or a redirect).
+check_site() {
+    local domain code rc=0
+    domain=$(site_domain)
+    [[ -n "$domain" ]] || return 0
+    code=$(curl -s -o /dev/null -w '%{http_code}' -m 15 --resolve "$domain:443:127.0.0.1" "https://$domain/") || rc=$?
+    case "$rc" in
+        0) ;;
+        7) FAIL_REASON="nothing is answering on port 443, so Caddy looks down and https://$domain is unreachable. Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"; return 1 ;;
+        28) FAIL_REASON="https://$domain didn't answer within 15 seconds. Check: docker logs caddy, docker logs aiostreams"; return 1 ;;
+        35|51|58|60) FAIL_REASON="the HTTPS certificate for $domain isn't valid (expired, or Caddy couldn't get one). Check: docker logs caddy"; return 1 ;;
+        *) FAIL_REASON="https://$domain couldn't be loaded (curl error $rc). Check: docker logs caddy"; return 1 ;;
+    esac
+    case "$code" in
+        502|503|504) FAIL_REASON="https://$domain is up but AIOStreams isn't answering behind it (HTTP $code). Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"; return 1 ;;
+        5??) FAIL_REASON="https://$domain answered with a server error (HTTP $code). Check: docker logs aiostreams"; return 1 ;;
+    esac
+    return 0
+}
+
 # MediaFlow Proxy Light has no published port, so the health check goes
 # through the caddy container (same aios_shared network, and its image has
 # wget). Caddy being down is checked first, since that takes out the
@@ -103,16 +132,11 @@ check_mediaflow() {
     return 0
 }
 
-# Sets FAIL_REASON on failure, for the alert text. VPN checks only run in
-# VPN mode, MediaFlow checks only if it's set up; do_run_check skips
-# entirely when neither applies.
+# Sets FAIL_REASON on failure, for the alert text. The site is checked in
+# every mode; the VPN checks only in VPN mode, MediaFlow only if it's set up.
 run_checks() {
     FAIL_REASON=""
-    if mediaflow_configured && ! vpn_mode_on; then
-        check_mediaflow
-        return
-    fi
-    if ! check_gluetun_tunnel; then
+    if vpn_mode_on && ! check_gluetun_tunnel; then
         FAIL_REASON="gluetun tunnel appears to be DOWN (health check failing)"
         return 1
     fi
@@ -120,25 +144,30 @@ run_checks() {
     # "Stop AIOStreams" in setup-aiostreams.sh leaves this marker. Honor it
     # only while aiostreams is actually stopped; once anything starts it
     # again, the marker is stale, so clear it and go back to checking.
+    local aio_paused=0
     if [[ -f "$STOPPED_MARKER" ]]; then
         if aiostreams_running; then
             rm -f "$STOPPED_MARKER"
         else
-            return 0
+            aio_paused=1
         fi
     fi
 
-    if ! aiostreams_running; then
-        FAIL_REASON="aiostreams is NOT running (tunnel is fine). In VPN mode nothing restarts it automatically. Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"
-        return 1
-    fi
-    if ! check_aiostreams_reachable; then
-        FAIL_REASON="aiostreams is running but unreachable through gluetun (likely stranded after a gluetun restart). Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"
-        return 1
+    if (( ! aio_paused )); then
+        if vpn_mode_on; then
+            if ! aiostreams_running; then
+                FAIL_REASON="aiostreams is NOT running (tunnel is fine). In VPN mode nothing restarts it automatically. Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"
+                return 1
+            fi
+            if ! check_aiostreams_reachable; then
+                FAIL_REASON="aiostreams is running but unreachable through gluetun (likely stranded after a gluetun restart). Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"
+                return 1
+            fi
+        fi
+        check_site || return 1
     fi
     if mediaflow_configured; then
-        check_mediaflow
-        return
+        check_mediaflow || return 1
     fi
     return 0
 }
@@ -152,13 +181,6 @@ send_ntfy() {
 
 do_run_check() {
     mkdir -p "$STATE_DIR"
-
-    # Nothing to watch: VPN off (on purpose, shouldn't page you) and no
-    # MediaFlow. With MediaFlow set up, it's still checked in direct mode.
-    if ! vpn_mode_on && ! mediaflow_configured; then
-        echo "$(date '+%d %b %Y, %H:%M:%S %Z') SKIPPED (VPN mode not active, MediaFlow not set up)" > "$LASTCHECK_FILE"
-        return 0
-    fi
 
     local fails alert_state
     fails=$(cat "$FAILCOUNT_FILE" 2>/dev/null || echo 0)
@@ -183,9 +205,6 @@ do_run_check() {
 }
 
 do_configure() {
-    [[ -f "$VPN_ACTIVE_MARKER" ]] || mediaflow_configured || \
-        error "Nothing to watch yet. This watchdog checks the VPN tunnel (setup-vpn-gluetun.sh) and MediaFlow Proxy (setup-mediaflow.sh). Set up at least one of those first."
-
     mkdir -p "$STATE_DIR"
     chmod 700 "$STATE_DIR"
 
@@ -327,6 +346,14 @@ do_uninstall() {
 if [[ "${1:-}" == "--run-check" ]]; then
     do_run_check
     exit 0
+fi
+
+# Runs the checks once and prints the result, without touching the saved
+# state or sending anything. Exit 1 if a check fails.
+if [[ "${1:-}" == "check" ]]; then
+    if run_checks; then echo "OK"; exit 0; fi
+    echo "FAIL: ${FAIL_REASON}"
+    exit 1
 fi
 
 [[ $EUID -eq 0 ]] || error "Run as root: sudo bash setup-watchdog.sh"
