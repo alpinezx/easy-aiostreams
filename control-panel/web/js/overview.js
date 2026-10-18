@@ -37,40 +37,47 @@ async function loadReleases(force) {
   }
 }
 
+// The version card's Latest column: [value, line under it, buttons, whether a newer release is out]
 function updateBits(st) {
-  if (!st.version) return [null, [], false];
   const running = runningTag(st);
   if (!running) {
-    return [h("span", { class: "chip warn", text: "Couldn't tell which nightly is running",
-      title: "The running image has no nightly tag in its metadata, so there's nothing to compare. An Update usually fixes it." }), [], false];
+    return [h("span", { class: "warn", text: "Can't tell",
+      title: "The running image has no nightly tag in its metadata, so there's nothing to compare. An Update usually fixes it." }),
+      "Which nightly is running is unknown", [], false];
   }
   const nightly = relChannel(st) === "nightly";
-  let chip, fresh = false;
+  let value, sub = "", fresh = false;
   if (!rel) {
-    chip = h("span", { class: "chip", text: "Checking for updates…" });
+    value = h("span", { class: "dim", text: "Checking…" });
   } else if (!rel.releases.length) {
-    chip = h("span", { class: "chip warn", title: rel.error || "GitHub listed no releases for this channel.", text: "Couldn't check for updates" });
+    value = h("span", { class: "warn", title: rel.error || "GitHub listed no releases for this channel.", text: "Couldn't check" });
+    sub = "GitHub didn't answer";
   } else {
     const { newer, count } = behind(rel, running);
-    const checked = rel.checked_at ? `Checked ${ago(rel.checked_at)} against AIOStreams' GitHub releases.` : "";
+    sub = rel.checked_at ? `Checked ${ago(rel.checked_at)}` : "";
     if (!newer.length) {
-      chip = h("span", { class: "chip ok", title: checked, text: "Up to date" });
+      value = h("span", { class: "ok", text: "Up to date" });
     } else {
       const top = newer[0];
       fresh = true;
       const when = top.published ? `, newest released ${ago(Date.parse(top.published) / 1000)}` : "";
-      const title = `${count} behind${when}. Click for what's new; use Update to get it. ${checked}`;
-      chip = h("button", { class: "chip warn", type: "button", title, text: nightly ? "Newer nightly available" : `${top.tag} available`,
-        onclick: () => openReleases(rel, running) });
+      value = h("button", { class: "linkish warn", type: "button", title: `${count} behind${when}. Click for what's new; use Update to get it.`,
+        text: nightly ? "Newer nightly out" : `${top.tag} available`, onclick: () => openReleases(rel, running) });
     }
   }
-  const tail = [h("button", { class: "btn small", type: "button", text: relLoading ? "Checking…" : "Check now",
+  const btns = [h("button", { class: "btn small", type: "button", text: relLoading ? "Checking…" : "Check now",
     disabled: relLoading, title: `Ask GitHub for the latest AIOStreams ${nightly ? "nightly" : "release"} now`, onclick: () => loadReleases(true) })];
   if (rel && rel.releases.length) {
-    tail.push(h("button", { class: "btn small", type: "button", text: "All releases",
+    btns.push(h("button", { class: "btn small", type: "button", text: "All releases",
       title: `What changed in each AIOStreams ${nightly ? "nightly build" : "release"}`, onclick: () => openReleases(rel, running) }));
   }
-  return [chip, tail, fresh];
+  return [value, sub, btns, fresh];
+}
+
+// When the running release came out, if GitHub's list has it
+function releasedAgo(running) {
+  const r = rel && running && rel.releases.find((x) => x.tag === running);
+  return r && r.published ? `Released ${ago(Date.parse(r.published) / 1000)}` : "";
 }
 
 const RESTARTABLE = new Set(["aiostreams", "mediaflow", "webhook"]);
@@ -141,23 +148,9 @@ function hero(st) {
     // Open AIOStreams on a line of its own, then one chip for the build and version, then the update bits.
     if (st.domain) el.append(h("div", { class: "hero-open" }, h("a", { class: "btn small open-site", href: `https://${st.domain}`, target: "_blank", rel: "noopener noreferrer",
       title: `Opens https://${st.domain} in a new tab` }, "Open AIOStreams", extIcon())));
-    const meta = h("div", { class: "hero-meta" });
-    const [updChip, updTail, fresh] = updateBits(st);
-    const nightlyTag = relChannel(st) === "nightly" && runningTag(st);
-    const chan = st.channel ? `AIOStreams ${st.channel === "nightly" ? "nightly" : "latest"}` : "AIOStreams";
-    const ver = st.version ? (nightlyTag ? `v${st.version} · ${nightlyTag.slice(0, -8)}` : `v${st.version}`) : "";
-    if (st.channel || st.version) meta.append(h("span", { class: "chip", text: [chan, ver].filter(Boolean).join(" "),
-      title: [st.channel === "nightly" ? "AIOStreams' nightly builds (Docker tag: nightly). Switch with Update." : st.channel ? "AIOStreams' stable releases (Docker tag: latest). Switch with Update." : "",
-        st.version ? (nightlyTag ? `Running v${st.version}, from the nightly build ${nightlyTag}.` : `Running v${st.version}.`) : ""].filter(Boolean).join(" ") }));
-    if (updChip) meta.append(updChip);
-    // Update sits with the chips, the same size as Check now; blue only when a newer release is out
-    const upd = st.installed && avail["stack.update"];
-    if (upd && upd.available) meta.append(h("button", { class: "btn small" + (fresh ? " primary" : ""), type: "button", text: "Update",
-      disabled: !!st.busy, title: "Update AIOStreams, or switch between stable and nightly", onclick: () => runAction(upd) }));
-    meta.append(...updTail);
-    // The certificate lives in This server; it comes up here, after the AIOStreams items, only when it needs attention.
-    if (st.cert && (!st.cert.ok || st.cert.days_left < 21)) meta.append(certChip(st, true));
-    el.append(meta);
+    // The certificate lives in This server; it comes up here only when it needs attention.
+    if (st.cert && (!st.cert.ok || st.cert.days_left < 21)) el.append(h("div", { class: "hero-meta" }, certChip(st, true)));
+    if (st.version) el.append(versionCard(st, avail));
 
     if (!st.installed) {
       el.append(h("p", { class: "empty", text: "AIOStreams isn't installed on this server yet. Run setup-aiostreams.sh over SSH first." }));
@@ -169,6 +162,29 @@ function hero(st) {
         h("button", { class: "btn small", type: "button", text: "View output", onclick: () => openJob(st.busy) }))));
     }
   });
+}
+
+// The build in a card of its own, laid out like AIOStreams' own Version card:
+// Running, Latest, and the buttons, with the channel in the corner.
+function versionCard(st, avail) {
+  const nightly = relChannel(st) === "nightly";
+  const running = runningTag(st);
+  const [latest, latestSub, btns, fresh] = updateBits(st);
+  const col = (label, value, sub) => h("div", {},
+    h("div", { class: "ver-label", text: label }), h("div", { class: "ver-value" }, value), h("div", { class: "ver-sub", text: sub || "" }));
+  const upd = st.installed && avail["stack.update"];
+  // Update sits with Check now, blue only when a newer release is out
+  if (upd && upd.available) btns.unshift(h("button", { class: "btn small" + (fresh ? " primary" : ""), type: "button", text: "Update",
+    disabled: !!st.busy, title: "Update AIOStreams, or switch between stable and nightly", onclick: () => runAction(upd) }));
+  return h("section", { class: "panel ver-card", "aria-label": "AIOStreams version" },
+    h("div", { class: "ver-head" },
+      h("h2", { text: "AIOStreams" }),
+      h("span", { class: "chip" + (nightly ? " warn" : " ok"), text: nightly ? "Nightly" : "Stable",
+        title: nightly ? "AIOStreams' nightly builds (Docker tag: nightly). Switch with Update." : "AIOStreams' stable releases (Docker tag: latest). Switch with Update." })),
+    h("div", { class: "ver-grid" },
+      col("Running", `v${st.version}`, nightly ? (running ? `Nightly ${running.slice(0, -8)}` : "") : releasedAgo(running)),
+      col("Latest", latest, latestSub),
+      h("div", { class: "ver-btns" }, ...btns)));
 }
 
 // ---------------- signal path ----------------

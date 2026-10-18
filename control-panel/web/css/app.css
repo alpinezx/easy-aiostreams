@@ -127,20 +127,25 @@ body { padding-left: var(--rail); }
     border-bottom: 1px solid var(--line-soft);
   }
   .rail {
-    z-index: 45; width: min(300px, 86vw); align-items: stretch; gap: 18px; padding: 14px 14px 18px;
+    z-index: 45; width: min(300px, 86vw); align-items: stretch; gap: 14px; padding: 12px 14px 14px;
     border-right-color: var(--line); box-shadow: 24px 0 60px rgba(0, 0, 0, .35);
     transform: translateX(-100%); visibility: hidden; transition: transform .2s ease-out, visibility 0s .2s;
   }
+  /* The menu covers the part of the page on screen (see viewport.js): after the keyboard has been
+     up, Firefox can lay the page out taller than the screen and show only its lower part. */
+  .rail { bottom: auto; top: var(--vv-top, 0px); height: 100dvh; height: var(--vv-h, 100dvh); }
   .rail.open { transform: none; visibility: visible; transition: transform .2s ease-out; }
   .nav-x { display: grid; position: absolute; top: 10px; right: 10px; }
-  .rail-top { padding: 26px 0 4px; }
-  .rail-logo svg { width: 44px; height: 44px; }
-  .rail-name { display: block; margin-top: 10px; font-weight: 650; }
+  /* logo and name, then the version and Demo data side by side */
+  .rail-top { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 6px 0 2px; }
+  .rail-logo { flex: 0 0 100%; }
+  .rail-logo svg { width: 38px; height: 38px; }
+  .rail-name { display: block; margin-top: 6px; font-weight: 650; }
   .page-brand { display: none; }
-  .rail-links, .rail-end { justify-items: stretch; gap: 4px; }
-  .rail .tab { width: auto; height: 48px; display: flex; align-items: center; gap: 14px; padding: 0 16px; font-size: 1rem; font-weight: 500; }
+  .rail-links, .rail-end { justify-items: stretch; gap: 2px; }
+  .rail .tab { width: auto; height: 44px; display: flex; align-items: center; gap: 14px; padding: 0 16px; font-size: 1rem; font-weight: 500; }
   .rail .lbl { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
-  .rail-end { padding-top: 12px; border-top: 1px solid var(--line-soft); }
+  .rail-end { padding-top: 10px; border-top: 1px solid var(--line-soft); }
   .nav-scrim { position: fixed; inset: 0; z-index: 44; background: rgba(5, 4, 10, .55); }
   .offline { left: 50%; top: 66px; }
   .tip { display: none !important; }
@@ -193,6 +198,26 @@ button.chip:hover { text-decoration: underline; }
 /* when the buttons wrap (big text on a phone), the second row gets the same room as the rows above */
 .toolbar { display: flex; flex-wrap: wrap; gap: 12px 8px; margin-top: 6px; align-items: center; }
 .busy-note { color: var(--dim); font-size: .92rem; display: inline-flex; gap: 8px; align-items: center; }
+
+/* the AIOStreams version card under the headline */
+.ver-card { padding: 16px 20px 18px; }
+.ver-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ver-head h2 { margin: 0; font-size: .98rem; font-weight: 650; }
+.ver-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) auto; gap: 14px 24px; margin-top: 14px; align-items: end; }
+.ver-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--faint); margin-bottom: 4px; }
+.ver-value { font-size: 1.2rem; font-weight: 650; letter-spacing: -.01em; }
+.ver-value .ok { color: var(--ok); } .ver-value .warn { color: var(--warn); }
+.ver-value .linkish { font: inherit; color: var(--warn); text-decoration: none; background: none; border: 0; padding: 0; cursor: pointer; }
+.ver-value .linkish:hover { text-decoration: underline; }
+.ver-sub { font-size: .84rem; color: var(--faint); margin-top: 2px; min-height: 1.2em; }
+.ver-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+@media (max-width: 720px) {
+  .ver-grid { grid-template-columns: minmax(0, 1fr); }
+  /* a little less padding so all three buttons share one line on a phone; they still wrap with big text */
+  .ver-card { padding: 16px 16px 18px; }
+  .ver-btns { justify-content: flex-start; gap: 6px; }
+  .ver-btns .btn { padding-left: 8px; padding-right: 8px; }
+}
 
 /* ---------- signal path ---------- */
 .path { margin: 4px 0 30px; padding: 26px 22px 22px; background: var(--sunk); border: 1px solid var(--line-soft); border-radius: var(--radius); }
@@ -540,7 +565,8 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 /* No rail on the login page, so nothing to make room for */
 body.bare { padding-left: 0; }
 html:has(> body.bare) { scrollbar-gutter: auto; }
-.login-wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px var(--gutter); }
+/* centred in the part of the page on screen, for the same Firefox reason as the phone menu */
+.login-wrap { min-height: 100vh; min-height: var(--vv-h, 100vh); margin-top: var(--vv-top, 0px); display: grid; place-items: center; padding: 24px var(--gutter); }
 .login { width: min(384px, 100%); display: grid; gap: 22px; padding: 28px 24px 26px; background: var(--raised); border: 1px solid var(--line); border-radius: 14px; }
 .login-head { display: grid; justify-items: center; gap: 6px; text-align: center; }
 .login-head svg { width: 52px; height: 52px; margin-bottom: 8px; }
