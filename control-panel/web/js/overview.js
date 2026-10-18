@@ -232,10 +232,10 @@ function path(st) {
   // line the add-on trunk up under the Caddy node
   const caddyNode = el.querySelector('.node[data-svc="caddy"]');
   const ul = el.querySelector(".addons");
-  if (caddyNode && ul && window.innerWidth > 720) {
+  if (caddyNode && ul) {
     const r = el.querySelector(".chain").getBoundingClientRect();
     const c = caddyNode.getBoundingClientRect();
-    ul.style.setProperty("--trunk", `${Math.round(c.left - r.left + 22)}px`);
+    ul.style.setProperty("--trunk", `${Math.round(c.left - r.left + (window.innerWidth > 720 ? 22 : 14))}px`);
   }
   for (const s of st.services) setText(el, `[data-up="${s.key}"]`, uptime(s));
 }
