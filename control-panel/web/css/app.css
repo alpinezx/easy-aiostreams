@@ -131,10 +131,9 @@ body { padding-left: var(--rail); }
     border-right-color: var(--line); box-shadow: 24px 0 60px rgba(0, 0, 0, .35);
     transform: translateX(-100%); visibility: hidden; transition: transform .2s ease-out, visibility 0s .2s;
   }
-  /* The menu's height comes from the screen, not from top/bottom: after signing in, Chrome on a
-     phone sometimes lays the page out taller than the screen (the menu then ran about 1.5 screens
-     tall, with GitHub and Sign out below the fold). dvh follows the screen and its address bar. */
-  .rail { bottom: auto; height: 100vh; height: 100dvh; }
+  /* The menu covers the part of the page on screen (see viewport.js): after the keyboard has been
+     up, Firefox can lay the page out taller than the screen and show only its lower part. */
+  .rail { bottom: auto; top: var(--vv-top, 0px); height: 100dvh; height: var(--vv-h, 100dvh); }
   .rail.open { transform: none; visibility: visible; transition: transform .2s ease-out; }
   .nav-x { display: grid; position: absolute; top: 10px; right: 10px; }
   /* logo and name, then the version and Demo data side by side */
@@ -566,7 +565,8 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 /* No rail on the login page, so nothing to make room for */
 body.bare { padding-left: 0; }
 html:has(> body.bare) { scrollbar-gutter: auto; }
-.login-wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px var(--gutter); }
+/* centred in the part of the page on screen, for the same Firefox reason as the phone menu */
+.login-wrap { min-height: 100vh; min-height: var(--vv-h, 100vh); margin-top: var(--vv-top, 0px); display: grid; place-items: center; padding: 24px var(--gutter); }
 .login { width: min(384px, 100%); display: grid; gap: 22px; padding: 28px 24px 26px; background: var(--raised); border: 1px solid var(--line); border-radius: 14px; }
 .login-head { display: grid; justify-items: center; gap: 6px; text-align: center; }
 .login-head svg { width: 52px; height: 52px; margin-bottom: 8px; }

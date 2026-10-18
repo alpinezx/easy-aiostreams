@@ -1,4 +1,5 @@
 import "./debugsize.js";
+import "./viewport.js";
 const f = document.getElementById("f");
 const err = document.getElementById("err");
 const go = document.getElementById("go");
