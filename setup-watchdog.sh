@@ -312,7 +312,7 @@ check_updates() {
     [[ "$(cat "$STATE_DIR/update-notified" 2>/dev/null)" == "$latest" ]] && return 0
     echo "$latest" > "$STATE_DIR/update-notified"
     local how="Update with: sudo bash setup-aiostreams.sh, option 5."
-    [[ -n "$(panel_domain)" ]] && how="Tap here, then Update on the control panel's Overview (it backs up first)."
+    [[ -n "$(panel_domain)" ]] && how="Tap here, then Update on the control panel's Overview (it offers a backup first)."
     if send_ntfy "AIOStreams $latest is out; this server runs $running. $how" \
         "Update available" 3 package overview; then
         log_event update "AIOStreams $latest is out (this server runs $running). Alert sent."
