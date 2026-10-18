@@ -1,4 +1,3 @@
-import "./debugsize.js";
 import "./viewport.js";
 import { $, api, toast } from "./util.js";
 import { render, record } from "./overview.js";
