@@ -29,9 +29,12 @@ ALERTSTATE_FILE="$STATE_DIR/alert-state"
 LASTCHECK_FILE="$STATE_DIR/last-check"
 EVENTS_FILE="$STATE_DIR/events"     # what happened, newest last: "epoch|kind|text"
 TALLY_FILE="$STATE_DIR/tally"       # checks per day: "YYYY-MM-DD passed failed"
+ALIVE_FILE="$STATE_DIR/last-alive"  # when the last check ran, to tell how long a reboot took
 SCRIPT_COPY="$STATE_DIR/watchdog.sh"
 SERVICE_FILE="/etc/systemd/system/aiostreams-watchdog.service"
 TIMER_FILE="/etc/systemd/system/aiostreams-watchdog.timer"
+BOOT_SERVICE_FILE="/etc/systemd/system/aiostreams-watchdog-boot.service"
+WEBHOOK_BOOT_UNIT="aios-webhook-boot-notify.service"
 
 FAIL_THRESHOLD=2        # consecutive failed checks before an alert fires
 CHECK_INTERVAL="2min"   # how often the timer runs (display string)
@@ -176,7 +179,7 @@ run_checks() {
 
 # A short record for "did anything happen overnight?" (the control panel's
 # Phone alerts page reads it). Kinds: fail, alert, recovered, start, stop,
-# test, topic. Never holds the topic itself. Keeps the last 200.
+# test, topic, reboot. Never holds the topic itself. Keeps the last 200.
 log_event() {
     mkdir -p "$STATE_DIR"
     printf '%s|%s|%s\n' "$(date +%s)" "$1" "${2//$'\n'/ }" >> "$EVENTS_FILE"
@@ -211,6 +214,7 @@ send_ntfy() {
 
 do_run_check() {
     mkdir -p "$STATE_DIR"
+    date +%s > "$ALIVE_FILE"
 
     local fails alert_state
     fails=$(cat "$FAILCOUNT_FILE" 2>/dev/null || echo 0)
@@ -245,6 +249,46 @@ do_run_check() {
             echo "down" > "$ALERTSTATE_FILE"
         fi
     fi
+}
+
+# "about 4 min", "about 2 h"
+rough_duration() {
+    local s=$1
+    if (( s < 180 )); then echo "a minute or two"
+    elif (( s < 5400 )); then echo "about $(( (s + 30) / 60 )) min"
+    elif (( s < 172800 )); then echo "about $(( (s + 1800) / 3600 )) h"
+    else echo "about $(( (s + 43200) / 86400 )) days"
+    fi
+}
+
+# Runs once at every boot (aiostreams-watchdog-boot.service), while the
+# watchdog is on. How long the server was down comes from the last check
+# before it went (they run every couple of minutes), so it's rough.
+do_boot() {
+    mkdir -p "$STATE_DIR"
+    local now boot_at last when down="" sent=0 attempt
+    now=$(date +%s)
+    boot_at=$(( now - $(cut -d. -f1 /proc/uptime) ))
+    last=$(cat "$ALIVE_FILE" 2>/dev/null || echo 0)
+    [[ "$last" =~ ^[0-9]+$ ]] || last=0
+    when=$(date -d "@$boot_at" '+%H:%M')
+    (( last > 0 && boot_at > last )) && down=" It was down for $(rough_duration $(( boot_at - last )))."
+    # The webhook relay can send its own reboot notification; one is enough
+    if systemctl is-enabled --quiet "$WEBHOOK_BOOT_UNIT" 2>/dev/null; then
+        log_event reboot "Server restarted at $when.$down The webhook relay sent the notification."
+        return 0
+    fi
+    # A few tries: the network can take a moment after boot
+    for attempt in 1 2 3 4 5 6; do
+        if send_ntfy "🔄 AIOStreams: the server restarted at $when.$down"; then sent=1; break; fi
+        sleep 10
+    done
+    if (( sent )); then
+        log_event reboot "Server restarted at $when.$down Alert sent."
+    else
+        log_event reboot "Server restarted at $when.$down The alert couldn't be sent (ntfy.sh unreachable)."
+    fi
+    return 0
 }
 
 do_configure() {
@@ -325,6 +369,21 @@ Persistent=true
 WantedBy=timers.target
 EOF
 
+    cat > "$BOOT_SERVICE_FILE" << EOF
+[Unit]
+Description=AIOStreams watchdog: alert when the server has restarted
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=HOME=$HOME
+ExecStart=/bin/bash $SCRIPT_COPY --boot
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
     systemctl daemon-reload
 }
 
@@ -332,12 +391,14 @@ do_start() {
     [[ -f "$CONFIG_FILE" ]] || do_configure
     install_systemd_units
     systemctl enable --now aiostreams-watchdog.timer
+    systemctl enable aiostreams-watchdog-boot.service >/dev/null 2>&1 || true
     log_event start "Watchdog started."
     info "Watchdog started, checking every $CHECK_INTERVAL (alerts after $FAIL_THRESHOLD consecutive failures)."
 }
 
 do_stop() {
     systemctl disable --now aiostreams-watchdog.timer 2>/dev/null || true
+    systemctl disable aiostreams-watchdog-boot.service 2>/dev/null || true
     mkdir -p "$STATE_DIR"
     echo "$(date '+%d %b %Y, %H:%M:%S %Z') STOPPED (watchdog disabled, no checks running)" > "$LASTCHECK_FILE"
     log_event stop "Watchdog stopped."
@@ -411,7 +472,8 @@ do_uninstall() {
         *) echo "Cancelled."; return ;;
     esac
     systemctl disable --now aiostreams-watchdog.timer 2>/dev/null || true
-    rm -f "$SERVICE_FILE" "$TIMER_FILE"
+    systemctl disable aiostreams-watchdog-boot.service 2>/dev/null || true
+    rm -f "$SERVICE_FILE" "$TIMER_FILE" "$BOOT_SERVICE_FILE"
     systemctl daemon-reload
     rm -rf "$STATE_DIR"
     echo "Done. Running this script again starts fresh from first-time setup."
@@ -419,6 +481,11 @@ do_uninstall() {
 
 if [[ "${1:-}" == "--run-check" ]]; then
     do_run_check
+    exit 0
+fi
+
+if [[ "${1:-}" == "--boot" ]]; then
+    do_boot
     exit 0
 fi
 
@@ -452,6 +519,7 @@ if [[ "${1:-}" == "install-timer" ]]; then
     [[ -f "$CONFIG_FILE" ]] || error "No watchdog config found at $CONFIG_FILE, nothing to reinstall."
     install_systemd_units
     systemctl enable --now aiostreams-watchdog.timer
+    systemctl enable aiostreams-watchdog-boot.service >/dev/null 2>&1 || true
     log_event start "Watchdog started."
     exit 0
 fi
