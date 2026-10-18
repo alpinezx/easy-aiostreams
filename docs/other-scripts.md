@@ -12,7 +12,7 @@ Optional add-ons on top of the main install. Each is its own standalone script, 
 
 ### Watchdog Alerts
 
-- **Want a phone alert if something goes down?** Watches the VPN tunnel and AIOStreams (when the VPN is on) and MediaFlow Proxy (whenever it's set up). Needs at least one of those first. Run with `setup-watchdog.sh`. → [Basic](./basic/watchdog.md) · [Advanced](./advanced/watchdog.md)
+- **Want a phone alert when your server needs you?** Works on any install: the site stops answering, the server restarts, the disk is nearly full, or the HTTPS certificate isn't renewing; plus the VPN tunnel and MediaFlow Proxy when they're set up. Optional alerts for new AIOStreams releases and a weekly check-in. With the control panel it gets a Phone alerts page. Run with `setup-watchdog.sh`. → [Basic](./basic/watchdog.md) · [Advanced](./advanced/watchdog.md)
 
 ### Webhook Relay
 

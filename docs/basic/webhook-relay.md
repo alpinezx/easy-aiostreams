@@ -40,7 +40,7 @@ sudo bash /opt/aiostreams/setup-webhook.sh
 Choose **2) Start**. It'll ask for:
 1. The subdomain from step 1
 2. A secret token (Enter accepts a random suggestion — this is what stops randoms from POSTing to your endpoint)
-3. An ntfy topic to relay events to (reuse one from the [watchdog](./watchdog.md) or pick a new one — long and hard to guess, since anyone who knows it can see your alerts)
+3. An ntfy topic to relay events to (reuse the [watchdog](./watchdog.md)'s or pick a new one; long and hard to guess, since anyone who knows it can see your alerts)
 
 It prints a full URL at the end, something like:
 
@@ -78,12 +78,14 @@ Run the script again any time for a menu:
 ```bash
 sudo bash /opt/aiostreams/setup-webhook.sh
 ```
-- **Status** — running or not, current domain/URL, last few events.
-- **Start / Stop** — turn the relay on or off. Config is kept either way. Start also refreshes the code, so pulling a script update just needs a Start, not a full Reconfigure.
-- **Send test event** — fires a test payload straight at the container, bypassing DNS/Caddy, to isolate whether a problem is the relay itself or something upstream.
-- **View recent events** — the last 30 things it received, useful for seeing exactly what a site actually sent.
-- **Reconfigure** — change the subdomain, token, or ntfy target. Applies immediately to the running container, no separate Start needed.
-- **Uninstall** — clean removal (container, Caddy site, saved state).
+- **Status**: running or not, current domain/URL, last few events.
+- **Start / Stop**: turn the relay on or off. Config is kept either way. Start also refreshes the code, so pulling a script update just needs a Start, not a full Reconfigure.
+- **Send test event**: fires a test payload straight at the container, bypassing DNS/Caddy, to isolate whether a problem is the relay itself or something upstream.
+- **View recent events**: the last 30 things it received, useful for seeing exactly what a site actually sent.
+- **Reconfigure**: change the subdomain, token, or ntfy target. Applies immediately to the running container, no separate Start needed.
+- **Toggle reboot notification**: a phone alert each time the server restarts, to the same topic. The [watchdog](./watchdog.md) has one too (with how long the server was down); while this one is on, the watchdog leaves the notification to the relay, so you only get one.
+- **Change status emojis**: what UP and DOWN events show instead of the source's own.
+- **Uninstall**: clean removal (container, Caddy site, saved state).
 
 ---
 

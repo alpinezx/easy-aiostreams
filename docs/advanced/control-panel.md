@@ -36,8 +36,9 @@ After that the same command opens the menu. **4) Update** downloads the newest `
 
 ## How it's locked down
 
-- **Caddy gate.** Without the unlock cookie, every URL on the subdomain returns a bare 404. The login page isn't even discoverable. Opening `/unlock/<token>` once sets the cookie. Menu option 5 makes a new token, which also signs out every browser.
-- **Login.** Password hashed with scrypt, 7-day signed session cookie (HttpOnly, Secure, SameSite=Strict). 5 wrong passwords locks that address out for 15 minutes.
+- **Caddy gate.** Without the unlock cookie, every URL on the subdomain returns a bare 404. The login page isn't even discoverable. Opening `/unlock/<token>` once sets the cookie, and every visit sets it again. Menu option 5 makes a new token, which also signs out every browser.
+- **Login.** Password hashed with scrypt, 7-day signed session cookie (HttpOnly, Secure). 5 wrong passwords locks that address out for 15 minutes.
+- **SameSite=Lax** on both cookies, so a link opened from another app (tapping a phone alert) gets in. Browsers still never send them with another site's POSTs, and everything that changes something in the panel is a POST. A rebuild brings Caddy's site file up to date, reloading Caddy only if it changed.
 - **No free-form commands.** The browser can only ask for actions from a fixed list (`app/actions.py`). It can't type a command, and logs are limited to the stack's own containers.
 - **No secrets shown.** `SECRET_KEY` and logins are never sent to the browser. Backups can be listed, created and deleted (delete removes every copy, after a confirm; a locked backup can't be deleted until you unlock it), but not downloaded: copy them off with `scp`.
 - **Web terminal (off by default).** Behind a second key, separate from the login and the unlock link. See below.
@@ -53,7 +54,9 @@ It is still root-equivalent on your server, because it has to run the scripts an
 | Update | menu option 5, with the backup and build-channel answers from the dialog |
 | Back up now | `setup-aiostreams.sh backup` |
 | MediaFlow, webhook relay | `start-mediaflow`, `start-relay`, and menu option 3 for Stop |
-| Phone alerts | `install-timer`, and menu options 3 and 4 |
+| Phone alerts: Start, Stop, Send test alert | `setup-watchdog.sh install-timer`, menu option 3, `test` |
+| Phone alerts: Change topic | `setup-watchdog.sh set-topic`, with the topic on stdin (never on a command line or in Activity), then a test alert to it |
+| Phone alerts: the switches, the check-in's day and hour, Reset, Clear history | written straight to `watchdog-state/options`, `tally` and `events` (the script's `set-option` does the same over SSH) |
 | Turn VPN on, Turn VPN off | `setup-vpn-gluetun.sh on`, `off` (the same steps as its menu options 2 and 3) |
 | Change server, Update VPN | `setup-vpn-gluetun.sh addresses` for the list, then `use-address <ip>`; `update` (menu option 5) |
 | Change config | `setup-vpn-gluetun.sh addresses <name>` for the new config's list, then `use-config <ip>` |
@@ -78,6 +81,10 @@ It appears on the rail once `setup-vpn-gluetun.sh` has set the VPN up, on or off
 **Configs on this server** lists what `list-configs` finds: the pasted config, the previous one, an earlier paste, one pasted but not used yet, and `.conf` files in `/root` and the login user's home that have `[Interface]`, `[Peer]`, `PrivateKey` and `Endpoint` (the same files Reconfigure offers). Each shows its path and endpoint, never its keys. **Use** (any config not in use) copies it into `vpn-state` and switches to it as Change config does, so a file can be deleted afterwards; the config left becomes Previous config, so two can be swapped back and forth. On Previous config, the address it used is picked to start with. **Delete** takes only a path the list has just found, and the config in use only while the VPN is off; the script checks that again before deleting. Deleting that one also takes its key out of the saved VPN settings (`vpn-state/docker-compose.vpn.yml`), so no config is left: **Turn VPN on** then opens the paste dialog and turns the VPN on with the config given (`use-config <ip> on`).
 
 **Uninstall VPN** asks for `uninstall` to be typed, like a restore, and runs the script's `uninstall`: it switches to direct first, removes the gluetun container (and image, if ticked), and deletes `vpn-state` only once AIOStreams and Caddy are confirmed running, refusing otherwise with nothing deleted. **Delete the .conf files** deletes the ones the list shows in `/root` and the login user's home. **Back up first** runs a normal backup and stops if it fails. The page disappears once the VPN is gone.
+
+## Phone alerts page
+
+It appears on the rail once the [watchdog](./watchdog.md) has been set up over SSH (first-time setup asks you to subscribe in the ntfy app, so it stays a script job). It reads `watchdog-state/`: whether the timer is running, the last check, what it watches, the daily tally as 14 squares, the event list, and the two optional switches. The topic is only ever sent to the browser masked (its first five and last two characters). **Change topic** suggests a random topic in groups of four with no look-alike characters, with **Copy**, and links to it on ntfy.sh so you can subscribe first.
 
 ## Backups and restores
 

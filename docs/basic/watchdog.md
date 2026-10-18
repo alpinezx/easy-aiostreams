@@ -1,8 +1,8 @@
 # Watchdog Alerts: Basic Guide
 
-For getting a phone notification if part of your stack goes down: the VPN tunnel, AIOStreams itself while the VPN is on, or MediaFlow Proxy.
+For a phone notification when your AIOStreams server needs you: the site stops answering, the server restarts, the disk is nearly full, or the HTTPS certificate isn't renewing. With the [VPN layer](./vpn-setup.md) or [MediaFlow Proxy](./mediaflow-proxy.md) set up, it watches those too.
 
-⚠️ **Needs at least one of these set up first:** the [VPN layer](./vpn-setup.md) or [MediaFlow Proxy](./mediaflow-proxy.md). With neither, there's nothing for it to watch.
+⚠️ **Needs AIOStreams installed first** with `setup-aiostreams.sh`. Nothing else is required.
 
 > Want the full explanation of how this works under the hood, or hit a snag? → [Advanced guide](../advanced/watchdog.md)
 
@@ -41,7 +41,7 @@ In the ntfy app (or your browser tab), subscribe to the exact topic name the scr
 
 **This does:** proves delivery actually works, before you ever need it for real.
 
-You should see: *"🔔 Test alert from AIOStreams watchdog, if you see this, alerts are working."*
+You should see **🔔 Test alert**: *"If you see this, alerts are working."*
 
 If nothing shows up within a few seconds, don't move on yet. See the [advanced guide's troubleshooting section](../advanced/watchdog.md#troubleshooting).
 
@@ -49,20 +49,27 @@ If nothing shows up within a few seconds, don't move on yet. See the [advanced g
 
 ## What you'll get
 
-- **🔴 A "DOWN" alert** if a check fails a couple of times in a row (not on a single blip, see the advanced guide for why). The alert says what failed and how to fix it:
-  - the VPN tunnel is down
-  - AIOStreams isn't running, or is running but unreachable (in VPN mode)
-  - MediaFlow Proxy isn't running or isn't answering
-  - Caddy isn't running (takes down the main site and MediaFlow together)
-- **✅ A "back up" alert** once everything recovers. One alert per state change, not a repeat every check.
-- **Silence while you're intentionally in direct mode.** Turning the VPN off on purpose won't page you (MediaFlow is still watched, since it runs in either mode).
-- **Silence when you stop something on purpose** from its own script's menu (Stop AIOStreams in `setup-aiostreams.sh`, Stop in `setup-mediaflow.sh`). Only unexpected stops alert.
+- **🚨 AIOStreams is down** if a check fails twice in a row (not on a single blip). It says what failed and how to fix it: the site isn't answering, Caddy is down, the certificate is broken, or, when they're set up, the VPN tunnel or MediaFlow Proxy.
+- **✅ AIOStreams is back** once everything passes again. One alert each way, not a repeat every check.
+- **🔄 Server restarted**, with how long it was down, or a note that it didn't shut down cleanly (a crash or power cut).
+- **⚠️ Disk nearly full** at 90%, and **⚠️ Certificate not renewing** if Caddy hasn't renewed it with 10 days left. Each sends a quiet all-clear once it's fine again.
+- **Silence when you stop something on purpose** from its own menu (Stop AIOStreams in `setup-aiostreams.sh` or the control panel, Stop in `setup-mediaflow.sh`), or turn the VPN off. Only unexpected stops alert.
+
+Tapping an alert opens the control panel's **Phone alerts** page, if you have the [control panel](./control-panel.md).
+
+Two more you can switch on, from the control panel's Phone alerts page (both off to start with):
+- **When a new AIOStreams release is out**: one alert per stable release, with how to update.
+- **Weekly check-in**: the week's checks, alerts and disk space, on the day and hour you pick (Sunday from 10:00 to start with). If it ever stops arriving, the watchdog itself needs a look.
+
+The check-in goes by the server's clock, so check its time zone: `timedatectl` shows it, and `sudo timedatectl set-timezone Europe/London` (your own Area/City) changes it.
 
 ---
 
 ## Everyday use
 
-Run the script again any time for a menu:
+The control panel's **Phone alerts** page shows whether it's watching, the last check, a square per day for the last 14 days (green all passed, amber some failed), and recent events. It has Start/Stop, Send test alert, Change topic (with a Copy button, to paste into the ntfy app) and the two switches above.
+
+Over SSH, run the script again any time for a menu:
 ```bash
 sudo bash /opt/aiostreams/setup-watchdog.sh
 ```
@@ -70,7 +77,9 @@ sudo bash /opt/aiostreams/setup-watchdog.sh
 - **Start / Stop**: turn checking on or off. Config is kept either way.
 - **Send test alert**: fire a test message any time, without waiting for a real failure.
 - **Reconfigure**: change the ntfy topic.
-- **Uninstall**: clean removal (timer, service, saved state).
+- **Uninstall**: clean removal (timer, services, saved state).
+
+**One limit:** if the whole server goes down, nothing on it can tell you. For that, point an outside uptime monitor at your domain as well; many free ones can send to ntfy too.
 
 ---
 
