@@ -1,4 +1,4 @@
-import { $, h, clear, api, ago, toast } from "./util.js";
+import { $, h, clear, api, ago, toast, timePicker } from "./util.js";
 import { runAction, ask } from "./actions.js";
 
 // The Phone alerts page: what the watchdog (setup-watchdog.sh) is doing, what it
@@ -196,7 +196,7 @@ function extras(w) {
   const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   const day = h("select", { class: "input", "aria-label": "Day" }, ...DAYS.map((d, i) => h("option", { value: String(i + 1), text: d })));
   // Any time of day, to the minute; Set saves it (the day saves as soon as it's picked)
-  const time = h("input", { class: "input", type: "time", step: "60", value: opt.weekly_time || "10:00", "aria-label": "Time" });
+  const time = timePicker(opt.weekly_time || "10:00");
   const setBtn = h("button", { class: "btn small", type: "button", text: "Set" });
   day.value = String(opt.weekly_day || 7);
   day.addEventListener("change", async () => {

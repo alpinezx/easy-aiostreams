@@ -1,4 +1,4 @@
-import { $, h, clear, api, ago, fmtBytes, toast } from "./util.js";
+import { $, h, clear, api, ago, fmtBytes, toast, timePicker } from "./util.js";
 import { openJob, runAction, ask } from "./actions.js";
 import { tagLabel } from "./releases.js";
 
@@ -198,7 +198,7 @@ async function showSchedule() {
   const every = h("select", { class: "input", "aria-label": "How often" },
     ...[["off", "Off"], ["daily", "Daily"], ["weekly", "Weekly"]].map(([v, t]) => h("option", { value: v, text: t })));
   const day = h("select", { class: "input", "aria-label": "Day" }, ...DAYS.map((d, i) => h("option", { value: String(i + 1), text: d })));
-  const time = h("input", { class: "input", type: "time", step: "60", value: s.time || "04:00", "aria-label": "Time" });
+  const time = timePicker(s.time || "04:00");
   const setBtn = h("button", { class: "btn small", type: "button", text: "Set" });
   every.value = s.every; day.value = String(s.day || 7);
   const onDay = h("span", { class: "dim", text: "on" });

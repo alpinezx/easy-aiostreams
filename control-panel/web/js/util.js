@@ -52,6 +52,23 @@ export function fmtBytes(n) {
   return `${n >= 100 || i === 0 ? Math.round(n) : n.toFixed(1)} ${u[i]}`;
 }
 
+// A 24-hour time as two dropdowns, hour and minute. <input type="time"> shows AM/PM in
+// some browsers, by the system's language; these read the same everywhere, like the
+// scripts and alerts ("04:00"). Has a .value of "HH:MM", like an input.
+export function timePicker(value, label = "Time") {
+  const pad = (n) => String(n).padStart(2, "0");
+  const opts = (n) => Array.from({ length: n }, (_, i) => h("option", { value: pad(i), text: pad(i) }));
+  const hh = h("select", { class: "input", "aria-label": `${label}, hour` }, ...opts(24));
+  const mm = h("select", { class: "input", "aria-label": `${label}, minute` }, ...opts(60));
+  const el = h("span", { class: "time-pick" }, hh, h("span", { class: "dim", text: ":" }), mm);
+  Object.defineProperty(el, "value", {
+    get: () => `${hh.value}:${mm.value}`,
+    set: (v) => { const [a, b] = String(v || "").split(":"); hh.value = pad(Math.min(23, Number(a) || 0)); mm.value = pad(Math.min(59, Number(b) || 0)); },
+  });
+  el.value = value;
+  return el;
+}
+
 export function ago(ts) {
   const s = Date.now() / 1000 - ts;
   if (s < 45) return "just now";
