@@ -45,13 +45,16 @@ _PAD = "N\n"
 AIO = "setup-aiostreams.sh"
 
 _STATIC: dict[str, Action] = {a.id: a for a in [
+    # Each runs the script's own command; the typed menu answers after it are
+    # only read by an older script that doesn't know the command (it falls
+    # through to its menu). tests/test_menus.py checks those numbers still match.
     Action("stack.start", "Start", "Starting", "Start finished", AIO,
-           stdin="3\n" + _PAD + "10\n", timeout=300, needs=(AIO,)),
+           args=("start",), stdin="3\n" + _PAD + "10\n", timeout=300, needs=(AIO,)),
     Action("stack.stop", "Stop", "Stopping", "Stop finished", AIO,
-           stdin="2\n10\n", timeout=180, needs=(AIO,),
+           args=("stop",), stdin="2\n10\n", timeout=180, needs=(AIO,),
            confirm="Stop AIOStreams? Caddy stays up, so visitors get a 502 until you start it again."),
     Action("stack.restart", "Restart", "Restarting", "Restart finished", AIO,
-           stdin="4\n" + _PAD + "10\n", timeout=420, needs=(AIO,),
+           args=("restart",), stdin="4\n" + _PAD + "10\n", timeout=420, needs=(AIO,),
            confirm="Restart the whole stack? Streams stop loading for a few seconds."),
     Action("stack.backup", "Back up now", "Backing up", "Backup finished", AIO,
            args=("backup",), stdin="\n", timeout=300, needs=(AIO,),
@@ -61,7 +64,7 @@ _STATIC: dict[str, Action] = {a.id: a for a in [
            args=("start-mediaflow",), timeout=300,
            needs=("setup-mediaflow.sh", "mediaflow-state/docker-compose.yml")),
     Action("mediaflow.stop", "Stop", "Stopping", "Stop finished", "setup-mediaflow.sh",
-           stdin="3\n10\n", timeout=120,
+           args=("stop-mediaflow",), stdin="3\n10\n", timeout=120,
            needs=("setup-mediaflow.sh", "mediaflow-state/docker-compose.yml"),
            confirm="Stop MediaFlow Proxy? Streams that use it will stop playing."),
 
@@ -69,7 +72,7 @@ _STATIC: dict[str, Action] = {a.id: a for a in [
            args=("start-relay",), timeout=300,
            needs=("setup-webhook.sh", "webhook-relay-state/docker-compose.yml")),
     Action("webhook.stop", "Stop", "Stopping", "Stop finished", "setup-webhook.sh",
-           stdin="3\n10\n", timeout=120,
+           args=("stop-relay",), stdin="3\n10\n", timeout=120,
            needs=("setup-webhook.sh", "webhook-relay-state/docker-compose.yml"),
            confirm="Stop the webhook relay? Incoming webhooks will be rejected until it starts again."),
 
@@ -146,8 +149,9 @@ def build_update(backup: bool, channel: str | None) -> Action:
     confirm = "Pull the latest AIOStreams image and recreate the container? "
     confirm += "Streams stop loading for a minute." if not channel else (
         f"This also switches the build channel to {channel}.")
+    args = ("update",) + (("--backup",) if backup else ()) + (("--channel", channel) if channel else ())
     return Action("stack.update", "Update", "Updating", "Update finished", AIO,
-                  stdin="\n".join(answers) + "\n", timeout=1200, needs=(AIO,),
+                  args=args, stdin="\n".join(answers) + "\n", timeout=1200, needs=(AIO,),
                   confirm=confirm)
 
 

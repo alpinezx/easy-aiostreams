@@ -72,6 +72,11 @@ warn_if_vpn_layer_off() {
     alert "${action_desc} now means AIOStreams' traffic, including debrid API"
     alert "calls, goes out via your VPS's real IP, not through the VPN."
     echo ""
+    if [[ "${UNATTENDED:-false}" == true ]]; then
+        echo "Not done: the VPN is set up but switched off. Turn it on first (sudo bash setup-vpn-gluetun.sh),"
+        echo "or do this from the menu over SSH, which asks whether to go on in direct mode."
+        return 1
+    fi
     read -rp "Continue anyway in direct mode? [y/N]: " VPN_OFF_CONTINUE
     if [[ ! "$VPN_OFF_CONTINUE" =~ ^[Yy]$ ]]; then
         echo "Cancelled. Turn the VPN on first with: sudo bash setup-vpn-gluetun.sh"
@@ -904,6 +909,158 @@ maintenance_menu() {
     done
 }
 
+# ---- Stop, Start, Restart and Update: menu options 2 to 5, and the commands
+# the control panel runs, "stop", "start", "restart" and
+# "update [--backup] [--channel latest|nightly]". The panel used to type the
+# menu numbers, and older panels still do, so those numbers must never
+# change. The commands ask nothing: where the menu asks whether to go on with
+# the VPN set up but switched off, they stop instead.
+UNATTENDED=false
+
+do_stop_aio() {
+    echo ""
+    cd "$INSTALL_DIR"
+    echo "Stopping AIOStreams..."
+    # Targets aiostreams only, caddy (and gluetun in VPN mode) stay
+    # up, so the domain still responds (502) instead of going dark.
+    docker compose stop aiostreams
+    touch "$STOPPED_MARKER"
+    echo "Stopped. Caddy is still up (visitors get a 502) and, if VPN mode is"
+    echo "on, the tunnel is untouched. Start (option 3) to bring it back."
+}
+
+do_start_aio() {
+    echo ""
+    cd "$INSTALL_DIR"
+    warn_if_vpn_layer_off "Starting AIOStreams" || return 1
+    if vpn_mode_active; then
+        echo "VPN mode detected, bringing the tunnel up before starting AIOStreams..."
+        if vpn_gated_start_aiostreams --remove-orphans; then
+            echo "Started, tunnel confirmed."
+        fi
+    else
+        # 'up -d' rather than 'start': also handles the case where
+        # the container doesn't exist yet at all.
+        docker compose up -d aiostreams
+        rm -f "$STOPPED_MARKER"
+        echo "Started."
+    fi
+    echo ""
+    echo "Check status with: docker compose ps"
+}
+
+do_restart_stack() {
+    echo ""
+    cd "$INSTALL_DIR"
+    if vpn_mode_active; then
+        echo "VPN mode detected (gluetun present), recreating gluetun+caddy first, then"
+        echo "gating aiostreams behind a confirmed tunnel, so it never re-attaches to a"
+        echo "stale or not-yet-connected namespace..."
+        vpn_gated_start_aiostreams --force-recreate --remove-orphans || true
+    else
+        warn_if_vpn_layer_off "Restarting the stack" || return 1
+        echo "Restarting the stack..."
+        docker compose restart
+    fi
+    echo "Restarted. Check status with: docker compose ps"
+}
+
+# do_update_aio <backup: ask|yes|no> <channel: ask|keep|latest|nightly>
+do_update_aio() {
+    local backup="$1" channel="$2" UPDATE_CHOICE SWITCH_CHANNEL NEW_CHANNEL_CHOICE CONFIRM_CHANNEL_SWITCH
+    echo ""
+    cd "$INSTALL_DIR"
+    if [[ "$backup" == ask ]]; then
+        echo "Update AIOStreams:"
+        echo "  1) Backup first, then update"
+        echo "  2) Update without backing up"
+        echo "  3) Cancel"
+        read -rp "Select an option [1-3]: " UPDATE_CHOICE
+        case "$UPDATE_CHOICE" in
+            1) backup=yes ;;
+            2) backup=no ;;
+            *) echo "Update cancelled."; return 0 ;;
+        esac
+    fi
+
+    CURRENT_TAG=$(grep "image: viren070/aiostreams:" "$COMPOSE_FILE" | head -n1 | sed 's/.*aiostreams://')
+    [[ -z "$CURRENT_TAG" ]] && CURRENT_TAG="latest"
+    NEW_TAG="$CURRENT_TAG"
+    # Nightly can move the database past what stable reads; that backup is the way back
+    if [[ "$channel" == nightly && "$CURRENT_TAG" != nightly && "$backup" != yes ]]; then
+        echo "Switching to nightly needs a backup first (--backup): it's the way back to stable."
+        return 1
+    fi
+
+    if [[ "$backup" == yes ]]; then
+        if [[ "$UNATTENDED" == true ]]; then
+            run_backup_script backup < /dev/null || { warn "The backup didn't finish, so nothing else was changed."; return 1; }
+        else
+            run_backup_script backup || { warn "The backup didn't finish, so nothing else was changed."; return 1; }
+        fi
+        echo ""
+    fi
+
+    echo ""
+    echo "Current build channel: ${CURRENT_TAG}"
+    if [[ "$channel" == latest || "$channel" == nightly ]]; then
+        NEW_TAG="$channel"
+    elif [[ "$channel" == ask ]]; then
+        read -rp "Switch build channel before updating? [y/N]: " SWITCH_CHANNEL
+        if [[ "$SWITCH_CHANNEL" =~ ^[Yy]$ ]]; then
+            echo "  1) Stable (latest)"
+            echo "  2) Nightly"
+            read -rp "Choice [1-2]: " NEW_CHANNEL_CHOICE
+            case "$NEW_CHANNEL_CHOICE" in
+                1) NEW_TAG="latest" ;;
+                2) NEW_TAG="nightly" ;;
+                *)
+                    warn "Not a valid choice, staying on ${CURRENT_TAG}."
+                    NEW_TAG="$CURRENT_TAG"
+                    ;;
+            esac
+            if [[ "$NEW_TAG" != "$CURRENT_TAG" ]]; then
+                echo ""
+                if [[ "$NEW_TAG" == "nightly" ]]; then
+                    alert "You're switching to NIGHTLY, bleeding-edge builds off every commit."
+                    alert "It can change behavior or break without notice."
+                else
+                    alert "You're switching from nightly to stable. This is a DOWNGRADE."
+                    alert "If nightly has moved ahead with a config/database format change stable"
+                    alert "doesn't know about yet, stable may not read that data correctly."
+                    warn "Consider backing up first (menu option 7) if you haven't already."
+                fi
+                read -rp "Continue switching to ${NEW_TAG}? [y/N]: " CONFIRM_CHANNEL_SWITCH
+                if [[ ! "$CONFIRM_CHANNEL_SWITCH" =~ ^[Yy]$ ]]; then
+                    echo "Staying on ${CURRENT_TAG}."
+                    NEW_TAG="$CURRENT_TAG"
+                fi
+            fi
+        fi
+    fi
+    if [[ "$NEW_TAG" != "$CURRENT_TAG" ]]; then
+        sed -i "s|image: viren070/aiostreams:.*|image: viren070/aiostreams:${NEW_TAG}|" "$COMPOSE_FILE"
+        info "Switched to ${NEW_TAG}, will pull and recreate below."
+    fi
+
+    warn_if_vpn_layer_off "Updating AIOStreams" || return 1
+    echo "Updating AIOStreams (pull + recreate)..."
+    # shellcheck disable=SC2046  # image refs never contain spaces
+    IMAGE_SNAPSHOT=$(snapshot_image_ids $(compose_image_refs "$COMPOSE_FILE"))
+    docker compose pull
+    if vpn_mode_active; then
+        echo "VPN mode detected, recreating gluetun+caddy first, then gating aiostreams"
+        echo "behind a confirmed tunnel before it comes up on the new images..."
+        vpn_gated_start_aiostreams --force-recreate --remove-orphans || true
+    else
+        docker compose up -d --force-recreate --remove-orphans
+    fi
+    cleanup_replaced_images "$IMAGE_SNAPSHOT"
+    echo ""
+    echo "Update complete. Current images:"
+    docker compose images
+}
+
 case "${1:-}" in
     backup|restore)
         script=$(backup_script) || exit 1
@@ -917,6 +1074,34 @@ case "${1:-}" in
         status=0
         restore_start_stack || status=$?
         exit "$status"
+        ;;
+    stop|start|restart|update)
+        [[ -f "$COMPOSE_FILE" ]] || error "No AIOStreams install found at $INSTALL_DIR."
+        require_cmd docker && docker compose version >/dev/null 2>&1 || error "Docker/Compose isn't available."
+        UNATTENDED=true
+        case "$1" in
+            stop) do_stop_aio ;;
+            start) do_start_aio || exit 1 ;;
+            restart) do_restart_stack || exit 1 ;;
+            update)
+                cmd_backup=no cmd_channel=keep
+                shift
+                while (( $# )); do
+                    case "$1" in
+                        --backup) cmd_backup=yes ;;
+                        --channel)
+                            [[ "${2:-}" =~ ^(latest|nightly)$ ]] || error "--channel takes latest or nightly."
+                            cmd_channel=$2
+                            shift
+                            ;;
+                        *) error "Unknown option '$1'. Use: update [--backup] [--channel latest|nightly]" ;;
+                    esac
+                    shift
+                done
+                do_update_aio "$cmd_backup" "$cmd_channel" || exit 1
+                ;;
+        esac
+        exit 0
         ;;
     status)
         [[ -f "$COMPOSE_FILE" ]] || error "No AIOStreams install found at $INSTALL_DIR."
@@ -974,136 +1159,10 @@ if [[ -f "$COMPOSE_FILE" ]]; then
             maintenance_menu
             continue
             ;;
-        2)
-            echo ""
-            cd "$INSTALL_DIR"
-            echo "Stopping AIOStreams..."
-            # Targets aiostreams only, caddy (and gluetun in VPN mode) stay
-            # up, so the domain still responds (502) instead of going dark.
-            docker compose stop aiostreams
-            touch "$STOPPED_MARKER"
-            echo "Stopped. Caddy is still up (visitors get a 502) and, if VPN mode is"
-            echo "on, the tunnel is untouched. Start (option 3) to bring it back."
-            continue
-            ;;
-        3)
-            echo ""
-            cd "$INSTALL_DIR"
-
-            warn_if_vpn_layer_off "Starting AIOStreams" || continue
-
-            if vpn_mode_active; then
-                echo "VPN mode detected, bringing the tunnel up before starting AIOStreams..."
-                if vpn_gated_start_aiostreams --remove-orphans; then
-                    echo "Started, tunnel confirmed."
-                fi
-            else
-                # 'up -d' rather than 'start': also handles the case where
-                # the container doesn't exist yet at all.
-                docker compose up -d aiostreams
-                rm -f "$STOPPED_MARKER"
-                echo "Started."
-            fi
-            echo ""
-            echo "Check status with: docker compose ps"
-            continue
-            ;;
-        4)
-            echo ""
-            cd "$INSTALL_DIR"
-            if vpn_mode_active; then
-                echo "VPN mode detected (gluetun present), recreating gluetun+caddy first, then"
-                echo "gating aiostreams behind a confirmed tunnel, so it never re-attaches to a"
-                echo "stale or not-yet-connected namespace..."
-                vpn_gated_start_aiostreams --force-recreate --remove-orphans || true
-            else
-                warn_if_vpn_layer_off "Restarting the stack" || continue
-                echo "Restarting the stack..."
-                docker compose restart
-            fi
-            echo "Restarted. Check status with: docker compose ps"
-            continue
-            ;;
-        5)
-            echo ""
-            cd "$INSTALL_DIR"
-
-            echo "Update AIOStreams:"
-            echo "  1) Backup first, then update"
-            echo "  2) Update without backing up"
-            echo "  3) Cancel"
-            read -rp "Select an option [1-3]: " UPDATE_CHOICE
-            case "$UPDATE_CHOICE" in
-                1)
-                    run_backup_script backup || { warn "The backup didn't finish, so nothing else was changed."; continue; }
-                    echo ""
-                    ;;
-                2)
-                    ;;
-                *)
-                    echo "Update cancelled."
-                    continue
-                    ;;
-            esac
-
-            CURRENT_TAG=$(grep "image: viren070/aiostreams:" "$COMPOSE_FILE" | head -n1 | sed 's/.*aiostreams://')
-            [[ -z "$CURRENT_TAG" ]] && CURRENT_TAG="latest"
-            echo ""
-            echo "Current build channel: ${CURRENT_TAG}"
-            read -rp "Switch build channel before updating? [y/N]: " SWITCH_CHANNEL
-            if [[ "$SWITCH_CHANNEL" =~ ^[Yy]$ ]]; then
-                echo "  1) Stable (latest)"
-                echo "  2) Nightly"
-                read -rp "Choice [1-2]: " NEW_CHANNEL_CHOICE
-                case "$NEW_CHANNEL_CHOICE" in
-                    1) NEW_TAG="latest" ;;
-                    2) NEW_TAG="nightly" ;;
-                    *)
-                        warn "Not a valid choice, staying on ${CURRENT_TAG}."
-                        NEW_TAG="$CURRENT_TAG"
-                        ;;
-                esac
-                if [[ "$NEW_TAG" != "$CURRENT_TAG" ]]; then
-                    echo ""
-                    if [[ "$NEW_TAG" == "nightly" ]]; then
-                        alert "You're switching to NIGHTLY, bleeding-edge builds off every commit."
-                        alert "It can change behavior or break without notice."
-                    else
-                        alert "You're switching from nightly to stable. This is a DOWNGRADE."
-                        alert "If nightly has moved ahead with a config/database format change stable"
-                        alert "doesn't know about yet, stable may not read that data correctly."
-                        warn "Consider backing up first (menu option 7) if you haven't already."
-                    fi
-                    read -rp "Continue switching to ${NEW_TAG}? [y/N]: " CONFIRM_CHANNEL_SWITCH
-                    if [[ ! "$CONFIRM_CHANNEL_SWITCH" =~ ^[Yy]$ ]]; then
-                        echo "Staying on ${CURRENT_TAG}."
-                        NEW_TAG="$CURRENT_TAG"
-                    fi
-                fi
-                if [[ "$NEW_TAG" != "$CURRENT_TAG" ]]; then
-                    sed -i "s|image: viren070/aiostreams:.*|image: viren070/aiostreams:${NEW_TAG}|" "$COMPOSE_FILE"
-                    info "Switched to ${NEW_TAG}, will pull and recreate below."
-                fi
-            fi
-
-            warn_if_vpn_layer_off "Updating AIOStreams" || continue
-            echo "Updating AIOStreams (pull + recreate)..."
-            # shellcheck disable=SC2046  # image refs never contain spaces
-            IMAGE_SNAPSHOT=$(snapshot_image_ids $(compose_image_refs "$COMPOSE_FILE"))
-            docker compose pull
-            if vpn_mode_active; then
-                echo "VPN mode detected, recreating gluetun+caddy first, then gating aiostreams"
-                echo "behind a confirmed tunnel before it comes up on the new images..."
-                vpn_gated_start_aiostreams --force-recreate --remove-orphans || true
-            else
-                docker compose up -d --force-recreate --remove-orphans
-            fi
-            cleanup_replaced_images "$IMAGE_SNAPSHOT"
-            echo ""
-            echo "Update complete. Current images:"
-            docker compose images
-            continue
-            ;;
+        2) do_stop_aio; continue ;;
+        3) do_start_aio || true; continue ;;
+        4) do_restart_stack || true; continue ;;
+        5) do_update_aio ask ask || true; continue ;;
         6)
             echo ""
 

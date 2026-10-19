@@ -811,6 +811,14 @@ if [[ "${1:-}" == "patch-compose" ]]; then
     exit 0
 fi
 
+# The control panel's Stop (it used to type menu option 3, and older panels
+# still do, so the menu's numbers must never change)
+if [[ "${1:-}" == "stop-mediaflow" ]]; then
+    [[ -f "$CONFIG_FILE" ]] || error "No MediaFlow config found at $CONFIG_FILE, nothing to stop."
+    do_stop
+    exit 0
+fi
+
 if [[ "${1:-}" == "start-mediaflow" ]]; then
     [[ -f "$CONFIG_FILE" ]] || error "No MediaFlow config found at $CONFIG_FILE, nothing to start."
     do_start "true"
