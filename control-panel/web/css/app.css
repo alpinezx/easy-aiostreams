@@ -321,6 +321,7 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .vpn-grid + .vpn-grid { padding-top: 16px; border-top: 1px solid var(--line-soft); }
 .vpn-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--faint); margin-bottom: 4px; }
 .vpn-value { font-size: .98rem; font-weight: 600; overflow-wrap: anywhere; }
+.vpn-value.ok { color: var(--ok); } .vpn-value.warn { color: var(--warn); }
 .vpn-value.mono { font-size: .9rem; font-weight: 500; }
 .vpn-note { margin: 16px 0 0; font-size: .9rem; }
 .vpn-foot { margin: 14px 0 0; font-size: .88rem; }

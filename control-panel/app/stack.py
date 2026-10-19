@@ -403,6 +403,8 @@ class Backend:
                         continue
                     got["connected"] = True
                     break
+                if got["connected"]:
+                    got["dns"] = self._vpn_dns(c)
                 if not got["connected"]:
                     got["error"] = "Couldn't reach the internet through the tunnel."
         except Exception:
@@ -410,6 +412,38 @@ class Backend:
         self._vpn_cache = got
         out.update(got)
         return out
+
+    # Which DNS servers gluetun is talking to, and whether over DNS-over-TLS (port
+    # 853), as the VPN script's "DNS: encrypted" check: a lookup is made first so
+    # there's a connection to see. Read from /proc/net/tcp rather than with ss,
+    # which the gluetun image doesn't have.
+    _DNS_NAMES = {"1.1.1.1": "Cloudflare", "1.0.0.1": "Cloudflare", "9.9.9.9": "Quad9", "149.112.112.112": "Quad9"}
+
+    def _vpn_dns(self, c) -> dict:
+        try:
+            r = c.exec_run(["sh", "-c", "(nslookup example.com >/dev/null 2>&1 || getent hosts example.com >/dev/null 2>&1) & "
+                                        "sleep 1; cat /proc/net/tcp /proc/net/tcp6 2>/dev/null"])
+            text = (r.output or b"").decode(errors="replace")
+        except Exception:
+            return {"state": "unknown", "via": []}
+        dot, plain = [], False
+        for line in text.splitlines()[1:]:
+            f = line.split()
+            if len(f) < 4 or ":" not in f[2] or f[3] == "0A":      # 0A: listening, not a connection
+                continue
+            addr, port = f[2].split(":")
+            if len(addr) == 32 and addr.startswith("0000000000000000FFFF0000"):
+                addr = addr[-8:]                                  # an IPv4 address in tcp6
+            if len(addr) != 8:
+                continue
+            ip = ".".join(str(int(addr[i:i + 2], 16)) for i in (6, 4, 2, 0))
+            p = int(port, 16)
+            if p == 853:
+                dot.append(self._DNS_NAMES.get(ip, ip))
+            elif p == 53 and not ip.startswith("127."):
+                plain = True
+        via = sorted(set(dot))
+        return {"state": "encrypted" if via else "plain" if plain else "unknown", "via": via}
 
     def status(self) -> dict:
         self._last_view = time.time()

@@ -304,10 +304,17 @@ export async function show(fresh = false, status) {
 }
 
 // One labelled value in the card's grid; nothing when there's no value
-function cell(label, value, mono) {
+function cell(label, value, mono, tone) {
   if (!value) return null;
   return h("div", { class: "vpn-cell" }, h("div", { class: "vpn-label", text: label }),
-    h("div", { class: "vpn-value" + (mono ? " mono" : ""), text: value }));
+    h("div", { class: "vpn-value" + (mono ? " mono" : "") + (tone ? " " + tone : ""), text: value }));
+}
+
+// gluetun's DNS: encrypted (DNS-over-TLS) and to whom, or plain, as the script's check
+function dnsCell(d) {
+  if (!d || d.state === "unknown") return null;
+  if (d.state === "plain") return cell("DNS", "Not encrypted", false, "warn");
+  return cell("DNS", `Encrypted, ${d.via.join(" and ")}`, false, "ok");
 }
 
 function render(v) {
@@ -326,7 +333,8 @@ function render(v) {
   const where = h("div", { class: "vpn-grid" },
     up ? cell("Exit IP", v.exit_ip, true) : null,
     up ? cell("Location", [v.city, countryName(v.country)].filter(Boolean).join(", ")) : null,
-    up ? cell("Network", v.org) : null);
+    up ? cell("Network", v.org) : null,
+    up ? dnsCell(v.dns) : null);
   const server = h("div", { class: "vpn-grid" },
     cell("Endpoint", v.endpoint_host, true),
     cell("Server address", v.endpoint_ip ? `${v.endpoint_ip}${v.endpoint_port ? ":" + v.endpoint_port : ""}` : "", true));
