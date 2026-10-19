@@ -154,15 +154,13 @@ function hero(st) {
   const key = [st.overall, st.headline, st.domain, st.channel, st.version, st.build_tag, st.vpn, !!st.busy, aio && aio.state,
     st.cert && st.cert.ok, st.cert && st.cert.days_left, st.cert && st.cert.days_total, st.installed, st.docker_ok, relLoading, rel && rel.checked_at, rel && rel.error].join("|");
   rebuild("#hero", key, (el) => {
-    el.append(h("div", { class: "hero-head", "aria-live": "polite" },
+    // The headline, and after it the "Script updates" pill while a setup script here differs
+    // from GitHub (it drops below the headline when they don't fit on one line).
+    // Opening AIOStreams is the version card's title.
+    el.append(h("div", { class: "hero-head" },
       h("span", { class: "lamp", dataset: { s: st.overall }, "aria-hidden": "true" }),
-      h("h1", { class: "headline", text: st.headline })));
-    // Open AIOStreams on a line of its own, then one chip for the build and version, then the update bits.
-    // Open AIOStreams, and beside it the "Script updates" pill while a setup script here differs from GitHub
-    const pillEl = h("a", { class: "chip warn scripts-pill", id: "scripts-pill", href: "#scripts", hidden: true });
-    if (st.domain) el.append(h("div", { class: "hero-open" }, h("a", { class: "btn small open-site", href: `https://${st.domain}`, target: "_blank", rel: "noopener noreferrer",
-      title: `Opens https://${st.domain} in a new tab` }, "Open AIOStreams", extIcon()), pillEl));
-    else el.append(h("div", { class: "hero-open" }, pillEl));
+      h("h1", { class: "headline", "aria-live": "polite", text: st.headline }),
+      h("a", { class: "chip warn scripts-pill", id: "scripts-pill", href: "#scripts", hidden: true })));
     scriptsPill();
     // The certificate lives in This server; it comes up here only when it needs attention.
     if (st.cert && (!st.cert.ok || certTone(st.cert))) el.append(h("div", { class: "hero-meta" }, certChip(st, true)));
@@ -198,7 +196,8 @@ function versionCard(st, avail) {
     disabled: !!st.busy, title: "Update AIOStreams, or switch between stable and nightly", onclick: () => runAction(upd) }));
   return h("section", { class: "panel ver-card", "aria-label": "AIOStreams version" },
     h("div", { class: "ver-head" },
-      h("h2", { text: "AIOStreams" }),
+      h("h2", {}, st.domain ? h("a", { class: "ver-open", href: `https://${st.domain}`, target: "_blank", rel: "noopener noreferrer",
+        title: `Opens https://${st.domain} in a new tab` }, "AIOStreams", extIcon()) : "AIOStreams"),
       h("span", { class: "chip" + (nightly ? " warn" : " ok"), text: nightly ? "Nightly" : "Stable",
         title: nightly ? "AIOStreams' nightly builds (Docker tag: nightly). Switch with Update." : "AIOStreams' stable releases (Docker tag: latest). Switch with Update." })),
     h("div", { class: "ver-grid" },
