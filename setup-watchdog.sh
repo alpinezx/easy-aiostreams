@@ -437,7 +437,8 @@ check_scripts() {
 # still "running" after an hour stopped without saying why.
 check_backup() {
     local f="$INSTALL_DIR/backup-last-run" seen="$STATE_DIR/backup-seen" at status text last now title
-    IFS='|' read -r at status text < "$f" 2>/dev/null || return 0
+    [[ -f "$f" ]] || return 0
+    IFS='|' read -r at status text < "$f" || return 0
     [[ "$at" =~ ^[0-9]+$ ]] || return 0
     now=$(date +%s)
     last=$(cat "$seen" 2>/dev/null || echo "")

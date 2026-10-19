@@ -422,7 +422,8 @@ schedule_set() {
 # What the last scheduled run did, in a line
 last_run_text() {
     local at status text
-    IFS='|' read -r at status text < "$LAST_RUN_FILE" 2>/dev/null || return 0
+    [[ -f "$LAST_RUN_FILE" ]] || return 0
+    IFS='|' read -r at status text < "$LAST_RUN_FILE" || return 0
     [[ "$at" =~ ^[0-9]+$ ]] || return 0
     case "$status" in
         ok) echo "Last run: $(date -d "@$at" '+%a %d %b, %H:%M'). $text" ;;
