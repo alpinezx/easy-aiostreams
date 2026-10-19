@@ -580,14 +580,18 @@ ensure_stack_running() {
 }
 
 # Old images nothing uses (each AIOStreams update leaves the previous one
-# behind, untagged), build leftovers (every panel rebuild adds some) and system
-# logs beyond the newest 100 MB. Only untagged images go: a tagged one, like
-# gluetun's while the VPN is off, is kept for when it's wanted again.
+# behind, untagged, and switching channel leaves the other channel's), build
+# leftovers (every panel rebuild adds some) and system logs beyond the newest
+# 100 MB. Other tagged images, like gluetun's while the VPN is off, are kept
+# for when they're wanted again.
 do_free_space() {
-    local before after
+    local before after img
     before=$(df -B1 --output=avail "$INSTALL_DIR" | tail -n 1)
     info "Removing old images nothing uses"
     docker image prune -f
+    for img in $(docker images viren070/aiostreams --format '{{.Repository}}:{{.Tag}}' | grep -v '<none>'); do
+        [[ -z "$(docker ps -aq --filter "ancestor=$img")" ]] && docker rmi "$img" || true
+    done
     info "Removing build leftovers"
     docker builder prune -f
     if command -v journalctl >/dev/null 2>&1; then

@@ -622,13 +622,17 @@ class Backend:
     def _maint_space(self) -> dict:
         images = count = build = journal = 0
         try:
-            for im in self.client.images.list(filters={"dangling": True}):
-                images += int(im.attrs.get("Size") or 0)
-                count += 1
-        except Exception:
-            pass
-        try:
-            build = sum(int(c.get("Size") or 0) for c in (self.client.df().get("BuildCache") or []) if not c.get("InUse"))
+            df = self.client.df()
+            # What free-space removes: untagged images and AIOStreams images no
+            # container uses, counted by the space only they hold (layers shared
+            # with an image that stays aren't freed)
+            for im in df.get("Images") or []:
+                tags = [t for t in (im.get("RepoTags") or []) if t != "<none>:<none>"]
+                if im.get("Containers", 0) == 0 and (not tags or all(t.startswith("viren070/aiostreams:") for t in tags)):
+                    shared = int(im.get("SharedSize") or 0)
+                    images += max(0, int(im.get("Size") or 0) - max(shared, 0))
+                    count += 1
+            build = sum(int(c.get("Size") or 0) for c in (df.get("BuildCache") or []) if not c.get("InUse"))
         except Exception:
             pass
         try:

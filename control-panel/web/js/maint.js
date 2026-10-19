@@ -30,7 +30,7 @@ function space(m) {
   const s = m.space;
   const total = s.images + s.build + s.journal;
   return card("Free up space", [
-    stat("Old images", fmtBytes(s.images), s.image_count ? `${s.image_count} from past updates` : "None left over"),
+    stat("Old images", fmtBytes(s.images), s.image_count ? `${s.image_count} nothing uses any more` : "None left over"),
     stat("Build leftovers", fmtBytes(s.build), "From rebuilding the panel"),
     stat("System logs", fmtBytes(s.journal), "Beyond the newest 100 MB"),
   ], total > 20 * 1024 * 1024 ? `About ${fmtBytes(total)} can go. Nothing in use, your settings or backups.` : "Nothing worth freeing right now.",
