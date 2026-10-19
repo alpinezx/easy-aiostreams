@@ -44,9 +44,10 @@
 @media (prefers-color-scheme: light) {
   :root {
     color-scheme: light;
-    --bg: #fafafa; --raised: #ffffff; --sunk: #f3f3f3;
-    --line: #d1d1d1; --line-soft: #e6e6e6;
-    --text: #1c1c1c; --dim: #5a5a5a; --faint: #8f8f8f; --hover: rgba(0, 0, 0, .04);
+    /* soft greys rather than white, so the page isn't glaring and cards stand out */
+    --bg: #e4e7eb; --raised: #f4f5f7; --sunk: #dde1e6;
+    --line: #c4c9d0; --line-soft: #d5d9df;
+    --text: #22252a; --dim: #51565e; --faint: #80858d; --hover: rgba(0, 0, 0, .05);
     --accent: #5243cb; --accent-soft: rgba(97, 82, 223, .1);
     --primary: #4f43b8; --primary-hover: #4034a3; --primary-ink: #ffffff;
     --ok: #047857; --warn: #9a6200; --bad: #c42f2f;
