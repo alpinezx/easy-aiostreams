@@ -47,6 +47,26 @@ That's it .  no DNS changes, no second server, no other setup needed.
 
 ---
 
+## Scheduled backups
+
+Backups can also make themselves, daily or weekly at a time you pick. Off until you switch them on, either on the control panel's **Backup & Restore** page or over SSH:
+
+```bash
+sudo bash /opt/aiostreams/setup-backup.sh schedule daily 04:00
+```
+
+`weekly 7 04:00` is Sundays at 04:00 (1 is Monday, 7 Sunday), `off` stops them, and `schedule` on its own says what's set and how the last one went. Times are 24-hour, by the server's clock (`timedatectl` shows its time zone).
+
+- Each is named `aiostreams-backup-scheduled-YYYYMMDD-HHMMSS.tar.gz` and kept in `/root`. The panel marks them **Scheduled**.
+- The newest 7 are kept and older scheduled ones removed. Backups you make yourself, ones made before an update and locked ones are never removed, so lock one in the panel to keep it for good.
+- If the disk is 90% full or more, it skips that one rather than fill it up.
+- With [phone alerts](./watchdog.md) set up, a failed or skipped one always sends an alert, and a switch adds one for each backup made.
+- A restore brings the schedule back with everything else.
+
+They stay on the server, so they protect you from a bad update or a mistake, not from losing the server itself. Copy one somewhere else now and then.
+
+---
+
 ## Bonus: back up before an update, in one step
 
 You don't need to run the steps above just to be safe before an update. From

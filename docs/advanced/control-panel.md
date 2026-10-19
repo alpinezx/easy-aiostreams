@@ -53,6 +53,7 @@ It is still root-equivalent on your server, because it has to run the scripts an
 | Restart (per service) | restarts just that container through Docker; AIOStreams, MediaFlow and the webhook relay only |
 | Update | menu option 5, with the backup and build-channel answers from the dialog |
 | Back up now | `setup-aiostreams.sh backup` |
+| Scheduled backups: Set, Off | `setup-backup.sh schedule daily HH:MM`, `weekly <1-7> HH:MM`, `off`, which writes `backup-schedule` and the systemd timer |
 | MediaFlow, webhook relay | `start-mediaflow`, `start-relay`, and menu option 3 for Stop |
 | Phone alerts: Start, Stop, Send test alert | `setup-watchdog.sh install-timer`, `stop` (with menu option 3 typed too, for older copies of the script), `test` |
 | Phone alerts: Uninstall | `setup-watchdog.sh uninstall` (menu option 9 without its question; the panel asks first) |
@@ -98,7 +99,9 @@ Read when the page opens and kept for 5 minutes. **Free up space** counts untagg
 
 ## Backups and restores
 
-Backups are listed from root's home and the login user's home, merged by name. Locks and notes are kept in `ui-state/backup-meta.json`.
+Backups are listed from root's home and the login user's home, merged by name. Locks and notes are kept in `ui-state/backup-meta.json`, which scheduled backups also read so they never remove a locked one.
+
+The **Scheduled backups** card reads `backup-schedule` and `backup-last-run` (see the [backup guide](./backup-restore.md#scheduled-backups)), and whether `aiostreams-backup.timer` is active; if the schedule is on but the timer isn't, it says so and **Set** starts it again. A name with `-scheduled-` gets the **Scheduled** label. The Overview's **Last backup** is the newest backup of any kind, read at most once a minute, amber only when the last scheduled run failed or was skipped.
 
 A restore moves your current install aside to `/opt/aiostreams.pre-restore-<date>-<time>` as a rollback copy, and the script never removes it. Those folders show up under **Set aside by restores** with a Delete button. The panel only deletes folders with exactly that name, next to the install folder.
 
