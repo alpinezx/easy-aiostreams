@@ -32,7 +32,7 @@ TALLY_FILE="$STATE_DIR/tally"       # checks per day: "YYYY-MM-DD passed failed"
 ALIVE_FILE="$STATE_DIR/last-alive"  # when the last check ran
 SHUTDOWN_FILE="$STATE_DIR/shutdown-at"  # written as the server shuts down cleanly
 BOOT_ID_FILE="$STATE_DIR/boot-reported" # the kernel's boot ID once that boot is reported
-OPTIONS_FILE="$STATE_DIR/options"   # extra alerts: "updates=on", "reboots=on", "scripts=on", "backups=on", "weekly=on", and the
+OPTIONS_FILE="$STATE_DIR/options"   # extra alerts: "updates=on", "reboots=on", "scripts=on", "backups=on", "security=on", "weekly=on", and the
                                     # check-in's "weekly_day=7" (1 Mon .. 7 Sun), "weekly_time=10:15"
                                     # (older copies saved "weekly_hour=10", still read as 10:00)
 SCRIPT_COPY="$STATE_DIR/watchdog.sh"
@@ -189,7 +189,7 @@ run_checks() {
 
 # A short record for "did anything happen overnight?" (the control panel's
 # Phone alerts page reads it). Kinds: fail, alert, recovered, start, stop,
-# test, topic, reboot, disk, cert, update, scripts, backup, weekly. Never holds the topic itself. Keeps the last 200.
+# test, topic, reboot, disk, cert, update, scripts, backup, security, weekly. Never holds the topic itself. Keeps the last 200.
 log_event() {
     mkdir -p "$STATE_DIR"
     printf '%s|%s|%s\n' "$(date +%s)" "$1" "${2//$'\n'/ }" >> "$EVENTS_FILE"
@@ -472,6 +472,74 @@ check_backup() {
     return 0
 }
 
+# Ubuntu's waiting updates, one "package/source version arch [upgradable ...]"
+# line each, from the package lists apt last downloaded (Ubuntu refreshes
+# them daily). Read-only; nothing here installs anything.
+upgradable() {
+    command -v apt >/dev/null 2>&1 || return 1
+    apt list --upgradable 2>/dev/null | grep -F '[upgradable' || true
+}
+
+# Optional, off until switched on. Ubuntu installs security updates by
+# itself every day (unattended-upgrades), so they shouldn't wait. One that
+# has waited SEC_WAIT_DAYS means that has stopped, a package is held back, or
+# something needs a hand. Looked at every 6 hours; each update's first sight
+# is kept in security-seen ("package version epoch"). One alert, then a
+# reminder each week while any still wait; once none wait, the next time
+# starts afresh.
+SEC_WAIT_DAYS=3
+check_security() {
+    option_on security || return 0
+    local stamp="$STATE_DIR/security-checked" seen="$STATE_DIR/security-seen" sent="$STATE_DIR/security-alerted"
+    local now list pkg ver first oldest="" count=0 names=() days last how
+    if [[ -f "$stamp" ]] && (( $(date +%s) - $(stat -c %Y "$stamp") < 21600 )); then return 0; fi
+    touch "$stamp"
+    list=$(upgradable) || return 0
+    now=$(date +%s)
+    : > "$seen.tmp"
+    while read -r pkg ver; do
+        [[ -n "$pkg" ]] || continue
+        first=$(awk -v p="$pkg" -v v="$ver" '$1 == p && $2 == v {print $3; exit}' "$seen" 2>/dev/null)
+        [[ "$first" =~ ^[0-9]+$ ]] || first=$now
+        echo "$pkg $ver $first" >> "$seen.tmp"
+        if [[ -z "$oldest" ]] || (( first < oldest )); then oldest=$first; fi
+        count=$((count + 1))
+        (( ${#names[@]} < 3 )) && names+=("$pkg")
+    done < <(grep -- '-security' <<< "$list" | awk '{split($1, a, "/"); print a[1], $2}')
+    mv "$seen.tmp" "$seen"
+    if (( count == 0 )); then
+        rm -f "$sent"
+        return 0
+    fi
+    days=$(( (now - oldest) / 86400 ))
+    (( days >= SEC_WAIT_DAYS )) || return 0
+    last=$(cat "$sent" 2>/dev/null || echo 0)
+    [[ "$last" =~ ^[0-9]+$ ]] || last=0
+    (( now - last >= 7 * 86400 )) || return 0
+    echo "$now" > "$sent"
+    how="Install them with: sudo bash $INSTALL_DIR/setup-aiostreams.sh system-updates"
+    [[ -n "$(panel_domain)" ]] && how="Install them on the panel's Maintenance page (Open panel)."
+    local what="$count security update$( (( count == 1 )) || echo s) $( (( count == 1 )) && echo has || echo have) waited $days days"
+    what+=" ($(IFS=,; echo "${names[*]}" | sed 's/,/, /g')$( (( count > 3 )) && echo ", ..."))."
+    if send_ntfy "$what Ubuntu usually installs these by itself, so something may have stopped it. $how" \
+        "Security updates waiting" 4 lock maint; then
+        log_event security "$what Alert sent."
+    else
+        log_event security "$what The alert couldn't be sent (ntfy.sh unreachable)."
+    fi
+    return 0
+}
+
+# "Updates waiting: 12 (2 for security)." for the weekly check-in, or nothing without apt
+updates_line() {
+    local list n s
+    list=$(upgradable) || return 0
+    n=$(grep -c . <<< "$list" || true)
+    if (( n == 0 )); then echo "No updates waiting."; return 0; fi
+    s=$(grep -c -- '-security' <<< "$list" || true)
+    echo "Updates waiting: $n$( (( s )) && echo " ($s for security)")."
+}
+
 # How old the newest backup on this server is ("today", "3 days old"), or nothing
 newest_backup_age() {
     local newest days
@@ -504,7 +572,7 @@ weekly_time() {
 # watchdog itself needs a look.
 check_weekly() {
     option_on weekly || return 0
-    local now last since passed=0 failed=0 alerts=0 reboots=0 d p f at kind pct msg wday wtime age
+    local now last since passed=0 failed=0 alerts=0 reboots=0 d p f at kind pct msg wday wtime age upd
     now=$(date +%s)
     wday=$(weekly_day)
     wtime=$(weekly_time)
@@ -534,6 +602,8 @@ check_weekly() {
     [[ -n "$pct" ]] && msg+=" Disk ${pct} used."
     age=$(newest_backup_age)
     [[ -n "$age" ]] && msg+=" Newest backup: $age."
+    upd=$(updates_line)
+    [[ -n "$upd" ]] && msg+=" $upd"
     if send_ntfy "$msg" "Weekly check-in" 2 calendar; then
         log_event weekly "$msg Sent."
     else
@@ -600,6 +670,7 @@ do_run_check() {
     check_updates || true
     check_scripts || true
     check_backup || true
+    check_security || true
     check_weekly || true
 }
 
@@ -833,9 +904,10 @@ server_timezone() {
 DAY_NAMES=(Monday Tuesday Wednesday Thursday Friday Saturday Sunday)
 
 extras_line() {
-    local u w r sc b
+    local u w r sc b se
     option_on updates && u="on" || u="off"
     option_on backups && b="on" || b="off"
+    option_on security && se="on" || se="off"
     reboots_on && r="on" || r="off"
     option_on scripts && sc="on" || sc="off"
     if option_on weekly; then
@@ -843,7 +915,7 @@ extras_line() {
     else
         w="off"
     fi
-    echo "new releases $u; restarts $r; script updates $sc; backups made $b; weekly check-in $w"
+    echo "new releases $u; restarts $r; script updates $sc; backups made $b; security updates waiting $se; weekly check-in $w"
 }
 
 # One square per day for the last 14: green all passed, amber some failed, grey no checks
@@ -935,17 +1007,19 @@ do_extras() {
         fi
         echo "3) Script updates: $(option_on scripts && echo on || echo off)  (scripts can change several times a week, so this can be chatty; at most one alert a day)"
         echo "4) Scheduled backup made: $(option_on backups && echo on || echo off)  (a failed or skipped one always alerts)"
-        echo "5) Weekly check-in: $(option_on weekly && echo "on, ${DAY_NAMES[$(( $(weekly_day) - 1 ))]}s from $(weekly_time)" || echo off)"
-        echo "6) Set the check-in's day and time (server time: $(server_timezone))"
+        echo "5) Security updates waiting: $(option_on security && echo on || echo off)  (after $SEC_WAIT_DAYS days; Ubuntu usually installs them by itself)"
+        echo "6) Weekly check-in: $(option_on weekly && echo "on, ${DAY_NAMES[$(( $(weekly_day) - 1 ))]}s from $(weekly_time)" || echo off)"
+        echo "7) Set the check-in's day and time (server time: $(server_timezone))"
         echo "0) Back"
-        read -rp "Choose [0-6]: " c || return 0
+        read -rp "Choose [0-7]: " c || return 0
         case "$c" in
             1) option_on updates && set_option updates off || set_option updates on ;;
             2) reboots_on && set_option reboots off || set_option reboots on ;;
             3) option_on scripts && set_option scripts off || set_option scripts on ;;
             4) option_on backups && set_option backups off || set_option backups on ;;
-            5) option_on weekly && set_option weekly off || set_option weekly on ;;
-            6)
+            5) option_on security && set_option security off || set_option security on ;;
+            6) option_on weekly && set_option weekly off || set_option weekly on ;;
+            7)
                 echo "Days: 1 Monday, 2 Tuesday, 3 Wednesday, 4 Thursday, 5 Friday, 6 Saturday, 7 Sunday"
                 read -rp "Day [Enter for $(weekly_day)]: " d || return 0
                 d=${d:-$(weekly_day)}
@@ -1091,13 +1165,13 @@ if [[ "${1:-}" == "set-topic" ]]; then
     exit $?
 fi
 
-# set-option <updates|reboots|scripts|backups|weekly> <on|off>, or set-option weekly_day <1-7> /
+# set-option <updates|reboots|scripts|backups|security|weekly> <on|off>, or set-option weekly_day <1-7> /
 # weekly_time <HH:MM>: the optional alerts, without questions
 if [[ "${1:-}" == "set-option" ]]; then
-    [[ ( "${2:-}" =~ ^(updates|reboots|scripts|backups|weekly)$ && "${3:-}" =~ ^(on|off)$ ) || ( "${2:-}" == weekly_day && "${3:-}" =~ ^[1-7]$ )
+    [[ ( "${2:-}" =~ ^(updates|reboots|scripts|backups|security|weekly)$ && "${3:-}" =~ ^(on|off)$ ) || ( "${2:-}" == weekly_day && "${3:-}" =~ ^[1-7]$ )
        || ( "${2:-}" == weekly_hour && "${3:-}" =~ ^([01]?[0-9]|2[0-3])$ )
        || ( "${2:-}" == weekly_time && "${3:-}" =~ ^([01]?[0-9]|2[0-3]):[0-5][0-9]$ ) ]] \
-        || error "Usage: set-option updates|reboots|scripts|backups|weekly on|off, set-option weekly_day 1-7 (Mon-Sun), set-option weekly_time HH:MM"
+        || error "Usage: set-option updates|reboots|scripts|backups|security|weekly on|off, set-option weekly_day 1-7 (Mon-Sun), set-option weekly_time HH:MM"
     [[ -f "$CONFIG_FILE" ]] || error "Not configured yet. Set the watchdog up first."
     set_option "$2" "$3"
     exit 0
@@ -1153,7 +1227,7 @@ while true; do
     echo "3) Stop"
     echo "4) Send test alert"
     echo "5) Change topic"
-    echo "6) Extra alerts (releases, restarts, scripts, backups, weekly check-in)"
+    echo "6) Extra alerts (releases, restarts, scripts, backups, security updates, weekly check-in)"
     echo "7) Recent events and stats"
     echo "8) Check now"
     echo "9) Uninstall"

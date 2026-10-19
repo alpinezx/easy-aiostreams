@@ -21,7 +21,7 @@ export function parseCheck(line) {
 const KIND = {
   fail: ["Failed", "warn"], alert: ["Alert sent", "bad"], recovered: ["Recovered", "ok"],
   start: ["Started", ""], stop: ["Stopped", ""], test: ["Test alert", ""], topic: ["Topic", ""], reboot: ["Restarted", ""], disk: ["Disk space", ""], cert: ["Certificate", ""],
-  update: ["Update", ""], scripts: ["Scripts", ""], backup: ["Backup", ""], weekly: ["Weekly", ""],
+  update: ["Update", ""], scripts: ["Scripts", ""], backup: ["Backup", ""], security: ["Security", ""], weekly: ["Weekly", ""],
 };
 
 function when(at) {
@@ -223,7 +223,9 @@ function extras(w) {
     row("scripts", "When a script here differs from GitHub's copy", "Scripts can change several times a week, "
       + "so this can be chatty. At most one alert a day."),
     row("backups", "When a scheduled backup is made", "A failed or skipped one always alerts, with this on or off."),
-    row("weekly", "Weekly check-in", "The week's checks, alerts, disk space and newest backup. "
+    row("security", "When security updates are waiting", "Ubuntu installs these by itself, so this alerts only if they've waited 3 days, "
+      + "with a reminder each week while they still wait."),
+    row("weekly", "Weekly check-in", "The week's checks, alerts, disk space, newest backup and updates waiting. "
       + "If it stops arriving, the watchdog itself needs a look.", false, when), when);
 }
 
