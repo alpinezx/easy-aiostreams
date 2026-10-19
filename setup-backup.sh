@@ -741,7 +741,8 @@ PUBLIC_IP_FILE="$INSTALL_DIR/public-ip"
 
 public_ip_override() {
     local ip
-    ip=$(tr -d ' \t\r\n' < "$PUBLIC_IP_FILE" 2>/dev/null || true)
+    [[ -f "$PUBLIC_IP_FILE" ]] || return 0
+    ip=$(tr -d ' \t\r\n' < "$PUBLIC_IP_FILE" || true)
     [[ "$ip" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] && printf '%s\n' "$ip"
     return 0
 }
