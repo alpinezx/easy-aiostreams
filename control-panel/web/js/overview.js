@@ -184,13 +184,14 @@ function hero(st) {
 }
 
 // The build in a card of its own, laid out like AIOStreams' own Version card:
-// Running, Latest, and the buttons, with the channel in the corner.
+// the version here, the latest, and the buttons, with the channel in the corner. No
+// labels: the values say what they are ("v2.36.0", "Up to date", "v2.36.1 available").
 function versionCard(st, avail) {
   const nightly = relChannel(st) === "nightly";
   const running = runningTag(st);
   const [latest, latestSub, btns, fresh] = updateBits(st);
-  const col = (label, value, sub) => h("div", {},
-    h("div", { class: "ver-label", text: label }), h("div", { class: "ver-value" }, value), h("div", { class: "ver-sub", text: sub || "" }));
+  const col = (value, sub) => h("div", {},
+    h("div", { class: "ver-value" }, value), h("div", { class: "ver-sub", text: sub || "" }));
   const upd = st.installed && avail["stack.update"];
   // Update sits with Check now, blue only when a newer release is out
   if (upd && upd.available) btns.unshift(h("button", { class: "btn small" + (fresh ? " primary" : ""), type: "button", text: "Update",
@@ -201,8 +202,8 @@ function versionCard(st, avail) {
       h("span", { class: "chip" + (nightly ? " warn" : " ok"), text: nightly ? "Nightly" : "Stable",
         title: nightly ? "AIOStreams' nightly builds (Docker tag: nightly). Switch with Update." : "AIOStreams' stable releases (Docker tag: latest). Switch with Update." })),
     h("div", { class: "ver-grid" },
-      col("Running", `v${st.version}`, nightly ? (running ? `Nightly ${running.slice(0, -8)}` : "") : releasedAgo(running)),
-      col("Latest", latest, latestSub),
+      col(`v${st.version}`, nightly ? (running ? `Nightly ${running.slice(0, -8)}` : "") : releasedAgo(running)),
+      col(latest, latestSub),
       h("div", { class: "ver-btns" }, ...btns)));
 }
 
