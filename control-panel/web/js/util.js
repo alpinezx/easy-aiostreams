@@ -52,6 +52,32 @@ export function fmtBytes(n) {
   return `${n >= 100 || i === 0 ? Math.round(n) : n.toFixed(1)} ${u[i]}`;
 }
 
+// A 24-hour time ("04:00") typed into a plain box, the same in every browser, like the
+// scripts and alerts. Digits only; the colon goes in by itself ("2057" becomes 20:57).
+// Its .value is "HH:MM" once it's a real time, or what was typed, which the caller's
+// check then turns down.
+export function timePicker(value, label = "Time") {
+  const pad = (n) => String(n).padStart(2, "0");
+  const input = h("input", { class: "input time-box", type: "text", inputmode: "numeric", maxlength: "5",
+    autocomplete: "off", spellcheck: "false", placeholder: "HH:MM", "aria-label": `${label}, 24-hour HH:MM` });
+  const read = () => {
+    const m = input.value.match(/^(\d{1,2}):?(\d{2})$/);
+    return m && Number(m[1]) < 24 && Number(m[2]) < 60 ? `${pad(Number(m[1]))}:${m[2]}` : null;
+  };
+  input.addEventListener("input", () => {
+    const d = input.value.replace(/\D/g, "").slice(0, 4);
+    input.value = d.length > 2 ? `${d.slice(0, 2)}:${d.slice(2)}` : d;
+  });
+  input.addEventListener("blur", () => { const t = read(); if (t) input.value = t; });
+  const el = h("span", { class: "time-pick" }, input);
+  Object.defineProperty(el, "value", {
+    get: () => read() || input.value,
+    set: (v) => { input.value = String(v || ""); const t = read(); if (t) input.value = t; },
+  });
+  el.value = value;
+  return el;
+}
+
 export function ago(ts) {
   const s = Date.now() / 1000 - ts;
   if (s < 45) return "just now";

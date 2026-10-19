@@ -206,6 +206,17 @@ remove_addons_on_uninstall() {
               /etc/systemd/system/aiostreams-watchdog-boot.service
         removed+=("watchdog timer")
     fi
+    # Scheduled backups: a restore only pauses the timer (it follows the
+    # restored backup's schedule afterwards); an uninstall removes it.
+    if [[ -f /etc/systemd/system/aiostreams-backup.timer ]]; then
+        if [[ "$mode" == restore ]]; then
+            systemctl stop aiostreams-backup.timer >/dev/null 2>&1 || true
+        else
+            systemctl disable --now aiostreams-backup.timer >/dev/null 2>&1 || true
+            rm -f /etc/systemd/system/aiostreams-backup.timer /etc/systemd/system/aiostreams-backup.service
+            removed+=("scheduled backups timer")
+        fi
+    fi
     if [[ -f /etc/systemd/system/aiostreams-vpn-boot.service ]]; then
         systemctl disable aiostreams-vpn-boot.service >/dev/null 2>&1 || true
         rm -f /etc/systemd/system/aiostreams-vpn-boot.service /usr/local/bin/aiostreams-vpn-boot.sh

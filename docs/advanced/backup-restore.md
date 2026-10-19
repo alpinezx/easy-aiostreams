@@ -32,6 +32,7 @@ it isn't there yet. You can also run it directly:
 sudo bash /opt/aiostreams/setup-backup.sh                  # menu
 sudo bash /opt/aiostreams/setup-backup.sh backup
 sudo bash /opt/aiostreams/setup-backup.sh restore aiostreams-backup-YYYYMMDD-HHMMSS.tar.gz
+sudo bash /opt/aiostreams/setup-backup.sh schedule        # scheduled backups, below
 ```
 
 A restore puts the newest copies of both scripts you have into the restored
@@ -51,6 +52,7 @@ same way.
   this contains your ntfy topic name
 - `webhook-relay-state/`, if you ever set up the [Webhook Relay](./webhook-relay.md) . 
   this contains your secret path token and ntfy topic
+- `backup-schedule`, if [scheduled backups](#scheduled-backups) are on
 - Every install script (`setup-aiostreams.sh`, `setup-backup.sh`, `setup-vpn-gluetun.sh`, `setup-watchdog.sh`, `setup-webhook.sh`, `setup-mediaflow.sh`) .  any `.sh` file in `/opt/aiostreams` is included automatically, which is why all install commands download there first
 
 **Not included:** Caddy's HTTPS certificates. They're in Docker volumes, and Caddy re-issues them automatically once DNS resolves on the new server. No point bundling them.
@@ -137,6 +139,50 @@ backup of just `docker-compose.yml`/`Caddyfile` (kept as `.bak_TIMESTAMP`
 files) .  that lightweight one always happens regardless of your choice here.
 Picking **1) Backup first** on top of it also gets you the full tarball
 (`./data`, `vpn-state`, everything) for a real off-server safety net.
+
+## Scheduled backups
+
+Off until switched on, from the control panel's Backup & Restore page, the
+`setup-backup.sh`'s menu (**3) Scheduled backups**), or directly:
+
+```bash
+sudo bash /opt/aiostreams/setup-backup.sh schedule daily 04:00
+sudo bash /opt/aiostreams/setup-backup.sh schedule weekly 7 04:00   # 1 Monday .. 7 Sunday
+sudo bash /opt/aiostreams/setup-backup.sh schedule off
+sudo bash /opt/aiostreams/setup-backup.sh schedule                  # what's set, and the last run
+```
+
+Times are 24-hour, by the server's clock (`timedatectl` shows its time zone).
+The setting is saved in `/opt/aiostreams/backup-schedule`, so a backup carries
+it. The schedule itself is a systemd timer, `aiostreams-backup.timer`, which
+runs `setup-backup.sh scheduled` (the service `aiostreams-backup.service`,
+logged in `journalctl -u aiostreams-backup`). It has `Persistent=true`: one
+missed while the server was off runs soon after it's back, once it has been
+up 5 minutes so the containers have started. Changing the time can do the
+same, if the new time has already passed today.
+
+Each run:
+
+1. **Skips** if a restore is running, or the disk holding `/root` is 90% full
+   or more, or has less free space than twice the newest backup.
+2. **Backs up** as `setup-backup.sh backup` does, pausing AIOStreams for the
+   few seconds the archive takes, as `aiostreams-backup-scheduled-YYYYMMDD-HHMMSS.tar.gz`
+   in `/root` only (no copy in a login user's home).
+3. **Checks it** reads back (`tar -tzf`). One that doesn't is removed, and
+   nothing older is touched.
+4. **Keeps the newest 7 scheduled ones.** Only files with `-scheduled-` in the
+   name are ever removed, so backups you make and ones made before an update
+   never are. Locked ones (the control panel's Lock, kept in
+   `ui-state/backup-meta.json`) are skipped and don't count towards the 7.
+   If the lock list can't be read, nothing is removed.
+
+How it went is written to `/opt/aiostreams/backup-last-run`
+(`epoch|status|text`: `ok`, `failed`, `skipped`, or `running` while it
+works), which the backup itself leaves out. The [watchdog](./watchdog.md)
+reads it: a failed or skipped run always alerts, a good one only with its
+**backup made** switch on, and one still `running` after an hour counts as
+failed. The control panel shows it on Backup & Restore, and the newest
+backup's age on the Overview.
 
 ## Restoring onto the same server (rollback, no migration)
 
@@ -314,6 +360,11 @@ and which were **running** when it was made. The restore uses both:
     backup, so add it again with `setup-mediaflow.sh` option 7.
 
 The watchdog has no subdomain. It comes back if it was running.
+
+Scheduled backups follow the backup: on with its schedule if it had one,
+off if not. Backups from before scheduled backups existed can't say, so if
+this server had them on, the summary says they're off now and how to turn
+them on again.
 
 The webhook relay's reboot notification comes back on if it was on when the
 backup was made. Backups made before this was recorded can't say, so the

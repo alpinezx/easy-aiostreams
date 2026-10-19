@@ -1,4 +1,4 @@
-import { $, h, clear, api, ago, toast } from "./util.js";
+import { $, h, clear, api, ago, toast, timePicker } from "./util.js";
 import { runAction, ask } from "./actions.js";
 
 // The Phone alerts page: what the watchdog (setup-watchdog.sh) is doing, what it
@@ -21,7 +21,7 @@ export function parseCheck(line) {
 const KIND = {
   fail: ["Failed", "warn"], alert: ["Alert sent", "bad"], recovered: ["Recovered", "ok"],
   start: ["Started", ""], stop: ["Stopped", ""], test: ["Test alert", ""], topic: ["Topic", ""], reboot: ["Restarted", ""], disk: ["Disk space", ""], cert: ["Certificate", ""],
-  update: ["Update", ""], scripts: ["Scripts", ""], weekly: ["Weekly", ""],
+  update: ["Update", ""], scripts: ["Scripts", ""], backup: ["Backup", ""], weekly: ["Weekly", ""],
 };
 
 function when(at) {
@@ -196,7 +196,7 @@ function extras(w) {
   const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   const day = h("select", { class: "input", "aria-label": "Day" }, ...DAYS.map((d, i) => h("option", { value: String(i + 1), text: d })));
   // Any time of day, to the minute; Set saves it (the day saves as soon as it's picked)
-  const time = h("input", { class: "input", type: "time", step: "60", value: opt.weekly_time || "10:00", "aria-label": "Time" });
+  const time = timePicker(opt.weekly_time || "10:00");
   const setBtn = h("button", { class: "btn small", type: "button", text: "Set" });
   day.value = String(opt.weekly_day || 7);
   day.addEventListener("change", async () => {
@@ -204,13 +204,13 @@ function extras(w) {
     catch (e) { toast(e.message || "Couldn't save it.", true); }
   });
   setBtn.addEventListener("click", async () => {
-    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time.value)) { toast("Pick a time, for example 10:15.", true); return; }
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time.value)) { toast("Type a 24-hour time, for example 10:15 or 18:30.", true); return; }
     try { await save("weekly_time", time.value); toast(`Check-in: ${DAYS[Number(day.value) - 1]}s from ${time.value}.`); }
     catch (e) { toast(e.message || "Couldn't save it.", true); }
   });
   const when = h("div", { class: "wd-when-row", hidden: !opt.weekly },
     h("span", { class: "dim", text: "Send it on" }), day, h("span", { class: "dim", text: "from" }), time, setBtn,
-    h("span", { class: "dim", text: `${tzNote(w.timezone)}, within 2 minutes of it` }));
+    h("span", { class: "dim", text: `24-hour, ${tzNote(w.timezone)}, within 2 minutes of it` }));
   return h("div", { class: "panel wd-opts" },
     h("h3", { text: "Also tell me" }),
     row("updates", "When a new AIOStreams release is out", w.channel === "nightly"
@@ -222,7 +222,8 @@ function extras(w) {
       : "With how long it was down, and whether it shut down cleanly.", !!w.relay_reboots),
     row("scripts", "When a script here differs from GitHub's copy", "Scripts can change several times a week, "
       + "so this can be chatty. At most one alert a day."),
-    row("weekly", "Weekly check-in", "The week's checks, alerts and disk space. "
+    row("backups", "When a scheduled backup is made", "A failed or skipped one always alerts, with this on or off."),
+    row("weekly", "Weekly check-in", "The week's checks, alerts, disk space and newest backup. "
       + "If it stops arriving, the watchdog itself needs a look.", false, when), when);
 }
 

@@ -26,7 +26,7 @@ A one-command installer for a self-hosted [AIOStreams](https://github.com/Viren0
 - HTTPS out of the box, auto-renewing, no manual cert wrangling
 - **App-level login** (AIOStreams' own auth). The configure page, dashboard, and the config API all require your username/password. Nobody else can create or edit configs on your instance, even if they talk to the API directly.
 - A management menu for status checks, restart, updates, switching from stable to nightly and back, backups, and clean uninstall, all in one place
-- Single-tarball backup and restore, for migrating to a new server or restoring to an existing one, without losing any configs
+- Single-tarball backup and restore, for migrating to a new server or restoring to an existing one, without losing any configs, plus optional daily or weekly scheduled backups
 - **An optional web control panel (beta)**, added once the main install is done: see what's running, update, back up and restore, read the logs and open a terminal from your browser or phone, instead of over SSH. → [Control panel guide](./docs/basic/control-panel.md)
 
 ![The control panel's Overview, from its demo mode with every add-on running](./docs/images/control-panel/readme-overview.png)

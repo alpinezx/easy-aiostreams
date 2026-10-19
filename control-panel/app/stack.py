@@ -527,6 +527,7 @@ class Backend:
             "overall": overall, "headline": headline,
             "services": services, "watchdog": watchdog, "host": host,
             "cert": self._cert(domain) if domain and not domain.startswith("localhost") else None,
+            "backup": self.backup_summary() if installed else None,
             "actions": self.available_actions(),
         }
 
@@ -770,6 +771,70 @@ class Backend:
                 continue
         return sorted(found.values(), key=lambda b: b["mtime"], reverse=True)
 
+    # ---- scheduled backups ------------------------------------------------
+    # setup-backup.sh's schedule: backup-schedule says when (absent: off), a
+    # systemd timer runs it, and backup-last-run says how the last run went
+    # ("epoch|ok|text", or failed, skipped, running while it works).
+    def backup_schedule(self) -> dict:
+        kv = dict(l.split("=", 1) for l in _read(self.p("backup-schedule")).splitlines()
+                  if "=" in l and not l.startswith("#"))
+        every = kv.get("every") if kv.get("every") in ("daily", "weekly") else "off"
+        day = int(kv["day"]) if kv.get("day", "") in {str(i) for i in range(1, 8)} else 7
+        t = kv.get("time", "").strip()
+        last = None
+        parts = _read(self.p("backup-last-run")).strip().split("|", 2)
+        if len(parts) == 3 and parts[0].isdigit() and parts[1] in ("ok", "failed", "skipped", "running"):
+            at, state = int(parts[0]), parts[1]
+            if state == "running" and time.time() - at > 3600:
+                state = "failed"      # stopped without saying why, as the watchdog reports it
+            last = {"at": at, "status": state, "text": parts[2]}
+        return {"every": every, "day": day, "time": t if TIME_RE.match(t) else "04:00", "keep": 7,
+                "available": self.p("setup-backup.sh").exists(),
+                "timer": every != "off" and self._systemd_active("aiostreams-backup.timer"),
+                "timezone": self._host_timezone(), "last": last}
+
+    def set_backup_schedule(self, every, day, t) -> dict:
+        """Off, daily at a time, or weekly on a day (1 Monday .. 7 Sunday) at a
+        time, through setup-backup.sh schedule, which writes the timer on the host."""
+        if every == "off":
+            args = ["off"]
+        elif every == "daily" and isinstance(t, str) and TIME_RE.match(t.strip()):
+            args = ["daily", t.strip()]
+        elif every == "weekly" and type(day) is int and 1 <= day <= 7 and isinstance(t, str) and TIME_RE.match(t.strip()):
+            args = ["weekly", str(day), t.strip()]
+        else:
+            raise ValueError("Pick daily or weekly, and a time.")
+        if not self.p("setup-backup.sh").exists():
+            raise ValueError("setup-backup.sh isn't on this server.")
+        cmd = ["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "env", "-i",
+               f"HOME={self.home}", f"PATH={HOST_PATH}", "TERM=dumb", "LANG=C.UTF-8",
+               "bash", str(config.INSTALL_DIR / "setup-backup.sh"), "schedule", *args]
+        r = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
+        if r.returncode != 0:
+            why = [ANSI.sub("", l).replace("XX", "", 1).strip() for l in (r.stdout + r.stderr).splitlines() if "XX" in l]
+            raise ValueError(why[-1] if why else "Couldn't set it.")
+        self._bsum = (0.0, None)
+        return self.backup_schedule()
+
+    # For the Overview: when the newest backup was made and the schedule. The
+    # status is asked for every few seconds, so this is kept for a minute.
+    _bsum: tuple[float, dict | None] = (0.0, None)
+
+    def backup_summary(self) -> dict | None:
+        now = time.time()
+        at, hit = self._bsum
+        if hit is not None and now - at < 60:
+            return hit
+        try:
+            items = self.backups()
+            sched = self.backup_schedule()
+        except Exception:
+            return hit
+        hit = {"newest": items[0]["mtime"] if items else None, "every": sched["every"], "day": sched["day"],
+               "time": sched["time"], "last": sched["last"]}
+        self._bsum = (now, hit)
+        return hit
+
     def backup_build(self, b: dict) -> dict | None:
         """The AIOStreams build a backup holds, from its backup-info, or None
         when it doesn't say (made before setup-backup.sh recorded it). Backups
@@ -921,7 +986,8 @@ class Backend:
         # reboots: off for new setups (the script saves reboots=off); a watchdog set up
         # before the switch existed has no line, and keeps the restart alerts it had
         return {"updates": kv.get("updates") == "on", "reboots": kv.get("reboots", "on") == "on",
-                "scripts": kv.get("scripts") == "on", "weekly": kv.get("weekly") == "on",
+                "scripts": kv.get("scripts") == "on", "backups": kv.get("backups") == "on",
+                "weekly": kv.get("weekly") == "on",
                 "weekly_day": int(day) if day in {str(i) for i in range(1, 8)} else 7,
                 "weekly_time": weekly_time(kv)}
 
@@ -930,7 +996,7 @@ class Backend:
         and the check-in's day and hour. Kept in watchdog-state/options, which
         the script reads; written on the host, since the install folder is
         read-only here."""
-        if name in ("updates", "reboots", "scripts", "weekly") and isinstance(value, bool):
+        if name in ("updates", "reboots", "scripts", "backups", "weekly") and isinstance(value, bool):
             text = "on" if value else "off"
         elif name == "weekly_day" and isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 7:
             text = str(value)
@@ -1056,6 +1122,7 @@ class Backend:
                 gone.append(d)
         if not gone:
             raise OSError("Couldn't delete it.")
+        self._bsum = (0.0, None)
         return gone
 
     # ---- folders a restore set aside ------------------------------------

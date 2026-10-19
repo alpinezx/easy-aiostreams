@@ -488,7 +488,7 @@ def test_phone_alerts_history_can_be_cleared(client):
 def test_phone_alerts_switches(client):
     assert client.post("/api/watchdog/options", json={"name": "weekly", "on": True}).status_code == 401
     login(client)
-    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": False, "scripts": False, "weekly": False, "weekly_day": 7, "weekly_time": "10:00"}
+    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": False, "scripts": False, "backups": False, "weekly": False, "weekly_day": 7, "weekly_time": "10:00"}
     for bad in ({"name": "nope", "on": True}, {"name": "weekly", "on": "yes"}, {}, {"name": "weekly_day", "value": 8},
                 {"name": "weekly_time", "value": "24:00"}, {"name": "weekly_time", "value": "9"}, {"name": "weekly_time", "value": 9},
                 {"name": "weekly_day", "value": True}, {"name": "weekly_hour", "value": 9}, {"name": "reboots", "on": "off"}):
@@ -498,7 +498,8 @@ def test_phone_alerts_switches(client):
     assert client.post("/api/watchdog/options", json={"name": "weekly_time", "value": "7:05"}).status_code == 200
     assert client.post("/api/watchdog/options", json={"name": "reboots", "on": True}).json() == {"reboots": True}
     assert client.post("/api/watchdog/options", json={"name": "scripts", "on": True}).json() == {"scripts": True}
-    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": True, "scripts": True, "weekly": True, "weekly_day": 1, "weekly_time": "07:05"}
+    assert client.post("/api/watchdog/options", json={"name": "backups", "on": True}).json() == {"backups": True}
+    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": True, "scripts": True, "backups": True, "weekly": True, "weekly_day": 1, "weekly_time": "07:05"}
     assert client.post("/api/watchdog/tally/clear").json() == {"cleared": True}
     assert client.get("/api/watchdog").json()["tally"] == []
 
@@ -539,3 +540,17 @@ def test_no_method_is_defined_twice():
         for cls in [n for n in ast.walk(tree) if isinstance(n, ast.ClassDef)]:
             names = [n.name for n in cls.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
             assert len(names) == len(set(names)), (f, cls.name, sorted({n for n in names if names.count(n) > 1}))
+
+
+def test_backup_schedule(client):
+    assert client.get("/api/backup-schedule").status_code == 401
+    login(client)
+    s = client.get("/api/backup-schedule").json()
+    assert s["every"] in ("off", "daily", "weekly") and s["keep"] == 7
+    for bad in ({"every": "hourly", "time": "04:00"}, {"every": "daily", "time": "25:00"}, {"every": "weekly", "day": 8, "time": "04:00"},
+                {"every": "weekly", "day": True, "time": "04:00"}, {"every": "daily"}):
+        assert client.put("/api/backup-schedule", json=bad).status_code == 400
+    r = client.put("/api/backup-schedule", json={"every": "weekly", "day": 3, "time": "5:30"}).json()
+    assert (r["every"], r["day"], r["time"]) == ("weekly", 3, "05:30")
+    assert client.put("/api/backup-schedule", json={"every": "off"}).json()["every"] == "off"
+    assert client.get("/api/status").json()["backup"]["every"] == "off"
