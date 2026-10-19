@@ -438,6 +438,9 @@ send_ntfy() {
 
 do_run_check() {
     mkdir -p "$STATE_DIR"
+    # Just after a boot the containers are still starting: a check now would
+    # only log a failure that isn't one. The next check, 2 minutes on, counts.
+    (( $(cut -d. -f1 /proc/uptime) >= 120 )) || return 0
     date +%s > "$ALIVE_FILE"
 
     local fails alert_state
@@ -517,6 +520,7 @@ do_boot() {
     (( up < 900 )) || return 0
     last=$(cat "$ALIVE_FILE" 2>/dev/null || echo 0)
     [[ "$last" =~ ^[0-9]+$ ]] || last=0
+    (( last < boot_at )) || last=0   # a check from this boot says nothing about the last one
     [[ "$shut" =~ ^[0-9]+$ ]] || shut=0
     when=$(date -d "@$boot_at" '+%H:%M')
     if (( shut > 0 && shut <= boot_at && shut >= last )); then
@@ -626,6 +630,9 @@ install_systemd_units() {
     cat > "$SERVICE_FILE" << EOF
 [Unit]
 Description=AIOStreams watchdog check (run by aiostreams-watchdog.timer)
+# At boot the timer's catch-up check would otherwise run alongside the
+# restart report and overwrite "last seen" before the report reads it
+After=aiostreams-watchdog-boot.service
 
 [Service]
 Type=oneshot
