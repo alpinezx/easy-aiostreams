@@ -559,6 +559,143 @@ restore_start_stack() {
     return 0
 }
 
+# ---- Maintenance: the control panel's Maintenance page runs these, and they
+# ask nothing, so they work the same over SSH:
+#   sudo bash setup-aiostreams.sh free-space | system-updates | log-limits
+
+# After Docker itself restarts (a system update upgraded it, or the log limits
+# were set), bring back what should be running. In VPN mode AIOStreams has
+# restart: "no", so nothing else would. Stopped on purpose stays stopped.
+ensure_stack_running() {
+    cd "$INSTALL_DIR" || return 1
+    if [[ -f "$STOPPED_MARKER" ]]; then
+        docker compose up -d --no-deps caddy $(vpn_mode_active && echo gluetun) || true
+        return 0
+    fi
+    if vpn_mode_active; then
+        vpn_gated_start_aiostreams --remove-orphans
+    else
+        docker compose up -d --remove-orphans
+    fi
+}
+
+# Old images nothing uses (each AIOStreams update leaves the previous one
+# behind, untagged), build leftovers (every panel rebuild adds some) and system
+# logs beyond the newest 100 MB. Only untagged images go: a tagged one, like
+# gluetun's while the VPN is off, is kept for when it's wanted again.
+do_free_space() {
+    local before after
+    before=$(df -B1 --output=avail "$INSTALL_DIR" | tail -n 1)
+    info "Removing old images nothing uses"
+    docker image prune -f
+    info "Removing build leftovers"
+    docker builder prune -f
+    if command -v journalctl >/dev/null 2>&1; then
+        info "Trimming the system logs to the newest 100 MB"
+        journalctl --vacuum-size=100M 2>&1 | tail -n 1
+    fi
+    after=$(df -B1 --output=avail "$INSTALL_DIR" | tail -n 1)
+    echo ""
+    if (( after > before )); then
+        echo "Done. Freed about $(( (after - before) / 1048576 )) MB."
+    else
+        echo "Done. There was nothing worth freeing."
+    fi
+}
+
+# Ubuntu's package updates, as "apt upgrade" over SSH would, keeping any config
+# file you've changed. If Docker itself was upgraded it restarts every
+# container, so the stack is brought back afterwards (the control panel runs
+# this outside its own container for the same reason).
+do_system_updates() {
+    command -v apt-get >/dev/null 2>&1 || error "This server doesn't use apt, so this can't update it."
+    export DEBIAN_FRONTEND=noninteractive
+    info "Refreshing Ubuntu's package lists"
+    apt-get -q -o DPkg::Lock::Timeout=300 update || error "Couldn't refresh the package lists. Nothing was installed."
+    info "Installing updates"
+    apt-get -y -q -o DPkg::Lock::Timeout=300 -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold \
+        upgrade --with-new-pkgs || error "The update stopped partway. Run 'sudo apt upgrade' over SSH to see why."
+    info "Making sure everything is running"
+    ensure_stack_running || warn "AIOStreams didn't come back by itself. Use Start on the Overview, or option 3 here."
+    echo ""
+    if [[ -f /var/run/reboot-required ]]; then
+        warn "Done. A restart is needed to finish (a new kernel or system library): use Reboot server when it suits."
+    else
+        echo "Done. No restart needed."
+    fi
+}
+
+# Caps each container's log at 10 MB (3 files) through Docker's own settings
+# (/etc/docker/daemon.json), so every container gets it, add-ons and the
+# panel included. Docker has to restart to read it, and containers only take
+# it when they're recreated, so everything is recreated once. A daemon.json
+# Docker rejects is put back as it was.
+LOG_MAX_SIZE="10m"
+LOG_MAX_FILE="3"
+do_log_limits() {
+    local f=/etc/docker/daemon.json
+    if [[ -s "$f" ]] && grep -q '"max-size"' "$f"; then
+        echo "Docker already limits container logs here. Nothing to do."
+        return 0
+    fi
+    if [[ -s "$f" ]] && ! grep -qx '[[:space:]]*{[[:space:]]*}[[:space:]]*' "$f"; then
+        # Some other settings are already there: add to them rather than replace them
+        command -v python3 >/dev/null 2>&1 || error "$f already has settings, and python3 isn't here to add to them safely. Add \"log-opts\": {\"max-size\": \"$LOG_MAX_SIZE\", \"max-file\": \"$LOG_MAX_FILE\"} by hand."
+        cp -p "$f" "$f.before-log-limits"
+        python3 - "$f" "$LOG_MAX_SIZE" "$LOG_MAX_FILE" <<'PY' || { mv -f "$f.before-log-limits" "$f"; error "Couldn't read $f as JSON. Nothing was changed."; }
+import json, sys
+path, size, files = sys.argv[1:4]
+with open(path) as fh:
+    conf = json.load(fh)
+if conf.get("log-driver", "json-file") not in ("json-file", "local"):
+    sys.exit("log driver " + conf["log-driver"])
+conf.setdefault("log-opts", {}).update({"max-size": size, "max-file": files})
+with open(path, "w") as fh:
+    json.dump(conf, fh, indent=2)
+    fh.write("\n")
+PY
+    else
+        [[ -e "$f" ]] && cp -p "$f" "$f.before-log-limits"
+        mkdir -p /etc/docker
+        printf '{\n  "log-opts": { "max-size": "%s", "max-file": "%s" }\n}\n' "$LOG_MAX_SIZE" "$LOG_MAX_FILE" > "$f"
+    fi
+    if dockerd --help 2>/dev/null | grep -q -- '--validate' && ! dockerd --validate --config-file "$f" >/dev/null 2>&1; then
+        if [[ -e "$f.before-log-limits" ]]; then mv -f "$f.before-log-limits" "$f"; else rm -f "$f"; fi
+        error "Docker didn't accept the new settings, so they were taken back out. Nothing else changed."
+    fi
+    info "Restarting Docker to read the new limit (every container restarts)"
+    if ! systemctl restart docker; then
+        warn "Docker didn't restart with the new settings. Putting the old ones back."
+        if [[ -e "$f.before-log-limits" ]]; then mv -f "$f.before-log-limits" "$f"; else rm -f "$f"; fi
+        systemctl restart docker || true
+        ensure_stack_running || true
+        error "The log limits weren't set. Docker is back on its old settings."
+    fi
+    rm -f "$f.before-log-limits"
+    info "Recreating the containers so they take the limit"
+    cd "$INSTALL_DIR" || return 1
+    local on_purpose=0
+    [[ -f "$STOPPED_MARKER" ]] && on_purpose=1
+    if vpn_mode_active; then
+        vpn_gated_start_aiostreams --force-recreate --remove-orphans || true
+    else
+        docker compose up -d --force-recreate --remove-orphans || true
+    fi
+    if (( on_purpose )); then docker compose stop aiostreams >/dev/null 2>&1 || true; touch "$STOPPED_MARKER"; fi
+    local d running
+    for d in mediaflow-state webhook-relay-state; do
+        [[ -f "$INSTALL_DIR/$d/docker-compose.yml" ]] || continue
+        running=$(cd "$INSTALL_DIR/$d" && docker compose ps -q 2>/dev/null)
+        [[ -n "$running" ]] && (cd "$INSTALL_DIR/$d" && docker compose up -d --force-recreate) || true
+    done
+    # The panel last: recreating it ends its own view of this (it runs outside it)
+    if [[ -f "$INSTALL_DIR/ui-state/docker-compose.yml" ]]; then
+        (cd "$INSTALL_DIR/ui-state" && docker compose -f docker-compose.yml up -d --force-recreate) || true
+    fi
+    echo ""
+    echo "Done. Each container's log is now capped at $LOG_MAX_SIZE ($LOG_MAX_FILE files)."
+}
+
 case "${1:-}" in
     backup|restore)
         script=$(backup_script) || exit 1
@@ -573,6 +710,9 @@ case "${1:-}" in
         restore_start_stack || status=$?
         exit "$status"
         ;;
+    free-space) do_free_space; exit 0 ;;
+    system-updates) do_system_updates; exit 0 ;;
+    log-limits) do_log_limits; exit 0 ;;
 esac
 
 

@@ -8,6 +8,7 @@ import * as terminal from "./terminal.js";
 import * as scripts from "./scripts.js";
 import * as vpn from "./vpn.js";
 import * as alerts from "./alerts.js";
+import * as maint from "./maint.js";
 
 let status = null;
 let view = "overview";
@@ -15,7 +16,7 @@ let pendingLogs = null;
 let lastBusy = null;
 let timer = null;
 
-const VIEWS = ["overview", "logs", "activity", "backups", "scripts", "vpn", "alerts", "terminal"];
+const VIEWS = ["overview", "logs", "activity", "backups", "scripts", "vpn", "alerts", "maint", "terminal"];
 let terminalOn = false;
 let vpnSetUp = false;     // the VPN page shows once setup-vpn-gluetun.sh has set the VPN up
 let alertsSetUp = false;  // and Phone alerts once setup-watchdog.sh has been set up
@@ -40,6 +41,7 @@ function enter() {
   if (view === "terminal") terminal.show(status);
   if (view === "vpn") vpn.show(false, status);
   if (view === "alerts") alerts.show(status);
+  if (view === "maint") maint.show(status).catch(() => {});
 }
 
 // Phones: the rail is a drawer, opened from the menu button and closed by its X, the
@@ -124,6 +126,7 @@ async function tick() {
     }
     if (view === "alerts") alerts.setStatus(status);
     if (view === "vpn") vpn.setStatus(status);
+    if (view === "maint") maint.setStatus(status);
     lastBusy = status.busy;
   } catch (e) {
     if (e.message !== "signed out") $("#offline").hidden = false;

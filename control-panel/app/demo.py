@@ -150,6 +150,12 @@ class DemoBackend:
         else:
             self.wd_events = []
 
+    def maintenance_info(self, force: bool = False) -> dict:
+        return {"space": {"images": 149_000_000, "image_count": 2, "build": 503_100_000, "journal": 184_000_000},
+                "updates": {"available": True, "count": 8, "security": 2, "reboot": False, "checked_at": time.time() - 3 * 3600},
+                "logs": {"limited": False, "pending": False, "size": 488_000},
+                "checked_at": time.time(), "last": None}
+
     def watchdog_info(self) -> dict:
         from .stack import mask_topic
         if not self.wd_configured:

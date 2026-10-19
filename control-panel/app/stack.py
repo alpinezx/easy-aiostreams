@@ -539,6 +539,157 @@ class Backend:
             pass
         return out
 
+    # ---- detached actions (the Maintenance page) ---------------------------
+    # Run as a systemd unit on the host, writing to ui-state/maint.log, with the
+    # exit code in maint.log.code once it ends. The panel follows the log; if
+    # Docker restarts this container meanwhile, the unit carries on and the
+    # Maintenance page shows how it ended from the same files.
+    MAINT_UNIT = "aios-maintenance"
+
+    def _maint_running(self) -> bool:
+        return self._systemd_active(self.MAINT_UNIT + ".service")
+
+    def _run_detached(self, action: Action, emit: Callable[[str], None]) -> int:
+        if self._maint_running():
+            emit("XX Another maintenance job is still running. Wait for it to finish.")
+            return 1
+        log_host = str(config.INSTALL_DIR / "ui-state" / "maint.log")
+        log_here = config.STATE_DIR / "maint.log"
+        code_here = config.STATE_DIR / "maint.log.code"
+        for f in (log_here, code_here):
+            try:
+                f.unlink()
+            except FileNotFoundError:
+                pass
+        (config.STATE_DIR / "maint.what").write_text(action.label + "\n")
+        who = ('u=""; for h in /home/*/; do [ -d "${h}aiostreams" ] && u=$(stat -c %U "$h" 2>/dev/null) && break; done; '
+               'if [ -n "$u" ] && [ "$u" != root ] && id "$u" >/dev/null 2>&1; then '
+               'export SUDO_USER="$u" SUDO_UID="$(id -u "$u")" SUDO_GID="$(id -g "$u")"; fi; ')
+        inner = who + 'cd {d} && bash {s} {a} > {l} 2>&1 < /dev/null; echo $? > {l}.code'.format(
+            d=shlex.quote(str(config.INSTALL_DIR)), s=shlex.quote(action.script),
+            a=" ".join(shlex.quote(x) for x in action.args), l=shlex.quote(log_host))
+        cmd = ["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "systemd-run",
+               f"--unit={self.MAINT_UNIT}", "--collect", "--quiet", f"--property=RuntimeMaxSec={action.timeout}",
+               f"--setenv=HOME={self.home}", f"--setenv=PATH={HOST_PATH}", "--setenv=TERM=dumb",
+               "--setenv=LANG=C.UTF-8", "/bin/bash", "-c", inner]
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            emit(f"XX Couldn't start it ({(r.stderr or r.stdout).strip() or 'systemd-run failed'}).")
+            return 1
+        emit("==> Running on the server itself, so it carries on even if this page reconnects.")
+        pos, start = 0, time.time()
+        while True:
+            try:
+                with open(log_here, encoding="utf-8", errors="replace") as fh:
+                    fh.seek(pos)
+                    chunk = fh.read()
+                    pos = fh.tell()
+                for raw in chunk.splitlines():
+                    line = clean_line(raw)
+                    if line is not None:
+                        emit(line)
+            except FileNotFoundError:
+                pass
+            if code_here.exists():
+                try:
+                    return int(code_here.read_text().strip() or 1)
+                except ValueError:
+                    return 1
+            if time.time() - start > action.timeout + 60 or (time.time() - start > 20 and not self._maint_running()):
+                emit("XX It stopped without saying how it ended.")
+                return 1
+            time.sleep(1)
+
+    _maint_cache: tuple[float, dict | None] = (0.0, None)
+
+    def _host(self, *args: str, timeout: int = 20) -> str:
+        r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", *args],
+                           capture_output=True, text=True, timeout=timeout)
+        return r.stdout if r.returncode == 0 else ""
+
+    def maintenance_info(self, force: bool = False) -> dict:
+        """The Maintenance page. The looking-up is slow-ish (apt, Docker's disk
+        usage), so it's kept for 5 minutes unless asked again."""
+        now = time.time()
+        at, hit = self._maint_cache
+        if hit and not force and now - at < 300:
+            return {**hit, "last": self._maint_last()}
+        info = {"space": self._maint_space(), "updates": self._maint_updates(), "logs": self._maint_logs(),
+                "checked_at": now}
+        self._maint_cache = (now, info)
+        return {**info, "last": self._maint_last()}
+
+    def _maint_space(self) -> dict:
+        images = count = build = journal = 0
+        try:
+            for im in self.client.images.list(filters={"dangling": True}):
+                images += int(im.attrs.get("Size") or 0)
+                count += 1
+        except Exception:
+            pass
+        try:
+            build = sum(int(c.get("Size") or 0) for c in (self.client.df().get("BuildCache") or []) if not c.get("InUse"))
+        except Exception:
+            pass
+        try:
+            m = re.search(r"take up ([\d.]+)([KMGT]?)", self._host("journalctl", "--disk-usage"))
+            if m:
+                total = float(m.group(1)) * 1024 ** "BKMGT".index(m.group(2) or "B")
+                journal = max(0, int(total - 100 * 1024 ** 2))
+        except Exception:
+            pass
+        return {"images": images, "image_count": count, "build": build, "journal": journal}
+
+    def _maint_updates(self) -> dict:
+        try:
+            out = self._host("apt", "list", "--upgradable", timeout=40)
+        except Exception:
+            return {"available": False}
+        if not out and not self._host("sh", "-c", "command -v apt"):
+            return {"available": False}
+        lines = [l for l in out.splitlines() if "/" in l and "[upgradable" in l]
+        stamp = self._host("sh", "-c", "stat -c %Y /var/lib/apt/periodic/update-success-stamp 2>/dev/null "
+                                       "|| stat -c %Y /var/lib/apt/lists 2>/dev/null").strip()
+        return {"available": True, "count": len(lines), "security": sum("-security" in l for l in lines),
+                "reboot": bool(self._host("sh", "-c", "test -e /var/run/reboot-required && echo y").strip()),
+                "checked_at": int(stamp) if stamp.isdigit() else None}
+
+    def _maint_logs(self) -> dict:
+        conf = self._host("sh", "-c", "cat /etc/docker/daemon.json 2>/dev/null")
+        limited = '"max-size"' in conf
+        size, pending = 0, False
+        try:
+            paths = []
+            for c in self.client.containers.list():
+                if c.attrs.get("LogPath"):
+                    paths.append(c.attrs["LogPath"])
+                opts = ((c.attrs.get("HostConfig") or {}).get("LogConfig") or {}).get("Config") or {}
+                if limited and "max-size" not in opts:
+                    pending = True
+            if paths:
+                size = sum(int(x) for x in self._host("stat", "-c", "%s", *paths).split() if x.isdigit())
+        except Exception:
+            pass
+        return {"limited": limited, "pending": pending, "size": size}
+
+    def _maint_last(self) -> dict | None:
+        log = config.STATE_DIR / "maint.log"
+        if not log.exists():
+            return None
+        code = config.STATE_DIR / "maint.log.code"
+        try:
+            what = (config.STATE_DIR / "maint.what").read_text().strip()
+        except Exception:
+            what = "Maintenance"
+        ended = code.exists()
+        try:
+            rc = int(code.read_text().strip()) if ended else None
+        except ValueError:
+            rc = 1
+        tail = log.read_text(encoding="utf-8", errors="replace").splitlines()[-60:]
+        return {"what": what, "running": not ended and self._maint_running(), "code": rc,
+                "at": int((code if ended else log).stat().st_mtime), "tail": [l for l in (clean_line(x) for x in tail) if l is not None]}
+
     def available_actions(self) -> list[dict]:
         from .actions import catalog
         res = []
@@ -975,6 +1126,8 @@ class Backend:
             if not self.p(need).exists():
                 emit(f"XX {need} was not found in {config.INSTALL_DIR}. Nothing was run.")
                 return 127
+        if action.detached:
+            return self._run_detached(action, emit)
         # The scripts learn who is at the keyboard from SUDO_USER, which sudo sets. The panel has no sudo,
         # so pass on the same user here (the owner of the home with a ~/aiostreams shortcut). That is
         # what makes a backup also land in that user's home, exactly as from the menu.
