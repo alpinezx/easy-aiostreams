@@ -9,6 +9,9 @@
 
 A one-command installer for a self-hosted [AIOStreams](https://github.com/Viren070/AIOStreams) instance. It sets up Docker, Caddy (automatic HTTPS via Let's Encrypt), and secure login access to the config page and dashboard, all in one script. Restricted to your own credentials.
 
+> [!NOTE]
+> **Opinionated by design.** The script owns the whole stack on a fresh VPS: Docker, Caddy, the compose file and the services. It's made for people who want one thing that works end to end, and it won't slot into an existing reverse proxy or compose setup. If you already have one you like, you probably don't need this. Every step is explained in the advanced guides, so you can see exactly what it sets up and change it by hand.
+
 ## Contents
 
 - [What this gives you](#what-this-gives-you)
@@ -172,7 +175,7 @@ If you suspect it's not your setup at all, check, [Stremio Status](https://statu
 
 Want a web control panel (beta) to manage it all from your browser, a system-wide VPN layer, phone alerts when your server needs you (site down, restarts, disk full, certificate, plus the VPN tunnel and MediaFlow), to turn a third-party site's webhook option into a phone alert, or a lighter alternative proxy if scrubbing/seeking spikes your VPS's CPU? Those live in their own standalone scripts, see [Other Scripts](./docs/other-scripts.md)
 
-For bugs in the script itself: [open an issue](https://github.com/alpinezx/easy-aiostreams/issues). For setup questions not covered here or in the linked guides, check out these Reddit threads: [r/streamioaddons](https://www.reddit.com/r/StremioAddons/comments/1vo6a5q/self_hosted_aiostreams_easy_install_script/), [r/nuvioaddons](https://www.reddit.com/r/nuvioaddons/comments/1vsud3b/self_hosted_aiostreams_easy_install_script_nuvio/)
+For bugs in the script itself: [open an issue](https://github.com/alpinezx/easy-aiostreams/issues). For setup questions not covered here or in the linked guides, check out these Reddit threads: [r/StremioAddons](https://www.reddit.com/r/StremioAddons/comments/1vo6a5q/self_hosted_aiostreams_easy_install_script/), [r/nuvioaddons](https://www.reddit.com/r/nuvioaddons/comments/1vsud3b/self_hosted_aiostreams_easy_install_script_nuvio/)
 
 ## License
 
