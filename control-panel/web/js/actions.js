@@ -179,9 +179,8 @@ export async function openJob(id, reconnecting) {
     if (openId !== id || $("#drawer").hidden) return;
     const foot = $("#drawer-foot"); clear(foot);
     if (e.status === 404) {
-      $("#drawer-sub").textContent = "The panel restarted while this ran on the server. How it ended is on the Maintenance page.";
-      foot.append(h("a", { class: "btn small", href: "#maint", text: "Maintenance", onclick: closeDrawer }),
-        h("button", { class: "btn small", type: "button", text: "Close", onclick: closeDrawer }));
+      closeDrawer();
+      toast("The panel restarted while that ran. How it ended is under the cards on this page.");
       window.dispatchEvent(new CustomEvent("job-finished"));
       return;
     }
