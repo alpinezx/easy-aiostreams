@@ -213,9 +213,13 @@ function extras(w) {
     h("span", { class: "dim", text: `${tzNote(w.timezone)}, within 2 minutes of it` }));
   return h("div", { class: "panel wd-opts" },
     h("h3", { text: "Also tell me" }),
-    row("updates", "When a new AIOStreams release is out", w.stable === false
-      ? "Only for the stable channel: this server runs nightly, which changes daily."
-      : "One alert per stable release, with how to update.", w.stable === false),
+    row("updates", "When a new AIOStreams release is out", w.channel === "nightly"
+      ? "One per nightly build, with how to update. Nightly builds come out daily or more, so this can be chatty."
+      : w.channel === "stable" ? "One alert per stable release, with how to update."
+      : "This server runs a pinned version, so there's nothing to alert about.", !w.channel),
+    row("reboots", "When the server restarts", w.relay_reboots
+      ? "The webhook relay sends these while its own reboot notification is on."
+      : "With how long it was down, and whether it shut down cleanly.", !!w.relay_reboots),
     row("weekly", "Weekly check-in", "The week's checks, alerts and disk space. "
       + "If it stops arriving, the watchdog itself needs a look.", false, when), when);
 }

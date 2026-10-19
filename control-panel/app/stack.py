@@ -249,14 +249,27 @@ class Backend:
             ctx = ssl.create_default_context()
             with socket.create_connection((host, 443), timeout=4) as raw:
                 with ctx.wrap_socket(raw, server_hostname=host) as tls:
-                    na = ssl.cert_time_to_seconds(tls.getpeercert()["notAfter"])
-            val = {"host": host, "days_left": int((na - now) // 86400), "ok": True}
+                    pc = tls.getpeercert()
+            na = ssl.cert_time_to_seconds(pc["notAfter"])
+            nb = ssl.cert_time_to_seconds(pc["notBefore"]) if pc.get("notBefore") else None
+            # days_total, the certificate's whole life, says when renewal is overdue:
+            # Caddy renews with about a third left, whatever the length
+            val = {"host": host, "days_left": int((na - now) // 86400), "ok": True,
+                   "days_total": round((na - nb) / 86400) if nb else None}
             ttl = 1800
         except Exception as e:
             val = {"host": host, "ok": False, "error": type(e).__name__}
             ttl = 300
         self._cert_cache[host] = (now + ttl, val)
         return val
+
+    def _systemd_enabled(self, unit: str) -> bool:
+        try:
+            r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--",
+                                "systemctl", "is-enabled", "--quiet", unit], timeout=5)
+            return r.returncode == 0
+        except Exception:
+            return False
 
     def _systemd_active(self, unit: str) -> bool:
         try:
@@ -674,6 +687,7 @@ class Backend:
         if m:
             domain = m.group(1)
         watches = ([f"https://{domain}"] if domain else ["The site"]) + ["Disk space", "HTTPS certificate"]
+        img = re.search(r"^\s*image:\s*viren070/aiostreams:(\S+)\s*$", _read(self.p("docker-compose.yml")), re.M)
         if self.vpn_mode() == "on":
             watches += ["VPN tunnel", "AIOStreams through the VPN"]
         if (self.p("mediaflow-state") / "config").exists():
@@ -693,7 +707,10 @@ class Backend:
             "every_min": 2, "threshold": 2,
             "options": self._watchdog_options(),
             "timezone": self._host_timezone(),
-            "stable": bool(re.search(r"^\s*image:\s*viren070/aiostreams:latest\s*$", _read(self.p("docker-compose.yml")), re.M)),
+            # the release alert follows the channel; a pinned version gets none
+            "channel": {"latest": "stable", "nightly": "nightly"}.get(img.group(1)) if img else None,
+            # the webhook relay's own reboot notification; the watchdog leaves restarts to it
+            "relay_reboots": self._systemd_enabled("aios-webhook-boot-notify.service"),
         }
 
     def _host_timezone(self) -> str | None:
@@ -710,7 +727,10 @@ class Backend:
     def _watchdog_options(self) -> dict:
         kv = dict(l.split("=", 1) for l in _read(self.p("watchdog-state/options")).split() if "=" in l)
         day = kv.get("weekly_day", "7")
-        return {"updates": kv.get("updates") == "on", "weekly": kv.get("weekly") == "on",
+        # reboots: off for new setups (the script saves reboots=off); a watchdog set up
+        # before the switch existed has no line, and keeps the restart alerts it had
+        return {"updates": kv.get("updates") == "on", "reboots": kv.get("reboots", "on") == "on",
+                "weekly": kv.get("weekly") == "on",
                 "weekly_day": int(day) if day in {str(i) for i in range(1, 8)} else 7,
                 "weekly_time": weekly_time(kv)}
 
@@ -719,7 +739,7 @@ class Backend:
         and the check-in's day and hour. Kept in watchdog-state/options, which
         the script reads; written on the host, since the install folder is
         read-only here."""
-        if name in ("updates", "weekly") and isinstance(value, bool):
+        if name in ("updates", "reboots", "weekly") and isinstance(value, bool):
             text = "on" if value else "off"
         elif name == "weekly_day" and isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 7:
             text = str(value)
