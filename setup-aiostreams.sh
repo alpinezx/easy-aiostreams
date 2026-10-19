@@ -712,6 +712,198 @@ PY
     echo "Done. Each container's log is now capped at $LOG_MAX_SIZE ($LOG_MAX_FILE files)."
 }
 
+# ---- Status and Maintenance for SSH: what the control panel's Overview and
+# Maintenance page show, as text. Menu options 1 and 11, and "status".
+
+# "5h 18m", "3d 4h", from seconds
+human_age() {
+    local s=$1
+    if (( s < 3600 )); then echo "$(( s / 60 ))m"
+    elif (( s < 86400 )); then echo "$(( s / 3600 ))h $(( s % 3600 / 60 ))m"
+    else echo "$(( s / 86400 ))d $(( s % 86400 / 3600 ))h"
+    fi
+}
+
+bytes() { numfmt --to=iec --suffix=B "$1" 2>/dev/null || echo "$1 bytes"; }
+
+# The running build and whether a newer one is out on its channel. GitHub is
+# asked once, with a short timeout; without an answer only the build shows.
+status_version() {
+    local tag node build ver btag latest channel
+    tag=$(sed -n 's/.*image: viren070\/aiostreams:\([^[:space:]]*\).*/\1/p' "$COMPOSE_FILE" 2>/dev/null | head -n1)
+    case "$tag" in latest) channel=stable ;; nightly) channel=nightly ;; *) channel="pinned to $tag" ;; esac
+    for node in /nodejs/bin/node node; do
+        build=$(docker exec aiostreams "$node" -p "const m=require('/app/resources/metadata.json');m.version+' '+m.tag" 2>/dev/null) && break
+        build=""
+    done
+    read -r ver btag <<< "$build"
+    if [[ -z "$ver" ]]; then
+        echo "  Version:   unknown, AIOStreams isn't running ($channel)"
+        return 0
+    fi
+    if [[ "$channel" == stable ]]; then
+        latest=$(curl -fsS -m 8 https://api.github.com/repos/viren070/aiostreams/releases/latest 2>/dev/null \
+            | grep -oP '"tag_name":\s*"\Kv[0-9]+\.[0-9]+\.[0-9]+(?=")' | head -n 1) || true
+        if [[ -z "$latest" ]]; then echo "  Version:   v$ver (stable)"
+        elif [[ "$latest" == "v$ver" ]]; then echo "  Version:   v$ver (stable), up to date"
+        elif [[ "$(printf '%s\n%s\n' "v$ver" "$latest" | sort -V | tail -n 1)" == "$latest" ]]; then
+            echo -e "  Version:   v$ver (stable), \033[1;33m$latest is out\033[0m: option 5 updates"
+        else echo "  Version:   v$ver (stable)"
+        fi
+    elif [[ "$channel" == nightly ]]; then
+        latest=$(curl -fsS -m 8 "https://api.github.com/repos/viren070/aiostreams/releases?per_page=30" 2>/dev/null \
+            | grep -oP '"tag_name":\s*"\K[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]{4}-nightly(?=")' | sort | tail -n 1) || true
+        if [[ -n "$latest" && "$btag" =~ -nightly$ && "$latest" > "$btag" ]]; then
+            echo -e "  Version:   v$ver (nightly $btag), \033[1;33ma newer nightly is out\033[0m: option 5 updates"
+        else echo "  Version:   v$ver (nightly $btag)"
+        fi
+    else
+        echo "  Version:   v$ver ($channel)"
+    fi
+}
+
+show_status() {
+    local domain end days c label st up load cpus mem total used pct sched every time day line list n s age newest
+    cd "$INSTALL_DIR"
+    domain=$(head -n1 "$CADDYFILE" 2>/dev/null | awk '{print $1}')
+    echo "=== AIOStreams ==="
+    status_version
+    if [[ -n "$domain" ]]; then
+        end=$(echo | timeout 10 openssl s_client -connect 127.0.0.1:443 -servername "$domain" 2>/dev/null \
+            | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2) || true
+        if [[ -n "$end" ]]; then
+            days=$(( ( $(date -d "$end" +%s) - $(date +%s) ) / 86400 ))
+            if (( days < 10 )); then
+                echo -e "  Site:      https://$domain, \033[1;33mHTTPS certificate $days days left, not renewing\033[0m (check: docker logs caddy)"
+            else
+                echo "  Site:      https://$domain, HTTPS certificate $days days left (renews by itself)"
+            fi
+        else
+            echo "  Site:      https://$domain, HTTPS certificate couldn't be checked"
+        fi
+    fi
+    echo ""
+    echo "=== Services ==="
+    for c in "caddy|Caddy" "gluetun|VPN tunnel" "aiostreams|AIOStreams" "mediaflow-proxy-light|MediaFlow Proxy" \
+             "aios-webhook-relay|Webhook relay" "aios-ui|Control panel"; do
+        label=${c#*|}; c=${c%%|*}
+        st=$(docker ps -a --filter "name=^${c}\$" --format '{{.Status}}' 2>/dev/null | head -n 1)
+        [[ -n "$st" ]] || continue
+        if [[ "$c" == aiostreams && -f "$STOPPED_MARKER" && "$st" != Up* ]]; then st+=", stopped on purpose"; fi
+        printf '  %-16s %s\n' "$label" "$st"
+    done
+    if [[ -f "$INSTALL_DIR/vpn-state/active" ]]; then
+        if vpn_mode_active; then line="on, traffic goes through it"; else line="off, a direct connection"; fi
+        printf '  %-16s %s\n' "VPN" "$line"
+    fi
+    if [[ -f "$INSTALL_DIR/watchdog-state/config" ]]; then
+        if systemctl is-active --quiet aiostreams-watchdog.timer 2>/dev/null; then
+            line="running, last check: $(cat "$INSTALL_DIR/watchdog-state/last-check" 2>/dev/null || echo none yet)"
+        else
+            line="stopped"
+        fi
+        printf '  %-16s %s\n' "Phone alerts" "$line"
+    fi
+    echo ""
+    echo "=== This server ==="
+    up=$(cut -d. -f1 /proc/uptime)
+    echo "  Up for:    $(human_age "$up")"
+    read -r load _ < /proc/loadavg
+    cpus=$(nproc 2>/dev/null || echo 1)
+    echo "  Load:      $load on $cpus CPU$( (( cpus == 1 )) || echo s)"
+    read -r total used < <(free -b | awk '/^Mem:/ {print $2, $3}')
+    echo "  Memory:    $(bytes "$used") of $(bytes "$total") ($(( used * 100 / total ))% used)"
+    read -r total used pct < <(df -P -B1 "$INSTALL_DIR" | awk 'NR == 2 {print $2, $3, $5}')
+    echo "  Disk:      $(bytes "$used") of $(bytes "$total") ($pct used)"
+    # The newest backup of any kind, and the schedule
+    newest=$( { find /root -maxdepth 1 -type f -name 'aiostreams-backup-*.tar.gz' -printf '%T@\n'
+                find /home -mindepth 2 -maxdepth 2 -type f -name 'aiostreams-backup-*.tar.gz' -printf '%T@\n'; } 2>/dev/null \
+              | sort -rn | head -n 1 | cut -d. -f1)
+    sched=$(grep -m1 -oP '^every=\K\S+' "$INSTALL_DIR/backup-schedule" 2>/dev/null || true)
+    time=$(grep -m1 -oP '^time=\K\S+' "$INSTALL_DIR/backup-schedule" 2>/dev/null || true)
+    day=$(grep -m1 -oP '^day=\K[1-7]' "$INSTALL_DIR/backup-schedule" 2>/dev/null || echo 7)
+    case "$sched" in
+        daily) every="scheduled daily at $time" ;;
+        weekly) every="scheduled $(cut -d' ' -f"$day" <<< "Mondays Tuesdays Wednesdays Thursdays Fridays Saturdays Sundays") at $time" ;;
+        *) every="none scheduled" ;;
+    esac
+    if [[ "$newest" =~ ^[0-9]+$ ]]; then
+        age=$(( $(date +%s) - newest ))
+        echo "  Backups:   newest $(human_age "$age") old, $every"
+    else
+        echo "  Backups:   none yet, $every"
+    fi
+    if list=$(apt list --upgradable 2>/dev/null | grep -F '[upgradable'); then
+        n=$(grep -c . <<< "$list" || true)
+        s=$(grep -c -- '-security' <<< "$list" || true)
+        echo "  Updates:   $n waiting$( (( s )) && echo " ($s for security)"), option 11 installs them"
+    elif command -v apt >/dev/null 2>&1; then
+        echo "  Updates:   none waiting"
+    fi
+    if [[ -f /var/run/reboot-required ]]; then echo -e "  \033[1;33mA restart is needed to finish installing updates.\033[0m"; fi
+    return 0
+}
+
+# What Maintenance would do, before doing it
+maint_summary() {
+    local ids=() img size=0 b build journal list n s
+    while IFS= read -r img; do [[ -n "$img" ]] && ids+=("$img"); done < <(docker images -f dangling=true -q 2>/dev/null)
+    for img in $(docker images viren070/aiostreams --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | grep -v '<none>'); do
+        if [[ -z "$(docker ps -aq --filter "ancestor=$img")" ]]; then ids+=("$(docker images -q "$img")"); fi
+    done
+    for img in "${ids[@]}"; do
+        b=$(docker image inspect -f '{{.Size}}' "$img" 2>/dev/null || echo 0)
+        size=$(( size + ${b:-0} ))
+    done
+    build=$(docker system df --format '{{.Type}}|{{.Reclaimable}}' 2>/dev/null | awk -F'|' '$1 == "Build Cache" {print $2}')
+    journal=$(journalctl --disk-usage 2>/dev/null | grep -oP 'take up \K\S+' || true)
+    echo "  Old images nothing uses: ${#ids[@]}$( (( ${#ids[@]} )) && echo " (up to $(bytes "$size"))")"
+    echo "  Build leftovers:         ${build:-0B}"
+    [[ -n "$journal" ]] && echo "  System logs:             $journal (free up space trims them to the newest 100 MB)"
+    if list=$(apt list --upgradable 2>/dev/null | grep -F '[upgradable'); then
+        n=$(grep -c . <<< "$list" || true)
+        s=$(grep -c -- '-security' <<< "$list" || true)
+        echo "  Updates waiting:         $n$( (( s )) && echo " ($s for security)")"
+    elif command -v apt >/dev/null 2>&1; then
+        echo "  Updates waiting:         none"
+    fi
+    [[ -f /var/run/reboot-required ]] && echo "  A restart is needed to finish installing updates (sudo reboot, when it suits)."
+    if [[ -s /etc/docker/daemon.json ]] && grep -q '"max-size"' /etc/docker/daemon.json; then
+        echo "  Container log limits:    set"
+    else
+        echo "  Container log limits:    not set (logs can grow until the disk fills)"
+    fi
+    return 0
+}
+
+maintenance_menu() {
+    local c yn
+    while true; do
+        echo ""
+        echo "=== Maintenance ==="
+        maint_summary
+        echo ""
+        echo "  1) Free up space (old images, build leftovers, system logs beyond 100 MB)"
+        echo "  2) Install updates (Ubuntu's, as apt upgrade would)"
+        echo "  3) Set container log limits (10 MB each; every container restarts once)"
+        echo "  0) Back"
+        read -rp "Choose [0-3]: " c || return 0
+        case "$c" in
+            1) do_free_space ;;
+            2)
+                read -rp "Install them now? If Docker itself is updated, every container restarts for a few seconds. [y/N]: " yn || return 0
+                if [[ "$yn" =~ ^[Yy]$ ]]; then do_system_updates; fi
+                ;;
+            3)
+                read -rp "Every container restarts once, a few seconds of downtime. Go ahead? [y/N]: " yn || return 0
+                if [[ "$yn" =~ ^[Yy]$ ]]; then do_log_limits; fi
+                ;;
+            0|"") return 0 ;;
+            *) warn "Not a valid option." ;;
+        esac
+    done
+}
+
 case "${1:-}" in
     backup|restore)
         script=$(backup_script) || exit 1
@@ -725,6 +917,11 @@ case "${1:-}" in
         status=0
         restore_start_stack || status=$?
         exit "$status"
+        ;;
+    status)
+        [[ -f "$COMPOSE_FILE" ]] || error "No AIOStreams install found at $INSTALL_DIR."
+        show_status
+        exit 0
         ;;
     free-space) do_free_space; exit 0 ;;
     system-updates) do_system_updates; exit 0 ;;
@@ -760,20 +957,21 @@ if [[ -f "$COMPOSE_FILE" ]]; then
     echo "  6) Reconfigure (change domain/login, backs up current config)"
     echo "  7) Backup (one tarball with everything needed for migration or safekeeping)"
     echo "  8) Restore from backup (replaces this install. See docs/basic/backup-restore.md)"
+    echo " 11) Maintenance (free up space, system updates, container log limits)"
     echo "  9) Uninstall (clean removal)"
     echo " 10) Exit"
     echo ""
-    read -rp "Select an option [1-10]: " MENU_CHOICE
+    # Exit stays 10 and Maintenance is 11: the control panel types 10 to leave the menu
+    read -rp "Select an option [1-11]: " MENU_CHOICE
 
     case "$MENU_CHOICE" in
         1)
             echo ""
-            echo "=== Container Status ==="
-            cd "$INSTALL_DIR"
-            docker compose ps
-            echo ""
-            echo "=== Recent Caddy cert log lines ==="
-            docker compose logs caddy 2>/dev/null | grep -i "certificate" | tail -5 || echo "No cert-related log lines found."
+            show_status
+            continue
+            ;;
+        11)
+            maintenance_menu
             continue
             ;;
         2)
@@ -1313,7 +1511,7 @@ info "Writing docker-compose.yml"
 ensure_caddy_dropin_dir
 
 # Built as its own variable rather than an inline conditional in the heredoc
-# below, since heredocs can't branch — empty string when the user opted out,
+# below, since heredocs can't branch: empty string when the user opted out,
 # so nothing extra lands in the file at all.
 ADVANCED_ACCESS_ENV_LINES=""
 if $ENABLE_ADVANCED_ACCESS; then
