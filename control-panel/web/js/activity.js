@@ -202,7 +202,7 @@ async function showSchedule() {
   const setBtn = h("button", { class: "btn small", type: "button", text: "Set" });
   every.value = s.every; day.value = String(s.day || 7);
   const onDay = h("span", { class: "dim", text: "on" });
-  const tz = h("span", { class: "dim", text: `server time${s.timezone ? ` (${s.timezone})` : ""}` });
+  const tz = h("span", { class: "dim", text: `24-hour, server time${s.timezone ? ` (${s.timezone})` : ""}` });
   const atLbl = h("span", { class: "dim", text: "at" });
   const show = () => {
     const on = every.value !== "off";
@@ -219,7 +219,7 @@ async function showSchedule() {
   };
   every.addEventListener("change", () => { show(); if (every.value === "off" && s.every !== "off") save({ every: "off" }); });
   setBtn.addEventListener("click", () => {
-    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time.value)) { toast("Pick a time, for example 04:00.", true); return; }
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time.value)) { toast("Type a 24-hour time, for example 04:00 or 20:57.", true); return; }
     save({ every: every.value, day: Number(day.value), time: time.value });
   });
   show();

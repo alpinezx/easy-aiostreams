@@ -204,13 +204,13 @@ function extras(w) {
     catch (e) { toast(e.message || "Couldn't save it.", true); }
   });
   setBtn.addEventListener("click", async () => {
-    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time.value)) { toast("Pick a time, for example 10:15.", true); return; }
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time.value)) { toast("Type a 24-hour time, for example 10:15 or 18:30.", true); return; }
     try { await save("weekly_time", time.value); toast(`Check-in: ${DAYS[Number(day.value) - 1]}s from ${time.value}.`); }
     catch (e) { toast(e.message || "Couldn't save it.", true); }
   });
   const when = h("div", { class: "wd-when-row", hidden: !opt.weekly },
     h("span", { class: "dim", text: "Send it on" }), day, h("span", { class: "dim", text: "from" }), time, setBtn,
-    h("span", { class: "dim", text: `${tzNote(w.timezone)}, within 2 minutes of it` }));
+    h("span", { class: "dim", text: `24-hour, ${tzNote(w.timezone)}, within 2 minutes of it` }));
   return h("div", { class: "panel wd-opts" },
     h("h3", { text: "Also tell me" }),
     row("updates", "When a new AIOStreams release is out", w.channel === "nightly"

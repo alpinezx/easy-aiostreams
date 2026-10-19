@@ -377,18 +377,9 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .wd-when-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 0 14px; font-size: .88rem; }
 .wd-when-row[hidden] { display: none; }
 .wd-when-row .input { width: auto; padding: 5px 8px; font-size: .88rem; }
-/* The time picker: a small box, and a compact grid under it while choosing */
-.time-pick { position: relative; display: inline-flex; }
+/* A 24-hour time, typed */
+.time-pick { display: inline-flex; }
 .time-pick .time-box { width: 4.6em; text-align: center; font-variant-numeric: tabular-nums; }
-.tp-pop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; width: 236px; padding: 10px;
-  background: var(--raised); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, .35); }
-.tp-head { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); margin: 2px 2px 6px; }
-.tp-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-bottom: 8px; }
-.tp-grid:last-child { margin-bottom: 0; }
-.tp-cell { padding: 6px 0; border: 0; border-radius: 6px; background: none; color: var(--text); font: inherit; font-size: .84rem;
-  font-variant-numeric: tabular-nums; cursor: pointer; }
-.tp-cell:hover { background: var(--hover); }
-.tp-cell.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 .wd-topic { justify-content: space-between; align-items: center; }
 .wd-topic-what { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .wd-topic-what .vpn-label { margin: 0; }
