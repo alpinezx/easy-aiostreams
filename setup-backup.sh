@@ -10,6 +10,8 @@
 #                                      (only after the check passes)
 #   sudo bash /opt/aiostreams/setup-backup.sh schedule         scheduled backups:
 #   ... schedule off | daily HH:MM | weekly <1-7> HH:MM        (1 Monday .. 7 Sunday)
+#   sudo bash /opt/aiostreams/setup-backup.sh list             every backup here
+#   ... keep <file> | unkeep <file>    never remove it (the panel's Lock), or stop
 #
 # setup-aiostreams.sh's own "backup" and "restore" commands and menu
 # options hand over to this script, so either way works.
@@ -545,6 +547,97 @@ do_scheduled() {
     last_run ok "$msg"
     echo "$msg"
     return 0
+}
+
+# ---------------------------------------------------------------------------
+# Keeping a backup for good (the control panel's Lock), over SSH
+# ---------------------------------------------------------------------------
+# Locks live in ui-state/backup-meta.json, the same list the panel keeps (with
+# its notes), so locking here shows as Locked there and the other way round.
+# Scheduled backups never remove a locked one.
+BACKUP_META="$INSTALL_DIR/ui-state/backup-meta.json"
+
+# Every backup on this server, newest first, one per line: "epoch|size|name|dir"
+list_backup_files() {
+    { find "$ROOT_HOME" "$INSTALL_DIR" -maxdepth 1 -type f -name 'aiostreams-backup-*.tar.gz' -printf '%T@|%s|%f|%h\n'
+      find /home -mindepth 2 -maxdepth 2 -type f -name 'aiostreams-backup-*.tar.gz' -printf '%T@|%s|%f|%h\n'; } 2>/dev/null \
+        | sort -t'|' -k3,3 -u | sort -t'|' -k1,1 -rn | sed 's/^\([0-9]*\)\.[0-9]*|/\1|/'
+}
+
+# Names locked in the panel's list, one per line
+locked_backups() {
+    [[ -s "$BACKUP_META" ]] || return 0
+    python3 -c 'import json, sys
+d = json.load(open(sys.argv[1]))
+print("\n".join(k for k, v in d.items() if isinstance(v, dict) and v.get("locked")))' "$BACKUP_META" 2>/dev/null || true
+}
+
+# keep <name> on|off
+set_backup_kept() {
+    local name="$1" on="$2"
+    name=$(basename -- "$name")
+    [[ "$name" =~ ^aiostreams-backup-[0-9A-Za-z._-]+\.tar\.gz$ ]] || error "Give a backup's file name, like aiostreams-backup-20261019-205851.tar.gz."
+    list_backup_files | cut -d'|' -f3 | grep -qxF -- "$name" || error "There's no backup called $name on this server."
+    command -v python3 >/dev/null 2>&1 || error "python3 is needed to update the list of kept backups."
+    if [[ ! -d "$INSTALL_DIR/ui-state" ]]; then mkdir -p "$INSTALL_DIR/ui-state"; chmod 700 "$INSTALL_DIR/ui-state"; fi
+    python3 - "$BACKUP_META" "$name" "$on" <<'PY' || error "Couldn't read $BACKUP_META, so nothing was changed."
+import json, os, sys
+path, name, on = sys.argv[1:4]
+data = {}
+if os.path.exists(path) and os.path.getsize(path):
+    data = json.load(open(path))          # unreadable: stop, rather than lose the panel's notes
+    if not isinstance(data, dict):
+        sys.exit(1)
+cur = data.get(name) if isinstance(data.get(name), dict) else {}
+if on == "on":
+    cur["locked"] = True
+else:
+    cur.pop("locked", None)
+if cur:
+    data[name] = cur
+else:
+    data.pop(name, None)
+with open(path + ".tmp", "w") as fh:
+    json.dump(data, fh)
+os.replace(path + ".tmp", path)
+PY
+    if [[ "$on" == on ]]; then
+        echo "Kept: $name won't be removed by scheduled backups, and the control panel shows it as Locked."
+    else
+        echo "No longer kept: $name. If it's a scheduled one, it's removed once 7 newer scheduled ones exist."
+    fi
+}
+
+# Every backup, newest first, numbered, with Scheduled and Kept marks
+show_backups() {
+    local rows=() line at size name dir locked i now age
+    while IFS= read -r line; do rows+=("$line"); done < <(list_backup_files)
+    if (( ${#rows[@]} == 0 )); then echo "No backups on this server yet."; return 1; fi
+    locked=$(locked_backups)
+    now=$(date +%s)
+    for i in "${!rows[@]}"; do
+        IFS='|' read -r at size name dir <<< "${rows[$i]}"
+        age=$(( (now - at) / 86400 ))
+        printf '  %2d) %s  %s, %s%s%s\n' "$((i + 1))" "$name" "$(numfmt --to=iec --suffix=B "$size" 2>/dev/null || echo "$size")" \
+            "$( (( age == 0 )) && echo today || echo "$age day$( (( age == 1 )) || echo s) ago")" \
+            "$([[ "$name" == *-scheduled-* ]] && echo ", scheduled")" \
+            "$(grep -qxF -- "$name" <<< "$locked" && echo ", KEPT")"
+    done
+    return 0
+}
+
+keep_menu() {
+    local rows=() line n name
+    echo ""
+    show_backups || return 0
+    while IFS= read -r line; do rows+=("$line"); done < <(list_backup_files)
+    echo ""
+    echo "Kept backups are never removed by scheduled backups (the control panel calls them Locked)."
+    read -rp "Number to keep, or to stop keeping, or Enter to go back: " n || return 0
+    [[ -n "$n" ]] || return 0
+    if ! [[ "$n" =~ ^[0-9]+$ ]] || (( n < 1 || n > ${#rows[@]} )); then warn "Not one of the numbers above."; return 0; fi
+    name=$(cut -d'|' -f3 <<< "${rows[$((n - 1))]}")
+    if grep -qxF -- "$name" <<< "$(locked_backups)"; then set_backup_kept "$name" off; else set_backup_kept "$name" on; fi
 }
 
 # ---------------------------------------------------------------------------
@@ -1095,7 +1188,7 @@ do_restore() {
             echo "Found ${#candidates[@]} backup(s) (newest first):"
             local i=1
             for f in "${candidates[@]}"; do
-                printf '  %d) %s  —  %s, %s\n' "$i" "$f" \
+                printf '  %d) %s, %s, %s\n' "$i" "$f" \
                     "$(du -h -- "$f" | cut -f1)" \
                     "$(date -r "$f" '+%Y-%m-%d %H:%M')"
                 i=$((i+1))
@@ -1495,6 +1588,15 @@ case "${1:-}" in
         do_scheduled
         exit 0
         ;;
+    list)
+        show_backups || true
+        exit 0
+        ;;
+    keep|unkeep)
+        [[ -n "${2:-}" ]] || error "Usage: $1 <backup file name>. 'list' shows them."
+        set_backup_kept "$2" "$([[ "$1" == keep ]] && echo on || echo off)"
+        exit 0
+        ;;
     restore)
         case "${2:-}" in
             --check)
@@ -1518,7 +1620,7 @@ case "${1:-}" in
     "")
         ;;
     *)
-        error "Unknown command '$1'. Use: backup, restore [file], or schedule."
+        error "Unknown command '$1'. Use: backup, restore [file], schedule, list, keep <file> or unkeep <file>."
         ;;
 esac
 
@@ -1526,11 +1628,13 @@ info "Backup & restore"
 echo "  1) Back up now"
 echo "  2) Restore from a backup (replaces the current install)"
 echo "  3) Scheduled backups (now: $(schedule_text))"
-echo "  4) Exit"
-read -rp "Select an option [1-4]: " MENU_CHOICE
+echo "  4) List backups, and keep one for good"
+echo "  5) Exit"
+read -rp "Select an option [1-5]: " MENU_CHOICE
 case "$MENU_CHOICE" in
     1) do_backup ;;
     2) do_restore "" ;;
     3) schedule_menu ;;
+    4) keep_menu ;;
     *) echo "Exiting." ;;
 esac

@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+# This script's own path, so menu options can run its question-free commands
+SELF_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+
 info()  { printf '\n\033[1;34m==>\033[0m %s\n' "$1"; }
 warn()  { printf '\033[1;33m!! \033[0m %s\n' "$1"; }
 notice() { printf '\033[1;33m!! %s !!\033[0m\n' "$1"; }
@@ -1122,15 +1125,24 @@ do_reconfigure_vpn() {
     local current_conf="" can_repick=false
     if current_repickable_conf; then current_conf="$CURRENT_CONF"; can_repick=true; fi
 
+    # From the menu, also the control panel's two: go back to the config used
+    # before the last change, and delete configs kept on the server
+    local from_menu=false has_prev=false prev_note="" at
+    [[ "${1:-}" == "menu" ]] && from_menu=true
+    if $from_menu && [[ -f "$PREV_DIR/wireguard.conf" && -f "$PREV_DIR/endpoint-ip" ]]; then
+        has_prev=true
+        prev_note="$(cat "$PREV_DIR/endpoint-host" 2>/dev/null || cat "$PREV_DIR/endpoint-ip")"
+        at=$(cat "$PREV_DIR/changed-at" 2>/dev/null || true)
+        [[ "$at" =~ ^[0-9]+$ ]] && prev_note+=", used until $(date -d "@$at" '+%d %b %H:%M')"
+    fi
+
     info "WireGuard config"
     echo "  1) Paste it in (open your VPN provider's .conf file and copy everything)"
     echo "  2) Use a .conf file already on this server"
-    if $can_repick; then
-        echo "  3) Keep the current config, just pick a different server address"
-        read -rp "Choose 1, 2 or 3 [1]: " WG_HOW
-    else
-        read -rp "Choose 1 or 2 [1]: " WG_HOW
-    fi
+    if $can_repick; then echo "  3) Keep the current config, just pick a different server address"; fi
+    if $has_prev; then echo "  4) Go back to the previous config ($prev_note)"; fi
+    if $from_menu; then echo "  5) Delete configs kept on this server"; fi
+    read -rp "Choose [1]: " WG_HOW
     case "${WG_HOW:-1}" in
         2) choose_conf_file ;;
         3)
@@ -1139,6 +1151,18 @@ do_reconfigure_vpn() {
             else
                 paste_config
             fi
+            ;;
+        4)
+            if $has_prev; then
+                # As the panel's Use on Previous config: the one in use becomes the previous one
+                bash "$SELF_PATH" use-file "$PREV_DIR/wireguard.conf" "$(cat "$PREV_DIR/endpoint-ip")" || true
+                return 0
+            fi
+            paste_config
+            ;;
+        5)
+            if $from_menu; then delete_configs_menu; return 0; fi
+            paste_config
             ;;
         *) paste_config ;;
     esac
@@ -1312,6 +1336,34 @@ list_configs() {
         [[ "$ep" =~ ^[A-Za-z0-9.-]+$ ]] || ep=""
         echo "$kind|$f|$ep|$([[ "$f" == "$in_use" ]] && echo 1 || echo 0)"
     done
+}
+
+# Reconfigure VPN's "Delete configs kept on this server": the list the
+# control panel shows, numbered. Deleting goes through delete-config, which
+# refuses the one in use while the VPN is on.
+delete_configs_menu() {
+    local rows=() line kind path ep use i n label yn
+    while IFS= read -r line; do rows+=("$line"); done < <(list_configs)
+    if (( ${#rows[@]} == 0 )); then echo "No WireGuard configs found on this server."; return 0; fi
+    echo ""
+    for i in "${!rows[@]}"; do
+        IFS='|' read -r kind path ep use <<< "${rows[$i]}"
+        case "$kind" in
+            pasted) label="pasted in" ;;
+            previous) label="previous config" ;;
+            prev-paste) label="earlier paste" ;;
+            upload) label="pasted in the panel, not used yet" ;;
+            *) label="file" ;;
+        esac
+        echo "  $((i + 1))) $path ($label${ep:+, $ep}$([[ "$use" == 1 ]] && echo ", in use"))"
+    done
+    read -rp "Number to delete, or Enter to go back: " n || return 0
+    [[ -n "$n" ]] || return 0
+    if ! [[ "$n" =~ ^[0-9]+$ ]] || (( n < 1 || n > ${#rows[@]} )); then warn "Not one of the numbers above."; return 0; fi
+    IFS='|' read -r kind path ep use <<< "${rows[$((n - 1))]}"
+    read -rp "Delete $path? It can't be undone. [y/N]: " yn || return 0
+    if [[ "$yn" =~ ^[Yy]$ ]]; then bash "$SELF_PATH" delete-config "$path" || true; else echo "Nothing deleted."; fi
+    return 0
 }
 
 # The kind of a listed config that isn't in use, or nothing.
@@ -1538,7 +1590,7 @@ while true; do
     echo "1) Status"
     echo "2) Turn VPN ON"
     echo "3) Turn VPN OFF (direct connection)"
-    echo "4) Reconfigure VPN (change WireGuard server/config)"
+    echo "4) Reconfigure VPN (change WireGuard server/config, go back to the previous one, delete old ones)"
     echo "5) Update gluetun (pull latest stable image; safe restart if VPN is on)"
     echo "6) Force cleanup (remove stray containers if a toggle got wedged)"
     echo "7) Uninstall VPN layer (clean removal, back to plain AIOStreams + Caddy)"

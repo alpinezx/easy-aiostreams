@@ -65,7 +65,13 @@ Other providers (AWS, GCP, DigitalOcean, Vultr, etc.) have their own equivalent,
 
 ## What this actually looks like in the logs
 
-Option **1) View status** in the script's menu prints Caddy's recent certificate log lines. If ports 80/443 are being blocked, it looks like this:
+Option **1) View status** in the script's menu says whether the certificate could be checked and how many days it has left. For the reason it couldn't get one, look at Caddy's recent certificate log lines:
+
+```bash
+docker logs caddy 2>&1 | grep -i certificate | tail -n 5
+```
+
+If ports 80/443 are being blocked, it looks like this:
 
 ```
 caddy | {"level":"info","logger":"tls.obtain","msg":"obtaining certificate","identifier":"yourdomain.example.com"}

@@ -99,7 +99,7 @@ Read when the page opens and kept for 5 minutes. **Free up space** counts untagg
 
 ## Backups and restores
 
-Backups are listed from root's home and the login user's home, merged by name. Locks and notes are kept in `ui-state/backup-meta.json`, which scheduled backups also read so they never remove a locked one.
+Backups are listed from root's home and the login user's home, merged by name. Locks and notes are kept in `ui-state/backup-meta.json`, which scheduled backups also read so they never remove a locked one. Over SSH, `setup-backup.sh keep` and `unkeep` change the same lock.
 
 The **Scheduled backups** card reads `backup-schedule` and `backup-last-run` (see the [backup guide](./backup-restore.md#scheduled-backups)), and whether `aiostreams-backup.timer` is active; if the schedule is on but the timer isn't, it says so and **Set** starts it again. A name with `-scheduled-` gets the **Scheduled** label. The Overview's **Last backup** is the newest backup of any kind, read at most once a minute, amber only when the last scheduled run failed or was skipped.
 

@@ -58,7 +58,7 @@ sudo bash /opt/aiostreams/setup-backup.sh schedule daily 04:00
 `weekly 7 04:00` is Sundays at 04:00 (1 is Monday, 7 Sunday), `off` stops them, and `schedule` on its own says what's set and how the last one went. Times are 24-hour, by the server's clock (`timedatectl` shows its time zone).
 
 - Each is named `aiostreams-backup-scheduled-YYYYMMDD-HHMMSS.tar.gz` and kept in `/root`. The panel marks them **Scheduled**.
-- The newest 7 are kept and older scheduled ones removed. Backups you make yourself, ones made before an update and locked ones are never removed, so lock one in the panel to keep it for good.
+- The newest 7 are kept and older scheduled ones removed. Backups you make yourself, ones made before an update and locked ones are never removed, so lock one in the panel to keep it for good. Over SSH, `sudo bash /opt/aiostreams/setup-backup.sh list` shows every backup, and `keep <file>` (or `unkeep <file>`) does the same as the panel's Lock and Unlock; the backup menu's option 4 does it by number.
 - If the disk is 90% full or more, it skips that one rather than fill it up.
 - With [phone alerts](./watchdog.md) set up, a failed or skipped one always sends an alert, and a switch adds one for each backup made.
 - A restore brings the schedule back with everything else.
