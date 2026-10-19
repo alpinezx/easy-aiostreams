@@ -370,7 +370,7 @@ function side(st) {
   if (st.cert) {
     const d = st.cert.days_left;
     grid.append(st.cert.ok
-      ? stat("HTTPS certificate", `${d} day${d === 1 ? "" : "s"} left`, certTone(st.cert) ? "Not renewed yet: check Caddy's logs" : "Caddy renews it by itself", certTone(st.cert))
+      ? stat("HTTPS certificate", `${d} day${d === 1 ? "" : "s"} left`, certTone(st.cert) ? "Not renewed yet: check Caddy's logs" : "Auto-renews", certTone(st.cert))
       : stat("HTTPS certificate", "Couldn't check", "", "warn"));
   }
   if (st.vpn === "on" || st.vpn === "off") {
