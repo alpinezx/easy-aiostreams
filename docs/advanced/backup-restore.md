@@ -33,7 +33,16 @@ sudo bash /opt/aiostreams/setup-backup.sh                  # menu
 sudo bash /opt/aiostreams/setup-backup.sh backup
 sudo bash /opt/aiostreams/setup-backup.sh restore aiostreams-backup-YYYYMMDD-HHMMSS.tar.gz
 sudo bash /opt/aiostreams/setup-backup.sh schedule        # scheduled backups, below
+sudo bash /opt/aiostreams/setup-backup.sh list            # every backup here, newest first
+sudo bash /opt/aiostreams/setup-backup.sh keep aiostreams-backup-YYYYMMDD-HHMMSS.tar.gz   # or unkeep
 ```
+
+`list` covers `/root`, the install folder and each user's home, marking
+scheduled backups and kept ones. `keep` is the control panel's **Lock**: it
+writes the same list, `ui-state/backup-meta.json`, leaving any note the panel
+holds alone, so a backup kept over SSH shows as Locked in the panel and the
+other way round. Scheduled backups never remove a kept one. The menu's
+**4) List backups, and keep one for good** does both by number.
 
 A restore puts the newest copies of both scripts you have into the restored
 folder, so restoring an older backup never leaves you on older scripts. Backups

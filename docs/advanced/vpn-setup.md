@@ -186,7 +186,7 @@ sudo bash /opt/aiostreams/setup-vpn-gluetun.sh
 1) Status
 2) Turn VPN ON
 3) Turn VPN OFF (direct connection)
-4) Reconfigure VPN (change WireGuard server/config)
+4) Reconfigure VPN (change WireGuard server/config, go back to the previous one, delete old ones)
 5) Update gluetun (pull latest image; safe restart if VPN is on)
 6) Force cleanup (remove stray containers if a toggle got wedged)
 7) Uninstall VPN layer (clean removal, back to plain AIOStreams + Caddy)
@@ -256,6 +256,13 @@ it would use, which leaves no config saved), and `uninstall [remove-image]
 the `.conf` files `list-configs` finds in `/root` and the login user's
 home). With no config saved, **Turn
 VPN ON** asks for one first, the same way Reconfigure does.
+
+The menu's **4) Reconfigure VPN** offers two of these too: **Go back to the
+previous config** runs `use-file` on `vpn-state/previous/wireguard.conf` at
+its saved address, as the panel's **Use** on Previous config does, so the
+config you leave becomes the previous one and you can swap back again.
+**Delete configs kept on this server** numbers what `list-configs` finds
+and deletes the one you pick with `delete-config`.
 
 ---
 
