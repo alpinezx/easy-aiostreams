@@ -140,14 +140,14 @@ Run it again any time with `sudo bash /opt/aiostreams/setup-aiostreams.sh` and i
  6) Reconfigure (change domain/login, backs up your current config first)
  7) Backup (one tarball with everything needed for migration or safekeeping)
  8) Restore from backup (also runs on a fresh server: sudo bash setup-aiostreams.sh restore <file>)
-11) Maintenance (free up space, system updates, container log limits)
  9) Uninstall (clean removal)
 10) Exit
+11) Maintenance (free up space, system updates, container log limits)
 ```
 
 **View status** shows what the control panel's Overview does: the AIOStreams version and whether a newer one is out, the certificate's days left, each service, phone alerts, uptime, load, memory, disk, the newest backup and updates waiting. `sudo bash /opt/aiostreams/setup-aiostreams.sh status` prints the same without the menu, and `start`, `stop`, `restart` and `update` (with `--backup` and `--channel latest|nightly`) run options 3, 2, 4 and 5 without questions.
 
-**Maintenance** (11, so Exit stays 10) shows what it found first: old images and build leftovers that can go, system logs, updates waiting and whether container logs are capped. Then it offers the same three jobs as the control panel's Maintenance page, each asking first. They also run without questions: `sudo bash /opt/aiostreams/setup-aiostreams.sh free-space` (old images, build leftovers, system logs beyond 100 MB), `system-updates` (Ubuntu's updates, bringing the stack back if Docker itself was updated) and `log-limits` (caps each container's log at 10 MB; every container restarts once).
+**Maintenance** (11, after Exit, so Exit keeps its number 10) shows what it found first: old images and build leftovers that can go, system logs, updates waiting and whether container logs are capped. Then it offers the same three jobs as the control panel's Maintenance page, each asking first. They also run without questions: `sudo bash /opt/aiostreams/setup-aiostreams.sh free-space` (old images, build leftovers, system logs beyond 100 MB), `system-updates` (Ubuntu's updates, bringing the stack back if Docker itself was updated) and `log-limits` (caps each container's log at 10 MB; every container restarts once).
 
 **Stable vs nightly:** on a fresh install (or Reconfigure), you'll be asked to choose the `latest` (stable) or `nightly` build. Switch channels anytime from **Update**, it'll walk you through it and confirm before switching.
 

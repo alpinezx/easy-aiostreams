@@ -1142,9 +1142,9 @@ if [[ -f "$COMPOSE_FILE" ]]; then
     echo "  6) Reconfigure (change domain/login, backs up current config)"
     echo "  7) Backup (one tarball with everything needed for migration or safekeeping)"
     echo "  8) Restore from backup (replaces this install. See docs/basic/backup-restore.md)"
-    echo " 11) Maintenance (free up space, system updates, container log limits)"
     echo "  9) Uninstall (clean removal)"
     echo " 10) Exit"
+    echo " 11) Maintenance (free up space, system updates, container log limits)"
     echo ""
     # Exit stays 10 and Maintenance is 11: the control panel types 10 to leave the menu
     read -rp "Select an option [1-11]: " MENU_CHOICE
