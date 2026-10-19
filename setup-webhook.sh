@@ -774,6 +774,14 @@ command -v docker >/dev/null || error "Docker not found. Run this on the same se
 # same pattern as setup-watchdog.sh's 'install-timer'. Requires an existing
 # config (restore only calls this after the config file has already landed
 # via the extracted tarball), so this never prompts.
+# The control panel's Stop (it used to type menu option 3, and older panels
+# still do, so the menu's numbers must never change)
+if [[ "${1:-}" == "stop-relay" ]]; then
+    [[ -f "$CONFIG_FILE" ]] || error "No webhook relay config found at $CONFIG_FILE, nothing to stop."
+    do_stop
+    exit 0
+fi
+
 if [[ "${1:-}" == "start-relay" ]]; then
     [[ -f "$CONFIG_FILE" ]] || error "No webhook relay config found at $CONFIG_FILE, nothing to start."
     do_start
