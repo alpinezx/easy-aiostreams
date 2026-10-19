@@ -92,7 +92,8 @@ async function tick() {
   clearTimeout(timer);
   try {
     status = await api("/api/status");
-    $("#offline").hidden = true;
+    // Back after the panel restarted (a maintenance job restarts Docker): reload the page shown
+    if (!$("#offline").hidden) { $("#offline").hidden = true; enter(); }
     document.title = `${status.headline} - Easy AIOStreams`;
     record(status);
     scripts.checkScripts(status);     // the "Script updates" pill at the top
