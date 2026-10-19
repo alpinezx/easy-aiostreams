@@ -32,7 +32,7 @@ TALLY_FILE="$STATE_DIR/tally"       # checks per day: "YYYY-MM-DD passed failed"
 ALIVE_FILE="$STATE_DIR/last-alive"  # when the last check ran
 SHUTDOWN_FILE="$STATE_DIR/shutdown-at"  # written as the server shuts down cleanly
 BOOT_ID_FILE="$STATE_DIR/boot-reported" # the kernel's boot ID once that boot is reported
-OPTIONS_FILE="$STATE_DIR/options"   # extra alerts: "updates=on", "reboots=on", "scripts=on", "weekly=on", and the
+OPTIONS_FILE="$STATE_DIR/options"   # extra alerts: "updates=on", "reboots=on", "scripts=on", "backups=on", "weekly=on", and the
                                     # check-in's "weekly_day=7" (1 Mon .. 7 Sun), "weekly_time=10:15"
                                     # (older copies saved "weekly_hour=10", still read as 10:00)
 SCRIPT_COPY="$STATE_DIR/watchdog.sh"
@@ -189,7 +189,7 @@ run_checks() {
 
 # A short record for "did anything happen overnight?" (the control panel's
 # Phone alerts page reads it). Kinds: fail, alert, recovered, start, stop,
-# test, topic, reboot, disk, cert, update, scripts, weekly. Never holds the topic itself. Keeps the last 200.
+# test, topic, reboot, disk, cert, update, scripts, backup, weekly. Never holds the topic itself. Keeps the last 200.
 log_event() {
     mkdir -p "$STATE_DIR"
     printf '%s|%s|%s\n' "$(date +%s)" "$1" "${2//$'\n'/ }" >> "$EVENTS_FILE"
@@ -430,6 +430,61 @@ check_scripts() {
     return 0
 }
 
+# Scheduled backups (setup-backup.sh's timer) leave how they went in
+# backup-last-run: "epoch|ok|text", or skipped, failed, or running while one
+# is being made. A failed or skipped one always alerts, since that's what
+# makes a schedule safe to forget; a good one only with "backups=on". One
+# still "running" after an hour stopped without saying why.
+check_backup() {
+    local f="$INSTALL_DIR/backup-last-run" seen="$STATE_DIR/backup-seen" at status text last now title
+    IFS='|' read -r at status text < "$f" 2>/dev/null || return 0
+    [[ "$at" =~ ^[0-9]+$ ]] || return 0
+    now=$(date +%s)
+    last=$(cat "$seen" 2>/dev/null || echo "")
+    # The first look only reports a run from the last few minutes, not old news
+    [[ "$last" =~ ^[0-9]+$ ]] || last=$(( now - 600 ))
+    (( at > last )) || return 0
+    if [[ "$status" == running ]]; then
+        (( now - at > 3600 )) || return 0
+        status=failed
+    fi
+    echo "$at" > "$seen"
+    case "$status" in
+        ok)
+            if ! option_on backups; then
+                log_event backup "Scheduled backup made: $text"
+            elif send_ntfy "$text" "Backup made" 2 floppy_disk backups; then
+                log_event backup "Scheduled backup made: $text Alert sent."
+            else
+                log_event backup "Scheduled backup made: $text The alert couldn't be sent (ntfy.sh unreachable)."
+            fi
+            return 0
+            ;;
+        skipped) title="Scheduled backup skipped" ;;
+        *) title="Scheduled backup failed" ;;
+    esac
+    if send_ntfy "$text" "$title" 4 warning backups; then
+        log_event backup "$title: $text Alert sent."
+    else
+        log_event backup "$title: $text The alert couldn't be sent (ntfy.sh unreachable)."
+    fi
+    return 0
+}
+
+# How old the newest backup on this server is ("today", "3 days old"), or nothing
+newest_backup_age() {
+    local newest days
+    newest=$( { find "$(getent passwd root | cut -d: -f6)" -maxdepth 1 -type f -name 'aiostreams-backup-*.tar.gz' -printf '%T@\n'
+                find /home -mindepth 2 -maxdepth 2 -type f -name 'aiostreams-backup-*.tar.gz' -printf '%T@\n'; } 2>/dev/null \
+              | sort -rn | head -n 1 | cut -d. -f1)
+    [[ "$newest" =~ ^[0-9]+$ ]] || return 0
+    days=$(( ( $(date +%s) - newest ) / 86400 ))
+    if (( days == 0 )); then echo "today"
+    elif (( days == 1 )); then echo "1 day old"
+    else echo "$days days old"
+    fi
+}
+
 weekly_day() {
     grep -oP '^weekly_day=\K[1-7]$' "$OPTIONS_FILE" 2>/dev/null || echo 7
 }
@@ -448,7 +503,7 @@ weekly_time() {
 # watchdog itself needs a look.
 check_weekly() {
     option_on weekly || return 0
-    local now last since passed=0 failed=0 alerts=0 reboots=0 d p f at kind pct msg wday wtime
+    local now last since passed=0 failed=0 alerts=0 reboots=0 d p f at kind pct msg wday wtime age
     now=$(date +%s)
     wday=$(weekly_day)
     wtime=$(weekly_time)
@@ -476,6 +531,8 @@ check_weekly() {
     (( reboots )) && msg+=", $reboots restart$( (( reboots > 1 )) && echo s)"
     msg+="."
     [[ -n "$pct" ]] && msg+=" Disk ${pct} used."
+    age=$(newest_backup_age)
+    [[ -n "$age" ]] && msg+=" Newest backup: $age."
     if send_ntfy "$msg" "Weekly check-in" 2 calendar; then
         log_event weekly "$msg Sent."
     else
@@ -541,6 +598,7 @@ do_run_check() {
     check_cert || true
     check_updates || true
     check_scripts || true
+    check_backup || true
     check_weekly || true
 }
 
@@ -874,16 +932,18 @@ do_extras() {
             echo "2) Server restarted: $(reboots_on && echo on || echo off)  (with how long it was down)"
         fi
         echo "3) Script updates: $(option_on scripts && echo on || echo off)  (scripts can change several times a week, so this can be chatty; at most one alert a day)"
-        echo "4) Weekly check-in: $(option_on weekly && echo "on, ${DAY_NAMES[$(( $(weekly_day) - 1 ))]}s from $(weekly_time)" || echo off)"
-        echo "5) Set the check-in's day and time (server time: $(server_timezone))"
+        echo "4) Scheduled backup made: $(option_on backups && echo on || echo off)  (a failed or skipped one always alerts)"
+        echo "5) Weekly check-in: $(option_on weekly && echo "on, ${DAY_NAMES[$(( $(weekly_day) - 1 ))]}s from $(weekly_time)" || echo off)"
+        echo "6) Set the check-in's day and time (server time: $(server_timezone))"
         echo "0) Back"
-        read -rp "Choose [0-5]: " c || return 0
+        read -rp "Choose [0-6]: " c || return 0
         case "$c" in
             1) option_on updates && set_option updates off || set_option updates on ;;
             2) reboots_on && set_option reboots off || set_option reboots on ;;
             3) option_on scripts && set_option scripts off || set_option scripts on ;;
-            4) option_on weekly && set_option weekly off || set_option weekly on ;;
-            5)
+            4) option_on backups && set_option backups off || set_option backups on ;;
+            5) option_on weekly && set_option weekly off || set_option weekly on ;;
+            6)
                 echo "Days: 1 Monday, 2 Tuesday, 3 Wednesday, 4 Thursday, 5 Friday, 6 Saturday, 7 Sunday"
                 read -rp "Day [Enter for $(weekly_day)]: " d || return 0
                 d=${d:-$(weekly_day)}
@@ -1029,13 +1089,13 @@ if [[ "${1:-}" == "set-topic" ]]; then
     exit $?
 fi
 
-# set-option <updates|reboots|scripts|weekly> <on|off>, or set-option weekly_day <1-7> /
+# set-option <updates|reboots|scripts|backups|weekly> <on|off>, or set-option weekly_day <1-7> /
 # weekly_time <HH:MM>: the optional alerts, without questions
 if [[ "${1:-}" == "set-option" ]]; then
-    [[ ( "${2:-}" =~ ^(updates|reboots|scripts|weekly)$ && "${3:-}" =~ ^(on|off)$ ) || ( "${2:-}" == weekly_day && "${3:-}" =~ ^[1-7]$ )
+    [[ ( "${2:-}" =~ ^(updates|reboots|scripts|backups|weekly)$ && "${3:-}" =~ ^(on|off)$ ) || ( "${2:-}" == weekly_day && "${3:-}" =~ ^[1-7]$ )
        || ( "${2:-}" == weekly_hour && "${3:-}" =~ ^([01]?[0-9]|2[0-3])$ )
        || ( "${2:-}" == weekly_time && "${3:-}" =~ ^([01]?[0-9]|2[0-3]):[0-5][0-9]$ ) ]] \
-        || error "Usage: set-option updates|reboots|scripts|weekly on|off, set-option weekly_day 1-7 (Mon-Sun), set-option weekly_time HH:MM"
+        || error "Usage: set-option updates|reboots|scripts|backups|weekly on|off, set-option weekly_day 1-7 (Mon-Sun), set-option weekly_time HH:MM"
     [[ -f "$CONFIG_FILE" ]] || error "Not configured yet. Set the watchdog up first."
     set_option "$2" "$3"
     exit 0
@@ -1091,7 +1151,7 @@ while true; do
     echo "3) Stop"
     echo "4) Send test alert"
     echo "5) Change topic"
-    echo "6) Extra alerts (releases, restarts, scripts, weekly check-in)"
+    echo "6) Extra alerts (releases, restarts, scripts, backups, weekly check-in)"
     echo "7) Recent events and stats"
     echo "8) Check now"
     echo "9) Uninstall"

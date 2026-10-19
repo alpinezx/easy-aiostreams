@@ -8,6 +8,8 @@
 #   ... restore --check <file>         would it restore here without questions?
 #   ... restore --same-server <file>   roll this install back, no questions
 #                                      (only after the check passes)
+#   sudo bash /opt/aiostreams/setup-backup.sh schedule         scheduled backups:
+#   ... schedule off | daily HH:MM | weekly <1-7> HH:MM        (1 Monday .. 7 Sunday)
 #
 # setup-aiostreams.sh's own "backup" and "restore" commands and menu
 # options hand over to this script, so either way works.
@@ -21,7 +23,13 @@ SELF_DIR="$(dirname "$SELF_SCRIPT_PATH")"
 info()  { printf '\n\033[1;34m==>\033[0m %s\n' "$1"; }
 warn()  { printf '\033[1;33m!! \033[0m %s\n' "$1"; }
 alert() { printf '\033[1;31m!! %s !!\033[0m\n' "$1"; }
-error() { printf '\033[1;31mXX \033[0m %s\n' "$1"; exit 1; }
+error() {
+    printf '\033[1;31mXX \033[0m %s\n' "$1"
+    # a scheduled run leaves the reason for the watchdog's alert and the panel
+    if [[ "${SCHEDULED_RUN:-false}" == true ]]; then last_run failed "$1"; fi
+    exit 1
+}
+SCHEDULED_RUN=false   # true while the timer's run makes its backup
 
 require_cmd() {
     command -v "$1" >/dev/null 2>&1
@@ -139,7 +147,8 @@ do_backup() {
         fi
     fi
     # Tells a restore which of the markers above this backup can have.
-    # Format 2 added the panel's, format 3 the webhook's reboot notification.
+    # Format 2 added the panel's, format 3 the webhook's reboot notification,
+    # format 4 the backup schedule (backup-schedule, absent when it's off).
     # The AIOStreams build is only there for the control panel to show on the
     # backup; a restore doesn't act on it, so it doesn't change the format.
     # Read now, before AIOStreams is paused below. Its image is distroless,
@@ -151,7 +160,7 @@ do_backup() {
         build=""
     done
     {
-        printf '# Written by setup-backup.sh with each backup.\nformat=3\n'
+        printf '# Written by setup-backup.sh with each backup.\nformat=4\n'
         if [[ "$build" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\ (v[0-9]+\.[0-9]+\.[0-9]+|[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]{4}-nightly)$ ]]; then
             printf 'aiostreams_version=%s\naiostreams_tag=%s\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
         fi
@@ -190,9 +199,12 @@ do_backup() {
         fi
     fi
 
-    local ts out size ip tar_status user_copy=""
+    local ts out size ip tar_status user_copy="" prefix="aiostreams-backup"
+    # Scheduled ones carry it in their name: only those are ever removed to make room
+    $SCHEDULED_RUN && prefix="aiostreams-backup-scheduled"
     ts=$(date +%Y%m%d-%H%M%S)
-    out="$BACKUP_HOME/aiostreams-backup-${ts}.tar.gz"
+    out="$BACKUP_HOME/${prefix}-${ts}.tar.gz"
+    BACKUP_WRITTEN=""
     # umask is process-wide, so scope it to a subshell so it doesn't leak
     # into files written later this session.
     # caddy-logs is MediaFlow's access log for fail2ban: regenerated on its
@@ -213,7 +225,7 @@ do_backup() {
     # Sorted, so backup-info sits near the start and the panel can read it
     # without unpacking the whole archive.
     if ( umask 077; tar --warning=no-file-changed --sort=name --exclude="$(basename "$INSTALL_DIR")/caddy-logs" \
-            --exclude="$(basename "$INSTALL_DIR")/public-ip" -czf "$out" -C "$(dirname "$INSTALL_DIR")" "$(basename "$INSTALL_DIR")" ); then
+            --exclude="$(basename "$INSTALL_DIR")/public-ip" --exclude="$(basename "$INSTALL_DIR")/backup-last-run" -czf "$out" -C "$(dirname "$INSTALL_DIR")" "$(basename "$INSTALL_DIR")" ); then
         tar_status=0
     else
         tar_status=$?
@@ -238,6 +250,9 @@ do_backup() {
     ip=$(hostname -I 2>/dev/null | awk '{print $1}')
 
     echo -e "Backup written: \033[1;36m$out\033[0m (${size})"
+    BACKUP_WRITTEN="$out"
+    # A scheduled one runs unattended: one copy, in root's home, and none of the advice below
+    $SCHEDULED_RUN && return 0
 
     # Under sudo, $REAL_HOME differs from root's home, also drop a copy
     # there so the invoking user can access it directly.
@@ -275,6 +290,259 @@ do_backup() {
     if [[ -t 0 ]]; then
         read -rp "Continue now that you've read this... " _
     fi
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# Scheduled backups
+# ---------------------------------------------------------------------------
+# Off until switched on (here, or the control panel's Backup & Restore page).
+# The setting lives in the install folder, so a backup carries it and a
+# restore puts the timer back; the timer itself is a systemd unit outside it.
+# Each run leaves its result in backup-last-run ("epoch|ok|text", or failed,
+# skipped, or running while it works), which the watchdog turns into an
+# alert and the panel shows.
+SCHEDULE_FILE="$INSTALL_DIR/backup-schedule"
+LAST_RUN_FILE="$INSTALL_DIR/backup-last-run"
+BACKUP_UNIT="aiostreams-backup"
+BACKUP_SERVICE_FILE="/etc/systemd/system/$BACKUP_UNIT.service"
+BACKUP_TIMER_FILE="/etc/systemd/system/$BACKUP_UNIT.timer"
+SCHEDULED_KEEP=7        # scheduled backups kept; older ones go, unless locked
+SCHEDULED_DISK_PCT=90   # skip when the disk is this full (the watchdog's disk warning starts here too)
+DAY_NAMES=(Monday Tuesday Wednesday Thursday Friday Saturday Sunday)
+SYSTEMD_DAYS=(Mon Tue Wed Thu Fri Sat Sun)
+
+schedule_get() {
+    grep -m1 -oP "^$1=\K.*" "$SCHEDULE_FILE" 2>/dev/null || true
+}
+
+# "daily at 04:00", "weekly, Sundays at 04:00", or "off"
+schedule_text() {
+    local every day time
+    every=$(schedule_get every)
+    day=$(schedule_get day)
+    time=$(schedule_get time)
+    case "$every" in
+        daily) echo "daily at $time" ;;
+        weekly) echo "weekly, ${DAY_NAMES[$(( ${day:-7} - 1 ))]}s at $time" ;;
+        *) echo "off" ;;
+    esac
+}
+
+server_tz() {
+    local tz
+    tz=$(timedatectl show -p Timezone --value 2>/dev/null) || tz=""
+    [[ -n "$tz" ]] || tz=$(readlink -f /etc/localtime 2>/dev/null | sed 's|.*/zoneinfo/||')
+    echo "${tz:-UTC}"
+}
+
+last_run() {
+    printf '%s|%s|%s\n' "$(date +%s)" "$1" "${2//$'\n'/ }" > "$LAST_RUN_FILE"
+}
+
+# Brings the systemd timer in line with backup-schedule: written and started
+# when it says daily or weekly, stopped and removed when it's off or missing.
+schedule_apply() {
+    local every day time cal
+    every=$(schedule_get every)
+    day=$(schedule_get day)
+    time=$(schedule_get time)
+    if [[ "$every" =~ ^(daily|weekly)$ && "$time" =~ ^([01][0-9]|2[0-3]):[0-5][0-9]$ ]] \
+        && [[ "$every" == daily || "$day" =~ ^[1-7]$ ]]; then
+        cal="*-*-* $time:00"
+        if [[ "$every" == weekly ]]; then cal="${SYSTEMD_DAYS[$((day - 1))]} $cal"; fi
+        cat > "$BACKUP_SERVICE_FILE" <<EOF
+[Unit]
+Description=Easy AIOStreams scheduled backup
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash $INSTALL_DIR/setup-backup.sh scheduled
+Nice=10
+TimeoutStartSec=3600
+EOF
+        cat > "$BACKUP_TIMER_FILE" <<EOF
+[Unit]
+Description=Easy AIOStreams scheduled backup ($(schedule_text))
+
+[Timer]
+OnCalendar=$cal
+# One missed while the server was off runs soon after it's back
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+        systemctl daemon-reload
+        systemctl enable "$BACKUP_UNIT.timer" >/dev/null 2>&1 || return 1
+        systemctl restart "$BACKUP_UNIT.timer" >/dev/null 2>&1 || return 1   # takes a changed time
+    elif [[ -f "$BACKUP_TIMER_FILE" || -f "$BACKUP_SERVICE_FILE" ]]; then
+        systemctl disable --now "$BACKUP_UNIT.timer" >/dev/null 2>&1 || true
+        rm -f "$BACKUP_TIMER_FILE" "$BACKUP_SERVICE_FILE"
+        systemctl daemon-reload
+    fi
+    return 0
+}
+
+# schedule off | daily HH:MM | weekly <1-7> HH:MM, without questions
+schedule_set() {
+    local every="$1" day="" time=""
+    case "$every" in
+        off) ;;
+        daily) time="${2:-}" ;;
+        weekly) day="${2:-}"; time="${3:-}" ;;
+        *) error "Usage: schedule off | daily HH:MM | weekly <1-7> HH:MM (1 Monday .. 7 Sunday)" ;;
+    esac
+    if [[ "$every" != off ]]; then
+        [[ "$time" =~ ^([01]?[0-9]|2[0-3]):[0-5][0-9]$ ]] || error "Use a 24-hour time, HH:MM (for example 04:00)."
+        time=$(printf '%02d:%02d' "$((10#${time%%:*}))" "$((10#${time##*:}))")
+        [[ "$every" == daily || "$day" =~ ^[1-7]$ ]] || error "Pick a day from 1 (Monday) to 7 (Sunday)."
+    fi
+    [[ -f "$COMPOSE_FILE" ]] || error "No installation found at $INSTALL_DIR."
+    if [[ "$every" == off ]]; then
+        rm -f "$SCHEDULE_FILE"
+    else
+        {
+            echo "# Scheduled backups: set with setup-backup.sh schedule, or the control panel"
+            echo "every=$every"
+            if [[ -n "$day" ]]; then echo "day=$day"; fi
+            echo "time=$time"
+        } > "$SCHEDULE_FILE.tmp"
+        mv "$SCHEDULE_FILE.tmp" "$SCHEDULE_FILE"
+    fi
+    schedule_apply || error "Couldn't start the timer. See: systemctl status $BACKUP_UNIT.timer"
+    if [[ "$every" == off ]]; then
+        echo "Scheduled backups: off. Backups already made stay where they are."
+    else
+        echo "Scheduled backups: $(schedule_text), server time ($(server_tz)). The newest $SCHEDULED_KEEP are kept."
+    fi
+}
+
+# What the last scheduled run did, in a line
+last_run_text() {
+    local at status text
+    IFS='|' read -r at status text < "$LAST_RUN_FILE" 2>/dev/null || return 0
+    [[ "$at" =~ ^[0-9]+$ ]] || return 0
+    case "$status" in
+        ok) echo "Last run: $(date -d "@$at" '+%a %d %b, %H:%M'). $text" ;;
+        skipped) echo "Last run: $(date -d "@$at" '+%a %d %b, %H:%M'), skipped. $text" ;;
+        running) echo "Running now, since $(date -d "@$at" '+%H:%M')." ;;
+        *) echo "Last run: $(date -d "@$at" '+%a %d %b, %H:%M'), failed. $text" ;;
+    esac
+}
+
+schedule_status() {
+    echo "Scheduled backups: $(schedule_text)$( [[ -f "$SCHEDULE_FILE" ]] && echo ", server time ($(server_tz)), the newest $SCHEDULED_KEEP kept")"
+    last_run_text
+    if [[ -f "$SCHEDULE_FILE" ]] && ! systemctl is-active --quiet "$BACKUP_UNIT.timer" 2>/dev/null; then
+        warn "The timer isn't running. Set the schedule again to start it."
+    fi
+    return 0
+}
+
+schedule_menu() {
+    local c d t
+    echo ""
+    schedule_status
+    echo ""
+    echo "  1) Daily"
+    echo "  2) Weekly"
+    echo "  3) Off"
+    echo "  0) Back"
+    read -rp "Choose [0-3]: " c || return 0
+    t=$(schedule_get time)
+    t=${t:-04:00}
+    case "$c" in
+        1)
+            read -rp "Time, 24-hour HH:MM, server time ($(server_tz)) [Enter for $t]: " d || return 0
+            schedule_set daily "${d:-$t}"
+            ;;
+        2)
+            echo "Days: 1 Monday, 2 Tuesday, 3 Wednesday, 4 Thursday, 5 Friday, 6 Saturday, 7 Sunday"
+            read -rp "Day [Enter for 7]: " d || return 0
+            local day=${d:-7}
+            read -rp "Time, 24-hour HH:MM, server time ($(server_tz)) [Enter for $t]: " d || return 0
+            schedule_set weekly "$day" "${d:-$t}"
+            ;;
+        3) schedule_set off ;;
+        *) return 0 ;;
+    esac
+}
+
+# Keeps the newest $SCHEDULED_KEEP scheduled backups. Only names with
+# "-scheduled-" are looked at, so the ones you make and the ones made before
+# an update never are. Locked ones (the control panel's Lock) are skipped
+# and don't count towards the number kept.
+PRUNED=0
+prune_scheduled() {
+    local meta="$INSTALL_DIR/ui-state/backup-meta.json" locked="" f name kept=0 d
+    PRUNED=0
+    if [[ -s "$meta" ]]; then
+        if ! command -v python3 >/dev/null 2>&1; then
+            warn "python3 isn't here to read which backups are locked, so none were removed."
+            return 0
+        fi
+        if ! locked=$(python3 -c 'import json, sys
+d = json.load(open(sys.argv[1]))
+print("\n".join(k for k, v in d.items() if isinstance(v, dict) and v.get("locked")))' "$meta" 2>/dev/null); then
+            warn "Couldn't read which backups are locked, so none were removed."
+            return 0
+        fi
+    fi
+    while IFS= read -r f; do
+        name=$(basename "$f")
+        if grep -qxF -- "$name" <<< "$locked"; then continue; fi
+        kept=$((kept + 1))
+        if (( kept <= SCHEDULED_KEEP )); then continue; fi
+        rm -f -- "$f"
+        for d in /home/*/; do
+            if [[ -f "$d$name" ]]; then rm -f -- "$d$name"; fi
+        done
+        PRUNED=$((PRUNED + 1))
+    done < <(find "$BACKUP_HOME" -maxdepth 1 -type f -name 'aiostreams-backup-scheduled-*.tar.gz' -printf '%f\n' 2>/dev/null \
+        | sort -r | sed "s|^|$BACKUP_HOME/|")
+    return 0
+}
+
+# What the timer runs. Every way it ends leaves a line in backup-last-run.
+do_scheduled() {
+    [[ -f "$SCHEDULE_FILE" ]] || { echo "Scheduled backups are off. Nothing to do."; return 0; }
+    [[ -f "$COMPOSE_FILE" ]] || { echo "No installation found at $INSTALL_DIR."; return 0; }
+    # One the server was off for runs just after boot: give the containers time to start first
+    local up
+    up=$(cut -d. -f1 /proc/uptime)
+    if (( up < 300 )); then sleep $((300 - up)); fi
+    if pgrep -f 'setup-(backup|aiostreams)\.sh restore' >/dev/null 2>&1; then
+        last_run skipped "A restore was running at the time."
+        echo "A restore is running. Skipped."
+        return 0
+    fi
+    local pct avail newest need size
+    read -r pct avail < <(df -P -B1 "$BACKUP_HOME" 2>/dev/null | awk 'NR == 2 {sub("%", "", $5); print $5, $4}') || true
+    newest=$(find "$BACKUP_HOME" -maxdepth 1 -type f -name 'aiostreams-backup-*.tar.gz' -printf '%T@ %s\n' 2>/dev/null | sort -rn | head -n 1 | cut -d' ' -f2)
+    need=$(( 2 * ${newest:-50000000} ))
+    if [[ "$pct" =~ ^[0-9]+$ && "$avail" =~ ^[0-9]+$ ]] && (( pct >= SCHEDULED_DISK_PCT || avail < need )); then
+        last_run skipped "The disk is ${pct}% full ($(numfmt --to=iec --suffix=B "$avail" 2>/dev/null || echo "$avail bytes") free), so no backup was made. Free up space, or delete old backups."
+        echo "Disk ${pct}% full. Skipped."
+        return 0
+    fi
+    # "running" while it works. If it stops without saying why, the watchdog
+    # reports it as failed after an hour with this text; error() writes its own.
+    last_run running "It stopped partway. See: journalctl -u $BACKUP_UNIT"
+    SCHEDULED_RUN=true
+    do_backup
+    if [[ -z "$BACKUP_WRITTEN" ]] || ! tar -tzf "$BACKUP_WRITTEN" >/dev/null 2>&1; then
+        [[ -n "$BACKUP_WRITTEN" ]] && rm -f -- "$BACKUP_WRITTEN"
+        error "The new backup didn't read back cleanly, so it was removed. Older backups were kept."
+    fi
+    size=$(du -h "$BACKUP_WRITTEN" | cut -f1)
+    prune_scheduled
+    local msg="$(basename "$BACKUP_WRITTEN"), ${size}B."
+    if (( PRUNED == 1 )); then msg+=" Removed the oldest scheduled one."; fi
+    if (( PRUNED > 1 )); then msg+=" Removed the $PRUNED oldest scheduled ones."; fi
+    last_run ok "$msg"
+    echo "$msg"
     return 0
 }
 
@@ -1053,6 +1321,27 @@ do_restore() {
         summary+=("Watchdog: switched off when the backup was made, left off.")
     fi
 
+    # Scheduled backups: the timer follows the restored backup-schedule. A
+    # backup from before format 4 can't say, so a server that had them gets
+    # a reminder rather than a guess.
+    local had_timer=false sched_format
+    [[ -f "$BACKUP_TIMER_FILE" ]] && had_timer=true
+    sched_format=$(grep -m1 -oP '^format=\K[0-9]+' "$INSTALL_DIR/backup-info" 2>/dev/null || echo 1)
+    schedule_apply || true
+    if [[ -f "$SCHEDULE_FILE" ]]; then
+        if systemctl is-active --quiet "$BACKUP_UNIT.timer" 2>/dev/null; then
+            summary+=("Scheduled backups: $(schedule_text), as when the backup was made.")
+        else
+            summary+=("Scheduled backups were on, but the timer couldn't be started. Set them again: sudo bash $INSTALL_DIR/setup-backup.sh schedule")
+        fi
+    elif $had_timer; then
+        if (( sched_format < 4 )); then
+            summary+=("Scheduled backups: this backup is from before they existed, so they're off now. Turn them on again on the panel's Backup & Restore page, or: sudo bash $INSTALL_DIR/setup-backup.sh schedule daily 04:00")
+        else
+            summary+=("Scheduled backups: off when the backup was made, left off.")
+        fi
+    fi
+
     local id dir site ctr name a ok
     for a in "${ADDONS[@]}"; do
         IFS='|' read -r id name dir site ctr <<< "$a"
@@ -1196,6 +1485,14 @@ case "${1:-}" in
         do_backup
         exit 0
         ;;
+    schedule)
+        if [[ -z "${2:-}" ]]; then schedule_status; else schedule_set "$2" "${3:-}" "${4:-}"; fi
+        exit 0
+        ;;
+    scheduled)
+        do_scheduled
+        exit 0
+        ;;
     restore)
         case "${2:-}" in
             --check)
@@ -1219,17 +1516,19 @@ case "${1:-}" in
     "")
         ;;
     *)
-        error "Unknown command '$1'. Use: backup, or restore [file]."
+        error "Unknown command '$1'. Use: backup, restore [file], or schedule."
         ;;
 esac
 
 info "Backup & restore"
 echo "  1) Back up now"
 echo "  2) Restore from a backup (replaces the current install)"
-echo "  3) Exit"
-read -rp "Select an option [1-3]: " MENU_CHOICE
+echo "  3) Scheduled backups (now: $(schedule_text))"
+echo "  4) Exit"
+read -rp "Select an option [1-4]: " MENU_CHOICE
 case "$MENU_CHOICE" in
     1) do_backup ;;
     2) do_restore "" ;;
+    3) schedule_menu ;;
     *) echo "Exiting." ;;
 esac
