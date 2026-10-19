@@ -381,6 +381,13 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .wd-topic-what { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .wd-topic-what .vpn-label { margin: 0; }
 .wd-opts { margin-top: 18px; padding: 16px 20px 6px; }
+/* Backup & Restore: the schedule above the list */
+.sched-card { padding: 16px 20px 14px; margin-bottom: 18px; }
+.sched-card h3 { margin: 0 0 12px; }
+.sched-card .wd-when-row { padding-bottom: 8px; }
+.sched-card p { margin: 4px 0 0; }
+.sched-last.warn { color: var(--warn); }
+.lock-tag.sched-tag { color: var(--dim); background: var(--raised); box-shadow: inset 0 0 0 1px var(--line); }
 .wd-opts h3 { margin-bottom: 4px; }
 .wd-opt { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-top: 1px solid var(--line-soft); cursor: pointer; }
 .wd-opt:first-of-type { border-top: 0; }

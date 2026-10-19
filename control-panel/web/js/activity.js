@@ -56,6 +56,7 @@ export async function showBackups(status) {
   b.disabled = !act || !act.available || !!status.busy;
   b.onclick = () => runAction(act);
   showSetAsides().catch(() => {});
+  showSchedule().catch(() => {});
   const items = await api("/api/backups");
   if (serverIp === undefined) serverIp = await api("/api/server-address").then((r) => r.ip || null, () => null);
   // An IPv6 address needs brackets in scp's user@host:path.
@@ -160,6 +161,8 @@ function backupRow(it, cmd, restore, status) {
     h("span", {},
       h("div", { class: "what mono" }, it.name,
         it.build ? h("span", { class: "build-tag", title: `AIOStreams ${it.build.version}, ${it.build.tag.endsWith("-nightly") ? "nightly build" : "stable release"} ${it.build.tag}`, text: tagLabel(it.build.tag) }) : null,
+        it.name.includes("-scheduled-") ? h("span", { class: "lock-tag sched-tag", text: "Scheduled",
+          title: "Made by the schedule. The newest 7 are kept and older ones removed; lock one to keep it for good." }) : null,
         it.locked ? h("span", { class: "lock-tag", text: "Locked" }) : null),
       h("div", { class: "when", text: `${fmtBytes(it.size)}, made ${ago(it.mtime)}, saved in ${it.dirs.join(" and ")}` })),
     h("div", { class: "btns" },
@@ -176,6 +179,67 @@ function backupRow(it, cmd, restore, status) {
       } }),
       del),
     noteLine);
+}
+
+// Scheduled backups: off, daily or weekly at a time of day, server time. setup-backup.sh's
+// timer makes them; the newest 7 are kept, and the watchdog alerts if one fails.
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+export function scheduleText(s) {
+  if (!s || s.every === "off") return "Not scheduled";
+  return s.every === "daily" ? `Daily at ${s.time}` : `${DAYS[(s.day || 7) - 1]}s at ${s.time}`;
+}
+
+async function showSchedule() {
+  const box = $("#backup-schedule");
+  let s;
+  try { s = await api("/api/backup-schedule"); } catch (_) { clear(box); return; }
+  clear(box);
+  if (!s.available) return;
+  const every = h("select", { class: "input", "aria-label": "How often" },
+    ...[["off", "Off"], ["daily", "Daily"], ["weekly", "Weekly"]].map(([v, t]) => h("option", { value: v, text: t })));
+  const day = h("select", { class: "input", "aria-label": "Day" }, ...DAYS.map((d, i) => h("option", { value: String(i + 1), text: d })));
+  const time = h("input", { class: "input", type: "time", step: "60", value: s.time || "04:00", "aria-label": "Time" });
+  const setBtn = h("button", { class: "btn small", type: "button", text: "Set" });
+  every.value = s.every; day.value = String(s.day || 7);
+  const onDay = h("span", { class: "dim", text: "on" });
+  const tz = h("span", { class: "dim", text: `server time${s.timezone ? ` (${s.timezone})` : ""}` });
+  const atLbl = h("span", { class: "dim", text: "at" });
+  const show = () => {
+    const on = every.value !== "off";
+    for (const el of [atLbl, time, setBtn, tz]) el.hidden = !on;
+    onDay.hidden = day.hidden = every.value !== "weekly";
+  };
+  const save = async (body) => {
+    setBtn.disabled = every.disabled = true;
+    try {
+      const r = await api("/api/backup-schedule", { method: "PUT", body: JSON.stringify(body) });
+      toast(r.every === "off" ? "Scheduled backups: off." : `Scheduled backups: ${r.every === "daily" ? `daily at ${r.time}` : `weekly, ${scheduleText(r)}`}.`);
+    } catch (e) { toast(e.message || "Couldn't save it.", true); }
+    showSchedule().catch(() => {});
+  };
+  every.addEventListener("change", () => { show(); if (every.value === "off" && s.every !== "off") save({ every: "off" }); });
+  setBtn.addEventListener("click", () => {
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time.value)) { toast("Pick a time, for example 04:00.", true); return; }
+    save({ every: every.value, day: Number(day.value), time: time.value });
+  });
+  show();
+
+  // How the last run went: quiet when fine, amber when it failed or was skipped
+  const l = s.last;
+  let last = null;
+  if (s.every !== "off" && l) {
+    if (l.status === "running") last = h("p", { class: "dim sched-last", text: "Making one now…" });
+    else if (l.status === "ok") last = h("p", { class: "dim sched-last", text: `Last one made ${ago(l.at)}.` });
+    else last = h("p", { class: "sched-last warn", text: `The last one ${l.status === "skipped" ? "was skipped" : "failed"} ${ago(l.at)}: ${l.text}` });
+  } else if (s.every !== "off" && !s.timer) {
+    last = h("p", { class: "sched-last warn", text: "The timer isn't running. Press Set to start it again." });
+  }
+  box.append(h("section", { class: "panel sched-card" },
+    h("h3", { text: "Scheduled backups" }),
+    h("div", { class: "wd-when-row" }, every, onDay, day, atLbl, time, setBtn, tz),
+    last,
+    h("p", { class: "dim small", text: "The newest 7 scheduled backups are kept. Ones you make, ones made before an update and locked ones are never removed. "
+      + "They stay on this server, so copy one somewhere else now and then." })));
 }
 
 // Old installs a restore moved aside. Only shown when there are some.

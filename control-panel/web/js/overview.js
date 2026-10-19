@@ -3,6 +3,7 @@ import { runAction, openJob, rebootServer, restartService } from "./actions.js";
 import { openReleases, remember, behind } from "./releases.js";
 import { days, todayLine, parseCheck } from "./alerts.js";
 import { pill as scriptsPill } from "./scripts.js";
+import { scheduleText } from "./activity.js";
 
 // ---------------- update check ----------------
 let rel = null, relLoading = false, relFor = null, lastSt = null;
@@ -383,6 +384,13 @@ function side(st) {
     if (!total) continue;
     const pct = (used / total) * 100;
     grid.append(stat(label, `${fmtBytes(used)} of ${fmtBytes(total)}`, `${Math.round(pct)}% used, ${fmtBytes(total - used)} free`, tone(pct, warn, 90)));
+  }
+  // The newest backup, any kind, and the schedule; amber when the last scheduled one failed or was skipped
+  const bk = st.backup;
+  if (bk) {
+    const bad = bk.every !== "off" && bk.last && (bk.last.status === "failed" || bk.last.status === "skipped");
+    grid.append(stat("Last backup", bk.newest ? ago(bk.newest) : "None yet",
+      bad ? `The last scheduled one ${bk.last.status === "skipped" ? "was skipped" : "failed"}` : scheduleText(bk), bad ? "warn" : ""));
   }
   host.append(grid, h("div", { class: "card-foot" },
     h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer })));

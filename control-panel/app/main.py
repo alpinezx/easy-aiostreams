@@ -304,7 +304,7 @@ async def watchdog(user: str = Depends(current_user)):
 
 @app.post("/api/watchdog/options")
 async def watchdog_option(request: Request, user: str = Depends(current_user)):
-    """The Phone alerts page's settings: {"name": "updates"|"reboots"|"scripts"|"weekly", "on": bool},
+    """The Phone alerts page's settings: {"name": "updates"|"reboots"|"scripts"|"backups"|"weekly", "on": bool},
     or {"name": "weekly_day", "value": 1 (Mon) .. 7 (Sun)}, or {"name": "weekly_time", "value": "HH:MM"}."""
     try:
         body = await request.json()
@@ -425,6 +425,27 @@ async def backups(user: str = Depends(current_user)):
     return [{**b, "locked": bool(meta.get(b["name"], {}).get("locked")),
              "note": str(meta.get(b["name"], {}).get("note", "")),
              "build": known.get(b["name"]), "build_pending": b["name"] in pending} for b in items]
+
+
+@app.get("/api/backup-schedule")
+async def backup_schedule(user: str = Depends(current_user)):
+    """Scheduled backups: off, daily or weekly, and how the last run went."""
+    return await asyncio.to_thread(backend.backup_schedule)
+
+
+@app.put("/api/backup-schedule")
+async def set_backup_schedule(request: Request, user: str = Depends(current_user)):
+    """{"every": "off"} or {"every": "daily", "time": "HH:MM"} or {"every": "weekly", "day": 1-7, "time": "HH:MM"}."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = None
+    if not isinstance(body, dict):
+        raise HTTPException(400, "Bad request")
+    try:
+        return await asyncio.to_thread(backend.set_backup_schedule, body.get("every"), body.get("day"), body.get("time"))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @app.get("/api/set-asides")

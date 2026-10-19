@@ -21,7 +21,7 @@ export function parseCheck(line) {
 const KIND = {
   fail: ["Failed", "warn"], alert: ["Alert sent", "bad"], recovered: ["Recovered", "ok"],
   start: ["Started", ""], stop: ["Stopped", ""], test: ["Test alert", ""], topic: ["Topic", ""], reboot: ["Restarted", ""], disk: ["Disk space", ""], cert: ["Certificate", ""],
-  update: ["Update", ""], scripts: ["Scripts", ""], weekly: ["Weekly", ""],
+  update: ["Update", ""], scripts: ["Scripts", ""], backup: ["Backup", ""], weekly: ["Weekly", ""],
 };
 
 function when(at) {
@@ -222,6 +222,7 @@ function extras(w) {
       : "With how long it was down, and whether it shut down cleanly.", !!w.relay_reboots),
     row("scripts", "When a script here differs from GitHub's copy", "Scripts can change several times a week, "
       + "so this can be chatty. At most one alert a day."),
+    row("backups", "When a scheduled backup is made", "A failed or skipped one always alerts, with this on or off."),
     row("weekly", "Weekly check-in", "The week's checks, alerts and disk space. "
       + "If it stops arriving, the watchdog itself needs a look.", false, when), when);
 }

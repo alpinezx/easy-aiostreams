@@ -72,7 +72,8 @@ class DemoBackend:
         self.removed_scripts: set[str] = set()
         self.wd_running = True
         self.wd_configured = True
-        self.wd_options = {"updates": False, "reboots": False, "scripts": False, "weekly": False, "weekly_day": 7, "weekly_time": "10:00"}
+        self.wd_options = {"updates": False, "reboots": False, "scripts": False, "backups": False, "weekly": False, "weekly_day": 7, "weekly_time": "10:00"}
+        self.schedule = {"every": "daily", "day": 7, "time": "04:00"}
         self.wd_topic = "aios-7f3k29xq81"
         now = time.time()
         # A quiet fortnight with one blip and one real outage, for the Phone alerts page
@@ -135,7 +136,7 @@ class DemoBackend:
 
     def set_watchdog_option(self, name: str, value) -> None:
         from .stack import TIME_RE
-        ok = (name in ("updates", "reboots", "scripts", "weekly") and isinstance(value, bool)) or \
+        ok = (name in ("updates", "reboots", "scripts", "backups", "weekly") and isinstance(value, bool)) or \
             (name == "weekly_day" and type(value) is int and 1 <= value <= 7) or \
             (name == "weekly_time" and isinstance(value, str) and bool(TIME_RE.match(value.strip())))
         if not ok:
@@ -253,6 +254,8 @@ class DemoBackend:
             "host": {"cpus": 2, "load": [0.21, 0.34, 0.29], "mem_total": 4 * GB, "mem_used": int(1.6 * GB),
                      "uptime": 41 * 86400 + 3 * 3600, "disk_total": 80 * GB, "disk_used": 23 * GB},
             "cert": {"host": "streams.example.com", "days_left": 61, "ok": True, "days_total": 90},
+            "backup": {"newest": max(b["mtime"] for b in self.backups()) if self.backups() else None,
+                       **self.schedule, "last": self._last_run()},
             "actions": [{"id": a.id, "label": a.label, "confirm": a.confirm, "available": True} for a in catalog()],
         }
 
@@ -280,12 +283,41 @@ class DemoBackend:
             raise FileNotFoundError(name)
         self._gone.add(name)
 
+    def _last_run(self) -> dict | None:
+        if self.schedule["every"] == "off":
+            return None
+        return {"at": int(time.time()) - 5 * 3600, "status": "ok",
+                "text": "aiostreams-backup-scheduled-20261019-040000.tar.gz, 4.7MB."}
+
+    def backup_schedule(self) -> dict:
+        return {**self.schedule, "keep": 7, "available": True, "timer": self.schedule["every"] != "off",
+                "timezone": "Europe/London", "last": self._last_run()}
+
+    def set_backup_schedule(self, every, day, t) -> dict:
+        from .stack import TIME_RE
+        if every == "off":
+            self.schedule["every"] = "off"
+        elif every in ("daily", "weekly") and isinstance(t, str) and TIME_RE.match(t.strip()) \
+                and (every == "daily" or (type(day) is int and 1 <= day <= 7)):
+            hh, mm = t.strip().split(":")
+            self.schedule.update(every=every, time=f"{int(hh):02d}:{int(mm):02d}")
+            if every == "weekly":
+                self.schedule["day"] = day
+        else:
+            raise ValueError("Pick daily or weekly, and a time.")
+        return self.backup_schedule()
+
     def backups(self) -> list[dict]:
         now = int(time.time())
         return [b for b in self._all_backups(now) if b["name"] not in self._gone]
 
     def _all_backups(self, now):
-        return self._made + [{"name": "aiostreams-backup-20261007-031500.tar.gz", "size": 4_812_330, "mtime": now - 2 * 86400, "dirs": ["/root", "/home/ubuntu"]},
+        day = time.strftime("%Y%m%d", time.localtime(now - 5 * 3600))
+        prev = time.strftime("%Y%m%d", time.localtime(now - 29 * 3600))
+        return self._made + [
+                {"name": f"aiostreams-backup-scheduled-{day}-040000.tar.gz", "size": 4_820_114, "mtime": now - 5 * 3600, "dirs": ["/root"]},
+                {"name": f"aiostreams-backup-scheduled-{prev}-040000.tar.gz", "size": 4_818_993, "mtime": now - 29 * 3600, "dirs": ["/root"]},
+                {"name": "aiostreams-backup-20261007-031500.tar.gz", "size": 4_812_330, "mtime": now - 2 * 86400, "dirs": ["/root", "/home/ubuntu"]},
                 {"name": "aiostreams-backup-20260930-221042.tar.gz", "size": 4_790_114, "mtime": now - 9 * 86400, "dirs": ["/root", "/home/ubuntu"]},
                 {"name": "aiostreams-backup-20260914-094407.tar.gz", "size": 4_611_802, "mtime": now - 25 * 86400, "dirs": ["/root"]}]
 
