@@ -833,8 +833,9 @@ server_timezone() {
 DAY_NAMES=(Monday Tuesday Wednesday Thursday Friday Saturday Sunday)
 
 extras_line() {
-    local u w r sc
+    local u w r sc b
     option_on updates && u="on" || u="off"
+    option_on backups && b="on" || b="off"
     reboots_on && r="on" || r="off"
     option_on scripts && sc="on" || sc="off"
     if option_on weekly; then
@@ -842,7 +843,7 @@ extras_line() {
     else
         w="off"
     fi
-    echo "new releases $u; restarts $r; script updates $sc; weekly check-in $w"
+    echo "new releases $u; restarts $r; script updates $sc; backups made $b; weekly check-in $w"
 }
 
 # One square per day for the last 14: green all passed, amber some failed, grey no checks

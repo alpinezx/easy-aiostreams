@@ -223,7 +223,7 @@ function extras(w) {
     row("scripts", "When a script here differs from GitHub's copy", "Scripts can change several times a week, "
       + "so this can be chatty. At most one alert a day."),
     row("backups", "When a scheduled backup is made", "A failed or skipped one always alerts, with this on or off."),
-    row("weekly", "Weekly check-in", "The week's checks, alerts and disk space. "
+    row("weekly", "Weekly check-in", "The week's checks, alerts, disk space and newest backup. "
       + "If it stops arriving, the watchdog itself needs a look.", false, when), when);
 }
 
