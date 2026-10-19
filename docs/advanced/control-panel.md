@@ -49,12 +49,12 @@ It is still root-equivalent on your server, because it has to run the scripts an
 
 | Button | Script and input |
 | --- | --- |
-| Start, Stop (AIOStreams' row), Restart stack | `setup-aiostreams.sh` menu options 3, 2, 4 |
+| Start, Stop (AIOStreams' row), Restart stack | `setup-aiostreams.sh start`, `stop`, `restart` (menu options 3, 2, 4 without their questions) |
 | Restart (per service) | restarts just that container through Docker; AIOStreams, MediaFlow and the webhook relay only |
-| Update | menu option 5, with the backup and build-channel answers from the dialog |
+| Update | `setup-aiostreams.sh update`, with `--backup` and `--channel latest\|nightly` from the dialog (menu option 5 without its questions) |
 | Back up now | `setup-aiostreams.sh backup` |
 | Scheduled backups: Set, Off | `setup-backup.sh schedule daily HH:MM`, `weekly <1-7> HH:MM`, `off`, which writes `backup-schedule` and the systemd timer |
-| MediaFlow, webhook relay | `start-mediaflow`, `start-relay`, and menu option 3 for Stop |
+| MediaFlow, webhook relay | `start-mediaflow`, `start-relay`, `stop-mediaflow`, `stop-relay` |
 | Phone alerts: Start, Stop, Send test alert | `setup-watchdog.sh install-timer`, `stop` (with menu option 3 typed too, for older copies of the script), `test` |
 | Phone alerts: Uninstall | `setup-watchdog.sh uninstall` (menu option 9 without its question; the panel asks first) |
 | Phone alerts: Change topic | `setup-watchdog.sh set-topic`, with the topic on stdin (never on a command line or in Activity), then a test alert to it |
@@ -68,6 +68,8 @@ It is still root-equivalent on your server, because it has to run the scripts an
 | Maintenance: Install updates, Set limits | `setup-aiostreams.sh system-updates`, `log-limits`, run on the host as their own systemd unit (`aios-maintenance`) rather than under the panel: Docker restarting restarts the panel's container too. Output goes to `ui-state/maint.log`, the exit code to `maint.log.code` |
 | Update (Scripts tab) | downloads GitHub's main copy through the API (raw links can be minutes stale), checks it against the SHA GitHub lists, then replaces the script on the host; the AIOStreams menu's also replaces `setup-backup.sh`, and the watchdog's runs `setup-watchdog.sh refresh` so its timer's copy follows (starting nothing) |
 | Remove (Scripts tab) | deletes an add-on's script from the install folder, only while that add-on's state folder is gone (it isn't set up) |
+
+These commands ask nothing. Where the menu would ask whether to go on with the VPN set up but switched off, they stop instead and say so. After each command the panel also types the menu numbers that used to do the same job, which only an older script reads: one that doesn't know the command falls through to its menu. So the menu numbers the panel types (3, 2, 4 and 5, then 10 to exit; 3 then 10 for the add-ons' Stop) never change, and a panel test checks them against the scripts.
 
 The scripts run on the host with a terminal attached, like an SSH session. The main script's Reconfigure, the VPN's first-time setup and the other add-ons' uninstalls have no button.
 
