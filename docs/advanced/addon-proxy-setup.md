@@ -5,7 +5,7 @@
 ## What this is for
 
 Scrapers like Torrentio sit behind Cloudflare and actively rate-limit or
-blacklist IP ranges they recognise as datacenter/VPN/proxy traffic .  which
+blacklist IP ranges they recognise as datacenter/VPN/proxy traffic, which
 is exactly what a VPS's IP looks like to them. When that happens, you'll
 typically see one of:
 
@@ -15,12 +15,12 @@ typically see one of:
 
 This is a narrower, cheaper problem than "streams won't play" (that's the
 [Proxy Setup](./proxy-setup.md) guide, a different feature). Here, it's
-just that one scraper's *search* requests getting blocked .  nothing to do
+just that one scraper's *search* requests getting blocked: nothing to do
 with playback or your debrid account.
 
 The fix: route just that scraper's outbound requests through a different
-IP. AIOStreams has a built-in feature for exactly this .  the **Addon
-Proxy** .  configured from the admin dashboard, not your regular per-user
+IP. AIOStreams has a built-in feature for exactly this: the **Addon
+Proxy**, configured from the admin dashboard, not your regular per-user
 config page.
 
 ---
@@ -42,16 +42,16 @@ the addon that's actually blocked, and doesn't touch anything else.
 ---
 
 ## 1. Get a free proxy
-1. Sign up at [webshare.io](https://www.webshare.io/) .  you'll land on **Free → Proxy List**, showing 10 free proxies already provisioned for you.
+1. Sign up at [webshare.io](https://www.webshare.io/): you'll land on **Free → Proxy List**, showing 10 free proxies already provisioned for you.
 2. Pick any row, click the **⋮** (three dots) at the end of that row, and choose **Copy cURL Request**. This copies a full command like:
 
-   > ⚠️ Example only .  replace with your own copied values.
+   > ⚠️ Example only: replace with your own copied values.
 
    ```
    curl --proxy "http://username:password@proxy.example.com:8080/" https://ipv4.webshare.io/
    ```
 
-3. You only need the proxy part in the middle .  not the `curl --proxy` wrapper, not the trailing test URL, not the trailing slash. From the example above, that's:
+3. You only need the proxy part in the middle: not the `curl --proxy` wrapper, not the trailing test URL, not the trailing slash. From the example above, that's:
    ```
    http://username:password@proxy.example.com:8080
    ```
@@ -76,29 +76,29 @@ detection than another datacenter IP.
 
 1. Log into your AIOStreams **admin dashboard**.
 2. Go to **Settings** → **Outbound Requests**.
-3. **Addon proxy URL(s)** .  add your proxy's full connection URL:
+3. **Addon proxy URL(s)**: add your proxy's full connection URL:
    ```
    http://username:password@host:port
    ```
    Each one you add gets an index, starting at `0`, in the order you add
-   them. You can add more than one .  useful if you want different addons
+   them. You can add more than one: useful if you want different addons
    routed through different proxies (e.g. a paid residential proxy for one
    heavily-blocked scraper, a free one for another).
-4. **Addon proxy config** .  add rules mapping a hostname (or a
+4. **Addon proxy config**: add rules mapping a hostname (or a
    `[context]` label like `[torrent_grabs]`) to a proxy index:
-   - Key: `torrentio.strem.fun`, Value: `0` .  routes just Torrentio
+   - Key: `torrentio.strem.fun`, Value: `0` routes just Torrentio
      through your first configured proxy.
-   - Key: `*`, Value: `0` .  routes *everything* through it (rarely what
+   - Key: `*`, Value: `0` routes *everything* through it (rarely what
      you want; defeats the point of a surgical fix and burns through a
      free tier's request limits fast).
-   - Key: `*.strem.fun`, Value: `1` .  wildcard, matches any subdomain.
+   - Key: `*.strem.fun`, Value: `1` is a wildcard, matching any subdomain.
 
    When multiple rules could match the same request, the most specific one
    wins: exact hostname, then wildcard hostname, then `[context]` label,
    then global `*`. Note that this specificity order, not the order you add
-   rules in the dashboard UI, decides what fires .  a `*` rule added first or
+   rules in the dashboard UI, decides what fires: a `*` rule added first or
    last behaves identically either way.
-5. Click **Save**. No restart needed .  this is a runtime setting.
+5. Click **Save**. No restart needed: this is a runtime setting.
 
 **Confirmed by testing, and this reverses an earlier assumption:** as soon
 as any URL exists under **Addon proxy URL(s)**, leaving **Addon proxy
@@ -120,7 +120,7 @@ proxy and want everything routed through it by default, in which case
 skip the `false` rule and set `*` to whichever index you want as the
 default.
 
-**Worked example** .  proxying Torrentio and TorBox's API specifically.
+**Worked example**: proxying Torrentio and TorBox's API specifically.
 The `* = false` line isn't optional here, it's the line that keeps
 everything else, including a Built-in Proxy video fetch if you're running
 one, off this proxy entirely:
@@ -186,7 +186,7 @@ above:
   You'd still be proxying every addon's manifest/search/metadata calls,
   just not the large one.
 - **You're using Built-in Proxy, but bandwidth genuinely isn't a
-  constraint** .  a paid or uncapped proxy, covered above.
+  constraint**: a paid or uncapped proxy, covered above.
 
 Either way, `* = 0` still means every metadata and search call from every
 addon goes through the proxy, not just the video. Usually fine, just not
@@ -250,15 +250,15 @@ regular account login.
 Search for something on the previously-blocked addon. Two ways to confirm
 it's actually working, not just configured:
 
-- **Results come back** where they didn't before .  the practical test.
-- **Check the logs** for that addon's requests .  a 403 disappearing
+- **Results come back** where they didn't before: the practical test.
+- **Check the logs** for that addon's requests: a 403 disappearing
   (replaced by a normal 200) confirms the block is actually cleared, not
   just that AIOStreams *attempted* to use the proxy.
 
 If it's still failing after adding the proxy, double check the exact
 hostname in **Addon proxy config** matches what's actually in the addon's
 configured URL (some addons use a different subdomain or a self-hosted
-mirror rather than the public one) .  a mismatch here means the rule simply
+mirror rather than the public one): a mismatch here means the rule simply
 never fires.
 
 **If you're repeating the same search or playback to compare before/after
@@ -278,7 +278,7 @@ affect and won't undo bandwidth already used, and it has no bearing on the
 
 Unlike the [Proxy setting](./proxy-setup.md#important-this-is-per-config-not-instance-wide),
 which lives inside each user's saved config, the Addon Proxy is an admin
-setting .  set once, applies to every config on this instance. For a
+setting: set once, applies to every config on this instance. For a
 typical single-user setup, that distinction doesn't matter in practice,
 but it's worth knowing if you ever add additional users.
 
@@ -287,7 +287,7 @@ but it's worth knowing if you ever add additional users.
 ## Where this leaves the VPN layer
 
 Before this feature, the [VPN layer](./vpn-setup.md) (`setup-vpn-gluetun.sh`)
-was the only way to fix a blocked scraper .  routing *everything* AIOStreams
+was the only way to fix a blocked scraper: routing *everything* AIOStreams
 does through a WireGuard tunnel, because the block wasn't otherwise
 addressable per-addon. That's still a completely valid thing to run, but
 for the specific problem of "one scraper is blocked," it's no longer the
@@ -297,16 +297,16 @@ first thing to reach for:
   five minutes, no bandwidth cost, nothing else about your setup changes.
 - **Multiple things blocked at once, or you'd rather route everything
   through a VPN by default instead of managing proxy rules per addon?**
-  The VPN layer is the broader tool .  it wraps AIOStreams' entire outbound
+  The VPN layer is the broader tool: it wraps AIOStreams' entire outbound
   traffic, including your debrid provider's own API calls (account checks,
   library, resolving links), not just scraper search requests. See
   [VPN Setup](./vpn-setup.md#relationship-to-the-proxy-setting) for the
   full picture of what it covers that Addon Proxy doesn't. *(If your
   actual goal is your debrid provider never seeing your real IP at all,
-  that's a stricter goal than either of these .  see
+  that's a stricter goal than either of these: see
   [Anonymity, if that's actually your goal](./vpn-setup.md#anonymity-if-thats-actually-your-goal).)*
 - **Both blocked traffic and privacy matter to you?** Nothing stops you
-  running both .  they don't conflict. Addon Proxy can even point at your
+  running both: they don't conflict. Addon Proxy can even point at your
   existing `gluetun` container as one of its proxy entries
   (`http://gluetun:8080`) instead of a separate paid/free proxy, if you'd
   rather not manage a second credential.

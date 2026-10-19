@@ -1,6 +1,6 @@
-# Proxy Setup .  Basic Guide
+# Proxy Setup: Basic Guide
 
-Turn this on if streams fail to load or time out, and using a VPN on your device "fixes" it .  that means your ISP is blocking your debrid traffic. (Seeing a *scraper or addon* inside AIOStreams/Comet rate-limited, blacklisted, or returning nothing instead? That's your VPS's own IP getting blocked .  try [Addon Proxy Setup](./addon-proxy-setup.md) first, it's free and fixes just that addon; the [VPN Setup guide](./vpn-setup.md) also fixes it but is the heavier, broader option.)
+Turn this on if streams fail to load or time out, and using a VPN on your device "fixes" it: that means your ISP is blocking your debrid traffic. (Seeing a *scraper or addon* inside AIOStreams/Comet rate-limited, blacklisted, or returning nothing instead? That's your VPS's own IP getting blocked: try [Addon Proxy Setup](./addon-proxy-setup.md) first, it's free and fixes just that addon; the [VPN Setup guide](./vpn-setup.md) also fixes it but is the heavier, broader option.)
 
 > Want to know exactly how this works, or the bandwidth details? → [Advanced guide](../advanced/proxy-setup.md)
 

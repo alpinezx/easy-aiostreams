@@ -1,4 +1,4 @@
-# Webhook Relay — Basic Guide
+# Webhook Relay: Basic Guide
 
 For turning a third-party site's "Webhook" notification option into a phone alert, when that site needs a real HTTPS endpoint to POST to and you don't already have one.
 
@@ -24,7 +24,7 @@ Should print this server's IP.
 
 **This does:** gives you somewhere to actually receive the relayed alerts.
 
-Install [ntfy](https://ntfy.sh) from the Play Store or App Store, or just keep `https://ntfy.sh` open in a browser tab — either works. No account, no signup.
+Install [ntfy](https://ntfy.sh) from the Play Store or App Store, or just keep `https://ntfy.sh` open in a browser tab. Either works. No account, no signup.
 
 ---
 
@@ -39,7 +39,7 @@ sudo bash /opt/aiostreams/setup-webhook.sh
 
 Choose **2) Start**. It'll ask for:
 1. The subdomain from step 1
-2. A secret token (Enter accepts a random suggestion — this is what stops randoms from POSTing to your endpoint)
+2. A secret token (Enter accepts a random suggestion: this is what stops randoms from POSTing to your endpoint)
 3. An ntfy topic to relay events to (reuse the [watchdog](./watchdog.md)'s or pick a new one; long and hard to guess, since anyone who knows it can see your alerts)
 
 It prints a full URL at the end, something like:
@@ -64,7 +64,7 @@ In the ntfy app (or your browser tab), subscribe to the exact topic name the scr
 
 **This does:** the actual point of all this.
 
-Find the site's webhook/notification setup, paste in the full URL from step 3, and confirm/verify it. Most sites send a verification request first — if theirs uses a `challenge` field it expects echoed back, this script already handles that automatically.
+Find the site's webhook/notification setup, paste in the full URL from step 3, and confirm/verify it. Most sites send a verification request first: if theirs uses a `challenge` field it expects echoed back, this script already handles that automatically.
 
 You should see a confirmation on the site, and a matching notification land in your ntfy topic within a few seconds.
 

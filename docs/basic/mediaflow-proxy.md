@@ -1,4 +1,4 @@
-# MediaFlow Proxy — Basic Guide
+# MediaFlow Proxy: Basic Guide
 
 An alternative to AIOStreams' built-in proxy. Runs as its own small container ([MediaFlow Proxy Light](https://github.com/mhdzumair/MediaFlow-Proxy-Light), a Rust rewrite), which handles scrub/seek bursts from Stremio-based clients noticeably faster and lighter on CPU than the built-in proxy does.
 
@@ -57,12 +57,12 @@ Run the script again any time for a menu:
 ```bash
 sudo bash /opt/aiostreams/setup-mediaflow.sh
 ```
-- **Status** — running or not, current domain/URL.
-- **Start / Stop** — turn MediaFlow on or off.
-- **Test** — checks both that the container is alive and that the real public path (DNS + TLS + Caddy) actually works.
-- **Show AIOStreams dashboard settings to paste in** — reprints the three values from step 3, any time.
-- **Add fail2ban protection** — blocks bots that probe the subdomain. See the [advanced guide](../advanced/mediaflow-proxy.md#fail2ban-protection) before turning this on.
-- **Uninstall** — clean removal (container, Caddy site, fail2ban jail if added, saved state).
+- **Status**: running or not, current domain/URL.
+- **Start / Stop**: turn MediaFlow on or off.
+- **Test**: checks both that the container is alive and that the real public path (DNS + TLS + Caddy) actually works.
+- **Show AIOStreams dashboard settings to paste in**: reprints the three values from step 3, any time.
+- **Add fail2ban protection**: blocks bots that probe the subdomain. See the [advanced guide](../advanced/mediaflow-proxy.md#fail2ban-protection) before turning this on.
+- **Uninstall**: clean removal (container, Caddy site, fail2ban jail if added, saved state).
 
 ---
 
