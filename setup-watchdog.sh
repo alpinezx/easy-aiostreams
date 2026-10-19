@@ -32,7 +32,7 @@ TALLY_FILE="$STATE_DIR/tally"       # checks per day: "YYYY-MM-DD passed failed"
 ALIVE_FILE="$STATE_DIR/last-alive"  # when the last check ran
 SHUTDOWN_FILE="$STATE_DIR/shutdown-at"  # written as the server shuts down cleanly
 BOOT_ID_FILE="$STATE_DIR/boot-reported" # the kernel's boot ID once that boot is reported
-OPTIONS_FILE="$STATE_DIR/options"   # extra alerts: "updates=on", "weekly=on", and the
+OPTIONS_FILE="$STATE_DIR/options"   # extra alerts: "updates=on", "reboots=on", "scripts=on", "weekly=on", and the
                                     # check-in's "weekly_day=7" (1 Mon .. 7 Sun), "weekly_time=10:15"
                                     # (older copies saved "weekly_hour=10", still read as 10:00)
 SCRIPT_COPY="$STATE_DIR/watchdog.sh"
@@ -189,7 +189,7 @@ run_checks() {
 
 # A short record for "did anything happen overnight?" (the control panel's
 # Phone alerts page reads it). Kinds: fail, alert, recovered, start, stop,
-# test, topic, reboot, disk, cert, update, weekly. Never holds the topic itself. Keeps the last 200.
+# test, topic, reboot, disk, cert, update, scripts, weekly. Never holds the topic itself. Keeps the last 200.
 log_event() {
     mkdir -p "$STATE_DIR"
     printf '%s|%s|%s\n' "$(date +%s)" "$1" "${2//$'\n'/ }" >> "$EVENTS_FILE"
@@ -305,35 +305,127 @@ option_on() {
     grep -qx "$1=on" "$OPTIONS_FILE" 2>/dev/null
 }
 
+# Restart alerts are off for new setups (do_configure saves reboots=off). A
+# watchdog set up before the switch existed has no line at all, and keeps
+# the alerts it already sent.
+reboots_on() {
+    ! grep -qx "reboots=off" "$OPTIONS_FILE" 2>/dev/null
+}
+
+# The AIOStreams channel this server follows, from its image tag: stable
+# (latest), nightly, or nothing for a pinned version
+aio_channel() {
+    case "$(grep -oP '^\s*image:\s*viren070/aiostreams:\K\S+' "$INSTALL_DIR/docker-compose.yml" 2>/dev/null | head -n 1)" in
+        latest) echo stable ;;
+        nightly) echo nightly ;;
+    esac
+}
+
 # Optional, off until switched on (the control panel's Phone alerts page, or
-# set-option). Stable only: nightly builds come out daily, so an alert for
-# each would be noise. Asks GitHub every 6 hours and alerts once per release.
+# set-option). Follows the server's channel: one alert per stable release, or
+# per nightly build on nightly (those come out daily or more, which nightly
+# users opt into). Asks GitHub every 6 hours, so at most 4 a day.
 check_updates() {
     option_on updates || return 0
-    local stamp="$STATE_DIR/update-checked" latest running node
+    local stamp="$STATE_DIR/update-checked" latest running node channel what
     if [[ -f "$stamp" ]] && (( $(date +%s) - $(stat -c %Y "$stamp") < 21600 )); then return 0; fi
     touch "$stamp"
-    grep -qE '^\s*image:\s*viren070/aiostreams:latest\s*$' "$INSTALL_DIR/docker-compose.yml" 2>/dev/null || return 0
-    latest=$(curl -fsS -m 15 https://api.github.com/repos/viren070/aiostreams/releases/latest 2>/dev/null \
-        | grep -oP '"tag_name":\s*"\Kv[0-9]+\.[0-9]+\.[0-9]+(?=")' | head -n 1) || true
-    [[ -n "$latest" ]] || return 0
+    channel=$(aio_channel)
+    [[ -n "$channel" ]] || return 0
     # The image is distroless: node is at /nodejs/bin/node (plain node on older images)
-    for node in /nodejs/bin/node node; do
-        running=$(docker exec aiostreams "$node" -p "require('/app/package.json').version" 2>/dev/null) && break
-    done
-    [[ "$running" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] || return 0
-    running="v$running"
-    [[ "$running" == "$latest" ]] && return 0
-    [[ "$(printf '%s\n%s\n' "$running" "$latest" | sort -V | tail -n 1)" == "$latest" ]] || return 0
+    if [[ "$channel" == stable ]]; then
+        latest=$(curl -fsS -m 15 https://api.github.com/repos/viren070/aiostreams/releases/latest 2>/dev/null \
+            | grep -oP '"tag_name":\s*"\Kv[0-9]+\.[0-9]+\.[0-9]+(?=")' | head -n 1) || true
+        [[ -n "$latest" ]] || return 0
+        for node in /nodejs/bin/node node; do
+            running=$(docker exec aiostreams "$node" -p "require('/app/package.json').version" 2>/dev/null) && break
+        done
+        [[ "$running" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] || return 0
+        running="v$running"
+        [[ "$running" == "$latest" ]] && return 0
+        [[ "$(printf '%s\n%s\n' "$running" "$latest" | sort -V | tail -n 1)" == "$latest" ]] || return 0
+        what="AIOStreams $latest is out"
+    else
+        # Nightly tags are timestamps (2026.10.18.1200-nightly), so text order is time order
+        latest=$(curl -fsS -m 15 "https://api.github.com/repos/viren070/aiostreams/releases?per_page=30" 2>/dev/null \
+            | grep -oP '"tag_name":\s*"\K[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]{4}-nightly(?=")' | sort | tail -n 1) || true
+        [[ -n "$latest" ]] || return 0
+        for node in /nodejs/bin/node node; do
+            running=$(docker exec aiostreams "$node" -p "require('/app/resources/metadata.json').tag" 2>/dev/null) && break
+        done
+        [[ "$running" =~ ^[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]{4}-nightly$ ]] || return 0
+        [[ "$latest" > "$running" ]] || return 0
+        what="A new AIOStreams nightly ($latest) is out"
+    fi
     [[ "$(cat "$STATE_DIR/update-notified" 2>/dev/null)" == "$latest" ]] && return 0
     echo "$latest" > "$STATE_DIR/update-notified"
     local how="Update with: sudo bash setup-aiostreams.sh, option 5."
     [[ -n "$(panel_domain)" ]] && how="Use Open panel, then Update on the Overview (it offers a backup first)."
-    if send_ntfy "AIOStreams $latest is out; this server runs $running. $how" \
+    if send_ntfy "$what; this server runs $running. $how" \
         "Update available" 3 package overview; then
-        log_event update "AIOStreams $latest is out (this server runs $running). Alert sent."
+        log_event update "$what (this server runs $running). Alert sent."
     else
-        log_event update "AIOStreams $latest is out (this server runs $running). The alert couldn't be sent (ntfy.sh unreachable)."
+        log_event update "$what (this server runs $running). The alert couldn't be sent (ntfy.sh unreachable)."
+    fi
+    return 0
+}
+
+# The branch the control panel follows for its updates (main, or dev while
+# testing), so the comparison matches its Scripts tab; main without a panel
+script_branch() {
+    local b
+    b=$(grep -oP 'UI_UPDATE_BRANCH=\K[A-Za-z0-9._/-]+' "$INSTALL_DIR/ui-state/docker-compose.yml" 2>/dev/null | head -n 1)
+    echo "${b:-main}"
+}
+
+# Git's blob hash of a file, as GitHub lists it: sha1 of "blob <size>\0" + the bytes
+blob_sha() {
+    { printf 'blob %d\0' "$(stat -c %s "$1")"; cat "$1"; } | sha1sum | cut -c1-40
+}
+
+# Optional, off until switched on. Every 6 hours, compares the setup-*.sh
+# scripts here with GitHub's copies (as the panel's Scripts tab does). One
+# alert per new set of differences, and at most one a day: scripts can
+# change several times a week. "Differs", not "out of date": a hash can't
+# tell older from newer.
+check_scripts() {
+    option_on scripts || return 0
+    local stamp="$STATE_DIR/scripts-checked" sent="$STATE_DIR/scripts-sent" noted="$STATE_DIR/scripts-notified"
+    local branch listing name sha f key="" names=() n msg how
+    if [[ -f "$stamp" ]] && (( $(date +%s) - $(stat -c %Y "$stamp") < 21600 )); then return 0; fi
+    touch "$stamp"
+    branch=$(script_branch)
+    listing=$(curl -fsS -m 15 "https://api.github.com/repos/alpinezx/easy-aiostreams/contents/?ref=$branch" 2>/dev/null \
+        | grep -oP '"(name|sha)":\s*"\K[^"]+') || return 0
+    # The listing comes as name, sha, name, sha...
+    declare -A remote=()
+    while read -r name && read -r sha; do remote[$name]=$sha; done <<< "$listing"
+    for f in "$INSTALL_DIR"/setup-*.sh; do
+        [[ -f "$f" ]] || continue
+        name=${f##*/}
+        [[ -n "${remote[$name]:-}" ]] || continue
+        if [[ "$(blob_sha "$f")" != "${remote[$name]}" ]]; then
+            names+=("$name")
+            key+="$name:${remote[$name]} "
+        fi
+    done
+    if (( ${#names[@]} == 0 )); then rm -f "$noted"; return 0; fi
+    [[ "$(cat "$noted" 2>/dev/null)" == "$key" ]] && return 0
+    if [[ -f "$sent" ]] && (( $(date +%s) - $(stat -c %Y "$sent") < 86400 )); then return 0; fi
+    echo "$key" > "$noted"
+    touch "$sent"
+    n=${#names[@]}
+    if (( n == 1 )); then msg="${names[0]} differs from GitHub's copy"
+    else msg="$n scripts differ from GitHub's copies: $(IFS=,; echo "${names[*]}" | sed 's/,/, /g')"
+    fi
+    [[ "$branch" == main ]] || msg+=" ($branch branch)"
+    msg+="."
+    how="Download $( (( n == 1 )) && echo it || echo them) again with the command in $( (( n == 1 )) && echo its || echo their) guide."
+    [[ -n "$(panel_domain)" ]] && how="Use Open panel, then Update on the Scripts tab."
+    if send_ntfy "$msg $how" "Script updates" 2 page_facing_up scripts; then
+        log_event scripts "$msg Alert sent."
+    else
+        log_event scripts "$msg The alert couldn't be sent (ntfy.sh unreachable)."
     fi
     return 0
 }
@@ -406,6 +498,9 @@ send_ntfy() {
 
 do_run_check() {
     mkdir -p "$STATE_DIR"
+    # Just after a boot the containers are still starting: a check now would
+    # only log a failure that isn't one. The next check, 2 minutes on, counts.
+    (( $(cut -d. -f1 /proc/uptime) >= 120 )) || return 0
     date +%s > "$ALIVE_FILE"
 
     local fails alert_state
@@ -445,6 +540,7 @@ do_run_check() {
     check_disk || true
     check_cert || true
     check_updates || true
+    check_scripts || true
     check_weekly || true
 }
 
@@ -485,6 +581,7 @@ do_boot() {
     (( up < 900 )) || return 0
     last=$(cat "$ALIVE_FILE" 2>/dev/null || echo 0)
     [[ "$last" =~ ^[0-9]+$ ]] || last=0
+    (( last < boot_at )) || last=0   # a check from this boot says nothing about the last one
     [[ "$shut" =~ ^[0-9]+$ ]] || shut=0
     when=$(date -d "@$boot_at" '+%H:%M')
     if (( shut > 0 && shut <= boot_at && shut >= last )); then
@@ -495,6 +592,10 @@ do_boot() {
     # The webhook relay can send its own reboot notification; one is enough
     if systemctl is-enabled --quiet "$WEBHOOK_BOOT_UNIT" 2>/dev/null; then
         log_event reboot "Server restarted at $when$down. The webhook relay sent the notification."
+        return 0
+    fi
+    if ! reboots_on; then
+        log_event reboot "Server restarted at $when$down. No alert: restart alerts are off."
         return 0
     fi
     # A few tries: the network can take a moment after boot
@@ -558,6 +659,8 @@ do_configure() {
     echo "and hard to guess (anyone who knows it can see your alerts)."
     ask_topic || return 0
 
+    # A first setup starts with restart alerts off, like the other extra alerts
+    [[ -f "$CONFIG_FILE" ]] || grep -q '^reboots=' "$OPTIONS_FILE" 2>/dev/null || set_option reboots off >/dev/null
     echo "NTFY_TOPIC=$TOPIC" > "$CONFIG_FILE"
     chmod 600 "$CONFIG_FILE"
     echo 0 > "$FAILCOUNT_FILE"
@@ -588,6 +691,9 @@ install_systemd_units() {
     cat > "$SERVICE_FILE" << EOF
 [Unit]
 Description=AIOStreams watchdog check (run by aiostreams-watchdog.timer)
+# At boot the timer's catch-up check would otherwise run alongside the
+# restart report and overwrite "last seen" before the report reads it
+After=aiostreams-watchdog-boot.service
 
 [Service]
 Type=oneshot
@@ -668,14 +774,16 @@ server_timezone() {
 DAY_NAMES=(Monday Tuesday Wednesday Thursday Friday Saturday Sunday)
 
 extras_line() {
-    local u w
+    local u w r sc
     option_on updates && u="on" || u="off"
+    reboots_on && r="on" || r="off"
+    option_on scripts && sc="on" || sc="off"
     if option_on weekly; then
         w="on, ${DAY_NAMES[$(( $(weekly_day) - 1 ))]}s from $(weekly_time) ($(server_timezone))"
     else
         w="off"
     fi
-    echo "new releases $u; weekly check-in $w"
+    echo "new releases $u; restarts $r; script updates $sc; weekly check-in $w"
 }
 
 # One square per day for the last 14: green all passed, amber some failed, grey no checks
@@ -749,20 +857,33 @@ do_change_topic() {
 
 # Extra alerts: the optional ones, as on the panel's Phone alerts page
 do_extras() {
-    local c d t
+    local c d t note
     [[ -f "$CONFIG_FILE" ]] || { warn "Set the watchdog up first (2) Start)."; return 0; }
     while true; do
         echo ""
         echo "=== Extra alerts ==="
-        echo "1) New AIOStreams release: $(option_on updates && echo on || echo off)  (one alert per stable release)"
-        echo "2) Weekly check-in: $(option_on weekly && echo "on, ${DAY_NAMES[$(( $(weekly_day) - 1 ))]}s from $(weekly_time)" || echo off)"
-        echo "3) Set the check-in's day and time (server time: $(server_timezone))"
+        case "$(aio_channel)" in
+            nightly) note="one per nightly build; they come out daily or more, so this can be chatty" ;;
+            stable) note="one alert per stable release" ;;
+            *) note="this server runs a pinned version, so there's nothing to alert about" ;;
+        esac
+        echo "1) New AIOStreams release: $(option_on updates && echo on || echo off)  ($note)"
+        if systemctl is-enabled --quiet "$WEBHOOK_BOOT_UNIT" 2>/dev/null; then
+            echo "2) Server restarted: $(reboots_on && echo on || echo off)  (the webhook relay sends these while its own is on)"
+        else
+            echo "2) Server restarted: $(reboots_on && echo on || echo off)  (with how long it was down)"
+        fi
+        echo "3) Script updates: $(option_on scripts && echo on || echo off)  (scripts can change several times a week, so this can be chatty; at most one alert a day)"
+        echo "4) Weekly check-in: $(option_on weekly && echo "on, ${DAY_NAMES[$(( $(weekly_day) - 1 ))]}s from $(weekly_time)" || echo off)"
+        echo "5) Set the check-in's day and time (server time: $(server_timezone))"
         echo "0) Back"
-        read -rp "Choose [0-3]: " c || return 0
+        read -rp "Choose [0-5]: " c || return 0
         case "$c" in
             1) option_on updates && set_option updates off || set_option updates on ;;
-            2) option_on weekly && set_option weekly off || set_option weekly on ;;
-            3)
+            2) reboots_on && set_option reboots off || set_option reboots on ;;
+            3) option_on scripts && set_option scripts off || set_option scripts on ;;
+            4) option_on weekly && set_option weekly off || set_option weekly on ;;
+            5)
                 echo "Days: 1 Monday, 2 Tuesday, 3 Wednesday, 4 Thursday, 5 Friday, 6 Saturday, 7 Sunday"
                 read -rp "Day [Enter for $(weekly_day)]: " d || return 0
                 d=${d:-$(weekly_day)}
@@ -908,13 +1029,13 @@ if [[ "${1:-}" == "set-topic" ]]; then
     exit $?
 fi
 
-# set-option <updates|weekly> <on|off>, or set-option weekly_day <1-7> /
-# weekly_hour <0-23>: the optional alerts, without questions
+# set-option <updates|reboots|scripts|weekly> <on|off>, or set-option weekly_day <1-7> /
+# weekly_time <HH:MM>: the optional alerts, without questions
 if [[ "${1:-}" == "set-option" ]]; then
-    [[ ( "${2:-}" =~ ^(updates|weekly)$ && "${3:-}" =~ ^(on|off)$ ) || ( "${2:-}" == weekly_day && "${3:-}" =~ ^[1-7]$ )
+    [[ ( "${2:-}" =~ ^(updates|reboots|scripts|weekly)$ && "${3:-}" =~ ^(on|off)$ ) || ( "${2:-}" == weekly_day && "${3:-}" =~ ^[1-7]$ )
        || ( "${2:-}" == weekly_hour && "${3:-}" =~ ^([01]?[0-9]|2[0-3])$ )
        || ( "${2:-}" == weekly_time && "${3:-}" =~ ^([01]?[0-9]|2[0-3]):[0-5][0-9]$ ) ]] \
-        || error "Usage: set-option updates|weekly on|off, set-option weekly_day 1-7 (Mon-Sun), set-option weekly_time HH:MM"
+        || error "Usage: set-option updates|reboots|scripts|weekly on|off, set-option weekly_day 1-7 (Mon-Sun), set-option weekly_time HH:MM"
     [[ -f "$CONFIG_FILE" ]] || error "Not configured yet. Set the watchdog up first."
     set_option "$2" "$3"
     exit 0
@@ -970,7 +1091,7 @@ while true; do
     echo "3) Stop"
     echo "4) Send test alert"
     echo "5) Change topic"
-    echo "6) Extra alerts (new releases, weekly check-in)"
+    echo "6) Extra alerts (releases, restarts, scripts, weekly check-in)"
     echo "7) Recent events and stats"
     echo "8) Check now"
     echo "9) Uninstall"

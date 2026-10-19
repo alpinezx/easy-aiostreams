@@ -93,6 +93,15 @@ const STATE_WORD = {
 };
 const stateOf = (s) => (s.on_purpose && s.state !== "running" ? "paused" : s.state);
 
+// A container's CPU is Docker's figure, up to 100% per CPU. Coloured by its share
+// of the whole server, like Load, and only once the last 3 readings were all that
+// high, so a short burst (a search) doesn't flash amber.
+function cpuTone(h, cpus) {
+  if (!h || h.length < 3) return "";
+  const low = Math.min(...h.slice(-3)) / cpus;
+  return low >= 90 ? "bad" : low >= 75 ? "warn" : "";
+}
+
 function uptime(s) {
   if (s.state !== "running" || !s.started_at) return "";
   return fmtDur((Date.now() - Date.parse(s.started_at)) / 1000);
@@ -123,10 +132,18 @@ export function render(st, goLogs) {
   hero(st); path(st); rows(st, goLogs); side(st);
 }
 
+// Caddy renews a certificate with about a third of its life left, so it only gets
+// this low when renewal has failed for a while: amber under a quarter, red under 7 days.
+// Relative, so shorter certificates (45 days) don't turn amber on every renewal.
+function certTone(c) {
+  const d = c.days_left;
+  return d < 7 ? "bad" : d < (c.days_total ? c.days_total / 4 : 21) ? "warn" : "";
+}
+
 function certChip(st, long) {
   if (!st.cert.ok) return h("span", { class: "chip warn", text: long ? "Couldn't check HTTPS certificate" : "Couldn't check" });
   const d = st.cert.days_left;
-  return h("span", { class: "chip " + (d < 7 ? "bad" : d < 21 ? "warn" : "ok"), title: st.cert.host ? `For ${st.cert.host}. Caddy renews it by itself.` : null,
+  return h("span", { class: "chip " + (certTone(st.cert) || "ok"), title: st.cert.host ? `For ${st.cert.host}. Caddy renews it by itself.` : null,
     text: long ? `HTTPS certificate good for ${d} days` : `${d} days left` });
 }
 
@@ -135,7 +152,7 @@ function hero(st) {
   const avail = Object.fromEntries(st.actions.map((a) => [a.id, a]));
   const aio = st.services.find((s) => s.key === "aiostreams");
   const key = [st.overall, st.headline, st.domain, st.channel, st.version, st.build_tag, st.vpn, !!st.busy, aio && aio.state,
-    st.cert && st.cert.ok, st.cert && st.cert.days_left, st.installed, st.docker_ok, relLoading, rel && rel.checked_at, rel && rel.error].join("|");
+    st.cert && st.cert.ok, st.cert && st.cert.days_left, st.cert && st.cert.days_total, st.installed, st.docker_ok, relLoading, rel && rel.checked_at, rel && rel.error].join("|");
   rebuild("#hero", key, (el) => {
     el.append(h("div", { class: "hero-head", "aria-live": "polite" },
       h("span", { class: "lamp", dataset: { s: st.overall }, "aria-hidden": "true" }),
@@ -148,7 +165,7 @@ function hero(st) {
     else el.append(h("div", { class: "hero-open" }, pillEl));
     scriptsPill();
     // The certificate lives in This server; it comes up here only when it needs attention.
-    if (st.cert && (!st.cert.ok || st.cert.days_left < 21)) el.append(h("div", { class: "hero-meta" }, certChip(st, true)));
+    if (st.cert && (!st.cert.ok || certTone(st.cert))) el.append(h("div", { class: "hero-meta" }, certChip(st, true)));
     // The version card has a slot of its own, so wide screens can put the request flow above it
     const ver = $("#ver");
     clear(ver);
@@ -167,13 +184,14 @@ function hero(st) {
 }
 
 // The build in a card of its own, laid out like AIOStreams' own Version card:
-// Running, Latest, and the buttons, with the channel in the corner.
+// the version here, the latest, and the buttons, with the channel in the corner. No
+// labels: the values say what they are ("v2.36.0", "Up to date", "v2.36.1 available").
 function versionCard(st, avail) {
   const nightly = relChannel(st) === "nightly";
   const running = runningTag(st);
   const [latest, latestSub, btns, fresh] = updateBits(st);
-  const col = (label, value, sub) => h("div", {},
-    h("div", { class: "ver-label", text: label }), h("div", { class: "ver-value" }, value), h("div", { class: "ver-sub", text: sub || "" }));
+  const col = (value, sub) => h("div", {},
+    h("div", { class: "ver-value" }, value), h("div", { class: "ver-sub", text: sub || "" }));
   const upd = st.installed && avail["stack.update"];
   // Update sits with Check now, blue only when a newer release is out
   if (upd && upd.available) btns.unshift(h("button", { class: "btn small" + (fresh ? " primary" : ""), type: "button", text: "Update",
@@ -184,8 +202,8 @@ function versionCard(st, avail) {
       h("span", { class: "chip" + (nightly ? " warn" : " ok"), text: nightly ? "Nightly" : "Stable",
         title: nightly ? "AIOStreams' nightly builds (Docker tag: nightly). Switch with Update." : "AIOStreams' stable releases (Docker tag: latest). Switch with Update." })),
     h("div", { class: "ver-grid" },
-      col("Running", `v${st.version}`, nightly ? (running ? `Nightly ${running.slice(0, -8)}` : "") : releasedAgo(running)),
-      col("Latest", latest, latestSub),
+      col(`v${st.version}`, nightly ? (running ? `Nightly ${running.slice(0, -8)}` : "") : releasedAgo(running)),
+      col(latest, latestSub),
       h("div", { class: "ver-btns" }, ...btns)));
 }
 
@@ -309,6 +327,8 @@ function rows(st, goLogs) {
     setText(row, "[data-w]", word + (s.restarts ? `, restarted ${s.restarts}×` : ""));
     setText(row, "[data-img]", s.image || "");
     setText(row, "[data-cpu]", s.state === "running" && s.cpu != null ? `${s.cpu}%` : "");
+    const cpuEl = row.querySelector("[data-cpu]");
+    if (cpuEl) cpuEl.className = "num " + cpuTone(hist[s.key], (st.host && st.host.cpus) || 1);
     setText(row, "[data-mem]", s.state === "running" && s.mem != null ? fmtBytes(s.mem) : "");
     const sv = row.querySelector("svg.spark");
     if (sv) fillSpark(sv, hist[s.key] || []);
@@ -350,11 +370,11 @@ function side(st) {
   if (st.cert) {
     const d = st.cert.days_left;
     grid.append(st.cert.ok
-      ? stat("HTTPS certificate", `${d} day${d === 1 ? "" : "s"} left`, "Caddy renews it by itself", d < 7 ? "bad" : d < 21 ? "warn" : "")
+      ? stat("HTTPS certificate", `${d} day${d === 1 ? "" : "s"} left`, certTone(st.cert) ? "Not renewed yet: check Caddy's logs" : "Auto-renews", certTone(st.cert))
       : stat("HTTPS certificate", "Couldn't check", "", "warn"));
   }
   if (st.vpn === "on" || st.vpn === "off") {
-    grid.append(stat("VPN", st.vpn === "on" ? "On" : "Off", st.vpn === "on" ? "Traffic goes through it" : "A direct connection"));
+    grid.append(stat("VPN", st.vpn === "on" ? "On" : "Off", st.vpn === "on" ? "Traffic goes through it" : "A direct connection", st.vpn === "on" ? "ok" : ""));
   }
   if (hs.load) {
     const pct = (hs.load[0] / (hs.cpus || 1)) * 100;
@@ -377,10 +397,10 @@ function side(st) {
   const chk = parseCheck(w.last_check);
   const failed = /^FAIL/.test(chk.result);
   wd.append(h("div", { class: "stat-grid" },
-    stat("Watchdog", w.running ? "Running" : "Stopped", w.running ? "Checks every 2 min" : "No checks running", w.running ? "" : "warn"),
+    stat("Watchdog", w.running ? "Running" : "Stopped", w.running ? "Checks every 2 min" : "No checks running", w.running ? "ok" : "warn"),
     stat("Last check", chk.at ? ago(chk.at) : "None yet", chk.at ? new Date(chk.at * 1000).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""),
     stat("Result", !w.running ? "Stopped" : failed ? "Failed" : chk.result === "OK" ? "All passed" : "—",
-      failed ? chk.result.replace(/^FAIL:\s*/, "").slice(0, 70) : "", failed ? "warn" : "")));
+      failed ? chk.result.replace(/^FAIL:\s*/, "").slice(0, 70) : "", failed ? "warn" : w.running && chk.result === "OK" ? "ok" : "")));
   loadWdDays();
   if (wdDays && wdDays.length) {
     wd.append(h("div", { class: "wd-mini" },

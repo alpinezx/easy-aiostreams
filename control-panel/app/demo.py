@@ -72,7 +72,7 @@ class DemoBackend:
         self.removed_scripts: set[str] = set()
         self.wd_running = True
         self.wd_configured = True
-        self.wd_options = {"updates": False, "weekly": False, "weekly_day": 7, "weekly_time": "10:00"}
+        self.wd_options = {"updates": False, "reboots": False, "scripts": False, "weekly": False, "weekly_day": 7, "weekly_time": "10:00"}
         self.wd_topic = "aios-7f3k29xq81"
         now = time.time()
         # A quiet fortnight with one blip and one real outage, for the Phone alerts page
@@ -134,7 +134,7 @@ class DemoBackend:
 
     def set_watchdog_option(self, name: str, value) -> None:
         from .stack import TIME_RE
-        ok = (name in ("updates", "weekly") and isinstance(value, bool)) or \
+        ok = (name in ("updates", "reboots", "scripts", "weekly") and isinstance(value, bool)) or \
             (name == "weekly_day" and type(value) is int and 1 <= value <= 7) or \
             (name == "weekly_time" and isinstance(value, str) and bool(TIME_RE.match(value.strip())))
         if not ok:
@@ -161,7 +161,8 @@ class DemoBackend:
                 else time.strftime("%d %b %Y, %H:%M:%S UTC", time.gmtime(time.time() - 40)) + " STOPPED (watchdog disabled, no checks running)",
                 "topic": mask_topic(self.wd_topic), "events": self.wd_events, "tally": self.wd_tally,
                 "watches": watches, "every_min": 2, "threshold": 2,
-                "options": dict(self.wd_options), "stable": self.channel != "nightly",
+                "options": dict(self.wd_options), "channel": "nightly" if self.channel == "nightly" else "stable",
+                "relay_reboots": False,
                 "timezone": os.environ.get("UI_DEMO_TZ", "Europe/London")}
 
     def update_script(self, script_id: str) -> dict:
@@ -244,7 +245,7 @@ class DemoBackend:
                          "last_check": time.strftime("%d %b %Y, %H:%M:%S UTC", time.gmtime(time.time() - 40)) + (" OK" if self.wd_running else "")},
             "host": {"cpus": 2, "load": [0.21, 0.34, 0.29], "mem_total": 4 * GB, "mem_used": int(1.6 * GB),
                      "uptime": 41 * 86400 + 3 * 3600, "disk_total": 80 * GB, "disk_used": 23 * GB},
-            "cert": {"host": "streams.example.com", "days_left": 61, "ok": True},
+            "cert": {"host": "streams.example.com", "days_left": 61, "ok": True, "days_total": 90},
             "actions": [{"id": a.id, "label": a.label, "confirm": a.confirm, "available": True} for a in catalog()],
         }
 

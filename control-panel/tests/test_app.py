@@ -488,15 +488,17 @@ def test_phone_alerts_history_can_be_cleared(client):
 def test_phone_alerts_switches(client):
     assert client.post("/api/watchdog/options", json={"name": "weekly", "on": True}).status_code == 401
     login(client)
-    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "weekly": False, "weekly_day": 7, "weekly_time": "10:00"}
+    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": False, "scripts": False, "weekly": False, "weekly_day": 7, "weekly_time": "10:00"}
     for bad in ({"name": "nope", "on": True}, {"name": "weekly", "on": "yes"}, {}, {"name": "weekly_day", "value": 8},
                 {"name": "weekly_time", "value": "24:00"}, {"name": "weekly_time", "value": "9"}, {"name": "weekly_time", "value": 9},
-                {"name": "weekly_day", "value": True}, {"name": "weekly_hour", "value": 9}):
+                {"name": "weekly_day", "value": True}, {"name": "weekly_hour", "value": 9}, {"name": "reboots", "on": "off"}):
         assert client.post("/api/watchdog/options", json=bad).status_code == 400
     assert client.post("/api/watchdog/options", json={"name": "weekly", "on": True}).json() == {"weekly": True}
     assert client.post("/api/watchdog/options", json={"name": "weekly_day", "value": 1}).status_code == 200
     assert client.post("/api/watchdog/options", json={"name": "weekly_time", "value": "7:05"}).status_code == 200
-    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "weekly": True, "weekly_day": 1, "weekly_time": "07:05"}
+    assert client.post("/api/watchdog/options", json={"name": "reboots", "on": True}).json() == {"reboots": True}
+    assert client.post("/api/watchdog/options", json={"name": "scripts", "on": True}).json() == {"scripts": True}
+    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": True, "scripts": True, "weekly": True, "weekly_day": 1, "weekly_time": "07:05"}
     assert client.post("/api/watchdog/tally/clear").json() == {"cleared": True}
     assert client.get("/api/watchdog").json()["tally"] == []
 
