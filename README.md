@@ -141,6 +141,8 @@ Run it again any time with `sudo bash /opt/aiostreams/setup-aiostreams.sh` and i
 10) Exit
 ```
 
+Three upkeep jobs run without questions, the same as the control panel's Maintenance page: `sudo bash /opt/aiostreams/setup-aiostreams.sh free-space` (old images, build leftovers, system logs beyond 100 MB), `system-updates` (Ubuntu's updates, bringing the stack back if Docker itself was updated) and `log-limits` (caps each container's log at 10 MB; every container restarts once).
+
 **Stable vs nightly:** on a fresh install (or Reconfigure), you'll be asked to choose the `latest` (stable) or `nightly` build. Switch channels anytime from **Update**, it'll walk you through it and confirm before switching.
 
 ## Notes
