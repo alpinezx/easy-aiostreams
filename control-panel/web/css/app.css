@@ -44,9 +44,10 @@
 @media (prefers-color-scheme: light) {
   :root {
     color-scheme: light;
-    --bg: #fafafa; --raised: #ffffff; --sunk: #f3f3f3;
-    --line: #d1d1d1; --line-soft: #e6e6e6;
-    --text: #1c1c1c; --dim: #5a5a5a; --faint: #8f8f8f; --hover: rgba(0, 0, 0, .04);
+    /* soft greys rather than white, so the page isn't glaring and cards stand out */
+    --bg: #e4e7eb; --raised: #f4f5f7; --sunk: #dde1e6;
+    --line: #c4c9d0; --line-soft: #d5d9df;
+    --text: #22252a; --dim: #51565e; --faint: #80858d; --hover: rgba(0, 0, 0, .05);
     --accent: #5243cb; --accent-soft: rgba(97, 82, 223, .1);
     --primary: #4f43b8; --primary-hover: #4034a3; --primary-ink: #ffffff;
     --ok: #047857; --warn: #9a6200; --bad: #c42f2f;
@@ -180,8 +181,7 @@ main { max-width: 1680px; margin: 0 auto; padding: 28px var(--gutter) 96px; }
 
 /* ---------- hero ---------- */
 .hero { display: grid; gap: 12px; padding: 0 0 26px; }
-.hero-open { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
-.hero-head { display: flex; align-items: center; gap: 12px; }
+.hero-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
 .lamp { flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--faint); position: relative; }
 .lamp[data-s="ok"] { background: var(--ok); box-shadow: 0 0 0 4px var(--ok-soft); }
 .lamp[data-s="degraded"], .lamp[data-s="paused"] { background: var(--warn); box-shadow: 0 0 0 4px var(--warn-soft); }
@@ -209,6 +209,9 @@ button.chip:hover { text-decoration: underline; }
 .ver-card { padding: 16px 20px 18px; }
 .ver-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .ver-head h2 { margin: 0; font-size: .98rem; font-weight: 650; }
+/* Opens AIOStreams: the title is the link, padded so it's an easy tap on a phone */
+.ver-head a.ver-open { display: inline-flex; align-items: center; padding: 6px 8px; margin: -6px -8px; border-radius: 8px; text-decoration: none; }
+.ver-head a.ver-open:hover { text-decoration: underline; }
 .ver-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) auto; gap: 14px 24px; margin-top: 14px; align-items: end; }
 .ver-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--faint); margin-bottom: 4px; }
 .ver-value { font-size: 1.2rem; font-weight: 650; letter-spacing: -.01em; }
@@ -847,7 +850,6 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   .item.bk .what .lock-tag, .item.bk .what .build-tag { display: table; margin: 6px 0 2px; }
 }
 
-
 /* a note that follows a list (the restart-panel note under the backups) needs air above it */
 .list + .note { margin-top: 16px; }
 
@@ -857,8 +859,6 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 #set-asides .note { margin: 0 0 12px; }
 #set-asides + .note { margin-top: 16px; }
 
-/* "Open AIOStreams" link in the hero, styled as a button */
-a.btn.open-site { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
 /* Box-with-arrow after a link that opens a new tab */
 .ext { display: inline-flex; vertical-align: -2px; margin-left: 4px; }
 a.btn .ext { margin-left: 0; vertical-align: 0; }
