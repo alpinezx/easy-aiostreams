@@ -636,7 +636,7 @@ class Backend:
 
     _maint_cache: tuple[float, dict | None] = (0.0, None)
 
-    def _host(self, *args: str, timeout: int = 20) -> str:
+    def _on_host(self, *args: str, timeout: int = 20) -> str:
         r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", *args],
                            capture_output=True, text=True, timeout=timeout)
         return r.stdout if r.returncode == 0 else ""
@@ -672,7 +672,7 @@ class Backend:
         except Exception:
             pass
         try:
-            m = re.search(r"take up ([\d.]+)([KMGT]?)", self._host("journalctl", "--disk-usage"))
+            m = re.search(r"take up ([\d.]+)([KMGT]?)", self._on_host("journalctl", "--disk-usage"))
             if m:
                 total = float(m.group(1)) * 1024 ** "BKMGT".index(m.group(2) or "B")
                 journal = max(0, int(total - 100 * 1024 ** 2))
@@ -682,20 +682,20 @@ class Backend:
 
     def _maint_updates(self) -> dict:
         try:
-            out = self._host("apt", "list", "--upgradable", timeout=40)
+            out = self._on_host("apt", "list", "--upgradable", timeout=40)
         except Exception:
             return {"available": False}
-        if not out and not self._host("sh", "-c", "command -v apt"):
+        if not out and not self._on_host("sh", "-c", "command -v apt"):
             return {"available": False}
         lines = [l for l in out.splitlines() if "/" in l and "[upgradable" in l]
-        stamp = self._host("sh", "-c", "stat -c %Y /var/lib/apt/periodic/update-success-stamp 2>/dev/null "
+        stamp = self._on_host("sh", "-c", "stat -c %Y /var/lib/apt/periodic/update-success-stamp 2>/dev/null "
                                        "|| stat -c %Y /var/lib/apt/lists 2>/dev/null").strip()
         return {"available": True, "count": len(lines), "security": sum("-security" in l for l in lines),
-                "reboot": bool(self._host("sh", "-c", "test -e /var/run/reboot-required && echo y").strip()),
+                "reboot": bool(self._on_host("sh", "-c", "test -e /var/run/reboot-required && echo y").strip()),
                 "checked_at": int(stamp) if stamp.isdigit() else None}
 
     def _maint_logs(self) -> dict:
-        conf = self._host("sh", "-c", "cat /etc/docker/daemon.json 2>/dev/null")
+        conf = self._on_host("sh", "-c", "cat /etc/docker/daemon.json 2>/dev/null")
         limited = '"max-size"' in conf
         size, pending = 0, False
         try:
@@ -707,7 +707,7 @@ class Backend:
                 if limited and "max-size" not in opts:
                     pending = True
             if paths:
-                size = sum(int(x) for x in self._host("stat", "-c", "%s", *paths).split() if x.isdigit())
+                size = sum(int(x) for x in self._on_host("stat", "-c", "%s", *paths).split() if x.isdigit())
         except Exception:
             pass
         return {"limited": limited, "pending": pending, "size": size}
