@@ -31,6 +31,9 @@ class Action:
     confirm: str | None = None   # confirmation text; None = no modal
     needs: tuple[str, ...] = ()  # paths (relative to INSTALL_DIR) that must exist
     env: tuple[str, ...] = ()    # extra NAME=value for the script
+    # Run on the host as a systemd unit of its own rather than under the panel:
+    # for anything that restarts Docker, which restarts this container too
+    detached: bool = False
 
 
 # Extra "N" before the final exit choice absorbs the one y/N prompt that
@@ -85,6 +88,20 @@ _STATIC: dict[str, Action] = {a.id: a for a in [
            args=("update",), timeout=600, needs=("setup-vpn-gluetun.sh", "vpn-state/active"),
            confirm="Pulls the newest gluetun v3 release. If there is one and the VPN is on, the stack restarts "
                    "and streams pause for up to a minute. Already on the newest, nothing restarts."),
+    # The Maintenance page. The two that can restart Docker run outside the panel.
+    Action("maint.space", "Free up space", "Freeing up space", "Space freed", AIO,
+           args=("free-space",), timeout=900, needs=(AIO,),
+           confirm="Removes old images nothing uses, build leftovers from panel rebuilds, and system logs beyond "
+                   "the newest 100 MB. Nothing running, none of your settings and none of your backups are touched."),
+    Action("maint.updates", "Install updates", "Installing updates", "Updates installed", AIO,
+           args=("system-updates",), timeout=1800, needs=(AIO,), detached=True,
+           confirm="Installs Ubuntu's waiting updates, as apt upgrade would over SSH, keeping any config files "
+                   "you've changed. If Docker itself is updated, every container restarts for a few seconds, "
+                   "this page included; the install carries on by itself."),
+    Action("maint.logs", "Set limits", "Setting log limits", "Log limits set", AIO,
+           args=("log-limits",), timeout=900, needs=(AIO,), detached=True,
+           confirm="Caps each container's log at 10 MB. Docker restarts and every container is recreated once: "
+                   "a few seconds of downtime, and this page reconnects by itself."),
     Action("watchdog.start", "Start", "Starting", "Start finished", "setup-watchdog.sh",
            args=("install-timer",), timeout=60,
            needs=("setup-watchdog.sh", "watchdog-state/config")),

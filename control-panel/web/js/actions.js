@@ -166,11 +166,29 @@ function finish(job, code) {
   foot.children[1].style.marginLeft = "auto";
 }
 
-export async function openJob(id) {
+export async function openJob(id, reconnecting) {
   if (es) { es.close(); es = null; }
-  lastFocus = document.activeElement;
+  if (!reconnecting) lastFocus = document.activeElement;
   openId = id;
-  const job = await api(`/api/jobs/${id}`);
+  let job;
+  try { job = await api(`/api/jobs/${id}`); }
+  catch (e) {
+    if (!reconnecting) { toast(e.message, true); return; }
+    // The panel itself restarted (a maintenance job restarts Docker). A job it ran
+    // outside itself carries on; once the panel's back it no longer knows this one.
+    if (openId !== id || $("#drawer").hidden) return;
+    const foot = $("#drawer-foot"); clear(foot);
+    if (e.status === 404) {
+      closeDrawer();
+      toast("The panel restarted while that ran. How it ended is under the cards on this page.");
+      window.dispatchEvent(new CustomEvent("job-finished"));
+      return;
+    }
+    $("#drawer-sub").textContent = "The panel is restarting with Docker. The job carries on on the server; this reconnects by itself.";
+    foot.append(h("span", { class: "spin", "aria-hidden": "true" }), h("span", { class: "dim", text: "Reconnecting" }));
+    setTimeout(() => openJob(id, true), 3000);
+    return;
+  }
   const term = $("#drawer-term"); clear(term);
   $("#drawer").hidden = false; $("#scrim").hidden = false;
   $("#drawer-x").focus();
@@ -192,7 +210,7 @@ export async function openJob(id) {
     addLine(term, m.k, m.t);
   };
   es.onerror = () => { /* EventSource reconnects by itself; stream resumes from the start, so avoid duplicates */
-    if (es) { es.close(); es = null; openJob(id); }
+    if (es) { es.close(); es = null; openJob(id, true); }
   };
 }
 

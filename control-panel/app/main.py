@@ -289,6 +289,13 @@ async def server_address(user: str = Depends(current_user)):
     return {"ip": await asyncio.to_thread(serverip.address)}
 
 
+@app.get("/api/maintenance")
+async def maintenance(force: bool = False, user: str = Depends(current_user)):
+    """The Maintenance page: what could be freed, system updates, container log limits,
+    and how the last maintenance job ended (it may have outlived a panel restart)."""
+    return await asyncio.to_thread(backend.maintenance_info, force)
+
+
 @app.get("/api/watchdog")
 async def watchdog(user: str = Depends(current_user)):
     """The Phone alerts page: state, recent events, daily tally. The topic only masked."""

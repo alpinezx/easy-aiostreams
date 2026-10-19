@@ -403,6 +403,8 @@ class Backend:
                         continue
                     got["connected"] = True
                     break
+                if got["connected"]:
+                    got["dns"] = self._vpn_dns(c)
                 if not got["connected"]:
                     got["error"] = "Couldn't reach the internet through the tunnel."
         except Exception:
@@ -410,6 +412,38 @@ class Backend:
         self._vpn_cache = got
         out.update(got)
         return out
+
+    # Which DNS servers gluetun is talking to, and whether over DNS-over-TLS (port
+    # 853), as the VPN script's "DNS: encrypted" check: a lookup is made first so
+    # there's a connection to see. Read from /proc/net/tcp rather than with ss,
+    # which the gluetun image doesn't have.
+    _DNS_NAMES = {"1.1.1.1": "Cloudflare", "1.0.0.1": "Cloudflare", "9.9.9.9": "Quad9", "149.112.112.112": "Quad9"}
+
+    def _vpn_dns(self, c) -> dict:
+        try:
+            r = c.exec_run(["sh", "-c", "(nslookup example.com >/dev/null 2>&1 || getent hosts example.com >/dev/null 2>&1) & "
+                                        "sleep 1; cat /proc/net/tcp /proc/net/tcp6 2>/dev/null"])
+            text = (r.output or b"").decode(errors="replace")
+        except Exception:
+            return {"state": "unknown", "via": []}
+        dot, plain = [], False
+        for line in text.splitlines()[1:]:
+            f = line.split()
+            if len(f) < 4 or ":" not in f[2] or f[3] == "0A":      # 0A: listening, not a connection
+                continue
+            addr, port = f[2].split(":")
+            if len(addr) == 32 and addr.startswith("0000000000000000FFFF0000"):
+                addr = addr[-8:]                                  # an IPv4 address in tcp6
+            if len(addr) != 8:
+                continue
+            ip = ".".join(str(int(addr[i:i + 2], 16)) for i in (6, 4, 2, 0))
+            p = int(port, 16)
+            if p == 853:
+                dot.append(self._DNS_NAMES.get(ip, ip))
+            elif p == 53 and not ip.startswith("127."):
+                plain = True
+        via = sorted(set(dot))
+        return {"state": "encrypted" if via else "plain" if plain else "unknown", "via": via}
 
     def status(self) -> dict:
         self._last_view = time.time()
@@ -538,6 +572,163 @@ class Backend:
         except Exception:
             pass
         return out
+
+    # ---- detached actions (the Maintenance page) ---------------------------
+    # Run as a systemd unit on the host, writing to ui-state/maint.log, with the
+    # exit code in maint.log.code once it ends. The panel follows the log; if
+    # Docker restarts this container meanwhile, the unit carries on and the
+    # Maintenance page shows how it ended from the same files.
+    MAINT_UNIT = "aios-maintenance"
+
+    def _maint_running(self) -> bool:
+        return self._systemd_active(self.MAINT_UNIT + ".service")
+
+    def _run_detached(self, action: Action, emit: Callable[[str], None]) -> int:
+        if self._maint_running():
+            emit("XX Another maintenance job is still running. Wait for it to finish.")
+            return 1
+        log_host = str(config.INSTALL_DIR / "ui-state" / "maint.log")
+        log_here = config.STATE_DIR / "maint.log"
+        code_here = config.STATE_DIR / "maint.log.code"
+        for f in (log_here, code_here):
+            try:
+                f.unlink()
+            except FileNotFoundError:
+                pass
+        (config.STATE_DIR / "maint.what").write_text(action.label + "\n")
+        who = ('u=""; for h in /home/*/; do [ -d "${h}aiostreams" ] && u=$(stat -c %U "$h" 2>/dev/null) && break; done; '
+               'if [ -n "$u" ] && [ "$u" != root ] && id "$u" >/dev/null 2>&1; then '
+               'export SUDO_USER="$u" SUDO_UID="$(id -u "$u")" SUDO_GID="$(id -g "$u")"; fi; ')
+        inner = who + 'cd {d} && bash {s} {a} > {l} 2>&1 < /dev/null; echo $? > {l}.code'.format(
+            d=shlex.quote(str(config.INSTALL_DIR)), s=shlex.quote(action.script),
+            a=" ".join(shlex.quote(x) for x in action.args), l=shlex.quote(log_host))
+        cmd = ["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "systemd-run",
+               f"--unit={self.MAINT_UNIT}", "--collect", "--quiet", f"--property=RuntimeMaxSec={action.timeout}",
+               f"--setenv=HOME={self.home}", f"--setenv=PATH={HOST_PATH}", "--setenv=TERM=dumb",
+               "--setenv=LANG=C.UTF-8", "/bin/bash", "-c", inner]
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            emit(f"XX Couldn't start it ({(r.stderr or r.stdout).strip() or 'systemd-run failed'}).")
+            return 1
+        emit("==> Running on the server itself, so it carries on even if this page reconnects.")
+        pos, start = 0, time.time()
+        while True:
+            try:
+                with open(log_here, encoding="utf-8", errors="replace") as fh:
+                    fh.seek(pos)
+                    chunk = fh.read()
+                    pos = fh.tell()
+                for raw in chunk.splitlines():
+                    line = clean_line(raw)
+                    if line is not None:
+                        emit(line)
+            except FileNotFoundError:
+                pass
+            if code_here.exists():
+                try:
+                    return int(code_here.read_text().strip() or 1)
+                except ValueError:
+                    return 1
+            if time.time() - start > action.timeout + 60 or (time.time() - start > 20 and not self._maint_running()):
+                emit("XX It stopped without saying how it ended.")
+                return 1
+            time.sleep(1)
+
+    _maint_cache: tuple[float, dict | None] = (0.0, None)
+
+    def _on_host(self, *args: str, timeout: int = 20) -> str:
+        r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", *args],
+                           capture_output=True, text=True, timeout=timeout)
+        return r.stdout if r.returncode == 0 else ""
+
+    def maintenance_info(self, force: bool = False) -> dict:
+        """The Maintenance page. The looking-up is slow-ish (apt, Docker's disk
+        usage), so it's kept for 5 minutes unless asked again."""
+        now = time.time()
+        at, hit = self._maint_cache
+        if hit and not force and now - at < 300:
+            return {**hit, "last": self._maint_last()}
+        info = {"space": self._maint_space(), "updates": self._maint_updates(), "logs": self._maint_logs(),
+                "checked_at": now}
+        self._maint_cache = (now, info)
+        return {**info, "last": self._maint_last()}
+
+    def _maint_space(self) -> dict:
+        images = count = build = journal = 0
+        try:
+            df = self.client.df()
+            # What free-space removes: untagged images and AIOStreams images no
+            # container uses, counted by the space only they hold (layers shared
+            # with an image that stays aren't freed)
+            for im in df.get("Images") or []:
+                tags = [t for t in (im.get("RepoTags") or []) if t != "<none>:<none>"]
+                if im.get("Containers", 0) == 0 and (not tags or all(t.startswith("viren070/aiostreams:") for t in tags)):
+                    shared = int(im.get("SharedSize") or 0)
+                    images += max(0, int(im.get("Size") or 0) - max(shared, 0))
+                    count += 1
+            # Shared records belong to an image that stays, so Docker keeps them
+            build = sum(int(c.get("Size") or 0) for c in (df.get("BuildCache") or [])
+                        if not c.get("InUse") and not c.get("Shared"))
+        except Exception:
+            pass
+        try:
+            m = re.search(r"take up ([\d.]+)([KMGT]?)", self._on_host("journalctl", "--disk-usage"))
+            if m:
+                total = float(m.group(1)) * 1024 ** "BKMGT".index(m.group(2) or "B")
+                journal = max(0, int(total - 100 * 1024 ** 2))
+        except Exception:
+            pass
+        return {"images": images, "image_count": count, "build": build, "journal": journal}
+
+    def _maint_updates(self) -> dict:
+        try:
+            out = self._on_host("apt", "list", "--upgradable", timeout=40)
+        except Exception:
+            return {"available": False}
+        if not out and not self._on_host("sh", "-c", "command -v apt"):
+            return {"available": False}
+        lines = [l for l in out.splitlines() if "/" in l and "[upgradable" in l]
+        stamp = self._on_host("sh", "-c", "stat -c %Y /var/lib/apt/periodic/update-success-stamp 2>/dev/null "
+                                       "|| stat -c %Y /var/lib/apt/lists 2>/dev/null").strip()
+        return {"available": True, "count": len(lines), "security": sum("-security" in l for l in lines),
+                "reboot": bool(self._on_host("sh", "-c", "test -e /var/run/reboot-required && echo y").strip()),
+                "checked_at": int(stamp) if stamp.isdigit() else None}
+
+    def _maint_logs(self) -> dict:
+        conf = self._on_host("sh", "-c", "cat /etc/docker/daemon.json 2>/dev/null")
+        limited = '"max-size"' in conf
+        size, pending = 0, False
+        try:
+            paths = []
+            for c in self.client.containers.list():
+                if c.attrs.get("LogPath"):
+                    paths.append(c.attrs["LogPath"])
+                opts = ((c.attrs.get("HostConfig") or {}).get("LogConfig") or {}).get("Config") or {}
+                if limited and "max-size" not in opts:
+                    pending = True
+            if paths:
+                size = sum(int(x) for x in self._on_host("stat", "-c", "%s", *paths).split() if x.isdigit())
+        except Exception:
+            pass
+        return {"limited": limited, "pending": pending, "size": size}
+
+    def _maint_last(self) -> dict | None:
+        log = config.STATE_DIR / "maint.log"
+        if not log.exists():
+            return None
+        code = config.STATE_DIR / "maint.log.code"
+        try:
+            what = (config.STATE_DIR / "maint.what").read_text().strip()
+        except Exception:
+            what = "Maintenance"
+        ended = code.exists()
+        try:
+            rc = int(code.read_text().strip()) if ended else None
+        except ValueError:
+            rc = 1
+        tail = log.read_text(encoding="utf-8", errors="replace").splitlines()[-60:]
+        return {"what": what, "running": not ended and self._maint_running(), "code": rc,
+                "at": int((code if ended else log).stat().st_mtime), "tail": [l for l in (clean_line(x) for x in tail) if l is not None]}
 
     def available_actions(self) -> list[dict]:
         from .actions import catalog
@@ -975,6 +1166,8 @@ class Backend:
             if not self.p(need).exists():
                 emit(f"XX {need} was not found in {config.INSTALL_DIR}. Nothing was run.")
                 return 127
+        if action.detached:
+            return self._run_detached(action, emit)
         # The scripts learn who is at the keyboard from SUDO_USER, which sudo sets. The panel has no sudo,
         # so pass on the same user here (the owner of the home with a ~/aiostreams shortcut). That is
         # what makes a backup also land in that user's home, exactly as from the menu.

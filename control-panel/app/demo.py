@@ -115,7 +115,8 @@ class DemoBackend:
                    endpoint_port="51820" if self.has_config else None, previous=self.previous, has_config=self.has_config)
         if self.vpn == "on":
             out.update(connected=self.running.get("gluetun", False), exit_ip="203.0.113.17", city="Amsterdam",
-                       region="North Holland", country="NL", org="AS64500 Example VPN", checked_at=time.time())
+                       region="North Holland", country="NL", org="AS64500 Example VPN", checked_at=time.time(),
+                       dns={"state": "encrypted", "via": ["Cloudflare"]})
         return out
 
     def vpn_stage_config(self, conf: str) -> dict:
@@ -149,6 +150,12 @@ class DemoBackend:
             self.wd_tally = []
         else:
             self.wd_events = []
+
+    def maintenance_info(self, force: bool = False) -> dict:
+        return {"space": {"images": 149_000_000, "image_count": 2, "build": 503_100_000, "journal": 184_000_000},
+                "updates": {"available": True, "count": 8, "security": 2, "reboot": False, "checked_at": time.time() - 3 * 3600},
+                "logs": {"limited": False, "pending": False, "size": 488_000},
+                "checked_at": time.time(), "last": None}
 
     def watchdog_info(self) -> dict:
         from .stack import mask_topic

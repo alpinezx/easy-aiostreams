@@ -527,3 +527,15 @@ def test_scripts_update_replaces_with_mains_copy(client):
     assert r["updated"] == ["setup-mediaflow.sh"]
     assert differs() is False
     assert client.post("/api/scripts/aiostreams/update").json()["updated"] == ["setup-aiostreams.sh", "setup-backup.sh"]
+
+
+def test_no_method_is_defined_twice():
+    # A second def with the same name silently replaces the first (panel 1.24.0
+    # lost the server's uptime, load, memory and disk that way)
+    import ast
+    from pathlib import Path
+    for f in ("stack.py", "demo.py", "main.py"):
+        tree = ast.parse((Path(__file__).parent.parent / "app" / f).read_text(encoding="utf-8"))
+        for cls in [n for n in ast.walk(tree) if isinstance(n, ast.ClassDef)]:
+            names = [n.name for n in cls.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+            assert len(names) == len(set(names)), (f, cls.name, sorted({n for n in names if names.count(n) > 1}))

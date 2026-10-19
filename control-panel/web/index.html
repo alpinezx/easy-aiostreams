@@ -36,6 +36,7 @@
     <a class="tab" href="#alerts" data-view="alerts" id="tab-alerts" data-tip="Phone alerts" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg><span class="lbl">Phone alerts</span></a>
     <a class="tab" href="#activity" data-view="activity" data-tip="Activity"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg><span class="lbl">Activity</span></a>
     <a class="tab" href="#scripts" data-view="scripts" data-tip="Scripts"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg><span class="lbl">Scripts</span></a>
+    <a class="tab" href="#maint" data-view="maint" data-tip="Maintenance"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.2L3.6 17.2a1.4 1.4 0 0 0 2 2l5.7-5.7a4 4 0 0 0 5.2-5.4l-2.4 2.4-2-.6-.6-2z"/></svg><span class="lbl">Maintenance</span></a>
     <a class="tab" href="#terminal" data-view="terminal" id="tab-terminal" data-tip="Terminal" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 17 6-5-6-5M12 19h8"/></svg><span class="lbl">Terminal</span></a>
   </div>
   <div class="rail-end">
@@ -135,6 +136,11 @@
   <section class="view" id="view-scripts" aria-label="Scripts" hidden>
     <div class="view-head"><h2>Scripts</h2></div>
     <div id="scripts-root"></div>
+  </section>
+
+  <section class="view" id="view-maint" aria-label="Maintenance" hidden>
+    <div class="view-head"><h2>Maintenance</h2></div>
+    <div id="maint-root"></div>
   </section>
 
   <section class="view" id="view-alerts" aria-label="Phone alerts" hidden>
