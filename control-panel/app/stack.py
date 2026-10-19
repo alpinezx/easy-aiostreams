@@ -632,7 +632,9 @@ class Backend:
                     shared = int(im.get("SharedSize") or 0)
                     images += max(0, int(im.get("Size") or 0) - max(shared, 0))
                     count += 1
-            build = sum(int(c.get("Size") or 0) for c in (df.get("BuildCache") or []) if not c.get("InUse"))
+            # Shared records belong to an image that stays, so Docker keeps them
+            build = sum(int(c.get("Size") or 0) for c in (df.get("BuildCache") or [])
+                        if not c.get("InUse") and not c.get("Shared"))
         except Exception:
             pass
         try:

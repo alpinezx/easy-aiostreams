@@ -587,13 +587,14 @@ ensure_stack_running() {
 do_free_space() {
     local before after img
     before=$(df -B1 --output=avail "$INSTALL_DIR" | tail -n 1)
+    # One summary line per step: Docker's own output lists every layer and build record
     info "Removing old images nothing uses"
-    docker image prune -f
+    docker image prune -f | tail -n 1
     for img in $(docker images viren070/aiostreams --format '{{.Repository}}:{{.Tag}}' | grep -v '<none>'); do
-        [[ -z "$(docker ps -aq --filter "ancestor=$img")" ]] && docker rmi "$img" || true
+        if [[ -z "$(docker ps -aq --filter "ancestor=$img")" ]] && docker rmi "$img" >/dev/null; then echo "Removed $img"; fi
     done
     info "Removing build leftovers"
-    docker builder prune -f
+    docker builder prune -f | tail -n 1
     if command -v journalctl >/dev/null 2>&1; then
         info "Trimming the system logs to the newest 100 MB"
         journalctl --vacuum-size=100M 2>&1 | tail -n 1
