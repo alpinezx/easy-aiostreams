@@ -56,9 +56,10 @@ If nothing shows up within a few seconds, don't move on yet. See the [advanced g
 
 With the [control panel](./control-panel.md), each alert has an **Open panel** button that opens its **Phone alerts** page.
 
-Three more you can switch on, from the script's **Extra alerts** menu or the control panel's Phone alerts page (all off to start with):
+Four more you can switch on, from the script's **Extra alerts** menu or the control panel's Phone alerts page (all off to start with):
 - **When a new AIOStreams release is out**: one alert per stable release, with how to update. On nightly, one per nightly build; those come out daily or more, so it can be chatty.
 - **🔄 When the server restarts**, with how long it was down, or a note that it didn't shut down cleanly (a crash or power cut). A watchdog set up before this was a switch keeps it on.
+- **When a script here differs from GitHub's copy**: one alert per change, at most one a day. Scripts can change several times a week, so this can be chatty. With the control panel, update them on its Scripts tab; without it, download the script again with the command in its guide.
 - **Weekly check-in**: the week's checks, alerts and disk space, on the day and time you pick (Sunday from 10:00 to start with), within 2 minutes of it. If it ever stops arriving, the watchdog itself needs a look.
 
 The check-in goes by the server's clock, so check its time zone: `timedatectl` shows it, and `sudo timedatectl set-timezone Europe/London` (your own Area/City) changes it.
@@ -79,7 +80,7 @@ sudo bash /opt/aiostreams/setup-watchdog.sh
 - **Start / Stop**: turn checking on or off. Config is kept either way.
 - **Send test alert**: fire a test message any time, without waiting for a real failure.
 - **Change topic**: a new ntfy topic (it suggests one, and refuses anything ntfy wouldn't accept); it offers to start the watchdog if it's stopped.
-- **Extra alerts**: the release, restart and weekly check-in alerts on or off, and the check-in's day and time.
+- **Extra alerts**: the release, restart, script update and weekly check-in alerts on or off, and the check-in's day and time.
 - **Recent events and stats**: what happened lately, newest first, with Clear history and Reset stats.
 - **Check now**: run every check once and see the result, without saving or sending anything.
 - **Uninstall**: clean removal (timer, services, saved state).

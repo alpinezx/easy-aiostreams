@@ -40,7 +40,8 @@ It works on any install. The site, disk and certificate checks always run; the V
 Switched from the script's **6) Extra alerts** menu, the control panel's Phone alerts page, or over SSH with `sudo bash setup-watchdog.sh set-option <name> <value>`:
 
 9. **A new AIOStreams release** (`set-option updates on`). Every 6 hours it asks GitHub for the latest release on the server's channel, compares it with the build running, and alerts once per new release, with how to update (its Open panel button opens the panel's Overview, where Update is). On stable that's one per release; on nightly, one per nightly build, at most 4 a day since it asks every 6 hours. A server pinned to a version gets none.
-10. **Weekly check-in** (`set-option weekly on`). Once a week: the last 7 days' checks (from the daily tally), alerts and restarts (from the event list) and disk space. It goes out on the first check at or after the chosen time on the chosen day (so within 2 minutes of it), `set-option weekly_day 1-7` (Monday to Sunday) and `set-option weekly_time HH:MM`, Sunday 10:00 to start with (a `weekly_hour` saved by an older copy still counts, as that hour on the dot), by the **server's clock**: `timedatectl` shows its time zone, `sudo timedatectl set-timezone Europe/London` (your own Area/City) changes it. Its real job is to fail visibly: a watchdog that has stopped working shows by the check-in not arriving.
+10. **Script updates** (`set-option scripts on`). Every 6 hours it compares each `setup-*.sh` in `/opt/aiostreams` with GitHub's copy by its Git blob hash, as the control panel's Scripts tab does, on the branch the panel follows for its own updates (`main` without a panel). It alerts once per new set of differences and at most once a day, and says a script "differs" rather than "is out of date": a hash can't tell older from newer, and testing a script from another branch makes it differ on purpose.
+11. **Weekly check-in** (`set-option weekly on`). Once a week: the last 7 days' checks (from the daily tally), alerts and restarts (from the event list) and disk space. It goes out on the first check at or after the chosen time on the chosen day (so within 2 minutes of it), `set-option weekly_day 1-7` (Monday to Sunday) and `set-option weekly_time HH:MM`, Sunday 10:00 to start with (a `weekly_hour` saved by an older copy still counts, as that hour on the dot), by the **server's clock**: `timedatectl` shows its time zone, `sudo timedatectl set-timezone Europe/London` (your own Area/City) changes it. Its real job is to fail visibly: a watchdog that has stopped working shows by the check-in not arriving.
 
 ---
 
@@ -59,9 +60,9 @@ Each alert has a title, an icon and a priority, so your phone can treat them dif
 | 🚨 AIOStreams is down | urgent (5): sounds even on quieter notification settings |
 | ⚠️ Disk nearly full, ⚠️ Certificate not renewing | high (4) |
 | ✅ AIOStreams is back, 🔄 Server restarted, 📦 Update available, 🔔 Test alert | normal (3) |
-| ✅ disk or certificate fine again, 📅 Weekly check-in | low (2): arrives quietly |
+| ✅ disk or certificate fine again, 📄 Script updates, 📅 Weekly check-in | low (2): arrives quietly |
 
-With the [control panel](./control-panel.md) installed, each alert has an **Open panel** button that opens its Phone alerts page (the update alert's opens the Overview). Tapping the alert itself just opens it in ntfy.
+With the [control panel](./control-panel.md) installed, each alert has an **Open panel** button that opens its Phone alerts page (the update alert's opens the Overview, the script updates alert's the Scripts tab). Tapping the alert itself just opens it in ntfy.
 
 ## When it stays quiet on purpose
 
@@ -75,7 +76,7 @@ With the [control panel](./control-panel.md) installed, each alert has an **Open
 Everything is in `/opt/aiostreams/watchdog-state/`, so a [backup](./backup-restore.md) holds it and a restore brings it back:
 
 - `config`: the ntfy topic. `options`: the optional alerts and the check-in's day and hour.
-- `events`: what happened, newest last (first failure, alert sent, recovered, started, stopped, test alert, topic changed, restarted, disk, certificate, update, weekly), the last 200, never the topic itself.
+- `events`: what happened, newest last (first failure, alert sent, recovered, started, stopped, test alert, topic changed, restarted, disk, certificate, update, scripts, weekly), the last 200, never the topic itself.
 - `tally`: how many checks passed and failed each day, the last 14 days.
 - Small state files: `last-check`, `alert-state`, `failcount`, `disk-state`, `cert-state`, `last-alive`, `shutdown-at`, `boot-reported`, and when the certificate and updates were last looked at.
 

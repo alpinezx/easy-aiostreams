@@ -21,7 +21,7 @@ export function parseCheck(line) {
 const KIND = {
   fail: ["Failed", "warn"], alert: ["Alert sent", "bad"], recovered: ["Recovered", "ok"],
   start: ["Started", ""], stop: ["Stopped", ""], test: ["Test alert", ""], topic: ["Topic", ""], reboot: ["Restarted", ""], disk: ["Disk space", ""], cert: ["Certificate", ""],
-  update: ["Update", ""], weekly: ["Weekly", ""],
+  update: ["Update", ""], scripts: ["Scripts", ""], weekly: ["Weekly", ""],
 };
 
 function when(at) {
@@ -220,6 +220,8 @@ function extras(w) {
     row("reboots", "When the server restarts", w.relay_reboots
       ? "The webhook relay sends these while its own reboot notification is on."
       : "With how long it was down, and whether it shut down cleanly.", !!w.relay_reboots),
+    row("scripts", "When a script here differs from GitHub's copy", "Scripts can change several times a week, "
+      + "so this can be chatty. At most one alert a day."),
     row("weekly", "Weekly check-in", "The week's checks, alerts and disk space. "
       + "If it stops arriving, the watchdog itself needs a look.", false, when), when);
 }

@@ -730,7 +730,7 @@ class Backend:
         # reboots: off for new setups (the script saves reboots=off); a watchdog set up
         # before the switch existed has no line, and keeps the restart alerts it had
         return {"updates": kv.get("updates") == "on", "reboots": kv.get("reboots", "on") == "on",
-                "weekly": kv.get("weekly") == "on",
+                "scripts": kv.get("scripts") == "on", "weekly": kv.get("weekly") == "on",
                 "weekly_day": int(day) if day in {str(i) for i in range(1, 8)} else 7,
                 "weekly_time": weekly_time(kv)}
 
@@ -739,7 +739,7 @@ class Backend:
         and the check-in's day and hour. Kept in watchdog-state/options, which
         the script reads; written on the host, since the install folder is
         read-only here."""
-        if name in ("updates", "reboots", "weekly") and isinstance(value, bool):
+        if name in ("updates", "reboots", "scripts", "weekly") and isinstance(value, bool):
             text = "on" if value else "off"
         elif name == "weekly_day" and isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 7:
             text = str(value)

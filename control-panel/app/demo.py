@@ -72,7 +72,7 @@ class DemoBackend:
         self.removed_scripts: set[str] = set()
         self.wd_running = True
         self.wd_configured = True
-        self.wd_options = {"updates": False, "reboots": False, "weekly": False, "weekly_day": 7, "weekly_time": "10:00"}
+        self.wd_options = {"updates": False, "reboots": False, "scripts": False, "weekly": False, "weekly_day": 7, "weekly_time": "10:00"}
         self.wd_topic = "aios-7f3k29xq81"
         now = time.time()
         # A quiet fortnight with one blip and one real outage, for the Phone alerts page
@@ -134,7 +134,7 @@ class DemoBackend:
 
     def set_watchdog_option(self, name: str, value) -> None:
         from .stack import TIME_RE
-        ok = (name in ("updates", "reboots", "weekly") and isinstance(value, bool)) or \
+        ok = (name in ("updates", "reboots", "scripts", "weekly") and isinstance(value, bool)) or \
             (name == "weekly_day" and type(value) is int and 1 <= value <= 7) or \
             (name == "weekly_time" and isinstance(value, str) and bool(TIME_RE.match(value.strip())))
         if not ok:
