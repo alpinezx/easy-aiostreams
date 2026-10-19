@@ -130,7 +130,7 @@ one IP, and it isn't your real one.
 | Built-in Proxy + VPN (gluetun) | VPN exit IP | VPN exit IP (same request path, inherits gluetun automatically) | ✅ | ✅ |
 | Built-in Proxy + Addon proxy config (`* = 0` or scoped, static IP) | Proxy's IP | Proxy's IP (same request path) | ✅ | ✅ |
 | MediaFlow, no outbound proxy, no VPN | Your VPS's real IP | Your VPS's real IP (routed through MediaFlow, but MediaFlow has no proxy set, so still the VPS's own) | ✅ | ❌ |
-| **MediaFlow + VPN (gluetun), MediaFlow's own proxy left unset** | VPN exit IP | **Your VPS's real IP** .  MediaFlow's container isn't on gluetun's network, gluetun being on doesn't change this | ❌ **split IP, breaks consistency too** | ❌ |
+| **MediaFlow + VPN (gluetun), MediaFlow's own proxy left unset** | VPN exit IP | **Your VPS's real IP**: MediaFlow's container isn't on gluetun's network, gluetun being on doesn't change this | ❌ **split IP, breaks consistency too** | ❌ |
 | MediaFlow + matching outbound proxy set on both Addon proxy config and MediaFlow's `PROXY_URL` | Proxy's IP | Proxy's IP (deliberately pointed at the same provider) | ✅ | ✅ |
 
 The row to actually watch out for is the VPN+MediaFlow one. It's the

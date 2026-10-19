@@ -1,10 +1,10 @@
-# Addon Proxy Setup .  Basic Guide
+# Addon Proxy Setup: Basic Guide
 
 Use this if a **scraper or addon** inside AIOStreams (Torrentio, MediaFusion, etc.) is returning zero results and shows **403 Forbidden** in the AIOStreams logs for that addon's requests specifically. That means your VPS's IP getting blocked by that specific service. This is the cheapest, most surgical fix: free, no VPN needed, fixes just the one addon that's blocked.
 
-> A **429 Too Many Requests** can also often be cleared the same way .  rate limits are usually tracked per-IP, so a fresh proxy IP can get you unstuck even though it's technically a different error.
+> A **429 Too Many Requests** can also often be cleared the same way: rate limits are usually tracked per-IP, so a fresh proxy IP can get you unstuck even though it's technically a different error.
 
-> Seeing streams fail to *load or play*, and a VPN on your device "fixes" it? That's a different problem .  see [Proxy Setup](./proxy-setup.md) instead.
+> Seeing streams fail to *load or play*, and a VPN on your device "fixes" it? That's a different problem. See [Proxy Setup](./proxy-setup.md) instead.
 
 > Want the full explanation, or to route more than one addon? → [Advanced guide](../advanced/addon-proxy-setup.md)
 
@@ -13,16 +13,16 @@ Use this if a **scraper or addon** inside AIOStreams (Torrentio, MediaFusion, et
 ---
 
 ## 1. Get a free proxy
-1. Sign up at [webshare.io](https://www.webshare.io/) .  you'll land on **Free → Proxy List**, showing 10 free proxies already provisioned for you.
+1. Sign up at [webshare.io](https://www.webshare.io/): you'll land on **Free → Proxy List**, showing 10 free proxies already provisioned for you.
 2. Pick any row, click the **⋮** (three dots) at the end of that row, and choose **Copy cURL Request**. This copies a full command like:
 
-   > ⚠️ Example only .  replace with your own copied values.
+   > ⚠️ Example only: replace with your own copied values.
 
    ```
    curl --proxy "http://username:password@proxy.example.com:8080/" https://ipv4.webshare.io/
    ```
 
-3. You only need the proxy part in the middle .  not the `curl --proxy` wrapper, not the trailing test URL, not the trailing slash. From the example above, that's:
+3. You only need the proxy part in the middle: not the `curl --proxy` wrapper, not the trailing test URL, not the trailing slash. From the example above, that's:
    ```
    http://username:password@proxy.example.com:8080
    ```
@@ -35,7 +35,7 @@ Use this if a **scraper or addon** inside AIOStreams (Torrentio, MediaFusion, et
 2. Go to **Settings** → **Outbound Requests**.
 3. Under **Addon proxy URL(s)**, click **+** and add:
 
-   > ⚠️ Example only .  replace with your own copied values.
+   > ⚠️ Example only: replace with your own copied values.
    ```
    http://username:password@proxy.example.com:8080
    ```
@@ -46,7 +46,7 @@ Use this if a **scraper or addon** inside AIOStreams (Torrentio, MediaFusion, et
 
 4. Under **Addon proxy config**, add **two** rules, not one:
    > ⚠️ Torrentio is used here as the example addon. Swap in whichever addon's hostname is actually giving you the 403/zero results.
-   - Key: `*`, Value: `false` .  this is the part that actually keeps everything else off the proxy. Don't skip it.
+   - Key: `*`, Value: `false`. This is the part that actually keeps everything else off the proxy. Don't skip it.
    - Key: the addon's hostname, e.g. `torrentio.strem.fun`, Value: `0` (the index of the proxy you just added, if you add a second proxy URL later and want this addon to use it instead, change this to `1`)
 5. Click **Save**.
 
@@ -56,7 +56,7 @@ Your config should look like this:
 torrentio.strem.fun = 0
 ```
 
-This routes *only* that one addon's traffic through the proxy. The `* = false` line is what makes that true, not an assumption .  see the warning below.
+This routes *only* that one addon's traffic through the proxy. The `* = false` line is what makes that true, not an assumption (see the warning below).
 
 ## Test it
 

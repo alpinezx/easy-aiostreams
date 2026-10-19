@@ -1,8 +1,8 @@
-# Backup & Restore .  Basic Guide
+# Backup & Restore: Basic Guide
 
 For backing up your current setup, rolling back to an earlier backup on the same server, or moving AIOStreams to a new server entirely.
 
-> ⚠️ **Treat the backup file like a password.** It contains your login and `SECRET_KEY` .  store it somewhere safe, don't share it, and delete old copies (including off the server) once you don't need them.
+> ⚠️ **Treat the backup file like a password.** It contains your login and `SECRET_KEY`: store it somewhere safe, don't share it, and delete old copies (including off the server) once you don't need them.
 
 > Want to know exactly what's inside the backup, or something went wrong? → [Advanced guide](../advanced/backup-restore.md)
 
@@ -12,14 +12,14 @@ For backing up your current setup, rolling back to an earlier backup on the same
 
 **This does:** packs everything (your domain settings, login, `SECRET_KEY`, and every saved config) into one file.
 
-> The backup tars up the entire install folder (`/opt/aiostreams`), not just the app data .  so `setup-vpn-gluetun.sh`, `setup-watchdog.sh`, and any other install scripts sitting in that folder come along automatically too. Nothing to move by hand.
+> The backup tars up the entire install folder (`/opt/aiostreams`), not just the app data, so `setup-vpn-gluetun.sh`, `setup-watchdog.sh`, and any other install scripts sitting in that folder come along automatically too. Nothing to move by hand.
 
 ```bash
 sudo bash /opt/aiostreams/setup-aiostreams.sh backup
 ```
 (Backup and restore live in their own script, `setup-backup.sh`. The command above fetches it the first time, so there's nothing extra to download.)
 
-This prints a file name like `aiostreams-backup-YYYYMMDD-HHMMSS.tar.gz` and a ready-to-use `scp` command to copy it off the server .  **use the exact command it prints**, don't copy the one below blind. It differs depending on how you're logged in:
+This prints a file name like `aiostreams-backup-YYYYMMDD-HHMMSS.tar.gz` and a ready-to-use `scp` command to copy it off the server: **use the exact command it prints**, don't copy the one below blind. It differs depending on how you're logged in:
 - **Logged in as root:** the file lives in `/root`, and it prints something like
   ```bash
   scp root@your-server-ip:~/aiostreams-backup-YYYYMMDD-HHMMSS.tar.gz .
@@ -30,7 +30,7 @@ This prints a file name like `aiostreams-backup-YYYYMMDD-HHMMSS.tar.gz` and a re
   ```
   This matters if root SSH login is disabled on your box.
 
-Run the printed command **now**, from your own computer .  or, if you'd rather not use a terminal, open an SFTP app (FileZilla, WinSCP, Termius) and download the same file from your home directory on the server.
+Run the printed command **now**, from your own computer. Or, if you'd rather not use a terminal, open an SFTP app (FileZilla, WinSCP, Termius) and download the same file from your home directory on the server.
 
 **`scp` asks for a password, or says "Permission denied"?** It logs in with your computer's own SSH key. If you normally connect with an app that keeps its own key (Termius, PuTTY), the server doesn't know your computer's key. Download the file with that app's SFTP instead, or let the server accept your computer's key: paste your computer's public key (the one line in `~/.ssh/id_ed25519.pub`, on Windows `C:\Users\you\.ssh\id_ed25519.pub`, starting `ssh-ed25519`; none yet? `ssh-keygen -t ed25519` makes one) into this on the server, logged in as the user in the `scp` command:
 ```bash
@@ -41,9 +41,9 @@ echo "PASTE-YOUR-PUBLIC-KEY-HERE" >> ~/.ssh/authorized_keys
 
 ## Restoring on the same server
 
-Just rolling back to an earlier backup on the server you're already on .  no migration involved? From the management menu, pick **8) Restore from backup**, then select your tarball. The script moves your current install aside automatically before restoring, so nothing is lost if you picked the wrong file.
+Just rolling back to an earlier backup on the server you're already on, with no migration involved? From the management menu, pick **8) Restore from backup**, then select your tarball. The script moves your current install aside automatically before restoring, so nothing is lost if you picked the wrong file.
 
-That's it .  no DNS changes, no second server, no other setup needed.
+That's it: no DNS changes, no second server, no other setup needed.
 
 ---
 
@@ -86,11 +86,11 @@ Update AIOStreams:
 ```
 
 Choose **1** and it runs the same backup as step 1 above, then goes straight
-into the update .  one prompt, no separate steps.
+into the update: one prompt, no separate steps.
 
 Right after that, it also asks whether to switch build channel (stable/nightly)
 before pulling. If you say yes to switching **from nightly back to stable**,
-it'll warn you that's a downgrade and nudge you to back up first .  worth
+it'll warn you that's a downgrade and nudge you to back up first: worth
 listening to, since that's the one direction where newer data written by
 nightly might not be something stable knows how to read yet. Going the other
 way, stable → nightly, is safe either way.
@@ -101,13 +101,13 @@ way, stable → nightly, is safe either way.
 
 ## Migrating to a new server
 
-Moving AIOStreams to a different VPS .  a provider switch, a resize that needs a rebuild, or just replacing an aging box. This picks up from the backup you made in step 1 above.
+Moving AIOStreams to a different VPS: a provider switch, a resize that needs a rebuild, or just replacing an aging box. This picks up from the backup you made in step 1 above.
 
-### 2. Point your domain at your new server .  do this now
+### 2. Point your domain at your new server: do this now
 
 **This does:** starts DNS propagation early, so it's already pointing at the new server by the time you restore. The script can't do this step for you.
 
-⚠️ **Do this before you restore, not after.** DNS changes can take a few minutes to spread across the internet. If you restore before DNS has caught up, the restore script will pause and offer to wait for you, fix a typo'd domain, or let you continue anyway .  see the note in step 4. Doing this now just means you likely won't be shown that prompt at all.
+⚠️ **Do this before you restore, not after.** DNS changes can take a few minutes to spread across the internet. If you restore before DNS has caught up, the restore script will pause and offer to wait for you, fix a typo'd domain, or let you continue anyway (see the note in step 4). Doing this now just means you likely won't be shown that prompt at all.
 
 1. Log in to your domain/DNS provider.
 2. Update the A record for your domain to the **new** server's IP address.
@@ -115,7 +115,7 @@ Moving AIOStreams to a different VPS .  a provider switch, a resize that needs a
 ```bash
 dig +short yourdomain.com
 ```
-Keep going with steps 3–4 below while you wait .  no need to sit and watch it.
+Keep going with steps 3–4 below while you wait: no need to sit and watch it.
 
 ---
 
@@ -126,19 +126,19 @@ Keep going with steps 3–4 below while you wait .  no need to sit and watch it.
 ```bash
 scp setup-aiostreams.sh aiostreams-backup-YYYYMMDD-HHMMSS.tar.gz root@your-new-server-ip:~
 ```
-(Not using root over SSH? Send them to your own home directory instead .  `scp setup-aiostreams.sh aiostreams-backup-....tar.gz your_user@your-new-server-ip:~` .  the restore step below will still find the tarball automatically either way.)
+(Not using root over SSH? Send them to your own home directory instead: `scp setup-aiostreams.sh aiostreams-backup-....tar.gz your_user@your-new-server-ip:~`. The restore step below will still find the tarball automatically either way.)
 
-Prefer not to use a terminal for this? An SFTP app (FileZilla, WinSCP, Termius) works just as well .  upload both files to the same location (your home directory, or `/root` if you're logging in as root).
+Prefer not to use a terminal for this? An SFTP app (FileZilla, WinSCP, Termius) works just as well: upload both files to the same location (your home directory, or `/root` if you're logging in as root).
 
 ---
 
 ### 4. Restore on the new server
 
-**This does:** rebuilds your whole setup .  same domain, login, and configs.
+**This does:** rebuilds your whole setup: same domain, login, and configs.
 
-Before running this, double check `dig +short yourdomain.com` (from step 2) is showing your **new** server's IP. If it's not there yet, wait a bit longer .  restoring before DNS has caught up is the most common cause of a stuck HTTPS certificate.
+Before running this, double check `dig +short yourdomain.com` (from step 2) is showing your **new** server's IP. If it's not there yet, wait a bit longer: restoring before DNS has caught up is the most common cause of a stuck HTTPS certificate.
 
-Run this from wherever step 3 uploaded the files (your home directory, or `/root` if you're logging in as root .  `/opt/aiostreams` doesn't exist yet on a fresh server, so this is the one script command in these docs that *isn't* run from there):
+Run this from wherever step 3 uploaded the files (your home directory, or `/root` if you're logging in as root; `/opt/aiostreams` doesn't exist yet on a fresh server, so this is the one script command in these docs that *isn't* run from there):
 ```bash
 sudo bash setup-aiostreams.sh
 ```
@@ -155,24 +155,24 @@ What would you like to do?
   1) Re-check DNS now (do this after updating your A record)
   2) Wait and auto-retry every 15s (up to 10 min) while DNS propagates
   3) Enter a different domain (fixes a typo, or use a new domain for this restore)
-  4) Continue anyway (not recommended .  cert will likely fail)
+  4) Continue anyway (not recommended, cert will likely fail)
   5) Abort restore
 ```
 - Just updated DNS a moment ago? Pick **2** and let it poll for you.
-- Realize the domain in the backup isn't the one you want live on this server (e.g. testing under a separate subdomain)? Pick **3** and type the correct one .  it rewrites the config on the spot and re-checks immediately.
-- Nothing here will start Docker or touch your certificates until you choose .  it's safe to sit and think.
+- Realize the domain in the backup isn't the one you want live on this server (e.g. testing under a separate subdomain)? Pick **3** and type the correct one: it rewrites the config on the spot and re-checks immediately.
+- Nothing here will start Docker or touch your certificates until you choose: it's safe to sit and think.
 
 **Then it checks your add-ons' subdomains** (MediaFlow, webhook relay, control panel), whether or not they were running. For any that don't point at this server yet, it asks whether to move it to another subdomain, keep it and fix DNS yourself (Enter), or leave it off for now. The summary at the end says what's running, what's waiting for DNS, and anything to update elsewhere, like MediaFlow's Public URL in the AIOStreams dashboard. [More detail](../advanced/backup-restore.md#add-ons-on-restore).
 
-That's it .  no other setup needed.
+That's it: no other setup needed.
 
 ---
 
 ### 5. Confirm everything works
 
-- Visit `https://yourdomain.com` .  should load with a valid padlock/HTTPS.
+- Visit `https://yourdomain.com`: should load with a valid padlock/HTTPS.
 - Log in with your existing username/password.
-- Play a stream from a device that already had the addon installed .  if it plays, the move worked.
+- Play a stream from a device that already had the addon installed: if it plays, the move worked.
 - **Keep the old server running** until you've confirmed this. It's your safety net if something looks wrong.
 
 ---
