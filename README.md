@@ -124,11 +124,6 @@ sudo bash setup-aiostreams.sh
 
 It asks for your domain, a login, and which build to run. Once it finishes, visit your domain and log in. From there, AIOStreams' own setup takes over.
 
-<details>
-<summary><b>Where it's installed</b></summary>
-
-Everything lives in `/opt/aiostreams`, one folder whether you're root or a sudo user, and every guide in these docs uses that path. The installer also adds `~/aiostreams` as a shortcut to it. It holds your `SECRET_KEY` and logins, so only root can change it. If you installed with `sudo` as your own user, you can still `cd` into it and read it; use `sudo` to edit anything, or connect as root if you edit scripts over SFTP.
-
 </details>
 
 ## Re-running the script later
