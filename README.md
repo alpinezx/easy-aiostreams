@@ -10,7 +10,7 @@
 A one-command installer for a self-hosted [AIOStreams](https://github.com/Viren070/AIOStreams) instance. It sets up Docker, Caddy (automatic HTTPS via Let's Encrypt), and secure login access to the config page and dashboard, all in one script. Restricted to your own credentials.
 
 > [!NOTE]
-> **Opinionated by design.** The script owns the whole stack on a fresh VPS: Docker, Caddy, the compose file and the services. It's made for people who want one thing that works end to end, and it won't slot into an existing reverse proxy or compose setup. If you already have one you like, you probably don't need this. Every step is explained in the advanced guides, so you can see exactly what it sets up and change it by hand.
+> **Opinionated by design.** The script owns the whole stack on a fresh VPS: Docker, Caddy, the compose file and the services. It's made for people who want one thing that works end to end, and it won't slot into an existing reverse proxy or compose setup. If you already have one you like, you probably don't need this. It's one bash script, so you can read exactly what it sets up before you run it.
 
 ## Contents
 
@@ -123,8 +123,6 @@ sudo bash setup-aiostreams.sh
 ```
 
 It asks for your domain, a login, and which build to run. Once it finishes, visit your domain and log in. From there, AIOStreams' own setup takes over.
-
-</details>
 
 ## Re-running the script later
 
