@@ -41,13 +41,17 @@ A one-command installer for a self-hosted [AIOStreams](https://github.com/Viren0
 - Ports 80 and 443 opened in your provider's firewall if it's enabled. Oracle cloud users, do this first > [Firewall Ports](./docs/basic/firewall-ports.md#2-check-your-providers-own-firewall-separate-from-the-server).
 - A subdomain you control, with an **A record already pointed at your server's IP** before running the script
 
-### Don't have a VPS yet?
+<details>
+<summary><b>Don't have a VPS yet?</b></summary>
 
 Any provider with root SSH access works: DigitalOcean, Hetzner, Oracle's free tier, Vultr, and others all run this fine. Compare specs and pricing at [vpsbenchmarks.com's under-$8/month list](https://www.vpsbenchmarks.com/best_vps/2026/under/8).
 
 **This script won't run on Vercel, Netlify, Railway, or similar app-hosting platforms.**
 
-### Don't have a domain yet?
+</details>
+
+<details>
+<summary><b>Don't have a domain yet?</b></summary>
 
 Any registrar works. If you're buying one just for this, prefer `.xyz` or `.top` over a country-code TLD (`.co.uk`, `.de`). They're usually DNS-ready in minutes, versus hours to days for country-code domains.
 
@@ -56,7 +60,7 @@ Any registrar works. If you're buying one just for this, prefer `.xyz` or `.top`
 - **[Namecheap](https://namecheap.com)**: the established option, huge TLD selection, slightly pricier renewals
 - **[DuckDNS](https://www.duckdns.org)**: totally free `yourname.duckdns.org` subdomain, no card needed. Fine for personal use, though you don't get to pick your own TLD.
 
-Whichever you pick, add an **A record** pointing at your VPS's IP before running the script. The install fails the HTTPS step if DNS hasn't propagated.
+</details>
 
 ## Quick start
 
@@ -71,6 +75,11 @@ dig +short yourdomain.xyz
 ```bash
 curl -4 ifconfig.me
 ```
+
+Don't run the installer until these two lines match.
+
+<details>
+<summary><b>What a match and a mismatch look like</b></summary>
 
 **✅ Example: Matches, good to go:**
 ```
@@ -87,7 +96,9 @@ dig +short yourdomain.xyz
 curl -4 ifconfig.me
 192.0.2.15
 ```
-Different IPs mean the domain isn't pointing at this server yet. Don't run the installer until these two lines match.
+Different IPs mean the domain isn't pointing at this server yet.
+
+</details>
 
 ### Run the installer
 
@@ -113,7 +124,7 @@ sudo bash setup-aiostreams.sh
 
 It asks for your domain, a login, and which build to run. Once it finishes, visit your domain and log in. From there, AIOStreams' own setup takes over.
 
-**Where it's installed:** everything lives in `/opt/aiostreams`, one folder whether you're root or a sudo user, and every guide in these docs uses that path. The installer also adds `~/aiostreams` as a shortcut to it. It holds your `SECRET_KEY` and logins, so only root can change it. If you installed with `sudo` as your own user, you can still `cd` into it and read it; use `sudo` to edit anything, or connect as root if you edit scripts over SFTP.
+</details>
 
 ## Re-running the script later
 
