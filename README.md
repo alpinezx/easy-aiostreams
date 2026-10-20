@@ -1,11 +1,11 @@
 # Easy AIOStreams
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
 > [!IMPORTANT]
-> **Installed this before October 2026?** The install folder has moved from `/root/aiostreams` to `/opt/aiostreams`, and these scripts only work with the new location. [Follow these steps to move your install](https://github.com/alpinezx/easy-aiostreams/tree/migrate-to-opt) (about a minute of downtime, with a backup first). Restoring a backup made before then onto a new server also goes through that branch once; the restore tells you how if it spots one.
+> **Installed this before October 2026?** The install folder has moved from `/root/aiostreams` to `/opt/aiostreams`, and these scripts only work with the new location. [Follow these steps to move your install](https://github.com/alpinezx/easy-aiostreams/tree/migrate-to-opt) (about a minute of downtime, with a backup first).
 >
 > **Installing for the first time?** You can skip this.
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 A one-command installer for a self-hosted [AIOStreams](https://github.com/Viren070/AIOStreams) instance. It sets up Docker, Caddy (automatic HTTPS via Let's Encrypt), and secure login access to the config page and dashboard, all in one script. Restricted to your own credentials.
 
@@ -18,8 +18,7 @@ A one-command installer for a self-hosted [AIOStreams](https://github.com/Viren0
 - [Prerequisites](#prerequisites)
 - [Quick start](#quick-start)
 - [Re-running the script later](#re-running-the-script-later)
-- [Notes](#notes)
-- [Backup & Restore: Migrating to a new server](#backup--restore--migrating-to-a-new-server-optional)
+- [Backup & Restore](#backup--restore-migrating-to-a-new-server-optional)
 - [Troubleshooting](#troubleshooting)
 - [Other Scripts](#other-scripts)
 
@@ -27,10 +26,10 @@ A one-command installer for a self-hosted [AIOStreams](https://github.com/Viren0
 
 - Your own AIOStreams instance, not a shared public one
 - HTTPS out of the box, auto-renewing, no manual cert wrangling
-- **App-level login** (AIOStreams' own auth). The configure page, dashboard, and the config API all require your username/password. Nobody else can create or edit configs on your instance, even if they talk to the API directly.
-- A management menu for status checks, restart, updates, switching from stable to nightly and back, backups, and clean uninstall, all in one place
-- Single-tarball backup and restore, for migrating to a new server or restoring to an existing one, without losing any configs, plus optional daily or weekly scheduled backups
-- **An optional web control panel (beta)**, added once the main install is done: see what's running, update, back up and restore, read the logs and open a terminal from your browser or phone, instead of over SSH. → [Control panel guide](./docs/basic/control-panel.md)
+- **App-level login** (AIOStreams' own auth). The configure page, dashboard, and the config API all require your username/password, so nobody else can create or edit configs on your instance.
+- A management menu for status, restart, updates, backups, and clean uninstall
+- Single-tarball backup and restore for migrating to a new server, plus optional scheduled backups
+- **An optional web control panel (beta)** to manage everything from your browser or phone instead of over SSH. → [Control panel guide](./docs/basic/control-panel.md)
 
 ![The control panel's Overview, from its demo mode with every add-on running](./docs/images/control-panel/readme-overview.png)
 
@@ -44,7 +43,7 @@ A one-command installer for a self-hosted [AIOStreams](https://github.com/Viren0
 
 ### Don't have a VPS yet?
 
-Any provider with root SSH access works: DigitalOcean, Hetzner, Oracle's free tier, Vultr, and others all run this fine. Compare specs/pricing at [vpsbenchmarks.com's under-$8/month list](https://www.vpsbenchmarks.com/best_vps/2026/under/8).
+Any provider with root SSH access works: DigitalOcean, Hetzner, Oracle's free tier, Vultr, and others all run this fine. Compare specs and pricing at [vpsbenchmarks.com's under-$8/month list](https://www.vpsbenchmarks.com/best_vps/2026/under/8).
 
 **This script won't run on Vercel, Netlify, Railway, or similar app-hosting platforms.**
 
@@ -63,9 +62,7 @@ Whichever you pick, add an **A record** pointing at your VPS's IP before running
 
 ### Confirm your DNS is actually pointing at your server first
 
-The install fails the HTTPS step if your **A record** hasn't propagated yet. Run this, but swap `yourdomain.xyz` for your own real domain first, it's just a placeholder:
-
-Bare name only, no `https://`, no trailing `/`, no backslash. e.g. `dig +short yourdomain.xyz`, or `dig +short aio.yourdomain.xyz` for a subdomain. It should print a single IP; compare it to your server's:
+Swap `yourdomain.xyz` for your own real domain, it's just a placeholder. Use the bare name only, no `https://`, no trailing `/`. For a subdomain, use `dig +short aio.yourdomain.xyz`. It should print a single IP; compare it to your server's:
 
 ```bash
 dig +short yourdomain.xyz
@@ -114,22 +111,13 @@ Run it:
 sudo bash setup-aiostreams.sh
 ```
 
-The script will ask you for:
-1. Your domain/subdomain
-2. A username and password for logging into the instance
-3. Which build to run: stable (recommended) or nightly
-
-Passwords need at least 8 characters, and are limited to letters, numbers, and `@ % ^ * _ + = . ! ? -`. Other symbols would break the `user:pass` environment format.
-
-Docker install, HTTPS certificate, and secret key generation are all handled automatically.
-
-Once it finishes, visit your domain and log in via AIOStreams' login page. From there, AIOStreams' own setup takes over.
+It asks for your domain, a login, and which build to run. Once it finishes, visit your domain and log in. From there, AIOStreams' own setup takes over.
 
 **Where it's installed:** everything lives in `/opt/aiostreams`, one folder whether you're root or a sudo user, and every guide in these docs uses that path. The installer also adds `~/aiostreams` as a shortcut to it. It holds your `SECRET_KEY` and logins, so only root can change it. If you installed with `sudo` as your own user, you can still `cd` into it and read it; use `sudo` to edit anything, or connect as root if you edit scripts over SFTP.
 
 ## Re-running the script later
 
-Run it again any time with `sudo bash /opt/aiostreams/setup-aiostreams.sh` and it'll detect your existing install and offer a menu that loops back after each action, so you can run several in a row without relaunching:
+Run it again any time with `sudo bash /opt/aiostreams/setup-aiostreams.sh` and it'll detect your existing install and offer a menu that loops back after each action:
 
 ```
  1) View status
@@ -145,19 +133,9 @@ Run it again any time with `sudo bash /opt/aiostreams/setup-aiostreams.sh` and i
 11) Maintenance (free up space, system updates, container log limits)
 ```
 
-**View status** shows what the control panel's Overview does: the AIOStreams version and whether a newer one is out, the certificate's days left, each service, phone alerts, uptime, load, memory, disk, the newest backup and updates waiting. `sudo bash /opt/aiostreams/setup-aiostreams.sh status` prints the same without the menu, and `start`, `stop`, `restart` and `update` (with `--backup` and `--channel latest|nightly`) run options 3, 2, 4 and 5 without questions.
-
-**Maintenance** (11, after Exit, so Exit keeps its number 10) shows what it found first: old images and build leftovers that can go, system logs, updates waiting and whether container logs are capped. Then it offers the same three jobs as the control panel's Maintenance page, each asking first. They also run without questions: `sudo bash /opt/aiostreams/setup-aiostreams.sh free-space` (old images, build leftovers, system logs beyond 100 MB), `system-updates` (Ubuntu's updates, bringing the stack back if Docker itself was updated) and `log-limits` (caps each container's log at 10 MB; every container restarts once).
-
-**Stable vs nightly:** on a fresh install (or Reconfigure), you'll be asked to choose the `latest` (stable) or `nightly` build. Switch channels anytime from **Update**, it'll walk you through it and confirm before switching.
-
-## Notes
-
-- The installer prints your credentials file location and a couple of important reminders once it finishes. Read that summary before closing the terminal.
-
 ## Backup & Restore (Migrating to a new server, optional)
 
-- Back up your whole stack to a single tarball and restore it to your existing or a new VPS, preserving the same domain, login, `SECRET_KEY`, and all, so every existing user config and installed Stremio manifest keeps working. Covers the DNS update you'll need to make afterward if you're migrating to a new server. → [Basic](./docs/basic/backup-restore.md) · [Advanced](./docs/advanced/backup-restore.md)
+Back up your whole stack to a single tarball and restore it to your existing or a new VPS, preserving the same domain, login, `SECRET_KEY`, and all, so every existing user config and installed Stremio manifest keeps working. Covers the DNS update you'll need afterward if you're migrating to a new server. → [Basic](./docs/basic/backup-restore.md) · [Advanced](./docs/advanced/backup-restore.md)
 
 ## Troubleshooting
 
@@ -165,15 +143,15 @@ Run it again any time with `sudo bash /opt/aiostreams/setup-aiostreams.sh` and i
 
 Addon/scraper blocked, streams failing to load, `403`/`429`/`502` errors in the logs? [Add-on Proxy Setup](./docs/basic/addon-proxy-setup.md)
 
-The most common issues you may come across. [Common Issues](./docs/troubleshooting.md#most-likely-issues)
+The most common issues you may come across: [Common Issues](./docs/troubleshooting.md#most-likely-issues)
 
-links to every guide (basic and advanced). [All Guides](./docs/troubleshooting.md#all-guides)
+Links to every guide (basic and advanced): [All Guides](./docs/troubleshooting.md#all-guides)
 
-If you suspect it's not your setup at all, check, [Stremio Status](https://status.stremio-status.com/) or [IbbyLabs Uptime Tracker](https://uptime.ibbylabs.dev/) to see if the addon/provider itself is down.
+If you suspect it's not your setup at all, check [Stremio Status](https://status.stremio-status.com/) or [IbbyLabs Uptime Tracker](https://uptime.ibbylabs.dev/) to see if the addon/provider itself is down.
 
 ## Other Scripts
 
-Want a web control panel (beta) to manage it all from your browser, a system-wide VPN layer, phone alerts when your server needs you (site down, restarts, disk full, certificate, plus the VPN tunnel and MediaFlow), to turn a third-party site's webhook option into a phone alert, or a lighter alternative proxy if scrubbing/seeking spikes your VPS's CPU? Those live in their own standalone scripts, see [Other Scripts](./docs/other-scripts.md)
+Want a web control panel (beta), a system-wide VPN layer, phone alerts when your server needs you, a way to turn a third-party site's webhook into a phone alert, or a lighter alternative proxy if scrubbing/seeking spikes your VPS's CPU? Those live in their own standalone scripts, see [Other Scripts](./docs/other-scripts.md)
 
 For bugs in the script itself: [open an issue](https://github.com/alpinezx/easy-aiostreams/issues). For setup questions not covered here or in the linked guides, check out these Reddit threads: [r/StremioAddons](https://www.reddit.com/r/StremioAddons/comments/1vo6a5q/self_hosted_aiostreams_easy_install_script/), [r/nuvioaddons](https://www.reddit.com/r/nuvioaddons/comments/1vsud3b/self_hosted_aiostreams_easy_install_script_nuvio/)
 
