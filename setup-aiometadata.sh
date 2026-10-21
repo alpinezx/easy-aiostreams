@@ -390,7 +390,9 @@ do_start() {
     write_compose
     write_caddy_snippet
     info "Starting AIOMetadata ${AIOM_VERSION}"
-    compose up -d
+    # Quiet: a missing image (after an uninstall, or on a new server) would
+    # otherwise print a line per layer, filling a restore's output.
+    compose up -d --quiet-pull
     rm -f "$STOPPED_MARKER"
     reload_caddy
     echo "Waiting for it to report healthy (up to 90 seconds)..."
