@@ -210,8 +210,6 @@ button.chip:hover { text-decoration: underline; }
 .ver-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .ver-head h2 { margin: 0; font-size: .98rem; font-weight: 650; }
 /* Opens AIOStreams: the title is the link, padded so it's an easy tap on a phone */
-.ver-head a.ver-open { display: inline-flex; align-items: center; padding: 6px 8px; margin: -6px -8px; border-radius: 8px; text-decoration: none; }
-.ver-head a.ver-open:hover { text-decoration: underline; }
 .ver-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) auto; gap: 14px 24px; margin-top: 14px; align-items: end; }
 .ver-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--faint); margin-bottom: 4px; }
 .ver-value { font-size: 1.2rem; font-weight: 650; letter-spacing: -.01em; }
@@ -248,11 +246,13 @@ button.chip:hover { text-decoration: underline; }
 .path-sum [data-s="starting"] i, .path-sum [data-s="paused"] i { background: var(--warn); }
 .path-sum [data-s="stopped"] i, .path-sum [data-s="missing"] i, .path-sum [data-s="unhealthy"] i, .path-sum [data-s="restarting"] i { background: var(--bad); }
 .path-sum [data-s="stopped"], .path-sum [data-s="missing"], .path-sum [data-s="unhealthy"], .path-sum [data-s="restarting"] { color: var(--bad); }
-/* Every card folds the same way: its title (or a chevron beside a title that's a link)
-   folds it to one line of what matters, coloured only when something needs a look */
-.fold-title { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
-.fold-chev { margin: -6px -6px -6px 0; padding: 6px; color: var(--faint); }
-.fold-chev:hover { color: var(--text); }
+/* Every card folds the same way: its title folds it to one line of what matters,
+   coloured only when something needs a look */
+.fold-title { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; min-width: 0; }
+/* A card's own pages (AIOStreams' Dashboard and Configure), in blue beside its title */
+.card-pages { display: inline-flex; gap: 14px; font-size: .88rem; font-weight: 500; }
+.card-page { display: inline-flex; align-items: center; text-decoration: none; white-space: nowrap; }
+.card-page:hover { text-decoration: underline; }
 .fold-toggle[aria-expanded="false"] .path-chev svg { transform: rotate(-90deg); }
 .fold-sum li.ok { color: var(--ok); } .fold-sum li.warn { color: var(--warn); } .fold-sum li.bad { color: var(--bad); }
 .fold-sum .ok { color: var(--ok); } .fold-sum .warn { color: var(--warn); }
@@ -1016,4 +1016,8 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   /* the other cards the same way: title and its button on top, the line under them */
   .panel.folded .card-head, .ver-card.folded .ver-head, .sec-head.folded { flex-wrap: wrap; justify-content: space-between; }
   .folded .fold-sum { order: 3; flex: 1 0 100%; margin: 2px 0 0; gap: 4px 12px; font-size: .82rem; }
+  /* AIOStreams: its title and pages on top, the versions with Update at their right under them */
+  .ver-card.folded .fold-title { flex: 1 0 100%; }
+  .ver-card.folded .fold-sum { flex: 1 1 0; }
+  .ver-card.folded .ver-head > .btn { order: 4; }
 }

@@ -157,13 +157,6 @@ function foldTitle(id, label) {
   return h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(!f),
     title: f ? `Show all of ${label}` : `Fold ${label} to one line`, onclick: () => setFold(id) }, label, chev());
 }
-// Just the chevron, for a title that's a link of its own
-function foldChev(id, label) {
-  const f = isFolded(id);
-  return h("button", { class: "path-toggle fold-toggle fold-chev", type: "button", "aria-expanded": String(!f),
-    "aria-label": f ? `Show all of ${label}` : `Fold ${label} to one line`, title: f ? `Show all of ${label}` : `Fold ${label} to one line`,
-    onclick: () => setFold(id) }, chev());
-}
 // The folded line: [text or element, tone, tooltip], empty ones left out
 function foldSum(items) {
   return h("ul", { class: "path-sum fold-sum" }, ...items.filter((x) => x && x[0]).map(([v, tone, title]) =>
@@ -251,10 +244,12 @@ function versionCard(st, avail) {
   // Update sits with Check now, blue only when a newer release is out
   if (upd && upd.available) btns.unshift(h("button", { class: "btn small" + (fresh ? " primary" : ""), type: "button", text: "Update",
     disabled: !!st.busy, title: "Update AIOStreams, or switch between stable and nightly", onclick: () => runAction(upd) }));
+  // The title folds the card like the others; its two pages are links beside it
+  const page = (label, path) => h("a", { class: "card-page", href: `https://${st.domain}${path}`, target: "_blank", rel: "noopener noreferrer",
+    title: `Opens https://${st.domain}${path} in a new tab` }, label, extIcon());
   const title = h("div", { class: "fold-title" },
-    h("h2", {}, st.domain ? h("a", { class: "ver-open", href: `https://${st.domain}`, target: "_blank", rel: "noopener noreferrer",
-      title: `Opens https://${st.domain} in a new tab` }, "AIOStreams", extIcon()) : "AIOStreams"),
-    foldChev("aiostreams", "AIOStreams"));
+    h("h2", {}, foldTitle("aiostreams", "AIOStreams")),
+    st.domain ? h("span", { class: "card-pages" }, page("Dashboard", "/dashboard"), page("Configure", "/stremio/configure")) : null);
   if (isFolded("aiostreams")) {
     // One line: the version running, whether a newer one is out, and Update
     return h("section", { class: "panel ver-card folded", "aria-label": "AIOStreams version" },
