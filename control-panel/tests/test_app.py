@@ -555,3 +555,17 @@ def test_backup_schedule(client):
     assert (r["every"], r["day"], r["time"]) == ("weekly", 3, "05:30")
     assert client.put("/api/backup-schedule", json={"every": "off"}).json()["every"] == "off"
     assert client.get("/api/status").json()["backup"]["every"] == "off"
+
+
+def test_overview_layout(client):
+    login(client)
+    ids = lambda r: [(c["id"], c["show"]) for c in r.json()["cards"]]
+    default = [("flow", True), ("aiostreams", True), ("server", True), ("alerts", True), ("services", True)]
+    assert ids(client.get("/api/overview-layout")) == default
+    # unknown and repeated cards are dropped; ones left out go back to their default place
+    r = client.put("/api/overview-layout", json={"cards": [{"id": "services", "show": True}, {"id": "nope"},
+                                                         {"id": "alerts", "show": False}, {"id": "services", "show": False}]})
+    assert ids(r) == [("flow", True), ("aiostreams", True), ("server", True), ("services", True), ("alerts", False)]
+    assert ids(client.get("/api/overview-layout")) == ids(r)
+    assert client.put("/api/overview-layout", json={"cards": "x"}).status_code == 400
+    assert ids(client.put("/api/overview-layout", json={"cards": []})) == default
