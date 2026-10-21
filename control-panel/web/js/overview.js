@@ -217,10 +217,11 @@ function node(s) {
       " ", h("span", { class: "dim", dataset: { up: s.key }, text: uptime(s) })));
 }
 
-// Folded or not is remembered per browser, so a phone can keep it folded and a desktop open
+// Folded until someone opens it; after that it's remembered per browser, so a phone can
+// keep it folded and a desktop open
 const FOLD_KEY = "aios.flowFolded";
-let folded = false;
-try { folded = localStorage.getItem(FOLD_KEY) === "1"; } catch (_) {}
+let folded = true;
+try { folded = localStorage.getItem(FOLD_KEY) !== "0"; } catch (_) {}
 function toggleFold() {
   folded = !folded;
   try { localStorage.setItem(FOLD_KEY, folded ? "1" : "0"); } catch (_) {}
