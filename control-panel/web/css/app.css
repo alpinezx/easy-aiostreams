@@ -846,24 +846,51 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 
 .brand { white-space: nowrap; }
 
-/* The Overview's order at every width: the headline, the request flow it illustrates,
-   the version card, This server and Phone alerts, then the services. */
+/* The Overview: the headline, then the cards in the order Edit saved (layout.js sets
+   --o-<card> and data-hide). By default: the request flow it illustrates, the version
+   card, This server and Phone alerts, then the services. */
 #view-overview:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr); }
-#view-overview .cols { display: contents; }
-#view-overview .hero { order: 1; }
-#view-overview .path { order: 2; }
-#view-overview .ver-slot { order: 3; margin: 0 0 30px; }
-#view-overview .side { order: 4; margin: 0 0 30px; }
-#view-overview .cols > div { order: 5; }
+#view-overview .cols, #view-overview .side { display: contents; }
+#view-overview .hero { order: 0; }
+#view-overview .path { order: var(--o-flow, 1); }
+#view-overview .ver-slot { order: var(--o-aiostreams, 2); margin: 0 0 30px; }
+#view-overview .panel.host { order: var(--o-server, 3); margin: 0 0 30px; }
+#view-overview .panel.wd { order: var(--o-alerts, 4); margin: 0 0 30px; }
+#view-overview .cols > div { order: var(--o-services, 5); margin: 0 0 30px; }
+#view-overview[data-hide~="flow"] .path, #view-overview[data-hide~="aiostreams"] .ver-slot,
+#view-overview[data-hide~="server"] .panel.host, #view-overview[data-hide~="alerts"] .panel.wd,
+#view-overview[data-hide~="services"] .cols > div { display: none; }
 
 /* Wide screens: wide cards in rows, like AIOStreams' own dashboard, with This server and
-   Phone alerts side by side (This server alone takes the row). */
+   Phone alerts side by side when they're next to each other (otherwise each takes a row). */
 @media (min-width: 1141px) {
-  #view-overview .side { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: stretch; }
-  /* alone in the row (no Phone alerts): all six in one line */
-  .panel.host:only-child .stat-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  #view-overview:not([hidden]) { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 18px; }
+  #view-overview > *, #view-overview .cols > *, #view-overview .side > * { grid-column: 1 / -1; }
+  #view-overview.pair .panel.host, #view-overview.pair .panel.wd { grid-column: auto; }
+  /* a row of its own: six to a line */
+  #view-overview:not(.pair) .panel.host .stat-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .panel.host, .panel.wd { display: flex; flex-direction: column; }
 }
+
+/* Edit, beside the headline */
+.hero-edit { margin-left: auto; gap: 6px; }
+.hero-edit svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Edit's drawer: a card per row, its switch, and ≡ to drag it */
+.lay-drawer { width: min(460px, 100vw); }
+.lay-drawer .drawer-foot { justify-content: space-between; flex-wrap: wrap; font-size: .86rem; }
+.lay-list { flex: 1; overflow: auto; margin: 0; padding: 14px 20px; list-style: none; user-select: none; display: grid; gap: 8px; align-content: start; }
+.lay-row { display: flex; align-items: center; gap: 14px; padding: 12px 8px 12px 16px; border: 1px solid var(--line-soft); border-radius: 12px; background: var(--raised); }
+.lay-row.dragging { position: relative; z-index: 2; border-color: var(--accent); box-shadow: 0 12px 30px rgba(0, 0, 0, .35); }
+.lay-text { display: grid; gap: 2px; min-width: 0; margin-right: auto; }
+.lay-title { font-weight: 650; }
+.lay-sub { font-size: .84rem; }
+.lay-grip { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 8px; background: none; color: var(--dim);
+  cursor: grab; touch-action: none; }
+.lay-grip:hover { color: var(--text); background: var(--hover); }
+.lay-row.dragging .lay-grip { cursor: grabbing; color: var(--text); }
+.lay-grip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.lay-grip svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 
 /* ---------- phones ---------- */
 @media (max-width: 720px) {
@@ -939,7 +966,7 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 /* Phones: the request flow on one line of small status pills, the add-ons on a line under
    it, uptimes left to Services. A tall chain of boxes used to fill a screen and a half. */
 @media (max-width: 720px) {
-  #view-overview .ver-slot, #view-overview .side { margin-bottom: 22px; }
+  #view-overview .ver-slot, #view-overview .panel.host, #view-overview .panel.wd, #view-overview .cols > div { margin-bottom: 22px; }
   .path { margin: 0 0 22px; padding: 16px 14px 14px; }
   .path-head { margin: 0 0 12px; }
   .chain { flex-direction: row; align-items: center; }

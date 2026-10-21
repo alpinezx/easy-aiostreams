@@ -427,6 +427,64 @@ async def backups(user: str = Depends(current_user)):
              "build": known.get(b["name"]), "build_pending": b["name"] in pending} for b in items]
 
 
+# Which Overview cards show, and in what order. One layout for the install, kept with the
+# panel's state (so phone and desktop match, and a restore brings it back).
+OVERVIEW_CARDS = ["flow", "aiostreams", "server", "alerts", "services"]
+_layout_lock = threading.Lock()
+
+
+def _layout_path() -> Path:
+    return config.STATE_DIR / "overview-layout.json"
+
+
+def normal_layout(cards) -> list[dict]:
+    """Known cards once each, in the order given; any left out (a card added in a later
+    panel) go back where they sit by default, shown."""
+    out, seen = [], set()
+    for c in cards if isinstance(cards, list) else []:
+        if isinstance(c, dict) and c.get("id") in OVERVIEW_CARDS and c["id"] not in seen:
+            seen.add(c["id"])
+            out.append({"id": c["id"], "show": c.get("show") is not False})
+    for i, cid in enumerate(OVERVIEW_CARDS):
+        if cid not in seen:
+            before = set(OVERVIEW_CARDS[:i])
+            at = max((n + 1 for n, c in enumerate(out) if c["id"] in before), default=0)
+            out.insert(at, {"id": cid, "show": True})
+    return out
+
+
+def load_layout() -> list[dict]:
+    try:
+        return normal_layout(json.loads(_layout_path().read_text()).get("cards"))
+    except Exception:
+        return normal_layout([])
+
+
+@app.get("/api/overview-layout")
+async def overview_layout(user: str = Depends(current_user)):
+    return {"cards": load_layout()}
+
+
+@app.put("/api/overview-layout")
+async def set_overview_layout(request: Request, user: str = Depends(current_user)):
+    """{"cards": [{"id": "flow", "show": true}, ...]}; {"cards": []} puts the default back."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = None
+    if not isinstance(body, dict) or not isinstance(body.get("cards"), list):
+        raise HTTPException(400, "Bad request")
+    cards = normal_layout(body["cards"])
+    with _layout_lock:
+        tmp = _layout_path().with_suffix(".tmp")
+        try:
+            tmp.write_text(json.dumps({"cards": cards}))
+            tmp.replace(_layout_path())
+        except OSError:
+            raise HTTPException(500, "Couldn't save the layout.")
+    return {"cards": cards}
+
+
 @app.get("/api/backup-schedule")
 async def backup_schedule(user: str = Depends(current_user)):
     """Scheduled backups: off, daily or weekly, and how the last run went."""

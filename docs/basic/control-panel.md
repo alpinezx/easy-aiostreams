@@ -61,7 +61,7 @@ Treat the unlock link like a password. If it ever leaks, make a new one (see [Ev
 
 ## What's in it
 
-**Overview.** Whether everything is up; a card with the AIOStreams version you're running, the latest release and whether you're up to date; the path a request takes through Caddy (and the VPN, if you use it); and each service with its CPU, memory and a **Logs** button. **Update** (which also switches between stable and nightly) sits in the version card, **Restart stack** by the request path, and **Stop** (or **Start**) on AIOStreams' row; they do the same as the matching options in `setup-aiostreams.sh`. Stop leaves Caddy running.
+**Overview.** Whether everything is up; a card with the AIOStreams version you're running, the latest release and whether you're up to date; the path a request takes through Caddy (and the VPN, if you use it); and each service with its CPU, memory and a **Logs** button. **Update** (which also switches between stable and nightly) sits in the version card, **Restart stack** by the request path, and **Stop** (or **Start**) on AIOStreams' row; they do the same as the matching options in `setup-aiostreams.sh`. Stop leaves Caddy running. **Edit**, beside the headline, lets you hide the cards you don't need and drag the rest into the order you like; it's saved on the server, so every device shows the same.
 
 ![Update or switch build, with a backup first](../images/control-panel/update-dialog.png)
 

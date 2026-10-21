@@ -4,6 +4,7 @@ import { openReleases, remember, behind } from "./releases.js";
 import { days, todayLine, parseCheck } from "./alerts.js";
 import { pill as scriptsPill } from "./scripts.js";
 import { scheduleText } from "./activity.js";
+import { applyLayout, openLayout } from "./layout.js";
 
 // ---------------- update check ----------------
 let rel = null, relLoading = false, relFor = null, lastSt = null;
@@ -131,6 +132,7 @@ export function render(st, goLogs) {
   if (st.version && relFor !== relChannel(st)) { relFor = relChannel(st); rel = null; loadReleases(false); }
   remember(rel, runningTag(st));
   hero(st); path(st); rows(st, goLogs); side(st);
+  applyLayout(st);
 }
 
 // Caddy renews a certificate with about a third of its life left, so it only gets
@@ -161,7 +163,8 @@ function hero(st) {
     el.append(h("div", { class: "hero-head" },
       h("span", { class: "lamp", dataset: { s: st.overall }, "aria-hidden": "true" }),
       h("h1", { class: "headline", "aria-live": "polite", text: st.headline }),
-      h("a", { class: "chip warn scripts-pill", id: "scripts-pill", href: "#scripts", hidden: true })));
+      h("a", { class: "chip warn scripts-pill", id: "scripts-pill", href: "#scripts", hidden: true }),
+      st.installed ? editBtn() : null));
     scriptsPill();
     // The certificate lives in This server; it comes up here only when it needs attention.
     if (st.cert && (!st.cert.ok || certTone(st.cert))) el.append(h("div", { class: "hero-meta" }, certChip(st, true)));
@@ -180,6 +183,13 @@ function hero(st) {
         h("button", { class: "btn small", type: "button", text: "View output", onclick: () => openJob(st.busy) }))));
     }
   });
+}
+
+// Edit: which cards the Overview shows, and their order, in a drawer
+function editBtn() {
+  const b = h("button", { class: "btn small quiet hero-edit", type: "button", title: "Show, hide or reorder the cards on this page", onclick: openLayout });
+  b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg>Edit';
+  return b;
 }
 
 // The build in a card of its own, laid out like AIOStreams' own Version card:
