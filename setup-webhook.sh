@@ -518,6 +518,8 @@ do_configure() {
     [[ -f "$INSTALL_DIR/Caddyfile" ]] && main_domain=$(head -n1 "$INSTALL_DIR/Caddyfile" | awk '{print $1}')
     local mediaflow_domain
     mediaflow_domain=$(grep -hoP "^DOMAIN='?\K[^'\s]+" "$INSTALL_DIR/mediaflow-state/config" 2>/dev/null || true)
+    local aiometadata_domain
+    aiometadata_domain=$(grep -hoP "^DOMAIN='?\K[^'\s]+" "$INSTALL_DIR/aiometadata-state/config" 2>/dev/null || true)
     while true; do
         read -rp "Subdomain: " domain
         domain=$(echo "$domain" | xargs)
@@ -531,6 +533,10 @@ do_configure() {
         fi
         if [[ -n "$mediaflow_domain" && "${domain,,}" == "${mediaflow_domain,,}" ]]; then
             warn "That's your MediaFlow Proxy subdomain. The relay needs its own subdomain."
+            continue
+        fi
+        if [[ -n "$aiometadata_domain" && "${domain,,}" == "${aiometadata_domain,,}" ]]; then
+            warn "That's your AIOMetadata subdomain. The relay needs its own subdomain."
             continue
         fi
         check_subdomain_dns "$domain" || continue

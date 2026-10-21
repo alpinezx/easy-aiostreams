@@ -549,6 +549,7 @@ check_subdomain_dns() {
 other_domains() {
     [[ -f "$INSTALL_DIR/Caddyfile" ]] && head -n1 "$INSTALL_DIR/Caddyfile" | awk '{print $1}'
     grep -hoP "^DOMAIN='?\K[^'\s]+" "$INSTALL_DIR/webhook-relay-state/config" 2>/dev/null || true
+    grep -hoP "^DOMAIN='?\K[^'\s]+" "$INSTALL_DIR/aiometadata-state/config" 2>/dev/null || true
 }
 
 do_configure() {
@@ -584,7 +585,7 @@ do_configure() {
             [[ -n "$taken" && "${domain,,}" == "${taken,,}" ]] && clash=true
         done < <(other_domains)
         if $clash; then
-            warn "$domain is already used by your main install or the webhook relay. MediaFlow needs its own subdomain."
+            warn "$domain is already used by your main install or another add-on. MediaFlow needs its own subdomain."
             continue
         fi
         check_subdomain_dns "$domain" || continue
