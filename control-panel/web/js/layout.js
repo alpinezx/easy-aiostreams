@@ -18,14 +18,11 @@ let lastFocus = null, saveTimer = null;
 api("/api/overview-layout").then((r) => { cards = r.cards; apply(); if (isOpen()) list(); }).catch(() => {});
 
 // Order and visibility are CSS on the view, so the cards' own repaints don't touch them.
-// This server and Phone alerts share a row on wide screens when they sit next to each other.
+// Each card takes a full row of its own.
 function apply() {
   const view = $("#view-overview");
   cards.forEach((c, i) => view.style.setProperty(`--o-${c.id}`, String(i + 1)));
   view.dataset.hide = cards.filter((c) => !c.show).map((c) => c.id).join(" ");
-  const shown = cards.filter((c) => c.show && (c.id !== "alerts" || hasAlerts)).map((c) => c.id);
-  const at = shown.indexOf("server");
-  view.classList.toggle("pair", at >= 0 && (shown[at - 1] === "alerts" || shown[at + 1] === "alerts"));
 }
 
 export function applyLayout(st) {
