@@ -126,9 +126,55 @@ export function record(st) {
   }
 }
 
+// ---------------- folding ----------------
+// Every card folds to one line holding what matters most, and anything that needs a look
+// stays on that line. Remembered per browser, so a phone can keep cards folded and a
+// desktop open. Only the request flow starts folded.
+const FOLD_KEYS = { flow: "aios.flowFolded" };
+const foldKey = (id) => FOLD_KEYS[id] || `aios.fold.${id}`;
+const folds = {};
+function isFolded(id) {
+  if (!(id in folds)) {
+    let v = null;
+    try { v = localStorage.getItem(foldKey(id)); } catch (_) {}
+    folds[id] = v == null ? id === "flow" : v !== "0";
+  }
+  return folds[id];
+}
+function setFold(id) {
+  folds[id] = !isFolded(id);
+  try { localStorage.setItem(foldKey(id), folds[id] ? "1" : "0"); } catch (_) {}
+  if (lastSt) render(lastSt, lastGoLogs);
+}
+function chev() {
+  const c = h("span", { class: "path-chev", "aria-hidden": "true" });
+  c.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
+  return c;
+}
+// The title as the fold button, as on the request flow
+function foldTitle(id, label) {
+  const f = isFolded(id);
+  return h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(!f),
+    title: f ? `Show all of ${label}` : `Fold ${label} to one line`, onclick: () => setFold(id) }, label, chev());
+}
+// Just the chevron, for a title that's a link of its own
+function foldChev(id, label) {
+  const f = isFolded(id);
+  return h("button", { class: "path-toggle fold-toggle fold-chev", type: "button", "aria-expanded": String(!f),
+    "aria-label": f ? `Show all of ${label}` : `Fold ${label} to one line`, title: f ? `Show all of ${label}` : `Fold ${label} to one line`,
+    onclick: () => setFold(id) }, chev());
+}
+// The folded line: [text or element, tone, tooltip], empty ones left out
+function foldSum(items) {
+  return h("ul", { class: "path-sum fold-sum" }, ...items.filter((x) => x && x[0]).map(([v, tone, title]) =>
+    h("li", { class: tone || null, title: title || null }, v)));
+}
+
+let lastGoLogs = null;
 export function render(st, goLogs) {
   window.__channel = st.channel;
   lastSt = st;
+  lastGoLogs = goLogs;
   if (st.version && relFor !== relChannel(st)) { relFor = relChannel(st); rel = null; loadReleases(false); }
   remember(rel, runningTag(st));
   hero(st); path(st); rows(st, goLogs); side(st);
@@ -155,7 +201,7 @@ function hero(st) {
   const avail = Object.fromEntries(st.actions.map((a) => [a.id, a]));
   const aio = st.services.find((s) => s.key === "aiostreams");
   const key = [st.overall, st.headline, st.domain, st.channel, st.version, st.build_tag, st.vpn, !!st.busy, aio && aio.state,
-    st.cert && st.cert.ok, st.cert && st.cert.days_left, st.cert && st.cert.days_total, st.installed, st.docker_ok, relLoading, rel && rel.checked_at, rel && rel.error].join("|");
+    st.cert && st.cert.ok, st.cert && st.cert.days_left, st.cert && st.cert.days_total, st.installed, st.docker_ok, relLoading, rel && rel.checked_at, rel && rel.error, isFolded("aiostreams")].join("|");
   rebuild("#hero", key, (el) => {
     // The headline, and after it the "Script updates" pill while a setup script here differs
     // from GitHub (it drops below the headline when they don't fit on one line).
@@ -205,10 +251,19 @@ function versionCard(st, avail) {
   // Update sits with Check now, blue only when a newer release is out
   if (upd && upd.available) btns.unshift(h("button", { class: "btn small" + (fresh ? " primary" : ""), type: "button", text: "Update",
     disabled: !!st.busy, title: "Update AIOStreams, or switch between stable and nightly", onclick: () => runAction(upd) }));
+  const title = h("div", { class: "fold-title" },
+    h("h2", {}, st.domain ? h("a", { class: "ver-open", href: `https://${st.domain}`, target: "_blank", rel: "noopener noreferrer",
+      title: `Opens https://${st.domain} in a new tab` }, "AIOStreams", extIcon()) : "AIOStreams"),
+    foldChev("aiostreams", "AIOStreams"));
+  if (isFolded("aiostreams")) {
+    // One line: the version running, whether a newer one is out, and Update
+    return h("section", { class: "panel ver-card folded", "aria-label": "AIOStreams version" },
+      h("div", { class: "ver-head" }, title,
+        foldSum([[nightly && running ? `Nightly ${running.slice(0, -8)}` : `v${st.version}`], [latest]]),
+        btns[0] && btns[0].textContent === "Update" ? btns[0] : null));
+  }
   return h("section", { class: "panel ver-card", "aria-label": "AIOStreams version" },
-    h("div", { class: "ver-head" },
-      h("h2", {}, st.domain ? h("a", { class: "ver-open", href: `https://${st.domain}`, target: "_blank", rel: "noopener noreferrer",
-        title: `Opens https://${st.domain} in a new tab` }, "AIOStreams", extIcon()) : "AIOStreams"),
+    h("div", { class: "ver-head" }, title,
       h("span", { class: "chip" + (nightly ? " warn" : " ok"), text: nightly ? "Nightly" : "Stable",
         title: nightly ? "AIOStreams' nightly builds (Docker tag: nightly). Switch with Update." : "AIOStreams' stable releases (Docker tag: latest). Switch with Update." })),
     h("div", { class: "ver-grid" },
@@ -227,18 +282,9 @@ function node(s) {
       " ", h("span", { class: "dim", dataset: { up: s.key }, text: uptime(s) })));
 }
 
-// Folded until someone opens it; after that it's remembered per browser, so a phone can
-// keep it folded and a desktop open
-const FOLD_KEY = "aios.flowFolded";
-let folded = true;
-try { folded = localStorage.getItem(FOLD_KEY) !== "0"; } catch (_) {}
-function toggleFold() {
-  folded = !folded;
-  try { localStorage.setItem(FOLD_KEY, folded ? "1" : "0"); } catch (_) {}
-  if (lastSt) path(lastSt);
-}
-
+// Folded until someone opens it (see folding above)
 function path(st) {
+  const folded = isFolded("flow");
   const main = st.services.filter((s) => !s.addon);
   const addons = st.services.filter((s) => s.addon);
   const restart = st.installed && st.actions.find((a) => a.id === "stack.restart");
@@ -247,11 +293,7 @@ function path(st) {
     title: "Restart Caddy, AIOStreams and anything in between", onclick: () => runAction(restart) }) : null;
   const el = rebuild("#path", key, (el) => {
     el.classList.toggle("folded", folded);
-    const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
-    chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
-    const head = h("div", { class: "path-head" },
-      h("h2", { class: "path-title" }, h("button", { class: "path-toggle", type: "button", "aria-expanded": String(!folded),
-        title: folded ? "Show the request flow" : "Fold the request flow away", onclick: toggleFold }, "Request flow", chev)));
+    const head = h("div", { class: "path-head" }, h("h2", { class: "path-title" }, foldTitle("flow", "Request flow")));
     el.append(head);
     if (folded) {
       // One line: a dot per service, coloured like the boxes, and Restart stack beside them
@@ -318,7 +360,28 @@ function fillSpark(svg, values) {
   svg.querySelector(".area").setAttribute("d", `${d} L96 28 L0 28 Z`);
 }
 
+// Folded: how many are running, their memory, and any that aren't, by name
+function svcHead(st) {
+  const f = isFolded("services");
+  $("#rows").hidden = f;
+  const up = st.services.filter((s) => s.state === "running");
+  const mem = up.reduce((n, s) => n + (s.mem || 0), 0);
+  const el = rebuild("#svc-head", st.services.map((s) => `${s.key}:${stateOf(s)}`).join(",") + f, (el) => {
+    el.classList.toggle("folded", f);
+    el.append(h("h2", { class: "sec" }, foldTitle("services", "Services")));
+    if (!f) return;
+    el.append(foldSum([[`${up.length} of ${st.services.length} running`, up.length === st.services.length ? "ok" : ""],
+      [h("span", { dataset: { mem: "1" } })],
+      ...st.services.filter((s) => s.state !== "running").map((s) => {
+        const sx = stateOf(s);
+        return [`${s.name}: ${(STATE_WORD[sx] || sx).toLowerCase()}`, sx === "paused" ? "warn" : "bad"];
+      })]));
+  });
+  setText(el, "[data-mem]", mem ? `${fmtBytes(mem)} memory` : "");
+}
+
 function rows(st, goLogs) {
+  svcHead(st);
   const avail = Object.fromEntries(st.actions.map((a) => [a.id, a]));
   const key = st.services.map((s) => `${s.key}:${stateOf(s)}`).join(",") + !!st.busy;
   const el = rebuild("#rows", key, (el) => {
@@ -393,14 +456,35 @@ function stat(label, value, sub, tone) {
 const tone = (pct, warn, bad) => (pct >= bad ? "bad" : pct >= warn ? "warn" : "");
 const dayMonth = (ms) => new Date(ms).toLocaleDateString([], { day: "numeric", month: "short" });
 
+// This server folded: uptime, memory, disk and the last backup, plus the certificate or
+// load only when they need a look
+function hostSum(st) {
+  const hs = st.host || {};
+  const pct = (u, t) => Math.round((u / t) * 100);
+  const bk = st.backup;
+  const bad = bk && bk.every !== "off" && bk.last && (bk.last.status === "failed" || bk.last.status === "skipped");
+  const load = hs.load ? (hs.load[0] / (hs.cpus || 1)) * 100 : 0;
+  return foldSum([
+    [hs.uptime != null ? `Up ${fmtDur(hs.uptime)}` : ""],
+    [st.cert && !st.cert.ok ? "Certificate: couldn't check" : st.cert && certTone(st.cert) ? `Certificate: ${st.cert.days_left} days left` : "",
+      st.cert && !st.cert.ok ? "warn" : st.cert && certTone(st.cert)],
+    [load >= 75 ? `Load ${hs.load[0].toFixed(2)}` : "", tone(load, 75, 90)],
+    [hs.mem_total ? `Memory ${pct(hs.mem_used, hs.mem_total)}%` : "", hs.mem_total && tone(pct(hs.mem_used, hs.mem_total), 80, 90)],
+    [hs.disk_total ? `Disk ${pct(hs.disk_used, hs.disk_total)}%` : "", hs.disk_total && tone(pct(hs.disk_used, hs.disk_total), 80, 90)],
+    [bk ? (bad ? `Last scheduled backup ${bk.last.status === "skipped" ? "skipped" : "failed"}` : bk.newest ? `Backup ${ago(bk.newest)}` : "No backup yet") : "",
+      bad || (bk && !bk.newest) ? "warn" : ""]]);
+}
+
 function side(st) {
   const el = $("#side");
   const w = st.watchdog || {};
   const avail = Object.fromEntries(st.actions.map((a) => [a.id, a]));
   clear(el);   // small and cheap; its only buttons are the watchdog ones, rebuilt rarely enough below
   const hs = st.host || {};
-  const host = h("section", { class: "panel host" },
-    h("div", { class: "card-head" }, h("h3", { text: "This server" })));
+  const hostFolded = isFolded("server");
+  const host = h("section", { class: "panel host" + (hostFolded ? " folded" : "") },
+    h("div", { class: "card-head" }, h("h3", {}, foldTitle("server", "This server"))));
+  if (hostFolded) host.firstChild.append(hostSum(st));
   const grid = h("div", { class: "stat-grid" });
   if (hs.uptime != null) grid.append(stat("Up for", fmtDur(hs.uptime), `since ${dayMonth(Date.now() - hs.uptime * 1000)}`));
   if (st.cert) {
@@ -428,34 +512,42 @@ function side(st) {
     grid.append(stat("Last backup", bk.newest ? ago(bk.newest) : "None yet",
       bad ? `The last scheduled one ${bk.last.status === "skipped" ? "was skipped" : "failed"}` : scheduleText(bk), bad ? "warn" : ""));
   }
-  host.append(grid, h("div", { class: "card-foot" },
+  // Reboot sits in the last row's spare room, at its right, rather than a row of its own
+  grid.append(h("div", { class: "grid-btn" },
     h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer })));
+  if (!hostFolded) host.append(grid);
   el.append(host);
 
   // Phone alerts are an optional add-on: the card only appears once they're set up, so it never
   // reads as something missing. The Scripts tab lists the add-on for anyone who wants it.
   if (!w.configured) return;
-  const wd = h("section", { class: "panel wd" }, h("div", { class: "card-head" }, h("h3", { text: "Phone alerts" }),
-    h("a", { href: "#alerts", class: "dim card-link", text: "Details" })));
+  const wdFolded = isFolded("alerts");
   const chk = parseCheck(w.last_check);
   const failed = /^FAIL/.test(chk.result);
+  const wd = h("section", { class: "panel wd" + (wdFolded ? " folded" : "") }, h("div", { class: "card-head" },
+    h("h3", {}, foldTitle("alerts", "Phone alerts")),
+    wdFolded ? foldSum([[w.running ? "Running" : "Stopped", w.running ? "ok" : "warn"],
+      [w.running ? (failed ? "Last check failed" : chk.result === "OK" ? "All passed" : "") : "", failed ? "warn" : "ok"],
+      [w.running && chk.at ? `Checked ${ago(chk.at)}` : ""]]) : null,
+    h("a", { href: "#alerts", class: "dim card-link", text: "Details" })));
+  if (wdFolded) { el.append(wd); return; }
   wd.append(h("div", { class: "stat-grid" },
     stat("Watchdog", w.running ? "Running" : "Stopped", w.running ? "Checks every 2 min" : "No checks running", w.running ? "ok" : "warn"),
     stat("Last check", chk.at ? ago(chk.at) : "None yet", chk.at ? new Date(chk.at * 1000).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""),
     stat("Result", !w.running ? "Stopped" : failed ? "Failed" : chk.result === "OK" ? "All passed" : "—",
       failed ? chk.result.replace(/^FAIL:\s*/, "").slice(0, 70) : "", failed ? "warn" : w.running && chk.result === "OK" ? "ok" : "")));
   loadWdDays();
-  if (wdDays && wdDays.length) {
-    wd.append(h("div", { class: "wd-mini" },
-      h("div", { class: "vpn-label", text: "Last 14 days" }), days(wdDays),
-      h("div", { class: "dim wd-today", text: todayLine(wdDays) })));
-  }
   const btns = h("div", { class: "card-foot" });
   const id = w.running ? "watchdog.stop" : "watchdog.start";
   for (const [aid, cls] of [[id, ""], ["watchdog.test", ""]]) {
     const a = avail[aid];
     if (a && a.available) btns.append(h("button", { class: `btn small ${cls}`, type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
   }
-  wd.append(btns);
+  // The buttons share the 14-day strip's row, at its right, rather than a row of their own
+  if (wdDays && wdDays.length) {
+    wd.append(h("div", { class: "wd-mini" },
+      h("div", { class: "wd-mini-main" }, h("div", { class: "vpn-label", text: "Last 14 days" }), days(wdDays),
+        h("div", { class: "dim wd-today", text: todayLine(wdDays) })), btns));
+  } else wd.append(btns);
   el.append(wd);
 }

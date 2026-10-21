@@ -248,6 +248,23 @@ button.chip:hover { text-decoration: underline; }
 .path-sum [data-s="starting"] i, .path-sum [data-s="paused"] i { background: var(--warn); }
 .path-sum [data-s="stopped"] i, .path-sum [data-s="missing"] i, .path-sum [data-s="unhealthy"] i, .path-sum [data-s="restarting"] i { background: var(--bad); }
 .path-sum [data-s="stopped"], .path-sum [data-s="missing"], .path-sum [data-s="unhealthy"], .path-sum [data-s="restarting"] { color: var(--bad); }
+/* Every card folds the same way: its title (or a chevron beside a title that's a link)
+   folds it to one line of what matters, coloured only when something needs a look */
+.fold-title { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.fold-chev { margin: -6px -6px -6px 0; padding: 6px; color: var(--faint); }
+.fold-chev:hover { color: var(--text); }
+.fold-toggle[aria-expanded="false"] .path-chev svg { transform: rotate(-90deg); }
+.fold-sum li.ok { color: var(--ok); } .fold-sum li.warn { color: var(--warn); } .fold-sum li.bad { color: var(--bad); }
+.fold-sum .ok { color: var(--ok); } .fold-sum .warn { color: var(--warn); }
+.fold-sum .linkish { font: inherit; color: var(--warn); background: none; border: 0; padding: 0; cursor: pointer; }
+.fold-sum .linkish:hover { text-decoration: underline; }
+.panel.folded { padding-top: 12px; padding-bottom: 12px; }
+.panel.folded .card-head, .ver-card.folded .ver-head { justify-content: flex-start; }
+#view-overview .panel.folded { align-self: start; }
+.sec-head { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; }
+.sec-head h2.sec { margin: 0; }
+.sec-head.folded { margin: 0; padding: 12px 16px; background: var(--raised); border: 1px solid var(--line-soft); border-radius: var(--radius); }
+.sec-head.folded h2.sec { font-size: .98rem; }
 .chain { display: flex; align-items: stretch; }
 .path-start { align-self: center; display: flex; align-items: center; gap: 8px; color: var(--faint); font-size: .9rem; padding-right: 10px; }
 .path-start i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--faint); }
@@ -386,8 +403,13 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
   .stat .ver-label { margin: 0; }
   .stat .stat-value { text-align: right; }
   .stat .ver-sub { grid-column: 2; text-align: right; min-height: 0; }
+  .stat-grid .grid-btn { padding-top: 8px; }
 }
-.wd-mini { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-soft); display: grid; gap: 6px; }
+.wd-mini { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-soft); display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 16px; }
+.wd-mini-main { display: grid; gap: 6px; margin-right: auto; }
+.wd-mini .card-foot { padding-top: 0; }
+/* a button in a stat grid's last row, at its right */
+.stat-grid .grid-btn { grid-column: -2 / -1; justify-self: end; align-self: end; display: flex; gap: 8px; }
 .wd-mini .vpn-label { margin: 0; }
 .wd-today-wrap { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; justify-content: flex-end; }
 .wd-when-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 0 14px; font-size: .88rem; }
@@ -861,15 +883,10 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 #view-overview[data-hide~="server"] .panel.host, #view-overview[data-hide~="alerts"] .panel.wd,
 #view-overview[data-hide~="services"] .cols > div { display: none; }
 
-/* Wide screens: wide cards in rows, like AIOStreams' own dashboard, with This server and
-   Phone alerts side by side when they're next to each other (otherwise each takes a row). */
+/* Wide screens: each card a full row, like AIOStreams' own dashboard; This server six
+   values to a line */
 @media (min-width: 1141px) {
-  #view-overview:not([hidden]) { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 18px; }
-  #view-overview > *, #view-overview .cols > *, #view-overview .side > * { grid-column: 1 / -1; }
-  #view-overview.pair .panel.host, #view-overview.pair .panel.wd { grid-column: auto; }
-  /* a row of its own: six to a line */
-  #view-overview:not(.pair) .panel.host .stat-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-  .panel.host, .panel.wd { display: flex; flex-direction: column; }
+  #view-overview .panel.host .stat-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
 
 /* Edit, beside the headline */
@@ -996,4 +1013,7 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   /* folded: the title and Restart stack on top, the dots on a line of their own */
   .path.folded .path-head { flex-wrap: wrap; }
   .path.folded .path-sum { order: 3; flex: 1 0 100%; margin: 2px 0 0; gap: 4px 12px; font-size: .82rem; }
+  /* the other cards the same way: title and its button on top, the line under them */
+  .panel.folded .card-head, .ver-card.folded .ver-head, .sec-head.folded { flex-wrap: wrap; justify-content: space-between; }
+  .folded .fold-sum { order: 3; flex: 1 0 100%; margin: 2px 0 0; gap: 4px 12px; font-size: .82rem; }
 }
