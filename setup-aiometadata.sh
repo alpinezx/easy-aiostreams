@@ -480,9 +480,67 @@ do_test() {
 # Moves to the newest release, or to a version typed in (which also goes
 # back to an older one). Releases are pinned, so nothing changes until this
 # is run.
+# Runs AIOMetadata on the version in its config and waits for it to be
+# healthy.
+run_version() {
+    load_config
+    write_compose
+    compose up -d --quiet-pull aiometadata
+    rm -f "$STOPPED_MARKER"
+    echo "Waiting for it to report healthy (up to 90 seconds)..."
+    wait_healthy
+}
+
+# apply_update <version> <backup: yes|no>. Asks nothing, so the menu and
+# the update-aiometadata command share it. Returns 1 when nothing changed
+# or the update failed (and the previous version was put back).
+apply_update() {
+    local target="$1" backup="$2" previous="$AIOM_VERSION"
+    if [[ "$target" == "$previous" ]] && container_running "$CONTAINER_NAME"; then
+        echo "Already on ${target}. Nothing to do."
+        return 0
+    fi
+    # Download first: a version that doesn't exist changes nothing.
+    info "Downloading AIOMetadata ${target}"
+    docker pull -q "${IMAGE_REPO}:${target}" >/dev/null || {
+        warn "Couldn't download ${IMAGE_REPO}:${target}. Check the version exists. Nothing was changed."
+        return 1
+    }
+    if [[ "$backup" == yes ]]; then
+        local backup_script="$INSTALL_DIR/setup-backup.sh"
+        [[ -f "$backup_script" ]] || { warn "setup-backup.sh isn't in $INSTALL_DIR, so no backup was made and nothing was changed."; return 1; }
+        info "Backing up first"
+        bash "$backup_script" backup < /dev/null || { warn "The backup didn't finish, so nothing else was changed."; return 1; }
+    fi
+    # An older version may not read a database a newer one has changed.
+    if [[ "$(printf '%s\n%s\n' "$target" "$previous" | sort -V | head -n1)" == "$target" ]]; then
+        warn "Going back from ${previous} to ${target}. If ${previous} changed its database, ${target} may not start;"
+        warn "the backup made before updating to ${previous} is then the way back."
+    fi
+    info "Switching AIOMetadata from ${previous} to ${target}"
+    write_config "$DOMAIN" "$ADDON_PASSWORD" "$ADMIN_KEY" "$target"
+    if run_version; then
+        echo "AIOMetadata is on ${target} and healthy."
+        # The old version's image is no longer needed
+        docker image rm "${IMAGE_REPO}:${previous}" >/dev/null 2>&1 || true
+        return 0
+    fi
+    warn "AIOMetadata ${target} didn't report healthy in time. Putting ${previous} back."
+    docker logs --tail 15 "$CONTAINER_NAME" 2>&1 | sed 's/^/    /' || true
+    write_config "$DOMAIN" "$ADDON_PASSWORD" "$ADMIN_KEY" "$previous"
+    if run_version; then
+        warn "Back on ${previous}, healthy. Nothing else changed."
+    else
+        warn "${previous} didn't come back healthy either. Check its logs (option 9), or restore the backup made before this update."
+    fi
+    docker image rm "${IMAGE_REPO}:${target}" >/dev/null 2>&1 || true
+    return 1
+}
+
+# Menu option 7: the same as update-aiometadata, with questions.
 do_update() {
     load_config || error "Not set up yet. Run option 2 (Start) first."
-    local latest choice
+    local latest choice backup
     latest=$(latest_version)
     echo ""
     echo "Installed: ${AIOM_VERSION}"
@@ -508,23 +566,16 @@ do_update() {
         echo "Already on ${choice}. Nothing to do."
         return 0
     fi
-    info "Downloading AIOMetadata ${choice}"
-    docker pull "${IMAGE_REPO}:${choice}" || error "Couldn't download ${IMAGE_REPO}:${choice}. Check the version exists. Nothing was changed."
-    local previous="$AIOM_VERSION"
-    write_config "$DOMAIN" "$ADDON_PASSWORD" "$ADMIN_KEY" "$choice"
-    load_config
-    write_compose
-    compose up -d aiometadata
-    rm -f "$STOPPED_MARKER"
-    echo "Waiting for it to report healthy (up to 90 seconds)..."
-    if wait_healthy; then
-        echo "AIOMetadata is on ${choice} and healthy."
-        # The old version's image is no longer needed
-        [[ "$previous" != "$choice" ]] && docker image rm "${IMAGE_REPO}:${previous}" >/dev/null 2>&1 || true
-    else
-        warn "AIOMetadata ${choice} didn't report healthy in time. Check its logs (option 9)."
-        warn "To go back, run Update again and type ${previous}."
-    fi
+    echo "  1) Back up first, then update"
+    echo "  2) Update without backing up"
+    echo "  3) Cancel"
+    read -rp "Select an option [1-3]: " backup
+    case "$backup" in
+        1) backup=yes ;;
+        2) backup=no ;;
+        *) echo "Cancelled."; return 0 ;;
+    esac
+    apply_update "$choice" "$backup" || true
 }
 
 do_logs() {
@@ -573,6 +624,26 @@ case "${1:-}" in
     status)
         do_status
         exit 0 ;;
+    # update-aiometadata [--backup] [--version X.Y.Z]: the newest release
+    # unless a version is given (an older one goes back to it).
+    update-aiometadata)
+        load_config || error "AIOMetadata isn't set up, nothing to update."
+        shift
+        u_backup=no u_version=""
+        while (( $# )); do
+            case "$1" in
+                --backup) u_backup=yes ;;
+                --version) shift; u_version="${1:-}"; u_version="${u_version#v}"
+                    valid_version "$u_version" || error "--version needs a version like 3.6.0." ;;
+                *) error "Unknown option '$1'. Use: update-aiometadata [--backup] [--version X.Y.Z]" ;;
+            esac
+            shift
+        done
+        if [[ -z "$u_version" ]]; then
+            u_version=$(latest_version)
+            valid_version "$u_version" || error "Couldn't look up the newest release on GitHub. Nothing was changed."
+        fi
+        if apply_update "$u_version" "$u_backup" < /dev/null; then exit 0; else exit 1; fi ;;
     "") ;;
     *) error "Unknown command: $1" ;;
 esac
