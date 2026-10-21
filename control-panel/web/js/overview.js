@@ -217,13 +217,40 @@ function node(s) {
       " ", h("span", { class: "dim", dataset: { up: s.key }, text: uptime(s) })));
 }
 
+// Folded until someone opens it; after that it's remembered per browser, so a phone can
+// keep it folded and a desktop open
+const FOLD_KEY = "aios.flowFolded";
+let folded = true;
+try { folded = localStorage.getItem(FOLD_KEY) !== "0"; } catch (_) {}
+function toggleFold() {
+  folded = !folded;
+  try { localStorage.setItem(FOLD_KEY, folded ? "1" : "0"); } catch (_) {}
+  if (lastSt) path(lastSt);
+}
+
 function path(st) {
   const main = st.services.filter((s) => !s.addon);
   const addons = st.services.filter((s) => s.addon);
   const restart = st.installed && st.actions.find((a) => a.id === "stack.restart");
-  const key = st.services.map((s) => `${s.key}:${stateOf(s)}`).join(",") + st.docker_ok + !!st.busy + !!(restart && restart.available);
+  const key = st.services.map((s) => `${s.key}:${stateOf(s)}`).join(",") + st.docker_ok + !!st.busy + !!(restart && restart.available) + folded;
+  const restartBtn = () => restart && restart.available ? h("button", { class: "btn small", type: "button", text: "Restart stack", disabled: !!st.busy,
+    title: "Restart Caddy, AIOStreams and anything in between", onclick: () => runAction(restart) }) : null;
   const el = rebuild("#path", key, (el) => {
-    el.append(h("div", { class: "path-head" }, h("h2", { class: "path-title", text: "Request flow" })));
+    el.classList.toggle("folded", folded);
+    const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
+    chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
+    const head = h("div", { class: "path-head" },
+      h("h2", { class: "path-title" }, h("button", { class: "path-toggle", type: "button", "aria-expanded": String(!folded),
+        title: folded ? "Show the request flow" : "Fold the request flow away", onclick: toggleFold }, "Request flow", chev)));
+    el.append(head);
+    if (folded) {
+      // One line: a dot per service, coloured like the boxes, and Restart stack beside them
+      head.append(h("ul", { class: "path-sum" }, ...st.services.map((s) => {
+        const sx = stateOf(s);
+        return h("li", { dataset: { s: sx }, title: `${s.name}: ${STATE_WORD[sx] || sx}` }, h("i", { "aria-hidden": "true" }), s.name);
+      })), restartBtn());
+      return;
+    }
     const chain = h("div", { class: "chain" });
     chain.append(h("div", { class: "path-start" }, h("i"), "Visitors"));
     let upstreamOk = true;   // everything before this point is running
@@ -249,8 +276,7 @@ function path(st) {
     // Buttons that do something substantial sit at the card's bottom right
     el.append(h("div", { class: "card-foot path-foot" },
       addons.length ? h("p", { class: "addon-note", text: "Add-ons hang off Caddy, each on its own subdomain." }) : null,
-      restart && restart.available ? h("button", { class: "btn small", type: "button", text: "Restart stack", disabled: !!st.busy,
-        title: "Restart Caddy, AIOStreams and anything in between", onclick: () => runAction(restart) }) : null));
+      restartBtn()));
   });
   // line the add-on trunk up under the Caddy node
   const caddyNode = el.querySelector('.node[data-svc="caddy"]');
