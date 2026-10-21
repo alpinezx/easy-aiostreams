@@ -93,6 +93,9 @@ write_env_file() {
             # Needed to create a configuration, so nobody else can use this
             # server. Existing configurations keep working without it.
             printf "ADDON_PASSWORD='%s'\n" "$ADDON_PASSWORD"
+            # Otherwise anyone can open the Dashboard as a guest and see its
+            # stats, including which titles are being looked up.
+            printf "DISABLE_GUEST_MODE='true'\n"
         } > "$AIOM_ENV_FILE"
     )
     chmod 600 "$AIOM_ENV_FILE"
@@ -264,9 +267,12 @@ print_details() {
     echo -e "  Dashboard:       \033[1;36mhttps://${DOMAIN}/dashboard\033[0m"
     echo -e "  Admin key:       \033[1;36m${ADMIN_KEY}\033[0m  (opens the Dashboard)"
     echo ""
-    echo "Set your API keys once in the Dashboard's Settings (Built-in keys), and every"
-    echo "configuration uses them. A TMDB key is the only one needed: get one free at"
+    echo "Set your API keys once in the Dashboard: Settings, API Keys, the rows named"
+    echo "\"Built-in ...\" (e.g. Built-in TMDB Key). Every configuration then uses them."
+    echo "A TMDB key is the only one needed: get one free at"
     echo "https://www.themoviedb.org/settings/api"
+    warn "Use the Built-in rows only. The plain ones (e.g. \"TMDB API Key\") are shown to"
+    warn "anyone who opens the configure page."
     echo ""
     echo "Then create a configuration on the configure page and install it in your"
     echo "Stremio-based client, or add its manifest URL to AIOStreams."
