@@ -232,6 +232,22 @@ button.chip:hover { text-decoration: underline; }
 .path { margin: 4px 0 30px; padding: 18px 22px 16px; background: var(--sunk); border: 1px solid var(--line-soft); border-radius: var(--radius); }
 .path-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 14px; }
 .path-title { margin: 0; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--faint); }
+/* The title folds the card down to one line: a dot per service and Restart stack */
+.path-toggle { display: inline-flex; align-items: center; gap: 6px; margin: -6px -8px; padding: 6px 8px; border: 0; border-radius: 6px;
+  background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+.path-toggle:hover { color: var(--dim); background: var(--hover); }
+.path-chev svg { display: block; width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s; }
+.path.folded .path-chev svg { transform: rotate(-90deg); }
+@media (prefers-reduced-motion: reduce) { .path-chev svg { transition: none; } }
+.path.folded { padding-top: 12px; padding-bottom: 12px; }
+.path.folded .path-head { margin: 0; }
+.path-sum { flex: 1; display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0 0 0 8px; padding: 0; list-style: none; font-size: .86rem; color: var(--dim); }
+.path-sum li { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.path-sum i { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
+.path-sum [data-s="running"] i { background: var(--ok); }
+.path-sum [data-s="starting"] i, .path-sum [data-s="paused"] i { background: var(--warn); }
+.path-sum [data-s="stopped"] i, .path-sum [data-s="missing"] i, .path-sum [data-s="unhealthy"] i, .path-sum [data-s="restarting"] i { background: var(--bad); }
+.path-sum [data-s="stopped"], .path-sum [data-s="missing"], .path-sum [data-s="unhealthy"], .path-sum [data-s="restarting"] { color: var(--bad); }
 .chain { display: flex; align-items: stretch; }
 .path-start { align-self: center; display: flex; align-items: center; gap: 8px; color: var(--faint); font-size: .9rem; padding-right: 10px; }
 .path-start i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--faint); }
@@ -950,4 +966,7 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .addons li .node { min-width: 0; }
   .path-foot { padding-top: 12px; }
   .path-foot .addon-note { display: none; }
+  /* folded: the title and Restart stack on top, the dots on a line of their own */
+  .path.folded .path-head { flex-wrap: wrap; }
+  .path.folded .path-sum { order: 3; flex: 1 0 100%; margin: 2px 0 0; gap: 4px 12px; font-size: .82rem; }
 }
