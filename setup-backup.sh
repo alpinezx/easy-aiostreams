@@ -1364,6 +1364,13 @@ do_restore() {
     if [[ -n "$aside" && -f "$aside/public-ip" ]]; then
         cp -p -- "$aside/public-ip" "$PUBLIC_IP_FILE"
     fi
+    # The backups' locks and notes describe the backup files on this server,
+    # so the current list wins over the backup's older copy. Otherwise a lock
+    # added after this backup was made (on this very backup, say) is lost.
+    if [[ -n "$aside" && -f "$aside/ui-state/backup-meta.json" ]]; then
+        if [[ ! -d "$INSTALL_DIR/ui-state" ]]; then mkdir -p "$INSTALL_DIR/ui-state"; chmod 700 "$INSTALL_DIR/ui-state"; fi
+        cp -p -- "$aside/ui-state/backup-meta.json" "$BACKUP_META"
+    fi
     chmod 600 "$COMPOSE_FILE" 2>/dev/null || true
     grep -q 'SECRET_KEY=' "$COMPOSE_FILE" || \
         error "Restored compose file has no SECRET_KEY. The archive may be damaged. Nothing has been started."
