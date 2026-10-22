@@ -654,3 +654,14 @@ def test_add_on_uninstall_needs_the_word(client):
         assert a.args == ("uninstall",) and a.script.startswith("setup-")
     r = client.post("/api/actions/webhook.uninstall", json={"params": {"confirm": " Uninstall "}})
     assert r.status_code == 200 and wait_job(client, r.json()["id"])["code"] == 0
+
+
+def test_no_class_names_an_ad_blocker_hides():
+    """uBlock Origin's lists hide elements with classes like ad-card or ad-row, which blanked
+    the Add-ons page. Keep the panel's names clear of them."""
+    import re
+    from pathlib import Path
+    web = Path(__file__).resolve().parents[1] / "web"
+    for f in [*web.glob("js/*.js"), *web.glob("css/*.css"), web / "index.html"]:
+        found = re.findall(r"(?<![\w-])(?:ad|ads|advert|sponsor)[-_][\w-]+", f.read_text(encoding="utf-8"))
+        assert not found, (f.name, found[:5])

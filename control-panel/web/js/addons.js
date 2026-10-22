@@ -17,7 +17,7 @@ const ICON = {
 };
 
 function iconBtn(kind, label, onclick) {
-  const b = h("button", { class: "ad-ic", type: "button", "aria-label": label, title: label, onclick });
+  const b = h("button", { class: "ao-ic", type: "button", "aria-label": label, title: label, onclick });
   b.innerHTML = ICON[kind];
   return b;
 }
@@ -34,12 +34,12 @@ const short = (url) => url.replace(/^https?:\/\//, "");
 
 // One tile. r: { label, note, link } | { label, note, secret: [addon, name], hidden } | { label, note, text, tone }
 function tile(r) {
-  const value = h("span", { class: "ad-val" + (r.link || r.secret ? " mono" : "") + (r.tone ? " " + r.tone : "") });
-  const btns = h("span", { class: "ad-btns" });
+  const value = h("span", { class: "ao-val" + (r.link || r.secret ? " mono" : "") + (r.tone ? " " + r.tone : "") });
+  const btns = h("span", { class: "ao-btns" });
   if (r.link) {
     value.textContent = short(r.link);
     value.title = r.link;
-    const open = h("a", { class: "ad-ic", href: r.link, target: "_blank", rel: "noopener noreferrer", "aria-label": `Open ${r.label}`, title: `Open ${r.label}` });
+    const open = h("a", { class: "ao-ic", href: r.link, target: "_blank", rel: "noopener noreferrer", "aria-label": `Open ${r.label}`, title: `Open ${r.label}` });
     open.innerHTML = ICON.open;
     btns.append(iconBtn("copy", `Copy ${r.label}`, () => copy(r.link, r.label)), open);
   } else if (r.secret) {
@@ -63,10 +63,10 @@ function tile(r) {
   } else {
     value.textContent = r.text;
   }
-  return h("div", { class: "ad-row" },
+  return h("div", { class: "ao-row" },
     h("div", { class: "ver-label", text: r.label }),
-    h("div", { class: "ad-line" }, value, btns.childNodes.length ? btns : null),
-    h("div", { class: "ver-sub ad-note", text: r.note || "", title: r.note || null }));
+    h("div", { class: "ao-line" }, value, btns.childNodes.length ? btns : null),
+    h("div", { class: "ver-sub ao-note", text: r.note || "", title: r.note || null }));
 }
 
 const svc = (key) => ((st && st.services) || []).find((s) => s.key === key);
@@ -144,13 +144,13 @@ function card(a) {
   // With nothing to say at the foot, Uninstall sits bottom right among the values, as on the Overview
   const foot = a.page ? h("span", { class: "dim" }, "Settings are on the ", h("a", { href: a.page[0], text: a.page[1] }), ".")
     : a.foot ? h("span", { class: "dim", text: a.foot }) : null;
-  return h("section", { class: "panel ad-card" },
+  return h("section", { class: "panel ao-card" },
     h("div", { class: "card-head" },
       h("h3", { text: a.name }),
-      h("span", { class: "ad-head-r" }, a.mem ? h("span", { class: "dim", text: a.mem, title: "Memory in use" }) : null,
+      h("span", { class: "ao-head-r" }, a.mem ? h("span", { class: "dim", text: a.mem, title: "Memory in use" }) : null,
         h("span", { class: "chip " + a.chip[1], text: a.chip[0] }))),
-    h("div", { class: "ad-rows" }, ...a.rows.map(tile), foot ? null : h("div", { class: "ad-btn-cell" }, btn)),
-    foot ? h("div", { class: "card-foot ad-foot" }, foot, btn) : null);
+    h("div", { class: "ao-rows" }, ...a.rows.map(tile), foot ? null : h("div", { class: "ao-btn-cell" }, btn)),
+    foot ? h("div", { class: "card-foot ao-foot" }, foot, btn) : null);
 }
 
 // ---- uninstall ----
@@ -245,7 +245,7 @@ function render() {
   if (data.vpn && data.vpn.mode !== "none") cards.push(vpnCard(data.vpn));
   if (data.wd && data.wd.configured) cards.push(alertsCard(data.wd));
   clear(root);
-  root.append(cards.length ? h("div", { class: "ad-grid" }, ...cards)
+  root.append(cards.length ? h("div", { class: "ao-grid" }, ...cards)
     : h("p", { class: "dim", text: "No add-ons installed. The Scripts tab lists the optional ones." }));
 }
 
