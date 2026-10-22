@@ -825,6 +825,10 @@ if [[ "${1:-}" == "notify-boot" ]]; then
     send_boot_notification
 fi
 
+# Said once when the menu opens; the question-free commands above stay quiet
+warn "The webhook relay is being retired: it keeps working but gets no new features."
+warn "Phone alerts (setup-watchdog.sh) cover this server, and many uptime trackers can send to ntfy directly."
+
 while true; do
     echo ""
     echo "=== AIOStreams Webhook Relay ==="

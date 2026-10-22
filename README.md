@@ -160,7 +160,7 @@ If you suspect it's not your setup at all, check [Stremio Status](https://status
 
 ## Other Scripts
 
-Want your own private [AIOMetadata](./docs/basic/aiometadata.md) for catalogs and metadata, a web control panel (beta), a system-wide VPN layer, phone alerts when your server needs you, a way to turn a third-party site's webhook into a phone alert, or a lighter alternative proxy if scrubbing/seeking spikes your VPS's CPU? Those live in their own standalone scripts, see [Other Scripts](./docs/other-scripts.md)
+Want your own private [AIOMetadata](./docs/basic/aiometadata.md) for catalogs and metadata, a web control panel (beta), a system-wide VPN layer, phone alerts when your server needs you, a way to turn a third-party site's webhook into a phone alert (being retired), or a lighter alternative proxy if scrubbing/seeking spikes your VPS's CPU? Those live in their own standalone scripts, see [Other Scripts](./docs/other-scripts.md)
 
 For bugs in the script itself: [open an issue](https://github.com/alpinezx/easy-aiostreams/issues). For setup questions not covered here or in the linked guides, check out these Reddit threads: [r/StremioAddons](https://www.reddit.com/r/StremioAddons/comments/1vo6a5q/self_hosted_aiostreams_easy_install_script/), [r/nuvioaddons](https://www.reddit.com/r/nuvioaddons/comments/1vsud3b/self_hosted_aiostreams_easy_install_script_nuvio/)
 
