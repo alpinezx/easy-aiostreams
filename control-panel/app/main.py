@@ -29,7 +29,7 @@ else:
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 lockout = auth.Lockout()
 COOKIE = "ui_session"
-LOGGABLE = {"caddy", "gluetun", "aiostreams", "mediaflow-proxy-light", "aios-webhook-relay"}
+LOGGABLE = {"caddy", "gluetun", "aiostreams", "mediaflow-proxy-light", "aios-webhook-relay", "aiometadata"}
 
 
 # ---- security headers + CSRF ------------------------------------------
@@ -185,6 +185,13 @@ async def scripts_compare(force: bool = False, user: str = Depends(current_user)
     if config.DEMO:
         return scriptsync.demo(files)
     return await asyncio.to_thread(scriptsync.compare, config.INSTALL_DIR, files, force)
+
+
+@app.get("/api/aiometadata-releases")
+async def aiometadata_releases(force: bool = False, user: str = Depends(current_user)):
+    if config.DEMO:
+        return releases.demo("aiometadata")
+    return await asyncio.to_thread(releases.get, force, "aiometadata")
 
 
 @app.get("/api/aiostreams-releases")
@@ -345,6 +352,21 @@ async def vpn(fresh: bool = False, user: str = Depends(current_user)):
     return await asyncio.to_thread(backend.vpn_info, fresh)
 
 
+@app.get("/api/addons")
+async def addons(user: str = Depends(current_user)):
+    """The Add-ons page: what each add-on's script shows, its secrets left out."""
+    return await asyncio.to_thread(backend.addons_info)
+
+
+@app.get("/api/addons/{addon}/secret/{name}")
+async def addon_secret(addon: str, name: str, user: str = Depends(current_user)):
+    """One secret, when the Add-ons page's eye or Copy is pressed. Never kept or logged."""
+    value = await asyncio.to_thread(backend.addon_secret, addon, name)
+    if not value:
+        raise HTTPException(404, "Not found.")
+    return JSONResponse({"value": value}, headers={"Cache-Control": "no-store"})
+
+
 @app.post("/api/vpn/config")
 async def vpn_config(request: Request, user: str = Depends(current_user)):
     """Checks a pasted WireGuard config and keeps it, readable only by root, for
@@ -429,7 +451,8 @@ async def backups(user: str = Depends(current_user)):
 
 # Which Overview cards show, and in what order. One layout for the install, kept with the
 # panel's state (so phone and desktop match, and a restore brings it back).
-OVERVIEW_CARDS = ["flow", "aiostreams", "server", "alerts", "services"]
+# The default order: the request flow, AIOStreams, the add-ons' cards, then This server and the services
+OVERVIEW_CARDS = ["flow", "aiostreams", "aiometadata", "alerts", "server", "services"]
 _layout_lock = threading.Lock()
 
 
@@ -809,7 +832,8 @@ async def run_action(action_id: str, request: Request, user: str = Depends(curre
         except BadAction as e:
             raise HTTPException(400, str(e))
         return jobs.summary(jobs.start(action, params, None))
-    if action_id == "vpn.uninstall" and str((params or {}).get("confirm", "")).strip().lower() != "uninstall":
+    if action_id in ("vpn.uninstall", "aiometadata.uninstall", "mediaflow.uninstall", "webhook.uninstall") \
+            and str((params or {}).get("confirm", "")).strip().lower() != "uninstall":
         raise HTTPException(400, "Type uninstall to confirm.")
     if action_id == "stack.restore":
         # Same-server only: the script checks again and refuses rather than asks.

@@ -50,20 +50,22 @@ It is still root-equivalent on your server, because it has to run the scripts an
 | Button | Script and input |
 | --- | --- |
 | Start, Stop (AIOStreams' row), Restart stack | `setup-aiostreams.sh start`, `stop`, `restart` (menu options 3, 2, 4 without their questions) |
-| Restart (per service) | restarts just that container through Docker; AIOStreams, MediaFlow and the webhook relay only |
+| Restart (per service) | restarts just that container through Docker; AIOStreams, MediaFlow, the webhook relay and AIOMetadata only |
 | Update | `setup-aiostreams.sh update`, with `--backup` and `--channel latest\|nightly` from the dialog (menu option 5 without its questions) |
 | Back up now | `setup-aiostreams.sh backup` |
 | Scheduled backups: Set, Off | `setup-backup.sh schedule daily HH:MM`, `weekly <1-7> HH:MM`, `off`, which writes `backup-schedule` and the systemd timer |
 | MediaFlow, webhook relay | `start-mediaflow`, `start-relay`, `stop-mediaflow`, `stop-relay` |
+| AIOMetadata: Start, Stop, Update | `setup-aiometadata.sh start-aiometadata`, `stop-aiometadata`, `update-aiometadata` (with `--backup` from the dialog) |
 | Phone alerts: Start, Stop, Send test alert | `setup-watchdog.sh install-timer`, `stop` (with menu option 3 typed too, for older copies of the script), `test` |
-| Phone alerts: Uninstall | `setup-watchdog.sh uninstall` (menu option 9 without its question; the panel asks first) |
+| Add-ons: Uninstall (Phone alerts) | `setup-watchdog.sh uninstall` (menu option 9 without its question; the panel asks first) |
+| Add-ons: Uninstall (AIOMetadata, MediaFlow, Webhook relay) | `setup-aiostreams.sh backup` first if ticked, then the add-on's `uninstall`, with `remove-image` if ticked (AIOMetadata's and MediaFlow's; the webhook relay's image is a common Python one, left for Free up space) |
 | Phone alerts: Change topic | `setup-watchdog.sh set-topic`, with the topic on stdin (never on a command line or in Activity), then a test alert to it |
 | Phone alerts: the switches, the check-in's day and time, Reset, Clear history | written straight to `watchdog-state/options`, `tally` and `events` (the script's `set-option` does the same over SSH) |
 | Turn VPN on, Turn VPN off | `setup-vpn-gluetun.sh on`, `off` (the same steps as its menu options 2 and 3) |
 | Change server, Update VPN | `setup-vpn-gluetun.sh addresses` for the list, then `use-address <ip>`; `update` (menu option 5) |
 | Change config | `setup-vpn-gluetun.sh addresses <name>` for the new config's list, then `use-config <ip>` |
 | Configs on this server: the list, Use, Delete | `list-configs`; `use-file <path> <ip>`; `delete-config <path>` |
-| Uninstall VPN | `setup-aiostreams.sh backup` first if ticked, then `setup-vpn-gluetun.sh uninstall` with `remove-image` and `delete-confs` as ticked (menu option 7's questions) |
+| Add-ons: Uninstall (VPN) | `setup-aiostreams.sh backup` first if ticked, then `setup-vpn-gluetun.sh uninstall` with `remove-image` and `delete-confs` as ticked (menu option 7's questions) |
 | Maintenance: Free up space | `setup-aiostreams.sh free-space` |
 | Maintenance: Install updates, Set limits | `setup-aiostreams.sh system-updates`, `log-limits`, run on the host as their own systemd unit (`aios-maintenance`) rather than under the panel: Docker restarting restarts the panel's container too. Output goes to `ui-state/maint.log`, the exit code to `maint.log.code` |
 | Update (Scripts tab) | downloads GitHub's main copy through the API (raw links can be minutes stale), checks it against the SHA GitHub lists, then replaces the script on the host; the AIOStreams menu's also replaces `setup-backup.sh`, and the watchdog's runs `setup-watchdog.sh refresh` so its timer's copy follows (starting nothing) |
@@ -71,7 +73,7 @@ It is still root-equivalent on your server, because it has to run the scripts an
 
 These commands ask nothing. Where the menu would ask whether to go on with the VPN set up but switched off, they stop instead and say so. After each command the panel also types the menu numbers that used to do the same job, which only an older script reads: one that doesn't know the command falls through to its menu. So the menu numbers the panel types (3, 2, 4 and 5, then 10 to exit; 3 then 10 for the add-ons' Stop) never change, and a panel test checks them against the scripts.
 
-The scripts run on the host with a terminal attached, like an SSH session. The main script's Reconfigure, the VPN's first-time setup and the other add-ons' uninstalls have no button.
+The scripts run on the host with a terminal attached, like an SSH session. The main script's Reconfigure and the add-ons' first-time setups have no button.
 
 The version chip on the Overview tab is read from the running AIOStreams container's own `package.json`, once per container (an update recreates it, so the chip follows).
 
@@ -87,7 +89,13 @@ It appears on the rail once `setup-vpn-gluetun.sh` has set the VPN up, on or off
 
 **Configs on this server** lists what `list-configs` finds: the pasted config, the previous one, an earlier paste, one pasted but not used yet, and `.conf` files in `/root` and the login user's home that have `[Interface]`, `[Peer]`, `PrivateKey` and `Endpoint` (the same files Reconfigure offers). Each shows its path and endpoint, never its keys. **Use** (any config not in use) copies it into `vpn-state` and switches to it as Change config does, so a file can be deleted afterwards; the config left becomes Previous config, so two can be swapped back and forth. On Previous config, the address it used is picked to start with. **Delete** takes only a path the list has just found, and the config in use only while the VPN is off; the script checks that again before deleting. Deleting that one also takes its key out of the saved VPN settings (`vpn-state/docker-compose.vpn.yml`), so no config is left: **Turn VPN on** then opens the paste dialog and turns the VPN on with the config given (`use-config <ip> on`).
 
-**Uninstall VPN** asks for `uninstall` to be typed, like a restore, and runs the script's `uninstall`: it switches to direct first, removes the gluetun container (and image, if ticked), and deletes `vpn-state` only once AIOStreams and Caddy are confirmed running, refusing otherwise with nothing deleted. **Delete the .conf files** deletes the ones the list shows in `/root` and the login user's home. **Back up first** runs a normal backup and stops if it fails. The page disappears once the VPN is gone.
+Uninstalling the VPN is on the [Add-ons page](#add-ons-page). The script's `uninstall` switches to direct first, removes the gluetun container (and image, if ticked), and deletes `vpn-state` only once AIOStreams and Caddy are confirmed running, refusing otherwise with nothing deleted. **Delete the .conf files** deletes the ones the list shows in `/root` and the login user's home. The page disappears once the VPN is gone.
+
+## Add-ons page
+
+It appears on the rail once any optional add-on is installed: AIOMetadata, MediaFlow Proxy, the webhook relay, the VPN or phone alerts. Each gets a card with what its script's Status and Show options print, its subdomain's certificate and its memory use; the VPN's and Phone alerts' cards are short, since their own pages hold their settings. Links show their host and path, with Copy and open buttons. Secrets (AIOMetadata's addon password and admin key, MediaFlow's API password, the webhook URL and its ntfy target) aren't in the page: the panel reads each from the add-on's saved settings only when its eye or Copy is pressed, one at a time, sent with `Cache-Control: no-store`, and the page doesn't keep it. A MediaFlow outbound proxy shows without its login. The watchdog's topic stays masked here too.
+
+**Uninstall** on each card asks for `uninstall` to be typed. **Back up first** runs a normal backup and stops if it fails (a backup holds the add-on's settings, so a restore brings it back). Tick boxes cover the script's own questions: removing the images, and the VPN's `.conf` files. Each script's question-free `uninstall` does exactly what its menu's Uninstall does. The card goes once the add-on has.
 
 ## Phone alerts page
 

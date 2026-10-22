@@ -32,7 +32,8 @@ TALLY_FILE="$STATE_DIR/tally"       # checks per day: "YYYY-MM-DD passed failed"
 ALIVE_FILE="$STATE_DIR/last-alive"  # when the last check ran
 SHUTDOWN_FILE="$STATE_DIR/shutdown-at"  # written as the server shuts down cleanly
 BOOT_ID_FILE="$STATE_DIR/boot-reported" # the kernel's boot ID once that boot is reported
-OPTIONS_FILE="$STATE_DIR/options"   # extra alerts: "updates=on", "reboots=on", "scripts=on", "backups=on", "security=on", "weekly=on", and the
+OPTIONS_FILE="$STATE_DIR/options"   # extra alerts: "updates=on", "reboots=on", "scripts=on", "backups=on", "security=on", "weekly=on",
+                                    # "metadata=on" (AIOMetadata releases), and the
                                     # check-in's "weekly_day=7" (1 Mon .. 7 Sun), "weekly_time=10:15"
                                     # (older copies saved "weekly_hour=10", still read as 10:00)
 SCRIPT_COPY="$STATE_DIR/watchdog.sh"
@@ -59,6 +60,8 @@ CHECK_INTERVAL_MIN="2"  # same interval, as a bare number of minutes —
 STOPPED_MARKER="$INSTALL_DIR/aiostreams-stopped-on-purpose"
 MEDIAFLOW_STATE_DIR="$INSTALL_DIR/mediaflow-state"
 MEDIAFLOW_STOPPED_MARKER="$MEDIAFLOW_STATE_DIR/stopped-on-purpose"
+AIOMETADATA_STATE_DIR="$INSTALL_DIR/aiometadata-state"
+AIOMETADATA_STOPPED_MARKER="$AIOMETADATA_STATE_DIR/stopped-on-purpose"
 
 vpn_mode_on() {
     [[ "$(cat "$VPN_ACTIVE_MARKER" 2>/dev/null)" == "vpn" ]]
@@ -66,6 +69,10 @@ vpn_mode_on() {
 
 mediaflow_configured() {
     [[ -f "$MEDIAFLOW_STATE_DIR/config" ]]
+}
+
+aiometadata_configured() {
+    [[ -f "$AIOMETADATA_STATE_DIR/config" ]]
 }
 
 check_gluetun_tunnel() {
@@ -147,8 +154,35 @@ check_mediaflow() {
     return 0
 }
 
+# AIOMetadata the same way: no published port, so its own health check
+# (/health/live, what its image's HEALTHCHECK uses) goes through caddy, which
+# serves its subdomain. Stopped on purpose (its Stop) isn't a failure.
+check_aiometadata() {
+    if [[ -f "$AIOMETADATA_STOPPED_MARKER" ]]; then
+        if [[ "$(docker inspect -f '{{.State.Running}}' aiometadata 2>/dev/null)" == "true" ]]; then
+            rm -f "$AIOMETADATA_STOPPED_MARKER"
+        else
+            return 0
+        fi
+    fi
+    if [[ "$(docker inspect -f '{{.State.Running}}' caddy 2>/dev/null)" != "true" ]]; then
+        FAIL_REASON="caddy is NOT running, so the main site and AIOMetadata are both unreachable. Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"
+        return 1
+    fi
+    if [[ "$(docker inspect -f '{{.State.Running}}' aiometadata 2>/dev/null)" != "true" ]]; then
+        FAIL_REASON="AIOMetadata is NOT running. Fix: sudo bash setup-aiometadata.sh, option 2 (Start)"
+        return 1
+    fi
+    if ! docker exec caddy wget -q -O /dev/null -T 5 http://aiometadata:3232/health/live >/dev/null 2>&1; then
+        FAIL_REASON="AIOMetadata is running but not answering its health check. Check: docker logs aiometadata"
+        return 1
+    fi
+    return 0
+}
+
 # Sets FAIL_REASON on failure, for the alert text. The site is checked in
-# every mode; the VPN checks only in VPN mode, MediaFlow only if it's set up.
+# every mode; the VPN checks only in VPN mode, MediaFlow and AIOMetadata only
+# if they're set up.
 run_checks() {
     FAIL_REASON=""
     if vpn_mode_on && ! check_gluetun_tunnel; then
@@ -183,6 +217,9 @@ run_checks() {
     fi
     if mediaflow_configured; then
         check_mediaflow || return 1
+    fi
+    if aiometadata_configured; then
+        check_aiometadata || return 1
     fi
     return 0
 }
@@ -258,23 +295,66 @@ check_disk() {
 # Every 6 hours is plenty: Caddy renews weeks ahead. Asks this server's own
 # port 443, like the site check. A certificate that's already broken is the
 # site check's job.
+# Every site Caddy serves, main domain first: the Caddyfile's, then each
+# add-on's caddy.d site (MediaFlow, webhook relay, AIOMetadata, the control
+# panel). Each has a certificate of its own. Site lines are a hostname then
+# "{"; inner blocks ("handle @x {") have no dot in their first word.
+site_domains() {
+    awk 'NF && $1 !~ /^#/ && $2 == "{" && $1 ~ /\./ && $1 ~ /^[A-Za-z0-9.-]+$/ {print tolower($1)}' \
+        "$INSTALL_DIR/Caddyfile" "$INSTALL_DIR"/caddy.d/*.caddy 2>/dev/null | awk '!seen[$0]++' || true
+}
+
+# Every 6 hours, each site's certificate on this server's port 443. Each site
+# alerts once each way on its own (cert-hosts/<site> holds its state), so a
+# second one going bad still alerts while the first is. cert-state stays
+# "bad" while any is, for status and the control panel. A site that can't be
+# asked keeps the state it had.
 check_cert() {
-    local stamp="$STATE_DIR/cert-checked" domain end days
+    local stamp="$STATE_DIR/cert-checked" dir="$STATE_DIR/cert-hosts" domain end days state was f any=0 sites=()
     if [[ -f "$stamp" ]] && (( $(date +%s) - $(stat -c %Y "$stamp") < 21600 )); then return 0; fi
     touch "$stamp"
-    domain=$(site_domain)
-    [[ -n "$domain" ]] || return 0
-    end=$(echo | timeout 10 openssl s_client -connect 127.0.0.1:443 -servername "$domain" 2>/dev/null \
-        | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2) || true
-    [[ -n "$end" ]] || return 0
-    days=$(( ( $(date -d "$end" +%s) - $(date +%s) ) / 86400 ))
-    flag_change cert "$( (( days < CERT_WARN_DAYS )) && echo bad || echo ok)" \
-        "Certificate not renewing" \
-        "The HTTPS certificate for $domain runs out in $days days and Caddy hasn't renewed it. Check: docker logs caddy" \
-        "The certificate for $domain runs out in $days days and hasn't been renewed." \
-        "Certificate renewed" \
-        "The HTTPS certificate for $domain was renewed ($days days left)." \
-        "Certificate for $domain renewed, $days days left."
+    mkdir -p "$dir"
+    while IFS= read -r domain; do
+        [[ -n "$domain" ]] || continue
+        sites+=("$domain")
+        # An older watchdog kept one state for the main domain: carry it over, so no repeat alert
+        if [[ ! -f "$dir/$domain" && ${#sites[@]} -eq 1 && -f "$STATE_DIR/cert-state" ]]; then
+            cp "$STATE_DIR/cert-state" "$dir/$domain"
+        fi
+        was=$(cat "$dir/$domain" 2>/dev/null || echo ok)
+        end=$(echo | timeout 10 openssl s_client -connect 127.0.0.1:443 -servername "$domain" 2>/dev/null \
+            | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2) || true
+        if [[ -z "$end" ]]; then
+            [[ "$was" == bad ]] && any=1
+            continue
+        fi
+        days=$(( ( $(date -d "$end" +%s) - $(date +%s) ) / 86400 ))
+        state=$( (( days < CERT_WARN_DAYS )) && echo bad || echo ok)
+        [[ "$state" == bad ]] && any=1
+        [[ "$state" == "$was" ]] && continue
+        echo "$state" > "$dir/$domain"
+        if [[ "$state" == bad ]]; then
+            if send_ntfy "The HTTPS certificate for $domain runs out in $days days and Caddy hasn't renewed it. Check: docker logs caddy" \
+                "Certificate not renewing" 4 warning; then
+                log_event cert "The certificate for $domain runs out in $days days and hasn't been renewed. Alert sent."
+            else
+                log_event cert "The certificate for $domain runs out in $days days and hasn't been renewed. The alert couldn't be sent (ntfy.sh unreachable)."
+            fi
+        else
+            if send_ntfy "The HTTPS certificate for $domain was renewed ($days days left)." "Certificate renewed" 2 white_check_mark; then
+                log_event cert "Certificate for $domain renewed, $days days left. All-clear sent."
+            else
+                log_event cert "Certificate for $domain renewed, $days days left. The all-clear couldn't be sent (ntfy.sh unreachable)."
+            fi
+        fi
+    done < <(site_domains)
+    # Forget sites no longer served (an add-on uninstalled or moved)
+    for f in "$dir"/*; do
+        [[ -e "$f" ]] || continue
+        [[ " ${sites[*]} " == *" ${f##*/} "* ]] || rm -f "$f"
+    done
+    echo "$( (( any )) && echo bad || echo ok)" > "$STATE_DIR/cert-state"
+    return 0
 }
 
 # The control panel's address, if it's installed, for the alert's
@@ -366,6 +446,40 @@ check_updates() {
         log_event update "$what (this server runs $running). Alert sent."
     else
         log_event update "$what (this server runs $running). The alert couldn't be sent (ntfy.sh unreachable)."
+    fi
+    return 0
+}
+
+# Optional, off until switched on, and only once AIOMetadata is installed. Its
+# releases come up to twice a day, so this sends at most one alert a day,
+# naming the newest. Asks GitHub every 6 hours, like AIOStreams' release alert.
+check_metadata_updates() {
+    option_on metadata || return 0
+    aiometadata_configured || return 0
+    local stamp="$STATE_DIR/metadata-checked" latest running how
+    if [[ -f "$stamp" ]] && (( $(date +%s) - $(stat -c %Y "$stamp") < 21600 )); then return 0; fi
+    touch "$stamp"
+    [[ "$(cat "$STATE_DIR/metadata-notified-day" 2>/dev/null)" == "$(date +%F)" ]] && return 0
+    latest=$(curl -fsS -m 15 https://api.github.com/repos/cedya77/aiometadata/releases/latest 2>/dev/null \
+        | grep -oP '"tag_name":\s*"\Kv[0-9]+\.[0-9]+\.[0-9]+(?=")' | head -n 1) || true
+    [[ -n "$latest" ]] || return 0
+    # The running image's tag; the pinned release in its settings if it's stopped
+    running=$(docker inspect -f '{{.Config.Image}}' aiometadata 2>/dev/null | grep -oP ':\K[0-9]+\.[0-9]+\.[0-9]+$') || true
+    [[ -n "$running" ]] || running=$(grep -oP "^AIOM_VERSION=['\"]?\K[0-9]+\.[0-9]+\.[0-9]+" "$AIOMETADATA_STATE_DIR/config" 2>/dev/null) || true
+    [[ -n "$running" ]] || return 0
+    running="v$running"
+    [[ "$running" == "$latest" ]] && return 0
+    [[ "$(printf '%s\n%s\n' "$running" "$latest" | sort -V | tail -n 1)" == "$latest" ]] || return 0
+    [[ "$(cat "$STATE_DIR/metadata-notified" 2>/dev/null)" == "$latest" ]] && return 0
+    echo "$latest" > "$STATE_DIR/metadata-notified"
+    date +%F > "$STATE_DIR/metadata-notified-day"
+    how="Update with: sudo bash setup-aiometadata.sh, option 7."
+    [[ -n "$(panel_domain)" ]] && how="Use Open panel, then Update on AIOMetadata's card (it offers a backup first)."
+    if send_ntfy "AIOMetadata $latest is out; this server runs $running. $how" \
+        "AIOMetadata update" 3 package overview; then
+        log_event update "AIOMetadata $latest is out (this server runs $running). Alert sent."
+    else
+        log_event update "AIOMetadata $latest is out (this server runs $running). The alert couldn't be sent (ntfy.sh unreachable)."
     fi
     return 0
 }
@@ -683,6 +797,7 @@ do_run_check() {
     check_disk || true
     check_cert || true
     check_updates || true
+    check_metadata_updates || true
     check_scripts || true
     check_backup || true
     check_security || true
@@ -930,7 +1045,9 @@ extras_line() {
     else
         w="off"
     fi
-    echo "new releases $u; restarts $r; script updates $sc; backups made $b; security updates waiting $se; weekly check-in $w"
+    local line="new releases $u; restarts $r; script updates $sc; backups made $b; security updates waiting $se; weekly check-in $w"
+    aiometadata_configured && line+="; AIOMetadata releases $(option_on metadata && echo on || echo off)"
+    echo "$line"
 }
 
 # One square per day for the last 14: green all passed, amber some failed, grey no checks
@@ -971,9 +1088,12 @@ do_status() {
     else
         echo "Watchdog:      STOPPED, no checks running"
     fi
-    watches="https://$(site_domain), disk space, HTTPS certificate"
+    local n_sites
+    n_sites=$(site_domains | grep -c . || true)
+    watches="https://$(site_domain), disk space, HTTPS certificate$( (( n_sites > 1 )) && echo "s ($n_sites sites)")"
     vpn_mode_on && watches+=", VPN tunnel, AIOStreams through the VPN"
     mediaflow_configured && watches+=", MediaFlow Proxy"
+    aiometadata_configured && watches+=", AIOMetadata"
     echo "Watches:       $watches"
     if [[ -f "$LASTCHECK_FILE" ]]; then
         last=$(cat "$LASTCHECK_FILE")
@@ -1025,8 +1145,10 @@ do_extras() {
         echo "5) Security updates waiting: $(option_on security && echo on || echo off)  (after $SEC_WAIT_DAYS days; Ubuntu usually installs them by itself)"
         echo "6) Weekly check-in: $(option_on weekly && echo "on, ${DAY_NAMES[$(( $(weekly_day) - 1 ))]}s from $(weekly_time)" || echo off)"
         echo "7) Set the check-in's day and time (server time: $(server_timezone))"
+        # Only once AIOMetadata is installed; a new number, so the others never move
+        aiometadata_configured && echo "8) New AIOMetadata release: $(option_on metadata && echo on || echo off)  (at most one alert a day; releases can come twice a day)"
         echo "0) Back"
-        read -rp "Choose [0-7]: " c || return 0
+        read -rp "Choose [0-$(aiometadata_configured && echo 8 || echo 7)]: " c || return 0
         case "$c" in
             1) option_on updates && set_option updates off || set_option updates on ;;
             2) reboots_on && set_option reboots off || set_option reboots on ;;
@@ -1034,6 +1156,13 @@ do_extras() {
             4) option_on backups && set_option backups off || set_option backups on ;;
             5) option_on security && set_option security off || set_option security on ;;
             6) option_on weekly && set_option weekly off || set_option weekly on ;;
+            8)
+                if aiometadata_configured; then
+                    option_on metadata && set_option metadata off || set_option metadata on
+                else
+                    echo "Not a valid option."
+                fi
+                ;;
             7)
                 echo "Days: 1 Monday, 2 Tuesday, 3 Wednesday, 4 Thursday, 5 Friday, 6 Saturday, 7 Sunday"
                 read -rp "Day [Enter for $(weekly_day)]: " d || return 0
@@ -1180,13 +1309,13 @@ if [[ "${1:-}" == "set-topic" ]]; then
     exit $?
 fi
 
-# set-option <updates|reboots|scripts|backups|security|weekly> <on|off>, or set-option weekly_day <1-7> /
+# set-option <updates|reboots|scripts|backups|security|weekly|metadata> <on|off>, or set-option weekly_day <1-7> /
 # weekly_time <HH:MM>: the optional alerts, without questions
 if [[ "${1:-}" == "set-option" ]]; then
-    [[ ( "${2:-}" =~ ^(updates|reboots|scripts|backups|security|weekly)$ && "${3:-}" =~ ^(on|off)$ ) || ( "${2:-}" == weekly_day && "${3:-}" =~ ^[1-7]$ )
+    [[ ( "${2:-}" =~ ^(updates|reboots|scripts|backups|security|weekly|metadata)$ && "${3:-}" =~ ^(on|off)$ ) || ( "${2:-}" == weekly_day && "${3:-}" =~ ^[1-7]$ )
        || ( "${2:-}" == weekly_hour && "${3:-}" =~ ^([01]?[0-9]|2[0-3])$ )
        || ( "${2:-}" == weekly_time && "${3:-}" =~ ^([01]?[0-9]|2[0-3]):[0-5][0-9]$ ) ]] \
-        || error "Usage: set-option updates|reboots|scripts|backups|security|weekly on|off, set-option weekly_day 1-7 (Mon-Sun), set-option weekly_time HH:MM"
+        || error "Usage: set-option updates|reboots|scripts|backups|security|weekly|metadata on|off, set-option weekly_day 1-7 (Mon-Sun), set-option weekly_time HH:MM"
     [[ -f "$CONFIG_FILE" ]] || error "Not configured yet. Set the watchdog up first."
     set_option "$2" "$3"
     exit 0

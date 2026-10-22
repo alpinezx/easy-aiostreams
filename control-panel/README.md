@@ -11,7 +11,7 @@ pip install -r requirements.txt
 UI_DEMO=1 UI_STATE_DIR=/tmp/aios-state uvicorn app.main:app --port 8099
 ```
 
-Open `http://localhost:8099` and sign in as `demo` / `demo`. The demo terminal key is `demo-terminal-key` and opens a harmless local shell. Add `UI_DEMO_SCENARIO=down` or `paused` to see those states.
+Open `http://localhost:8099` and sign in as `demo` / `demo`. The demo terminal key is `demo-terminal-key` and opens a harmless local shell. Add `UI_DEMO_SCENARIO=down` or `paused` to see those states. Add `UI_DEMO_CERT_WARN=1` to see a certificate close to expiring.
 
 ## Tests
 

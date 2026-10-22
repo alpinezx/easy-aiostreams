@@ -221,6 +221,9 @@ button.chip:hover { text-decoration: underline; }
 .ver-value .ok { color: var(--ok); } .ver-value .warn { color: var(--warn); }
 .ver-value .linkish { font: inherit; color: var(--warn); text-decoration: none; background: none; border: 0; padding: 0; cursor: pointer; }
 .ver-value .linkish:hover { text-decoration: underline; }
+/* a newer release that isn't a to-do (AIOMetadata's come up to twice a day): plain, not amber */
+.ver-value .quiet, .fold-sum .quiet { color: var(--text); }
+.ver-value .quiet { font-weight: 600; }
 .ver-sub { font-size: .84rem; color: var(--faint); margin-top: 2px; min-height: 1.2em; }
 .ver-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 @media (max-width: 720px) {
@@ -400,6 +403,11 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .stat-value.warn { color: var(--warn); } .stat-value.bad { color: var(--bad); } .stat-value.ok { color: var(--ok); }
 .row .num.warn { color: var(--warn); } .row .num.bad { color: var(--bad); }
 .stat .ver-sub { font-size: .8rem; }
+.cert-head { grid-column: 1 / -1; }
+/* The fold button reads as a stat label: same size, case and colour as the others */
+.cert-fold .fold-toggle, .cert-head .fold-toggle { font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; }
+.cert-head { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--faint); }
+@media (max-width: 720px) { .cert-head { padding: 12px 0 4px; border-top: 1px solid var(--line-soft); } }
 /* Phones: one value per line, the label on the left and the value with its note on the right,
    so nothing has to wrap in a half-width column */
 @media (max-width: 720px) {
@@ -876,16 +884,18 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 
 /* The Overview: the headline, then the cards in the order Edit saved (layout.js sets
    --o-<card> and data-hide). By default: the request flow it illustrates, the version
-   card, This server and Phone alerts, then the services. */
+   card, the add-ons' cards (AIOMetadata, Phone alerts), then This server and the services. */
 #view-overview:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr); }
 #view-overview .cols, #view-overview .side { display: contents; }
 #view-overview .hero { order: 0; }
 #view-overview .path { order: var(--o-flow, 1); }
 #view-overview .ver-slot { order: var(--o-aiostreams, 2); margin: 0 0 30px; }
-#view-overview .panel.host { order: var(--o-server, 3); margin: 0 0 30px; }
+#view-overview .meta-slot { order: var(--o-aiometadata, 3); }
 #view-overview .panel.wd { order: var(--o-alerts, 4); margin: 0 0 30px; }
-#view-overview .cols > div { order: var(--o-services, 5); margin: 0 0 30px; }
-#view-overview[data-hide~="flow"] .path, #view-overview[data-hide~="aiostreams"] .ver-slot,
+#view-overview .panel.host { order: var(--o-server, 5); margin: 0 0 30px; }
+#view-overview .cols > div { order: var(--o-services, 6); margin: 0 0 30px; }
+#view-overview[data-hide~="flow"] .path, #view-overview[data-hide~="aiostreams"] .ver-slot:not(.meta-slot),
+#view-overview[data-hide~="aiometadata"] .meta-slot,
 #view-overview[data-hide~="server"] .panel.host, #view-overview[data-hide~="alerts"] .panel.wd,
 #view-overview[data-hide~="services"] .cols > div { display: none; }
 
@@ -1027,3 +1037,28 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .ver-card.folded .fold-sum { flex: 1 1 0; }
   .ver-card.folded .ver-head > .btn { order: 4; }
 }
+
+/* Add-ons page (ao-, never ad-: ad blockers hide ad-* classes): full-width cards like the Overview's, each value a tile (label,
+   the value cut off with an ellipsis and its icon buttons, a quiet line), so
+   nothing wraps */
+.ao-grid { display: grid; gap: 16px; }
+.ao-card { display: flex; flex-direction: column; }
+.ao-rows { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 18px 24px; margin-top: 14px; }
+.ao-row { min-width: 0; }
+.ao-line { display: flex; align-items: center; gap: 8px; min-height: 30px; }
+.ao-val { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; font-size: 1rem; font-weight: 600; }
+.ao-val.mono { font-size: .9rem; font-weight: 500; }
+.ao-note { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ao-btns { display: flex; gap: 4px; flex: none; }
+.ao-ic { width: 30px; height: 28px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--raised); color: var(--dim); cursor: pointer; }
+.ao-ic:hover { color: var(--text); background: var(--hover); }
+.ao-ic svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ao-ic[aria-pressed="true"] .slash { display: none; }
+.ao-foot { justify-content: space-between; }
+.ao-foot .btn { margin-left: auto; }
+.ao-foot .dim { font-size: .88rem; }
+.ao-head-r { display: flex; align-items: center; gap: 12px; }
+.ao-head-r .dim { font-size: .86rem; }
+.ao-btn-cell { grid-column: -2 / -1; justify-self: end; align-self: end; }
+@media (max-width: 720px) { .ao-note:empty { display: none; } }

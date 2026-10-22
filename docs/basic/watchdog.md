@@ -1,6 +1,6 @@
 # Watchdog Alerts: Basic Guide
 
-For a phone notification when your AIOStreams server needs you: the site stops answering, the disk is nearly full, or the HTTPS certificate isn't renewing. With the [VPN layer](./vpn-setup.md) or [MediaFlow Proxy](./mediaflow-proxy.md) set up, it watches those too.
+For a phone notification when your AIOStreams server needs you: the site stops answering, the disk is nearly full, or the HTTPS certificate isn't renewing. With the [VPN layer](./vpn-setup.md), [MediaFlow Proxy](./mediaflow-proxy.md) or [AIOMetadata](./aiometadata.md) set up, it watches those too.
 
 ⚠️ **Needs AIOStreams installed first** with `setup-aiostreams.sh`. Nothing else is required.
 
@@ -49,10 +49,10 @@ If nothing shows up within a few seconds, don't move on yet. See the [advanced g
 
 ## What you'll get
 
-- **🚨 AIOStreams is down** if a check fails twice in a row (not on a single blip). It says what failed and how to fix it: the site isn't answering, Caddy is down, the certificate is broken, or, when they're set up, the VPN tunnel or MediaFlow Proxy.
+- **🚨 AIOStreams is down** if a check fails twice in a row (not on a single blip). It says what failed and how to fix it: the site isn't answering, Caddy is down, the certificate is broken, or, when they're set up, the VPN tunnel, MediaFlow Proxy or AIOMetadata.
 - **✅ AIOStreams is back** once everything passes again. One alert each way, not a repeat every check.
-- **⚠️ Disk nearly full** at 90%, and **⚠️ Certificate not renewing** if Caddy hasn't renewed it with 10 days left. Each sends a quiet all-clear once it's fine again.
-- **Silence when you stop something on purpose** from its own menu (Stop AIOStreams in `setup-aiostreams.sh` or the control panel, Stop in `setup-mediaflow.sh`), or turn the VPN off. Only unexpected stops alert.
+- **⚠️ Disk nearly full** at 90%, and **⚠️ Certificate not renewing** if Caddy hasn't renewed one with 10 days left, for your main domain or any add-on's subdomain (it says which). Each sends a quiet all-clear once it's fine again.
+- **Silence when you stop something on purpose** from its own menu (Stop AIOStreams in `setup-aiostreams.sh` or the control panel, Stop in `setup-mediaflow.sh` or `setup-aiometadata.sh`), or turn the VPN off. Only unexpected stops alert.
 
 With the [control panel](./control-panel.md), each alert has an **Open panel** button that opens its **Phone alerts** page.
 
@@ -70,7 +70,7 @@ The check-in goes by the server's clock, so check its time zone: `timedatectl` s
 
 ## Everyday use
 
-The control panel's **Phone alerts** page shows whether it's watching, the last check, a square per day for the last 14 days (green all passed, amber some failed), and recent events. It has Start/Stop, Send test alert, Change topic (with a Copy button, to paste into the ntfy app), the two switches above, and Uninstall at the foot.
+The control panel's **Phone alerts** page shows whether it's watching, the last check, a square per day for the last 14 days (green all passed, amber some failed), and recent events. It has Start/Stop, Send test alert, Change topic (with a Copy button, to paste into the ntfy app), and the two switches above. Uninstall is on the panel's Add-ons page.
 
 ![The control panel's Phone alerts page](../images/control-panel/alerts.png)
 
@@ -82,7 +82,7 @@ sudo bash /opt/aiostreams/setup-watchdog.sh
 - **Start / Stop**: turn checking on or off. Config is kept either way.
 - **Send test alert**: fire a test message any time, without waiting for a real failure.
 - **Change topic**: a new ntfy topic (it suggests one, and refuses anything ntfy wouldn't accept); it offers to start the watchdog if it's stopped.
-- **Extra alerts**: the release, restart, script update, backup made, security update and weekly check-in alerts on or off, and the check-in's day and time.
+- **Extra alerts**: the release, restart, script update, backup made, security update and weekly check-in alerts on or off, and the check-in's day and time. With AIOMetadata installed, its release alert too (option 8).
 - **Recent events and stats**: what happened lately, newest first, with Clear history and Reset stats.
 - **Check now**: run every check once and see the result, without saving or sending anything.
 - **Uninstall**: clean removal (timer, services, saved state).

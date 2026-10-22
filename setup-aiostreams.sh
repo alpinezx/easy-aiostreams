@@ -179,7 +179,7 @@ SHARED_NET="aios_shared"
 
 # Every script that belongs in $INSTALL_DIR. Used when a leftover
 # ~/aiostreams folder is turned into a shortcut (link_install_shortcuts).
-AIOSTREAMS_SCRIPTS=(setup-aiostreams.sh setup-backup.sh setup-vpn-gluetun.sh setup-watchdog.sh setup-webhook.sh setup-mediaflow.sh)
+AIOSTREAMS_SCRIPTS=(setup-aiostreams.sh setup-backup.sh setup-vpn-gluetun.sh setup-watchdog.sh setup-webhook.sh setup-mediaflow.sh setup-aiometadata.sh)
 
 # Set by the Reconfigure menu option only, when it needs the final restart
 # (further down) to know whether to bring the stack back up through the
@@ -236,6 +236,15 @@ remove_addons_on_uninstall() {
         (cd "$INSTALL_DIR/mediaflow-state" && docker compose -f docker-compose.yml down >/dev/null 2>&1) || \
             docker rm -f mediaflow-proxy-light >/dev/null 2>&1 || true
         removed+=("MediaFlow Proxy Light container")
+    fi
+    # Its Redis cache is a Docker volume: kept for a restore (the restored
+    # AIOMetadata reuses it), removed with an uninstall.
+    if [[ -f "$INSTALL_DIR/aiometadata-state/docker-compose.yml" ]]; then
+        local down_args=(down)
+        [[ "$mode" == restore ]] || down_args+=(-v)
+        (cd "$INSTALL_DIR/aiometadata-state" && docker compose -f docker-compose.yml "${down_args[@]}" >/dev/null 2>&1) || \
+            docker rm -f aiometadata aiometadata_redis >/dev/null 2>&1 || true
+        removed+=("AIOMetadata containers")
     fi
     # fail2ban can refuse to start at all if a jail's log file is missing, so
     # leaving this behind after ~/aiostreams is deleted would also take
@@ -730,7 +739,7 @@ PY
     fi
     if (( on_purpose )); then docker compose stop aiostreams >/dev/null 2>&1 || true; touch "$STOPPED_MARKER"; fi
     local d running
-    for d in mediaflow-state webhook-relay-state; do
+    for d in mediaflow-state webhook-relay-state aiometadata-state; do
         [[ -f "$INSTALL_DIR/$d/docker-compose.yml" ]] || continue
         running=$(cd "$INSTALL_DIR/$d" && docker compose ps -q 2>/dev/null)
         [[ -n "$running" ]] && (cd "$INSTALL_DIR/$d" && docker compose up -d --force-recreate) || true
@@ -816,7 +825,7 @@ show_status() {
     echo ""
     echo "=== Services ==="
     for c in "caddy|Caddy" "gluetun|VPN tunnel" "aiostreams|AIOStreams" "mediaflow-proxy-light|MediaFlow Proxy" \
-             "aios-webhook-relay|Webhook relay" "aios-ui|Control panel"; do
+             "aios-webhook-relay|Webhook relay" "aiometadata|AIOMetadata" "aios-ui|Control panel"; do
         label=${c#*|}; c=${c%%|*}
         st=$(docker ps -a --filter "name=^${c}\$" --format '{{.Status}}' 2>/dev/null | head -n 1)
         [[ -n "$st" ]] || continue

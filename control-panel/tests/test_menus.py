@@ -42,7 +42,8 @@ def test_aiostreams_menu_numbers_the_panel_types():
 
 
 def test_addon_menu_numbers_the_panel_types():
-    for script, action_id in (("setup-mediaflow.sh", "mediaflow.stop"), ("setup-webhook.sh", "webhook.stop")):
+    for script, action_id in (("setup-mediaflow.sh", "mediaflow.stop"), ("setup-webhook.sh", "webhook.stop"),
+                              ("setup-aiometadata.sh", "aiometadata.stop")):
         m = menu(script)
         assert m["3"] == "Stop" and m["10"] == "Exit", script
         assert typed(action_id)[:2] == ["3", "10"], action_id
@@ -59,3 +60,24 @@ def test_the_panel_runs_named_commands_the_scripts_know():
     assert '"${1:-}" == "stop-relay"' in (ROOT / "setup-webhook.sh").read_text(encoding="utf-8")
     assert actions.resolve("mediaflow.stop").args == ("stop-mediaflow",)
     assert actions.resolve("webhook.stop").args == ("stop-relay",)
+    meta = (ROOT / "setup-aiometadata.sh").read_text(encoding="utf-8")
+    for cmd in ("start-aiometadata", "stop-aiometadata", "update-aiometadata"):
+        assert re.search(rf"^\s*{cmd}\)", meta, re.M), cmd
+    assert actions.resolve("aiometadata.stop").args == ("stop-aiometadata",)
+    assert actions.resolve("aiometadata.start").args == ("start-aiometadata",)
+
+
+def test_the_add_ons_uninstall_is_a_named_command():
+    """The Add-ons page's Uninstall runs each script's "uninstall"; the menus keep their numbers."""
+    meta = (ROOT / "setup-aiometadata.sh").read_text(encoding="utf-8")
+    assert re.search(r"^\s*uninstall\)", meta, re.M)
+    for script in ("setup-mediaflow.sh", "setup-webhook.sh"):
+        assert '"${1:-}" == "uninstall"' in (ROOT / script).read_text(encoding="utf-8"), script
+    assert menu("setup-aiometadata.sh")["8"] == "Uninstall"
+    assert menu("setup-mediaflow.sh")["9"] == "Uninstall"
+    assert menu("setup-webhook.sh")["9"] == "Uninstall"
+    assert actions.resolve("aiometadata.uninstall", {"remove_image": True}).args == ("uninstall", "remove-image")
+    assert actions.resolve("mediaflow.uninstall", {"remove_image": True}).args == ("uninstall", "remove-image")
+    assert actions.resolve("mediaflow.uninstall", {"remove_image": "yes"}).args == ("uninstall",)
+    # The relay's python image is a common one: it's never removed
+    assert actions.resolve("webhook.uninstall", {"remove_image": True}).args == ("uninstall",)

@@ -1,6 +1,7 @@
 """AIOStreams releases from GitHub, the same list AIOStreams' own dashboard
-reads: stable tags (v2.35.9) or nightly ones (2026.10.10.1200-nightly). Kept
-for a few hours: GitHub allows 60 unauthenticated requests an hour per IP."""
+reads: stable tags (v2.35.9) or nightly ones (2026.10.10.1200-nightly), and
+AIOMetadata's (v3.6.1). Kept for a few hours: GitHub allows 60
+unauthenticated requests an hour per IP."""
 from __future__ import annotations
 
 import re
@@ -10,6 +11,7 @@ import time
 import requests
 
 URL = "https://api.github.com/repos/viren070/aiostreams/releases"
+META_URL = "https://api.github.com/repos/cedya77/aiometadata/releases"
 FRESH = 3 * 3600
 RETRY = 10 * 60
 FORCE_GAP = 60
@@ -20,6 +22,8 @@ STABLE = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
 # Not the desktop app's "desktop-nightly".
 NIGHTLY = re.compile(r"^\d{4}\.\d{2}\.\d{2}\.\d{4}-nightly$")
 CHANNELS = ("stable", "nightly")
+# Each list: where it comes from and which tags count. AIOMetadata has only one channel.
+SOURCES = {"stable": (URL, STABLE), "nightly": (URL, NIGHTLY), "aiometadata": (META_URL, STABLE)}
 
 _lock = threading.Lock()
 _cache: dict = {}
@@ -31,15 +35,15 @@ class CheckFailed(Exception):
 
 def _key(tag: str, channel: str):
     # Nightly tags are timestamps, so sorting them as text is chronological.
-    return tuple(int(x) for x in STABLE.match(tag).groups()) if channel == "stable" else tag
+    return tag if channel == "nightly" else tuple(int(x) for x in STABLE.match(tag).groups())
 
 
 def _fetch(channel: str) -> list[dict]:
-    wanted = STABLE if channel == "stable" else NIGHTLY
+    api, wanted = SOURCES[channel]
     found = []
     # Nightlies far outnumber stable releases, so a page can hold only a few stable ones.
     for page in range(1, MAX_PAGES + 1):
-        r = requests.get(URL, params={"per_page": 100, "page": page}, timeout=10,
+        r = requests.get(api, params={"per_page": 100, "page": page}, timeout=10,
                          headers={"Accept": "application/vnd.github+json", "User-Agent": "easy-aiostreams-panel"})
         if r.status_code in (403, 429):
             raise CheckFailed("GitHub's rate limit was reached. Try again in a while.")
@@ -60,7 +64,7 @@ def _fetch(channel: str) -> list[dict]:
 
 
 def get(force: bool = False, channel: str = "stable") -> dict:
-    if channel not in CHANNELS:
+    if channel not in SOURCES:
         raise ValueError(channel)
     with _lock:
         c = _cache.setdefault(channel, {"at": 0.0, "releases": None, "error": None})
@@ -82,6 +86,14 @@ def get(force: bool = False, channel: str = "stable") -> dict:
 
 def demo(channel: str = "stable") -> dict:
     now = time.time()
+    if channel == "aiometadata":
+        iso = lambda h: time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - h * 3600))
+        notes = {"v3.6.2": "## What's Changed\n\n* Fix MDBList catalogs paging past 100 items\n* Faster poster lookups when Fanart is down\n",
+                 "v3.6.1": "## What's Changed\n\n* Fix TVDB episode titles for anime\n",
+                 "v3.6.0": "## What's Changed\n\n* New: Gemini-powered search catalogs\n* Dashboard: per-key usage graphs\n"}
+        rels = [{"tag": t, "published": iso(h), "url": f"https://github.com/cedya77/aiometadata/releases/tag/{t}", "body": notes[t]}
+                for t, h in (("v3.6.2", 4), ("v3.6.1", 30), ("v3.6.0", 32))]
+        return {"channel": channel, "checked_at": now, "error": None, "keep": KEEP, "releases": rels}
     if channel == "nightly":
         def stamp(hours_ago):
             return time.strftime("%Y.%m.%d.%H%M-nightly", time.gmtime(now - hours_ago * 3600))

@@ -9,6 +9,7 @@ import * as scripts from "./scripts.js";
 import * as vpn from "./vpn.js";
 import * as alerts from "./alerts.js";
 import * as maint from "./maint.js";
+import * as addons from "./addons.js";
 
 let status = null;
 let view = "overview";
@@ -16,14 +17,15 @@ let pendingLogs = null;
 let lastBusy = null;
 let timer = null;
 
-const VIEWS = ["overview", "logs", "activity", "backups", "scripts", "vpn", "alerts", "maint", "terminal"];
+const VIEWS = ["overview", "logs", "activity", "backups", "scripts", "vpn", "alerts", "addons", "maint", "terminal"];
 let terminalOn = false;
 let vpnSetUp = false;     // the VPN page shows once setup-vpn-gluetun.sh has set the VPN up
 let alertsSetUp = false;  // and Phone alerts once setup-watchdog.sh has been set up
+let addonsIn = false;     // and Add-ons once any optional add-on is (those two included)
 
 function route() {
   const v = location.hash.slice(1).split("/")[0];
-  view = VIEWS.includes(v) && (v !== "terminal" || terminalOn) && (v !== "vpn" || vpnSetUp) && (v !== "alerts" || alertsSetUp) ? v : "overview";
+  view = VIEWS.includes(v) && (v !== "terminal" || terminalOn) && (v !== "vpn" || vpnSetUp) && (v !== "alerts" || alertsSetUp) && (v !== "addons" || addonsIn) ? v : "overview";
   for (const name of VIEWS) $(`#view-${name}`).hidden = name !== view;
   document.querySelectorAll(".tab").forEach((t) => t.toggleAttribute("aria-current", false));
   const active = document.querySelector(`.tab[data-view="${view}"]`);
@@ -41,6 +43,7 @@ function enter() {
   if (view === "terminal") terminal.show(status);
   if (view === "vpn") vpn.show(false, status);
   if (view === "alerts") alerts.show(status);
+  if (view === "addons") addons.show(status);
   if (view === "maint") maint.show(status).catch(() => {});
 }
 
@@ -105,6 +108,13 @@ async function tick() {
       $("#tab-vpn").hidden = !vpnSetUp;
       if (location.hash.slice(1) === "vpn" || view === "vpn") route();   // opened at #vpn, or the VPN was removed
     }
+    const addonsNow = status.services.some((s) => s.addon) || status.vpn === "on" || status.vpn === "off"
+      || !!(status.watchdog && status.watchdog.configured);
+    if (addonsNow !== addonsIn) {
+      addonsIn = addonsNow;
+      $("#tab-addons").hidden = !addonsIn;
+      if (location.hash.slice(1) === "addons" || view === "addons") route();
+    }
     const alertsNow = !!(status.watchdog && status.watchdog.configured);
     if (alertsNow !== alertsSetUp) {
       alertsSetUp = alertsNow;
@@ -128,6 +138,7 @@ async function tick() {
     if (view === "alerts") alerts.setStatus(status);
     if (view === "vpn") vpn.setStatus(status);
     if (view === "maint") maint.setStatus(status);
+    if (view === "addons") addons.setStatus(status);
     lastBusy = status.busy;
   } catch (e) {
     if (e.message !== "signed out") $("#offline").hidden = false;

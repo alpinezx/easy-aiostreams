@@ -72,7 +72,7 @@ class DemoBackend:
         self.removed_scripts: set[str] = set()
         self.wd_running = True
         self.wd_configured = True
-        self.wd_options = {"updates": False, "reboots": False, "scripts": False, "backups": False, "security": False, "weekly": False, "weekly_day": 7, "weekly_time": "10:00"}
+        self.wd_options = {"updates": False, "reboots": False, "scripts": False, "backups": False, "security": False, "weekly": False, "metadata": False, "weekly_day": 7, "weekly_time": "10:00"}
         self.schedule = {"every": "daily", "day": 7, "time": "04:00"}
         self.wd_topic = "aios-7f3k29xq81"
         now = time.time()
@@ -97,7 +97,7 @@ class DemoBackend:
             {"kind": "file", "path": "/home/ubuntu/SE-Stockholm.conf", "endpoint": "se.wg.example-vpn.net", "in_use": False}]
         self.channel = os.environ.get("UI_DEMO_CHANNEL", "latest")   # latest | nightly
         self._made: list[dict] = []    # backups "made" by demo actions, newest first
-        self.running = {"caddy": True, "gluetun": True, "aiostreams": True, "mediaflow-proxy-light": True, "aios-webhook-relay": True}
+        self.running = {"caddy": True, "gluetun": True, "aiostreams": True, "mediaflow-proxy-light": True, "aios-webhook-relay": True, "aiometadata": True}
         if scenario == "down":
             self.running["aiostreams"] = False
         self.stopped_on_purpose = scenario == "paused"
@@ -134,9 +134,22 @@ class DemoBackend:
     def vpn_mode(self) -> str:
         return self.vpn
 
+    def addons_info(self) -> list[dict]:
+        return [{"id": "aiometadata", "domain": "meta.example.com", "version": "3.6.1"},
+                {"id": "mediaflow", "domain": "mediaflow.example.com", "proxy": None},
+                {"id": "webhook", "domain": "hooks.example.com", "ntfy_server": "ntfy.sh", "reboots": True}]
+
+    def addon_secret(self, addon: str, name: str) -> str | None:
+        # Plainly made up, so nothing mistakes them for real ones
+        return {("aiometadata", "addon_password"): "demo-addon-password",
+                ("aiometadata", "admin_key"): "demo-admin-key",
+                ("mediaflow", "api_password"): "demo-api-password",
+                ("webhook", "url"): "https://hooks.example.com/hook/demo-token",
+                ("webhook", "ntfy"): "https://ntfy.sh/demo-topic"}.get((addon, name))
+
     def set_watchdog_option(self, name: str, value) -> None:
         from .stack import TIME_RE
-        ok = (name in ("updates", "reboots", "scripts", "backups", "security", "weekly") and isinstance(value, bool)) or \
+        ok = (name in ("updates", "reboots", "scripts", "backups", "security", "weekly", "metadata") and isinstance(value, bool)) or \
             (name == "weekly_day" and type(value) is int and 1 <= value <= 7) or \
             (name == "weekly_time" and isinstance(value, str) and bool(TIME_RE.match(value.strip())))
         if not ok:
@@ -162,7 +175,7 @@ class DemoBackend:
         from .stack import mask_topic
         if not self.wd_configured:
             return {"configured": False}
-        watches = ["https://streams.example.com", "Disk space", "HTTPS certificate"] + (["VPN tunnel", "AIOStreams through the VPN"] if self.vpn == "on" else []) + ["MediaFlow Proxy"]
+        watches = ["https://streams.example.com", "Disk space", "HTTPS certificates (5 sites)"] + (["VPN tunnel", "AIOStreams through the VPN"] if self.vpn == "on" else []) + ["MediaFlow Proxy", "AIOMetadata"]
         return {"configured": True, "running": self.wd_running, "alert_state": "up", "fails": 0,
                 "warnings": [w for w in os.environ.get("UI_DEMO_WD_WARN", "").split(",") if w],
                 "last_check": time.strftime("%d %b %Y, %H:%M:%S UTC", time.gmtime(time.time() - 40)) + " OK" if self.wd_running
@@ -170,7 +183,7 @@ class DemoBackend:
                 "topic": mask_topic(self.wd_topic), "events": self.wd_events, "tally": self.wd_tally,
                 "watches": watches, "every_min": 2, "threshold": 2,
                 "options": dict(self.wd_options), "channel": "nightly" if self.channel == "nightly" else "stable",
-                "relay_reboots": False,
+                "relay_reboots": False, "aiometadata": True,
                 "timezone": os.environ.get("UI_DEMO_TZ", "Europe/London")}
 
     def update_script(self, script_id: str) -> dict:
@@ -220,7 +233,8 @@ class DemoBackend:
                 ("gluetun", "gluetun", "VPN tunnel", "gluetun, WireGuard", False, "qmcgaw/gluetun:v3"),
                 ("aiostreams", "aiostreams", "AIOStreams", "Addon aggregator", False, "viren070/aiostreams:latest"),
                 ("mediaflow", "mediaflow-proxy-light", "MediaFlow Proxy", "Faster video proxy", True, "ghcr.io/mhdzumair/mediaflow-proxy-light:latest"),
-                ("webhook", "aios-webhook-relay", "Webhook relay", "Webhooks to phone alerts", True, "python:3.13-alpine")]
+                ("webhook", "aios-webhook-relay", "Webhook relay", "Webhooks to phone alerts", True, "python:3.13-alpine"),
+                ("aiometadata", "aiometadata", "AIOMetadata", "Catalogs and metadata", True, "ghcr.io/cedya77/aiometadata:3.6.1")]
         if self.vpn != "on":
             defs = [x for x in defs if x[0] != "gluetun"]
         services = []
@@ -233,7 +247,7 @@ class DemoBackend:
             if run:
                 s.update(started_at=self.started[cname].isoformat().replace("+00:00", "Z"),
                          cpu=round(random.uniform(0.2, 9.0) if key == "aiostreams" else random.uniform(0.0, 1.5), 1),
-                         mem=int({"caddy": 31, "gluetun": 44, "aiostreams": 318, "mediaflow": 22, "webhook": 19}[key] * MB * random.uniform(0.97, 1.03)))
+                         mem=int({"caddy": 31, "gluetun": 44, "aiostreams": 318, "mediaflow": 22, "webhook": 19, "aiometadata": 452}[key] * MB * random.uniform(0.97, 1.03)))
             services.append(s)
         down = [s for s in services if s["state"] != "running" and not s["on_purpose"]]
         if down:
@@ -247,15 +261,23 @@ class DemoBackend:
             "build_tag": time.strftime("%Y.%m.%d.%H%M-nightly", time.gmtime(time.time() - 30 * 3600)) if self.channel == "nightly" else "v2.35.9",
             "vpn": self.vpn, "install_dir": "/opt/aiostreams", "user_copy": self.user_copy(),
             "scripts": [{"id": i, "label": l, "file": f,
-                         "present": i in ("aiostreams", "vpn", "mediaflow", "watchdog", "webhook") and i not in self.removed_scripts,
+                         "present": i in ("aiostreams", "vpn", "mediaflow", "watchdog", "webhook", "aiometadata") and i not in self.removed_scripts,
                          "in_use": (i != "vpn" or self.vpn != "none") and (i != "watchdog" or self.wd_configured)} for i, l, f in SCRIPTS], "overall": overall, "headline": headline, "services": services,
             "watchdog": {"configured": self.wd_configured, "running": self.wd_running, "alert_state": "up",
                          "last_check": time.strftime("%d %b %Y, %H:%M:%S UTC", time.gmtime(time.time() - 40)) + (" OK" if self.wd_running else "")},
             "host": {"cpus": 2, "load": [0.21, 0.34, 0.29], "mem_total": 4 * GB, "mem_used": int(1.6 * GB),
                      "uptime": 41 * 86400 + 3 * 3600, "disk_total": 80 * GB, "disk_used": 23 * GB},
             "cert": {"host": "streams.example.com", "days_left": 61, "ok": True, "days_total": 90},
+            "certs": [{"host": "streams.example.com", "label": "AIOStreams", "days_left": 61, "ok": True, "days_total": 90},
+                      {"host": "meta.example.com", "label": "AIOMetadata", "ok": True, "days_total": 90,
+                       "days_left": 12 if os.environ.get("UI_DEMO_CERT_WARN") else 84},
+                      {"host": "mediaflow.example.com", "label": "MediaFlow", "days_left": 58, "ok": True, "days_total": 90},
+                      {"host": "hooks.example.com", "label": "Webhook relay", "days_left": 58, "ok": True, "days_total": 90},
+                      {"host": "cp.example.com", "label": "Control panel", "days_left": 73, "ok": True, "days_total": 90}],
             "backup": {"newest": max(b["mtime"] for b in self.backups()) if self.backups() else None,
                        **self.schedule, "last": self._last_run()},
+            # AIOMetadata's card, only once it's installed; its newer releases come from GitHub
+            "aiometadata": {"domain": "meta.example.com", "version": "3.6.1"},
             "actions": [{"id": a.id, "label": a.label, "confirm": a.confirm, "available": True} for a in catalog()],
         }
 
@@ -368,6 +390,11 @@ class DemoBackend:
                       " Container gluetun  Running", " Image viren070/aiostreams:latest  Pulling", " Image viren070/aiostreams:latest  Pulled",
                       "VPN mode detected, recreating gluetun+caddy first...", "  Tunnel confirmed, starting aiostreams",
                       "Update complete. Current images:"]:
+                say(l, 0.5)
+        elif action.id == "aiometadata.update":
+            for l in (["==> Creating backup", "Backup written to /root/aiostreams-backup-20261022-101500.tar.gz"] if "--backup" in action.args else []) + [
+                      "Updating AIOMetadata from 3.6.1 to 3.6.2", " Image ghcr.io/cedya77/aiometadata:3.6.2  Pulled",
+                      "Waiting for it to report healthy...", "AIOMetadata 3.6.2 is running and healthy.", "Removed the old 3.6.1 image."]:
                 say(l, 0.5)
         elif action.id == "stack.stop":
             say("Stopping AIOStreams..."); self.running["aiostreams"] = False; self.stopped_on_purpose = True

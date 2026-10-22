@@ -1,5 +1,5 @@
 import { $, h, clear, api, ago, toast } from "./util.js";
-import { runAction, ask, openJob } from "./actions.js";
+import { runAction, ask } from "./actions.js";
 
 // The VPN page. Whether the tunnel is up, where traffic leaves (asked from
 // inside the VPN container), which server address the config points at, and
@@ -215,51 +215,6 @@ async function showConfigs(box) {
   box.append(h("h3", { class: "conf-title", text: "Configs on this server" }), list);
 }
 
-// ---- uninstall ----
-// The script's Uninstall VPN layer (option 7) with its two questions as tick
-// boxes, a backup first if wanted, and "uninstall" typed to confirm.
-const waitJob = async (id) => {
-  for (;;) {
-    await new Promise((r) => setTimeout(r, 2000));
-    try { const j = await api(`/api/jobs/${id}`); if (j.ended) return j; } catch (_) {}
-  }
-};
-
-async function uninstall() {
-  let files = [];
-  try { files = (await api("/api/vpn/configs")).filter((c) => c.kind === "file").map((c) => c.path); } catch (_) {}
-  const backup = h("input", { type: "checkbox", checked: true });
-  const image = h("input", { type: "checkbox", checked: true });
-  const confs = h("input", { type: "checkbox", checked: true });
-  const gate = h("input", { class: "input", type: "text", autocomplete: "off", spellcheck: "false", "aria-label": "Type uninstall to confirm" });
-  const el = h("div", { class: "opts" },
-    h("label", { class: "check" }, backup, h("span", { text: "Back up first (a backup holds the VPN's settings, so this can be undone)" })),
-    h("label", { class: "check" }, image, h("span", { text: "Remove the gluetun image too" })),
-    files.length ? h("label", { class: "check" }, confs, h("span", {}, "Delete the .conf ", files.length === 1 ? "file" : "files",
-      " in your home folder: ", h("span", { class: "mono", text: files.map((f) => f.split("/").pop()).join(", ") }))) : null,
-    h("label", { class: "field" }, h("span", { text: "Type uninstall to confirm" }), gate));
-  const res = await ask({ title: "Uninstall the VPN?", confirmLabel: "Uninstall VPN", danger: true,
-    body: "AIOStreams switches to a direct connection, and the VPN's container and everything saved for it, keys included, are removed. AIOStreams and Caddy stay. This page goes away afterwards.",
-    options: { el, gate, word: "uninstall",
-      read: () => ({ backup: backup.checked, remove_image: image.checked, delete_confs: files.length > 0 && confs.checked, confirm: gate.value.trim() }) } });
-  if (!res) return;
-  try {
-    if (res.backup) {
-      const b = await api("/api/actions/stack.backup", { method: "POST", body: JSON.stringify({ params: {} }) });
-      openJob(b.id);
-      window.dispatchEvent(new CustomEvent("job-started"));
-      const done = await waitJob(b.id);
-      if (done.code !== 0) { toast("The backup failed, so the VPN wasn't uninstalled.", true); return; }
-    }
-    const job = await api("/api/actions/vpn.uninstall", { method: "POST",
-      body: JSON.stringify({ params: { remove_image: res.remove_image, delete_confs: res.delete_confs, confirm: res.confirm } }) });
-    openJob(job.id);
-    window.dispatchEvent(new CustomEvent("job-started"));
-  } catch (e) {
-    toast(e.message, true);
-  }
-}
-
 // Another address for the same config: the script looks the endpoint's name
 // up again and times each address from this server, fastest first.
 async function changeServer() {
@@ -358,10 +313,4 @@ function render(v) {
   const confBox = h("div");
   box.append(card, confBox);
   showConfigs(confBox);
-  if (actFor("vpn.uninstall")) {
-    box.append(h("div", { class: "vpn-remove" },
-      h("div", {}, h("div", { class: "vpn-remove-title", text: "Uninstall the VPN" }),
-        h("div", { class: "dim", text: "Back to a plain AIOStreams and Caddy setup, with the VPN's container, settings and keys removed." })),
-      h("button", { class: "btn small danger", type: "button", text: "Uninstall VPN", disabled: !!(st && st.busy), onclick: uninstall })));
-  }
 }

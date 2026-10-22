@@ -5,14 +5,16 @@ import { $, h, clear, api, toast } from "./util.js";
 const CARDS = {
   flow: ["Request flow", "Visitors through Caddy to AIOStreams, and the add-ons"],
   aiostreams: ["AIOStreams", "Its version and updates"],
-  server: ["This server", "Uptime, certificate, memory, disk and backups"],
+  aiometadata: ["AIOMetadata", "Its version, updates and pages"],
   alerts: ["Phone alerts", "The watchdog, its last check and 14 days"],
+  server: ["This server", "Uptime, certificate, memory, disk and backups"],
   services: ["Services", "Each container, with Logs, Restart and Stop"],
 };
 const DEFAULT = Object.keys(CARDS).map((id) => ({ id, show: true }));
 
 let cards = DEFAULT;
 let hasAlerts = false;    // the Phone alerts card only exists once the watchdog is set up
+let hasMeta = false;      // and AIOMetadata's once it's installed
 let lastFocus = null, saveTimer = null;
 
 api("/api/overview-layout").then((r) => { cards = r.cards; apply(); if (isOpen()) list(); }).catch(() => {});
@@ -27,6 +29,7 @@ function apply() {
 
 export function applyLayout(st) {
   hasAlerts = !!(st.watchdog && st.watchdog.configured);
+  hasMeta = !!st.aiometadata;
   apply();
 }
 
@@ -57,13 +60,13 @@ export function closeLayout() {
   if (lastFocus && lastFocus.isConnected && lastFocus.focus) lastFocus.focus();
 }
 
-// Cards that aren't on this server (Phone alerts before the watchdog) keep their place in
+// Cards that aren't on this server (Phone alerts before the watchdog, an add-on not installed) keep their place in
 // the saved order but aren't listed, so nothing reads as missing.
 function list() {
   const ul = $("#lay-list");
   clear(ul);
   for (const c of cards) {
-    if (c.id === "alerts" && !hasAlerts) continue;
+    if ((c.id === "alerts" && !hasAlerts) || (c.id === "aiometadata" && !hasMeta)) continue;
     const [title, text] = CARDS[c.id];
     const input = h("input", { type: "checkbox", "aria-label": `Show ${title}` });
     input.checked = c.show;
@@ -134,6 +137,10 @@ function drag(grip, li, ul) {
 }
 
 $("#lay-x").addEventListener("click", closeLayout);
-$("#lay-reset").addEventListener("click", () => { cards = DEFAULT.map((c) => ({ ...c })); list(); save(); });
+// Reset puts this browser's folds back too (overview.js listens): only the request flow folded
+$("#lay-reset").addEventListener("click", () => {
+  cards = DEFAULT.map((c) => ({ ...c })); list(); save();
+  window.dispatchEvent(new CustomEvent("layout-reset"));
+});
 $("#scrim").addEventListener("click", closeLayout);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && $("#dialog").hidden) closeLayout(); });
