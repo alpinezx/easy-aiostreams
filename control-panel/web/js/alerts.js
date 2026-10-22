@@ -217,6 +217,9 @@ function extras(w) {
       ? "One per nightly build, with how to update. Nightly builds come out daily or more, so this can be chatty."
       : w.channel === "stable" ? "One alert per stable release, with how to update."
       : "This server runs a pinned version, so there's nothing to alert about.", !w.channel),
+    // only once AIOMetadata is installed
+    w.aiometadata ? row("metadata", "When a new AIOMetadata release is out", "At most one alert a day, naming the newest: "
+      + "its releases can come twice a day.") : null,
     row("reboots", "When the server restarts", w.relay_reboots
       ? "The webhook relay sends these while its own reboot notification is on."
       : "With how long it was down, and whether it shut down cleanly.", !!w.relay_reboots),

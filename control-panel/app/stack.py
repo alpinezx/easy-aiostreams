@@ -971,6 +971,8 @@ class Backend:
             watches += ["VPN tunnel", "AIOStreams through the VPN"]
         if (self.p("mediaflow-state") / "config").exists():
             watches.append("MediaFlow Proxy")
+        if (self.p("aiometadata-state") / "config").exists():
+            watches.append("AIOMetadata")
         return {
             "configured": True,
             "running": self._systemd_active("aiostreams-watchdog.timer"),
@@ -990,6 +992,8 @@ class Backend:
             "channel": {"latest": "stable", "nightly": "nightly"}.get(img.group(1)) if img else None,
             # the webhook relay's own reboot notification; the watchdog leaves restarts to it
             "relay_reboots": self._systemd_enabled("aios-webhook-boot-notify.service"),
+            # its release switch only shows once it's installed
+            "aiometadata": (self.p("aiometadata-state") / "config").exists(),
         }
 
     def _host_timezone(self) -> str | None:
@@ -1011,7 +1015,7 @@ class Backend:
         return {"updates": kv.get("updates") == "on", "reboots": kv.get("reboots", "on") == "on",
                 "scripts": kv.get("scripts") == "on", "backups": kv.get("backups") == "on",
                 "security": kv.get("security") == "on",
-                "weekly": kv.get("weekly") == "on",
+                "weekly": kv.get("weekly") == "on", "metadata": kv.get("metadata") == "on",
                 "weekly_day": int(day) if day in {str(i) for i in range(1, 8)} else 7,
                 "weekly_time": weekly_time(kv)}
 
@@ -1020,7 +1024,7 @@ class Backend:
         and the check-in's day and hour. Kept in watchdog-state/options, which
         the script reads; written on the host, since the install folder is
         read-only here."""
-        if name in ("updates", "reboots", "scripts", "backups", "security", "weekly") and isinstance(value, bool):
+        if name in ("updates", "reboots", "scripts", "backups", "security", "weekly", "metadata") and isinstance(value, bool):
             text = "on" if value else "off"
         elif name == "weekly_day" and isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 7:
             text = str(value)
