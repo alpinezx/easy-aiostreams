@@ -38,7 +38,7 @@ Choose **2) Start**. It asks for the subdomain from step 1 (and checks it points
 - **Releases are pinned**, so nothing changes until you update, and an update that doesn't start puts the previous release back by itself.
 - **It's in your backups**, and a restore starts it again.
 
-> ⚠️ When you add API keys in the Dashboard, use the rows named **Built-in ...** (e.g. **Built-in TMDB Key**). The plain rows just above them are shown to anyone who opens your configure page.
+> ⚠️ When you add API keys in the Dashboard, use the rows named **Built-in ...** (e.g. **Built-in TMDB Key**). The plain rows just above them are shown to anyone who opens your configure page. **Test** (option 5) checks this for you and names any key that's published.
 
 ---
 
@@ -51,7 +51,7 @@ sudo bash /opt/aiostreams/setup-aiometadata.sh
 - **Status**: running or not, its address, the release it runs and whether a newer one is out.
 - **Start / Stop**: turn it on or off. Its settings and configurations are kept.
 - **Reconfigure**: change the subdomain or the addon password.
-- **Test**: checks it answers, both inside the server and over HTTPS.
+- **Test**: checks it answers, both inside the server and over HTTPS, and that none of your API keys is published.
 - **Show address, password and admin key**.
 - **Update**: its newest release (or an older one), with a backup first if you like.
 - **Uninstall**: clean removal. Back up first if you might want it back.

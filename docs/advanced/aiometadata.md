@@ -32,7 +32,7 @@ The script sets two things AIOMetadata leaves open by default:
 Two things it doesn't do:
 
 - **No page-level login.** AIOMetadata's only whole-site lock (`AUTH_REQUIRE_SIGNIN`) needs a single sign-on provider, more than this setup takes on, and a password in front of the whole site would break your apps, which use the same addresses as the configure page.
-- **It can't stop you publishing a key.** In the Dashboard's API key settings, the **Built-in ...** rows stay on the server, but the plain rows (e.g. **TMDB API Key**) are handed to anyone who asks. To check nothing is published, ask as a stranger would:
+- **It can't stop you publishing a key, but it checks.** In the Dashboard's API key settings, the **Built-in ...** rows stay on the server, but the plain rows (e.g. **TMDB API Key**) are handed to anyone who asks. **5) Test** asks AIOMetadata for the same answer a stranger gets and names any plain row holding a key (TMDB, TVDB, Fanart, RPDB, MDBList, Gemini), never the key itself. Trakt and Simkl appear there too, but those are sign-in app IDs, not secrets. To check by hand, ask as a stranger would:
 
   ```bash
   curl -s https://meta.yourdomain.com/api/config
@@ -99,7 +99,7 @@ sudo bash /opt/aiostreams/setup-aiometadata.sh
 2. **Start**: brings it up (installs it, the first time)
 3. **Stop**: stops both containers, keeping everything, and leaves the "stopped on purpose" marker
 4. **Reconfigure**: change the subdomain or addon password
-5. **Test**: checks it answers inside the server and over HTTPS
+5. **Test**: checks it answers inside the server and over HTTPS, and that no API key is published
 6. **Show address, password and admin key**
 7. **Update**: the newest release, or an older one, with a backup first if you like
 8. **Uninstall**: type `uninstall` to confirm. Removes both containers, the Redis cache, the Caddy site and `aiometadata-state/`, and optionally the downloaded images. Only the script itself stays.
