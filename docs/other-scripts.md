@@ -20,6 +20,9 @@ Optional add-ons on top of the main install. Each is its own standalone script, 
 
 ### Webhook Relay
 
+> [!NOTE]
+> **Being retired.** The webhook relay still works, but it won't get new features and will be removed from these docs in a future update. For alerts about this server, use [phone alerts](./basic/watchdog.md) instead. To get another site's alerts on your phone, send them straight to ntfy if it can (many uptime trackers can). Already using the relay? It keeps working, and the control panel's Add-ons page can uninstall it.
+
 - **Want to turn a third-party site's "Webhook" notification option into a phone alert?** Gives you a real HTTPS endpoint on your own domain (something webhook fields require but a topic-based service like ntfy doesn't provide on its own), and relays whatever it receives to ntfy. Run with `setup-webhook.sh`. → [Basic](./basic/webhook-relay.md) · [Advanced](./advanced/webhook-relay.md)
 
 ### MediaFlow Proxy

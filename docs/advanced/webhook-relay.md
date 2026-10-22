@@ -2,6 +2,9 @@
 
 > In a hurry? [Basic guide](../basic/webhook-relay.md) covers the same steps with no deep explanations.
 
+> [!NOTE]
+> **Being retired.** The webhook relay still works, but it won't get new features and will be removed from these docs in a future update. For alerts about this server, use [phone alerts](./watchdog.md) instead. To get another site's alerts on your phone, send them straight to ntfy if it can (many uptime trackers can). Already using the relay? It keeps working, and the control panel's Add-ons page can uninstall it.
+
 ## What this is for
 
 Plenty of status pages, monitoring tools, and self-hosted dashboards offer a "Webhook" notification channel alongside email/Discord/ntfy, but a webhook isn't a topic name you can just type in: it needs an actual HTTPS endpoint that's already running, ready to accept a `POST`, before you can point anything at it. `setup-webhook.sh` gives you that endpoint on the same server and domain you already have running AIOStreams, and relays whatever it receives to [ntfy.sh](https://ntfy.sh), the same delivery mechanism the [watchdog](./watchdog.md) uses.

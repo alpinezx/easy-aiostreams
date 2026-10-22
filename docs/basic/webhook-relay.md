@@ -4,6 +4,9 @@ For turning a third-party site's "Webhook" notification option into a phone aler
 
 > Want the full explanation of how this works under the hood, or hit a snag? → [Advanced guide](../advanced/webhook-relay.md)
 
+> [!NOTE]
+> **Being retired.** The webhook relay still works, but it won't get new features and will be removed from these docs in a future update. For alerts about this server, use [phone alerts](./watchdog.md) instead. To get another site's alerts on your phone, send them straight to ntfy if it can (many uptime trackers can). Already using the relay? It keeps working, and the control panel's Add-ons page can uninstall it.
+
 ---
 
 ## 1. Pick a subdomain and point it at this server
