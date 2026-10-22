@@ -152,14 +152,6 @@ function render(w) {
     w.events.length ? list : h("p", { class: "dim", text: "Nothing yet. Failed checks, alerts and recoveries show here." }));
   if (w.events.length > 12 && !showAll) box.append(h("button", { class: "btn small quiet", type: "button", text: `Show all ${w.events.length}`,
     onclick: () => { showAll = true; render(last); } }));
-  // Uninstall at the foot of the page, like the VPN page's
-  const un = actFor("watchdog.uninstall");
-  if (un) {
-    box.append(h("div", { class: "vpn-remove" },
-      h("div", {}, h("div", { class: "vpn-remove-title", text: "Uninstall phone alerts" }),
-        h("div", { class: "dim", text: "Stops the checks and removes the watchdog, its topic and its history from this server." })),
-      h("button", { class: "btn small danger", type: "button", text: "Uninstall", disabled: !!(st && st.busy), onclick: () => runAction(un) })));
-  }
 }
 
 // The check-in goes by the server's clock, so say which zone that is. A server

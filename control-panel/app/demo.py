@@ -134,6 +134,18 @@ class DemoBackend:
     def vpn_mode(self) -> str:
         return self.vpn
 
+    def addons_info(self) -> list[dict]:
+        return [{"id": "aiometadata", "domain": "meta.example.com", "version": "3.6.1"},
+                {"id": "mediaflow", "domain": "mediaflow.example.com", "proxy": None},
+                {"id": "webhook", "domain": "hooks.example.com", "ntfy_server": "ntfy.sh", "reboots": True}]
+
+    def addon_secret(self, addon: str, name: str) -> str | None:
+        return {("aiometadata", "addon_password"): "k7Qw-2mZp-9xLt-4vRb",
+                ("aiometadata", "admin_key"): "9f3c1a7be2d84c06a5f1e93b7d20c4e8a61f5b39",
+                ("mediaflow", "api_password"): "Rt8vNq2LxW5pKc",
+                ("webhook", "url"): "https://hooks.example.com/hook/3b9e7c21f04a58d6",
+                ("webhook", "ntfy"): "https://ntfy.sh/aios-relay-8d2f61"}.get((addon, name))
+
     def set_watchdog_option(self, name: str, value) -> None:
         from .stack import TIME_RE
         ok = (name in ("updates", "reboots", "scripts", "backups", "security", "weekly", "metadata") and isinstance(value, bool)) or \
@@ -258,6 +270,8 @@ class DemoBackend:
             "certs": [{"host": "streams.example.com", "label": "AIOStreams", "days_left": 61, "ok": True, "days_total": 90},
                       {"host": "meta.example.com", "label": "AIOMetadata", "ok": True, "days_total": 90,
                        "days_left": 12 if os.environ.get("UI_DEMO_CERT_WARN") else 84},
+                      {"host": "mediaflow.example.com", "label": "MediaFlow", "days_left": 58, "ok": True, "days_total": 90},
+                      {"host": "hooks.example.com", "label": "Webhook relay", "days_left": 58, "ok": True, "days_total": 90},
                       {"host": "cp.example.com", "label": "Control panel", "days_left": 73, "ok": True, "days_total": 90}],
             "backup": {"newest": max(b["mtime"] for b in self.backups()) if self.backups() else None,
                        **self.schedule, "last": self._last_run()},

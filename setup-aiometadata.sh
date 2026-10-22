@@ -611,12 +611,11 @@ do_logs() {
     docker logs --tail 60 "$CONTAINER_NAME" 2>&1 || warn "No logs: the container doesn't exist (not started?)."
 }
 
-do_uninstall() {
-    warn "This removes AIOMetadata: its containers, its cache, its Caddy site, and its saved settings,"
-    warn "including every configuration and account in its database. Take a backup first if you might want them back."
-    read -rp "Type 'uninstall' to continue: " confirm
-    [[ "$confirm" == "uninstall" ]] || { echo "Cancelled."; return 0; }
-    local version=""
+# The uninstall itself, asking nothing: the menu's Uninstall and the
+# "uninstall" command (the control panel's) share it. $1 = yes also removes
+# the images.
+remove_aiometadata() {
+    local images="${1:-no}" version=""
     load_config && version="${AIOM_VERSION:-}"
     [[ -f "$AIOM_COMPOSE" ]] && { compose down -v 2>/dev/null || true; }
     # In case the compose file was already gone
@@ -624,14 +623,24 @@ do_uninstall() {
     rm -f "$CADDY_SNIPPET" "${CADDY_SNIPPET}.rejected"
     reload_caddy
     rm -rf "$STATE_DIR"
-    read -rp "Also remove the downloaded AIOMetadata and Redis images? [y/N]: " confirm
-    if [[ "$confirm" =~ ^[Yy] ]]; then
+    if [[ "$images" == yes ]]; then
         [[ -n "$version" ]] && docker image rm "${IMAGE_REPO}:${version}" >/dev/null 2>&1 || true
         docker image rm "$REDIS_IMAGE" >/dev/null 2>&1 || true
         echo "Images removed (any still in use elsewhere were kept)."
     fi
     echo "Done. Running this script again starts fresh from first-time setup."
     echo "Remember to remove AIOMetadata from your Stremio-based apps and AIOStreams."
+}
+
+do_uninstall() {
+    warn "This removes AIOMetadata: its containers, its cache, its Caddy site, and its saved settings,"
+    warn "including every configuration and account in its database. Take a backup first if you might want them back."
+    local confirm images=no
+    read -rp "Type 'uninstall' to continue: " confirm
+    [[ "$confirm" == "uninstall" ]] || { echo "Cancelled."; return 0; }
+    read -rp "Also remove the downloaded AIOMetadata and Redis images? [y/N]: " confirm
+    [[ "$confirm" =~ ^[Yy] ]] && images=yes
+    remove_aiometadata "$images"
 }
 
 [[ $EUID -eq 0 ]] || error "Run as root: sudo bash setup-aiometadata.sh"
@@ -651,6 +660,12 @@ case "${1:-}" in
         exit 0 ;;
     status)
         do_status
+        exit 0 ;;
+    # uninstall [remove-image]: the control panel's Uninstall, which asked first
+    uninstall)
+        [[ -f "$CONFIG_FILE" ]] || error "AIOMetadata isn't set up, nothing to uninstall."
+        [[ -z "${2:-}" || "${2:-}" == remove-image ]] || error "Unknown option '$2'. Use: uninstall [remove-image]"
+        remove_aiometadata "$( [[ "${2:-}" == remove-image ]] && echo yes || echo no)" < /dev/null
         exit 0 ;;
     # update-aiometadata [--backup] [--version X.Y.Z]: the newest release
     # unless a version is given (an older one goes back to it).

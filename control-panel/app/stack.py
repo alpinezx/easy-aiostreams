@@ -602,6 +602,53 @@ class Backend:
             return None
         return {"domain": domain, "version": version}
 
+    # The Add-ons page. Each add-on's saved settings, as its script writes them (KEY='value').
+    _ADDON_CONF = {"aiometadata": "aiometadata-state/config", "mediaflow": "mediaflow-state/config",
+                   "webhook": "webhook-relay-state/config"}
+    # The secrets the page can show, each read only when asked for, one at a time
+    _ADDON_SECRETS = {
+        ("aiometadata", "addon_password"): lambda c: c.get("ADDON_PASSWORD"),
+        ("aiometadata", "admin_key"): lambda c: c.get("ADMIN_KEY"),
+        ("mediaflow", "api_password"): lambda c: c.get("MEDIAFLOW_API_PASSWORD"),
+        ("webhook", "url"): lambda c: f"https://{c['DOMAIN']}/hook/{c['WEBHOOK_TOKEN']}"
+            if c.get("DOMAIN") and c.get("WEBHOOK_TOKEN") else None,
+        ("webhook", "ntfy"): lambda c: f"{c['NTFY_SERVER'].rstrip('/')}/{c['NTFY_TOPIC']}"
+            if c.get("NTFY_SERVER") and c.get("NTFY_TOPIC") else None,
+    }
+
+    def _addon_conf(self, addon: str) -> dict:
+        out = {}
+        for m in re.finditer(r"^([A-Z][A-Z0-9_]*)=(.*)$", _read(self.p(self._ADDON_CONF[addon])), re.M):
+            v = m.group(2).strip()
+            if len(v) >= 2 and v[0] == v[-1] and v[0] in "'\"":
+                v = v[1:-1]
+            out[m.group(1)] = v
+        return out
+
+    def addons_info(self) -> list[dict]:
+        """What each installed add-on's script shows (its Status and Show options), with
+        the secrets left out: the page asks for one with addon_secret when the eye or
+        Copy is pressed. VPN and Phone alerts have their own pages' data."""
+        out = []
+        c = self._addon_conf("aiometadata")
+        if c.get("DOMAIN"):
+            out.append({"id": "aiometadata", "domain": c["DOMAIN"], "version": c.get("AIOM_VERSION") or None})
+        c = self._addon_conf("mediaflow")
+        if c.get("DOMAIN"):
+            # An outbound proxy's address without its login, as the script's Status prints it
+            m = re.match(r"^([a-z0-9]+://)(?:[^@/]*@)?([^/?#]+)", c.get("MEDIAFLOW_PROXY_URL") or "", re.I)
+            out.append({"id": "mediaflow", "domain": c["DOMAIN"], "proxy": m.group(1) + m.group(2) if m else None})
+        c = self._addon_conf("webhook")
+        if c.get("DOMAIN"):
+            server = re.sub(r"^https?://", "", c.get("NTFY_SERVER") or "").rstrip("/") or None
+            out.append({"id": "webhook", "domain": c["DOMAIN"], "ntfy_server": server,
+                        "reboots": self._systemd_enabled("aios-webhook-boot-notify.service")})
+        return out
+
+    def addon_secret(self, addon: str, name: str) -> str | None:
+        get = self._ADDON_SECRETS.get((addon, name))
+        return get(self._addon_conf(addon)) or None if get else None
+
     @staticmethod
     def _summarize(installed, docker_ok, services):
         if not docker_ok:

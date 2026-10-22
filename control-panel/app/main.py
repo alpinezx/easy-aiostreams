@@ -352,6 +352,21 @@ async def vpn(fresh: bool = False, user: str = Depends(current_user)):
     return await asyncio.to_thread(backend.vpn_info, fresh)
 
 
+@app.get("/api/addons")
+async def addons(user: str = Depends(current_user)):
+    """The Add-ons page: what each add-on's script shows, its secrets left out."""
+    return await asyncio.to_thread(backend.addons_info)
+
+
+@app.get("/api/addons/{addon}/secret/{name}")
+async def addon_secret(addon: str, name: str, user: str = Depends(current_user)):
+    """One secret, when the Add-ons page's eye or Copy is pressed. Never kept or logged."""
+    value = await asyncio.to_thread(backend.addon_secret, addon, name)
+    if not value:
+        raise HTTPException(404, "Not found.")
+    return JSONResponse({"value": value}, headers={"Cache-Control": "no-store"})
+
+
 @app.post("/api/vpn/config")
 async def vpn_config(request: Request, user: str = Depends(current_user)):
     """Checks a pasted WireGuard config and keeps it, readable only by root, for
@@ -816,7 +831,8 @@ async def run_action(action_id: str, request: Request, user: str = Depends(curre
         except BadAction as e:
             raise HTTPException(400, str(e))
         return jobs.summary(jobs.start(action, params, None))
-    if action_id == "vpn.uninstall" and str((params or {}).get("confirm", "")).strip().lower() != "uninstall":
+    if action_id in ("vpn.uninstall", "aiometadata.uninstall", "mediaflow.uninstall", "webhook.uninstall") \
+            and str((params or {}).get("confirm", "")).strip().lower() != "uninstall":
         raise HTTPException(400, "Type uninstall to confirm.")
     if action_id == "stack.restore":
         # Same-server only: the script checks again and refuses rather than asks.

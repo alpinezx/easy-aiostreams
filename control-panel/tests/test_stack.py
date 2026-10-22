@@ -473,3 +473,35 @@ def test_certs_lists_every_caddy_site(tmp_path, monkeypatch):
 def test_certs_empty_without_sites(tmp_path, monkeypatch):
     b = make_backend(tmp_path, monkeypatch, [container("aiostreams")])
     assert b._certs(None) == []
+
+
+def test_add_ons_read_from_their_saved_settings(tmp_path, monkeypatch):
+    b = make_backend(tmp_path, monkeypatch, [])
+    b._systemd_enabled = lambda unit: unit == "aios-webhook-boot-notify.service"
+    root = config.INSTALL_DIR
+    for rel, text in (
+            ("aiometadata-state/config", "DOMAIN='meta.example.com'\nADDON_PASSWORD='pw-one'\nADMIN_KEY='key-two'\nAIOM_VERSION='3.7.0'\n"),
+            ("mediaflow-state/config", "DOMAIN='mf.example.com'\nMEDIAFLOW_API_PASSWORD='pw-three'\n"
+                                       "MEDIAFLOW_PROXY_URL='socks5://user:pass@proxy.example.net:1080'\n"),
+            ("webhook-relay-state/config", "DOMAIN='hooks.example.com'\nWEBHOOK_TOKEN='tok-four'\n"
+                                           "NTFY_SERVER='https://ntfy.sh/'\nNTFY_TOPIC='topic-five'\nUP_EMOJI='x'\n")):
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text(text)
+    info = b.addons_info()
+    text = json.dumps(info)
+    for s in ("pw-one", "key-two", "pw-three", "user:pass", "tok-four", "topic-five"):
+        assert s not in text, s
+    assert info == [{"id": "aiometadata", "domain": "meta.example.com", "version": "3.7.0"},
+                    {"id": "mediaflow", "domain": "mf.example.com", "proxy": "socks5://proxy.example.net:1080"},
+                    {"id": "webhook", "domain": "hooks.example.com", "ntfy_server": "ntfy.sh", "reboots": True}]
+    assert b.addon_secret("aiometadata", "admin_key") == "key-two"
+    assert b.addon_secret("mediaflow", "api_password") == "pw-three"
+    assert b.addon_secret("webhook", "url") == "https://hooks.example.com/hook/tok-four"
+    assert b.addon_secret("webhook", "ntfy") == "https://ntfy.sh/topic-five"
+    assert b.addon_secret("webhook", "DOMAIN") is None
+    assert b.addon_secret("../x", "url") is None
+    # Nothing installed: nothing listed
+    for rel in ("aiometadata-state", "mediaflow-state", "webhook-relay-state"):
+        import shutil
+        shutil.rmtree(root / rel)
+    assert b.addons_info() == []

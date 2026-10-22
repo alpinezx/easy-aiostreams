@@ -1037,3 +1037,28 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .ver-card.folded .fold-sum { flex: 1 1 0; }
   .ver-card.folded .ver-head > .btn { order: 4; }
 }
+
+/* Add-ons page: full-width cards like the Overview's, each value a tile (label,
+   the value cut off with an ellipsis and its icon buttons, a quiet line), so
+   nothing wraps */
+.ad-grid { display: grid; gap: 16px; }
+.ad-card { display: flex; flex-direction: column; }
+.ad-rows { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 18px 24px; margin-top: 14px; }
+.ad-row { min-width: 0; }
+.ad-line { display: flex; align-items: center; gap: 8px; min-height: 30px; }
+.ad-val { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; font-size: 1rem; font-weight: 600; }
+.ad-val.mono { font-size: .9rem; font-weight: 500; }
+.ad-note { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ad-btns { display: flex; gap: 4px; flex: none; }
+.ad-ic { width: 30px; height: 28px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--raised); color: var(--dim); cursor: pointer; }
+.ad-ic:hover { color: var(--text); background: var(--hover); }
+.ad-ic svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ad-ic[aria-pressed="true"] .slash { display: none; }
+.ad-foot { justify-content: space-between; }
+.ad-foot .btn { margin-left: auto; }
+.ad-foot .dim { font-size: .88rem; }
+.ad-head-r { display: flex; align-items: center; gap: 12px; }
+.ad-head-r .dim { font-size: .86rem; }
+.ad-btn-cell { grid-column: -2 / -1; justify-self: end; align-self: end; }
+@media (max-width: 720px) { .ad-note:empty { display: none; } }

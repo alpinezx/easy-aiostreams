@@ -85,7 +85,7 @@ sudo bash /opt/aiostreams/setup-webhook.sh
 - **Reconfigure**: change the subdomain, token, or ntfy target. Applies immediately to the running container, no separate Start needed.
 - **Toggle reboot notification**: a phone alert each time the server restarts, to the same topic. The [watchdog](./watchdog.md) has one too (with how long the server was down); while this one is on, the watchdog leaves the notification to the relay, so you only get one.
 - **Change status emojis**: what UP and DOWN events show instead of the source's own.
-- **Uninstall**: clean removal (container, Caddy site, saved state).
+- **Uninstall**: clean removal (container, Caddy site, saved state). The control panel's Add-ons page has it too.
 
 ---
 

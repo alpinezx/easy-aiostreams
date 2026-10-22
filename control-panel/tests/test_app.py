@@ -627,3 +627,30 @@ def test_the_page_offers_restart_for_exactly_what_the_server_allows():
     js = (Path(__file__).resolve().parents[1] / "web" / "js" / "overview.js").read_text(encoding="utf-8")
     m = re.search(r"const RESTARTABLE = new Set\(\[([^\]]*)\]\)", js)
     assert m and set(re.findall(r'"([^"]+)"', m.group(1))) == stack.RESTARTABLE
+
+
+def test_add_ons_page_leaves_the_secrets_out_until_asked(client):
+    assert client.get("/api/addons").status_code == 401
+    assert client.get("/api/addons/mediaflow/secret/api_password").status_code == 401
+    login(client)
+    r = client.get("/api/addons")
+    assert r.status_code == 200
+    assert [a["id"] for a in r.json()] == ["aiometadata", "mediaflow", "webhook"]
+    for s in ("k7Qw-2mZp", "9f3c1a7b", "Rt8vNq2L", "3b9e7c21", "aios-relay"):
+        assert s not in r.text
+    r = client.get("/api/addons/mediaflow/secret/api_password")
+    assert r.status_code == 200 and r.json()["value"] and r.headers["cache-control"] == "no-store"
+    assert client.get("/api/addons/mediaflow/secret/admin_key").status_code == 404
+    assert client.get("/api/addons/nope/secret/url").status_code == 404
+
+
+def test_add_on_uninstall_needs_the_word(client):
+    login(client)
+    for addon in ("aiometadata", "mediaflow", "webhook"):
+        for word in ("", "yes", "Uninstal"):
+            r = client.post(f"/api/actions/{addon}.uninstall", json={"params": {"confirm": word}})
+            assert r.status_code == 400, (addon, word)
+        a = actions.resolve(f"{addon}.uninstall")
+        assert a.args == ("uninstall",) and a.script.startswith("setup-")
+    r = client.post("/api/actions/webhook.uninstall", json={"params": {"confirm": " Uninstall "}})
+    assert r.status_code == 200 and wait_job(client, r.json()["id"])["code"] == 0

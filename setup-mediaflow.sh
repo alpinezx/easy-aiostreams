@@ -775,6 +775,15 @@ do_uninstall() {
         y|Y|yes|Yes) ;;
         *) echo "Cancelled."; return ;;
     esac
+    remove_mediaflow no
+}
+
+# The uninstall itself, asking nothing: the menu's Uninstall and the
+# "uninstall" command (the control panel's) share it. $1 = yes also removes
+# the image.
+remove_mediaflow() {
+    local images="${1:-no}" image=""
+    [[ -f "$MEDIAFLOW_COMPOSE" ]] && image=$(compose_image_refs "$MEDIAFLOW_COMPOSE" | head -n1)
     [[ -f "$MEDIAFLOW_COMPOSE" ]] && (cd "$STATE_DIR" && docker compose -f "$MEDIAFLOW_COMPOSE" down 2>/dev/null || true)
     [[ -f "$FAIL2BAN_JAIL_FILE" ]] && do_uninstall_fail2ban
     # Full uninstall also purges the access log that jail was reading, plus
@@ -791,6 +800,10 @@ do_uninstall() {
     rm -rf "$STATE_DIR"
     echo "Done. Running this script again starts fresh from first-time setup."
     echo "Remember to switch AIOStreams' Proxy settings back off MediaFlow if you don't have another instance to point at."
+    if [[ "$images" == yes && -n "$image" ]]; then
+        docker image rm "$image" >/dev/null 2>&1 || true
+        echo "Image removed (kept if something else still uses it)."
+    fi
     alert "If a Stremio-based client still shows a hanging stream from this proxy afterward, refresh the stream list in that client, that's usually enough, no manifest reinstall needed."
 }
 
@@ -817,6 +830,14 @@ fi
 if [[ "${1:-}" == "stop-mediaflow" ]]; then
     [[ -f "$CONFIG_FILE" ]] || error "No MediaFlow config found at $CONFIG_FILE, nothing to stop."
     do_stop
+    exit 0
+fi
+
+# uninstall [remove-image]: the control panel's Uninstall, which asked first
+if [[ "${1:-}" == "uninstall" ]]; then
+    [[ -f "$CONFIG_FILE" ]] || error "No MediaFlow config found at $CONFIG_FILE, nothing to uninstall."
+    [[ -z "${2:-}" || "${2:-}" == remove-image ]] || error "Unknown option '$2'. Use: uninstall [remove-image]"
+    remove_mediaflow "$( [[ "${2:-}" == remove-image ]] && echo yes || echo no)" < /dev/null
     exit 0
 fi
 

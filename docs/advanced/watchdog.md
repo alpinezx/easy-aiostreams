@@ -151,4 +151,4 @@ Use **4) Send test alert** for pure delivery testing any time. To test full dete
 
 ## Removing it
 
-Run `sudo bash /opt/aiostreams/setup-watchdog.sh` → **9) Uninstall**, or use **Uninstall phone alerts** at the foot of the control panel's Phone alerts page. That stops and removes the systemd timer and services and all saved state (including your ntfy topic). Nothing about the other scripts is affected. Uninstalling AIOStreams itself with `setup-aiostreams.sh` also removes the watchdog automatically.
+Run `sudo bash /opt/aiostreams/setup-watchdog.sh` → **9) Uninstall**, or use **Uninstall** on Phone alerts' card on the control panel's Add-ons page. That stops and removes the systemd timer and services and all saved state (including your ntfy topic). Nothing about the other scripts is affected. Uninstalling AIOStreams itself with `setup-aiostreams.sh` also removes the watchdog automatically.

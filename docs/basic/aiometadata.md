@@ -54,7 +54,7 @@ sudo bash /opt/aiostreams/setup-aiometadata.sh
 - **Test**: checks it answers, both inside the server and over HTTPS, and that none of your API keys is published.
 - **Show address, password and admin key**.
 - **Update**: its newest release (or an older one), with a backup first if you like.
-- **Uninstall**: clean removal. Back up first if you might want it back.
+- **Uninstall**: clean removal. Back up first if you might want it back. The control panel's Add-ons page has it too.
 
 With the [control panel](./control-panel.md), it gets its own card on the Overview (its version, Update, and its Dashboard and Configure links) and a row in Services. With [phone alerts](./watchdog.md), the watchdog tells you if it stops answering, and can tell you about new releases (off until you switch it on).
 

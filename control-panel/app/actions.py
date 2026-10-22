@@ -235,6 +235,23 @@ def build_vpn_uninstall(remove_image: bool, delete_confs: bool) -> Action:
                   args=("uninstall", *opts), timeout=600, needs=("setup-vpn-gluetun.sh", "vpn-state/active"))
 
 
+# The Add-ons page's Uninstall for the add-ons in Docker: each script's question-free
+# "uninstall", with "remove-image" where it has images of its own. main.py also
+# wants "uninstall" typed, like the VPN's.
+ADDON_UNINSTALL = {
+    "aiometadata": ("AIOMetadata", "setup-aiometadata.sh", "aiometadata-state/config", True),
+    "mediaflow": ("MediaFlow Proxy", "setup-mediaflow.sh", "mediaflow-state/config", True),
+    "webhook": ("the webhook relay", "setup-webhook.sh", "webhook-relay-state/config", False),
+}
+
+
+def build_addon_uninstall(addon: str, remove_image: bool) -> Action:
+    name, script, conf, images = ADDON_UNINSTALL[addon]
+    opts = ("remove-image",) if images and remove_image is True else ()
+    return Action(f"{addon}.uninstall", f"Uninstall {name}", f"Uninstalling {name}", f"{name[0].upper()}{name[1:]} uninstalled",
+                  script, args=("uninstall", *opts), timeout=300, needs=(script, conf))
+
+
 # ntfy topics: letters, digits, - and _; at least 12 so it stays private (the script checks the same)
 TOPIC_RE = re.compile(r"^[A-Za-z0-9_-]{12,64}$")
 
@@ -268,6 +285,8 @@ def resolve(action_id: str, params: dict | None = None) -> Action:
         return build_vpn_uninstall(params.get("remove_image") is True, params.get("delete_confs") is True)
     if action_id == "watchdog.topic":
         return build_set_topic(params.get("topic"))
+    if action_id.endswith(".uninstall") and action_id.split(".")[0] in ADDON_UNINSTALL:
+        return build_addon_uninstall(action_id.split(".")[0], params.get("remove_image") is True)
     if action_id == "vpn.config":
         return build_use_config(params.get("ip"), params.get("on") is True)
     act = _STATIC.get(action_id)
@@ -279,7 +298,7 @@ def resolve(action_id: str, params: dict | None = None) -> Action:
 def catalog() -> list[Action]:
     return list(_STATIC.values()) + [build_update(True, None), build_meta_update(True), build_use_address("192.0.2.1"), build_use_config("192.0.2.1"),
                                      build_delete_config("/"), build_use_file("/", "192.0.2.1"), build_vpn_uninstall(False, False),
-                                     build_set_topic("aios-example-topic")]
+                                     build_set_topic("aios-example-topic")] + [build_addon_uninstall(a, False) for a in ADDON_UNINSTALL]
 
 
 # The stack's scripts, in the order the Terminal tab lists them. Only the first

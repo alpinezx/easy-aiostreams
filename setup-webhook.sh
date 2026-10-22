@@ -762,6 +762,13 @@ do_uninstall() {
         y|Y|yes|Yes) ;;
         *) echo "Cancelled."; return ;;
     esac
+    remove_relay
+}
+
+# The uninstall itself, asking nothing: the menu's Uninstall and the
+# "uninstall" command (the control panel's) share it. Its python image is
+# a common one, so it's left for Free up space.
+remove_relay() {
     [[ -f "$RELAY_COMPOSE" ]] && (cd "$STATE_DIR" && docker compose -f "$RELAY_COMPOSE" down 2>/dev/null || true)
     systemctl disable --now aios-webhook-boot-notify.service 2>/dev/null || true
     rm -f "$BOOT_SERVICE_FILE"
@@ -785,6 +792,13 @@ command -v docker >/dev/null || error "Docker not found. Run this on the same se
 if [[ "${1:-}" == "stop-relay" ]]; then
     [[ -f "$CONFIG_FILE" ]] || error "No webhook relay config found at $CONFIG_FILE, nothing to stop."
     do_stop
+    exit 0
+fi
+
+# uninstall: the control panel's Uninstall, which asked first
+if [[ "${1:-}" == "uninstall" ]]; then
+    [[ -f "$CONFIG_FILE" ]] || error "No webhook relay config found at $CONFIG_FILE, nothing to uninstall."
+    remove_relay < /dev/null
     exit 0
 fi
 
