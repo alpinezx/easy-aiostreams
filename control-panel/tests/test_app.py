@@ -569,3 +569,25 @@ def test_overview_layout(client):
     assert ids(client.get("/api/overview-layout")) == ids(r)
     assert client.put("/api/overview-layout", json={"cards": "x"}).status_code == 400
     assert ids(client.put("/api/overview-layout", json={"cards": []})) == default
+
+
+def test_maintenance_leaves_phased_updates_out():
+    from types import SimpleNamespace
+    from app import stack
+    listing = ("Listing...\n"
+               "systemd/noble-updates 255.4-1ubuntu8.8 amd64 [upgradable from: 255.4-1ubuntu8.6]\n"
+               "tmux/noble-updates 3.4-1ubuntu0.2 amd64 [upgradable from: 3.4-1ubuntu0.1]\n"
+               "openssl/noble-updates,noble-security 3.0.13-0ubuntu3.6 amd64 [upgradable from: 3.0.13-0ubuntu3.5]\n")
+    sim = ("The following upgrades have been deferred due to phasing:\n  systemd tmux\n"
+           "Inst openssl [3.0.13-0ubuntu3.5] (3.0.13-0ubuntu3.6 Ubuntu:24.04/noble-updates, Ubuntu:24.04/noble-security [amd64])\n"
+           "Conf openssl (3.0.13-0ubuntu3.6 Ubuntu:24.04/noble-updates [amd64])\n")
+
+    def host(answers):
+        def on_host(*args, timeout=20):
+            return answers.get(args[0], "")
+        return SimpleNamespace(_on_host=on_host)
+    u = stack.Backend._maint_updates(host({"apt": listing, "apt-get": sim, "sh": ""}))
+    assert (u["count"], u["security"], u["phased"]) == (1, 1, 2)
+    # if the simulation can't run, every waiting update still shows
+    u = stack.Backend._maint_updates(host({"apt": listing, "apt-get": "", "sh": ""}))
+    assert (u["count"], u["phased"]) == (3, 0)

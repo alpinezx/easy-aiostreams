@@ -6,10 +6,11 @@ import { runAction } from "./actions.js";
 // buttons run setup-aiostreams.sh's free-space, system-updates and log-limits.
 let last = null, loading = false, status = null;
 
-function stat(label, value, sub, tone) {
+// The line under a value can carry an explanation on hover
+function stat(label, value, sub, tone, why) {
   return h("div", { class: "stat" }, h("div", { class: "ver-label", text: label }),
     h("div", { class: "stat-value" + (tone ? " " + tone : ""), text: value }),
-    h("div", { class: "ver-sub", text: sub || "" }));
+    h("div", { class: "ver-sub", text: sub || "", title: why || null }));
 }
 
 function card(title, grid, note, btn) {
@@ -42,7 +43,10 @@ function updates(m) {
   if (!u.available) return card("System updates", [stat("Waiting", "Can't tell", "This server doesn't use apt")], "", null);
   return card("System updates", [
     stat("Waiting", u.count ? `${u.count} update${u.count === 1 ? "" : "s"}` : "Up to date",
-      u.count ? (u.security ? `${u.security} for security` : "None for security") : "", u.security ? "warn" : u.count ? "" : "ok"),
+      (u.count ? (u.security ? `${u.security} for security` : "None for security") + (u.phased ? `, ${u.phased} more phasing in` : "")
+        : u.phased ? `${u.phased} more phasing in` : ""), u.security ? "warn" : u.count ? "" : "ok",
+      u.phased ? `Ubuntu rolls some updates out gradually, a few servers at a time. ${u.phased} ${u.phased === 1 ? "isn't" : "aren't"} offered to this server yet, `
+        + "so Install updates leaves them until its turn, usually within days." : null),
     stat("Restart", u.reboot ? "Needed" : "Not needed", u.reboot ? "Reboot server, on the Overview" : "", u.reboot ? "warn" : ""),
     stat("Checked", u.checked_at ? ago(u.checked_at) : "Unknown", "Ubuntu's package lists"),
   ], "AIOStreams' own updates are on the Overview.", button("maint.updates", u.count > 0));
