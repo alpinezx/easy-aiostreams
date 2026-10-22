@@ -636,7 +636,7 @@ def test_add_ons_page_leaves_the_secrets_out_until_asked(client):
     r = client.get("/api/addons")
     assert r.status_code == 200
     assert [a["id"] for a in r.json()] == ["aiometadata", "mediaflow", "webhook"]
-    for s in ("k7Qw-2mZp", "9f3c1a7b", "Rt8vNq2L", "3b9e7c21", "aios-relay"):
+    for s in ("demo-addon-password", "demo-admin-key", "demo-api-password", "demo-token", "demo-topic"):
         assert s not in r.text
     r = client.get("/api/addons/mediaflow/secret/api_password")
     assert r.status_code == 200 and r.json()["value"] and r.headers["cache-control"] == "no-store"

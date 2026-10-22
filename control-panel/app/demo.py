@@ -140,11 +140,12 @@ class DemoBackend:
                 {"id": "webhook", "domain": "hooks.example.com", "ntfy_server": "ntfy.sh", "reboots": True}]
 
     def addon_secret(self, addon: str, name: str) -> str | None:
-        return {("aiometadata", "addon_password"): "k7Qw-2mZp-9xLt-4vRb",
-                ("aiometadata", "admin_key"): "9f3c1a7be2d84c06a5f1e93b7d20c4e8a61f5b39",
-                ("mediaflow", "api_password"): "Rt8vNq2LxW5pKc",
-                ("webhook", "url"): "https://hooks.example.com/hook/3b9e7c21f04a58d6",
-                ("webhook", "ntfy"): "https://ntfy.sh/aios-relay-8d2f61"}.get((addon, name))
+        # Plainly made up, so nothing mistakes them for real ones
+        return {("aiometadata", "addon_password"): "demo-addon-password",
+                ("aiometadata", "admin_key"): "demo-admin-key",
+                ("mediaflow", "api_password"): "demo-api-password",
+                ("webhook", "url"): "https://hooks.example.com/hook/demo-token",
+                ("webhook", "ntfy"): "https://ntfy.sh/demo-topic"}.get((addon, name))
 
     def set_watchdog_option(self, name: str, value) -> None:
         from .stack import TIME_RE
