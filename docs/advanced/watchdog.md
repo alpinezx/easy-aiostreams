@@ -6,7 +6,7 @@
 
 Most things that go wrong on a server go wrong quietly: the site stops answering, Caddy can't renew a certificate, the disk fills up, or (with the [VPN layer](./vpn-setup.md)) the tunnel drops and the kill switch, doing its job, makes AIOStreams go silent. You find out when you go to watch something. `setup-watchdog.sh` closes that gap: it runs a set of checks every couple of minutes and sends a push notification (via [ntfy.sh](https://ntfy.sh)) when something's wrong, saying what failed and how to fix it, and again once it's fine.
 
-It works on any install. The site, disk and certificate checks always run; the VPN and MediaFlow checks join in when those are set up.
+It works on any install. The site, disk and certificate checks always run; the VPN, MediaFlow and AIOMetadata checks join in when those are set up.
 
 ---
 
@@ -26,6 +26,10 @@ It works on any install. The site, disk and certificate checks always run; the V
 
 5. **Caddy is running**, **MediaFlow's container is running**, and **MediaFlow answers its health check.** MediaFlow has no published port, so the watchdog asks for `http://mediaflow-proxy-light:8888/health` from inside the Caddy container, over the shared `aios_shared` network.
 
+### Every 2 minutes, whenever AIOMetadata is set up
+
+The same as check 5, for AIOMetadata: **Caddy is running**, **AIOMetadata's container is running**, and **AIOMetadata answers its health check** (`http://aiometadata:3232/health/live`, the one its image uses), asked from inside the Caddy container in the same way. See the [AIOMetadata guide](./aiometadata.md#phone-alerts).
+
 ### Warnings (alert once each way)
 
 6. **Disk nearly full.** The disk holding `/opt/aiostreams` at 90% used or more. The all-clear comes once it's back under 85%, so a disk hovering around 90% doesn't send a stream of alerts. A full disk is a common way for a Docker server to break quietly (old images and logs pile up, then nothing can write).
@@ -44,6 +48,7 @@ Switched from the script's **6) Extra alerts** menu, the control panel's Phone a
 11. **Scheduled backup made** (`set-option backups on`). [Scheduled backups](./backup-restore.md#scheduled-backups) leave how each run went in `/opt/aiostreams/backup-last-run`, which every check reads. A good run alerts only with this on, with its file name and size; a **failed or skipped** one always alerts (high priority), with the reason, since that's what makes a schedule safe to forget. One still marked running after an hour counts as failed. Each run is reported once (`watchdog-state/backup-seen`), and a watchdog seeing the file for the first time only reports a run from the last 10 minutes.
 12. **Security updates waiting** (`set-option security on`). Ubuntu installs security updates by itself every day (`unattended-upgrades`), so one that waits means that has stopped, a package is held back, or something needs a hand. Every 6 hours it reads `apt list --upgradable` (read-only, from the package lists Ubuntu refreshes daily), takes the ones from a `-security` source, and records when it first saw each package and version (`watchdog-state/security-seen`). Once any has waited 3 days, one alert (high priority) with how many and which, and how to install them (the panel's Maintenance page, or `setup-aiostreams.sh system-updates`); then a reminder each week while any still wait. Once none wait, the next time starts afresh.
 13. **Weekly check-in** (`set-option weekly on`). Once a week: the last 7 days' checks (from the daily tally), alerts and restarts (from the event list), disk space, how old the newest backup is, and how many updates are waiting ("Updates waiting: 12 (2 for security)."). It goes out on the first check at or after the chosen time on the chosen day (so within 2 minutes of it), `set-option weekly_day 1-7` (Monday to Sunday) and `set-option weekly_time HH:MM`, Sunday 10:00 to start with (a `weekly_hour` saved by an older copy still counts, as that hour on the dot), by the **server's clock**: `timedatectl` shows its time zone, `sudo timedatectl set-timezone Europe/London` (your own Area/City) changes it. Its real job is to fail visibly: a watchdog that has stopped working shows by the check-in not arriving.
+14. **A new AIOMetadata release** (`set-option metadata on`), listed only once AIOMetadata is installed (option 8 in **6) Extra alerts**). Every 6 hours it asks GitHub for AIOMetadata's latest release and compares it with the one running (the container's image tag, or the pinned release while it's stopped). Its releases come up to twice a day, so it sends at most one alert a day, naming the newest.
 
 ---
 
@@ -71,7 +76,7 @@ With the [control panel](./control-panel.md) installed, each alert has an **Open
 ## When it stays quiet on purpose
 
 - **In direct mode, the VPN checks (2–4) are skipped.** It reads the same `vpn-state/active` marker `setup-vpn-gluetun.sh` uses, so turning the VPN off on purpose doesn't trigger a false alarm.
-- **Deliberate stops don't alert.** Stop AIOStreams (in `setup-aiostreams.sh` or the control panel) and Stop in `setup-mediaflow.sh` each leave a small `stopped-on-purpose` marker, and the watchdog skips the checks that depend on it while it's there: with AIOStreams stopped on purpose, the site check is skipped too. Stopping with a plain `docker stop` leaves no marker, so it alerts, same as a crash. The marker clears itself as soon as the watchdog sees the container running again, however it got started.
+- **Deliberate stops don't alert.** Stop AIOStreams (in `setup-aiostreams.sh` or the control panel) and Stop in `setup-mediaflow.sh` and `setup-aiometadata.sh` each leave a small `stopped-on-purpose` marker, and the watchdog skips the checks that depend on it while it's there: with AIOStreams stopped on purpose, the site check is skipped too. Stopping with a plain `docker stop` leaves no marker, so it alerts, same as a crash. The marker clears itself as soon as the watchdog sees the container running again, however it got started.
 
 ---
 
@@ -139,6 +144,7 @@ Use **4) Send test alert** for pure delivery testing any time. To test full dete
 - **Tunnel:** `sudo docker stop gluetun` for about 5 minutes, confirm the DOWN alert, then restore with `sudo bash setup-vpn-gluetun.sh` → **2) Turn VPN ON** (not a plain `docker start gluetun`, which skips the clean recreate) and confirm the recovery alert follows.
 - **AIOStreams (VPN mode):** `cd /opt/aiostreams && sudo docker compose stop aiostreams`, wait for the alert, then `sudo bash /opt/aiostreams/setup-aiostreams.sh` → **4) Restart the stack**.
 - **MediaFlow:** `sudo docker stop mediaflow-proxy-light`, wait for the alert, then `sudo bash setup-mediaflow.sh` → **2) Start**. Stopping it with **3) Stop** in that menu instead should produce *no* alert, which confirms the stopped-on-purpose marker works.
+- **AIOMetadata:** `sudo docker stop aiometadata`, wait for the alert, then `sudo bash setup-aiometadata.sh` → **2) Start**. As with MediaFlow, its own **3) Stop** should produce no alert.
 - **Restart:** `sudo reboot`. The alert should say it shut down cleanly and how long it was down.
 
 ---

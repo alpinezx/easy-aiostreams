@@ -50,11 +50,12 @@ It is still root-equivalent on your server, because it has to run the scripts an
 | Button | Script and input |
 | --- | --- |
 | Start, Stop (AIOStreams' row), Restart stack | `setup-aiostreams.sh start`, `stop`, `restart` (menu options 3, 2, 4 without their questions) |
-| Restart (per service) | restarts just that container through Docker; AIOStreams, MediaFlow and the webhook relay only |
+| Restart (per service) | restarts just that container through Docker; AIOStreams, MediaFlow, the webhook relay and AIOMetadata only |
 | Update | `setup-aiostreams.sh update`, with `--backup` and `--channel latest\|nightly` from the dialog (menu option 5 without its questions) |
 | Back up now | `setup-aiostreams.sh backup` |
 | Scheduled backups: Set, Off | `setup-backup.sh schedule daily HH:MM`, `weekly <1-7> HH:MM`, `off`, which writes `backup-schedule` and the systemd timer |
 | MediaFlow, webhook relay | `start-mediaflow`, `start-relay`, `stop-mediaflow`, `stop-relay` |
+| AIOMetadata: Start, Stop, Update | `setup-aiometadata.sh start-aiometadata`, `stop-aiometadata`, `update-aiometadata` (with `--backup` from the dialog) |
 | Phone alerts: Start, Stop, Send test alert | `setup-watchdog.sh install-timer`, `stop` (with menu option 3 typed too, for older copies of the script), `test` |
 | Phone alerts: Uninstall | `setup-watchdog.sh uninstall` (menu option 9 without its question; the panel asks first) |
 | Phone alerts: Change topic | `setup-watchdog.sh set-topic`, with the topic on stdin (never on a command line or in Activity), then a test alert to it |
