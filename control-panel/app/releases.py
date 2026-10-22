@@ -39,11 +39,11 @@ def _key(tag: str, channel: str):
 
 
 def _fetch(channel: str) -> list[dict]:
-    url, wanted = SOURCES[channel]
+    api, wanted = SOURCES[channel]
     found = []
     # Nightlies far outnumber stable releases, so a page can hold only a few stable ones.
     for page in range(1, MAX_PAGES + 1):
-        r = requests.get(url, params={"per_page": 100, "page": page}, timeout=10,
+        r = requests.get(api, params={"per_page": 100, "page": page}, timeout=10,
                          headers={"Accept": "application/vnd.github+json", "User-Agent": "easy-aiostreams-panel"})
         if r.status_code in (403, 429):
             raise CheckFailed("GitHub's rate limit was reached. Try again in a while.")
