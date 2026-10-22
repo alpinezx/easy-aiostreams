@@ -22,9 +22,11 @@ def fresh_cache(monkeypatch):
     monkeypatch.setattr(releases, "_cache", {})
 
 
-def fake_get(pages, calls):
+def fake_get(pages, calls, urls=None):
     def get(url, params, **kw):
         calls.append(params["page"])
+        if urls is not None:
+            urls.append(url)
         data = pages[params["page"] - 1]
         more = params["page"] < len(pages)
         return FakeResp(data, link='<x>; rel="next"' if more else "")
@@ -35,10 +37,22 @@ def test_keeps_only_stable_tags_across_pages(monkeypatch):
     calls = []
     pages = [[rel("2026.10.10.1200-nightly"), rel("v2.36.0"), rel("desktop-nightly")],
              [rel("v2.35.9"), rel("v2.37.0", draft=True), rel("2026.10.01.0800-nightly")]]
-    monkeypatch.setattr(releases.requests, "get", fake_get(pages, calls))
+    urls = []
+    monkeypatch.setattr(releases.requests, "get", fake_get(pages, calls, urls))
     out = releases.get()
     assert [r["tag"] for r in out["releases"]] == ["v2.36.0", "v2.35.9"]
     assert out["error"] is None and calls == [1, 2]
+    # every page from GitHub's API, not a release's own page (a variable once got reused)
+    assert urls == [releases.URL, releases.URL]
+
+
+def test_aiometadata_list_comes_from_its_own_repo(monkeypatch):
+    calls, urls = [], []
+    pages = [[rel("v3.7.0"), rel("v3.7.0-beta.1")], [rel("v3.6.1")]]
+    monkeypatch.setattr(releases.requests, "get", fake_get(pages, calls, urls))
+    out = releases.get(channel="aiometadata")
+    assert [r["tag"] for r in out["releases"]] == ["v3.7.0", "v3.6.1"]
+    assert urls == [releases.META_URL, releases.META_URL]
 
 
 def test_answer_is_cached_and_force_is_throttled(monkeypatch):

@@ -94,8 +94,8 @@ do_backup() {
     info "Backing up $INSTALL_DIR"
     echo "Included: compose files (SECRET_KEY + logins), Caddyfile + drop-ins,"
     echo "AIOStreams user configs (./data), vpn-state (WireGuard private key,"
-    echo "if the VPN layer was ever set up), webhook-relay-state (if that bolt-on"
-    echo "was ever set up), and any original WireGuard .conf"
+    echo "if the VPN layer was ever set up), the add-ons' settings (including"
+    echo "AIOMetadata's configurations), and any original WireGuard .conf"
     echo "file(s) found in /root or your home directory (staged as a convenience"
     echo "copy, not required for the VPN layer itself to keep working)."
     echo "NOT included: Caddy's HTTPS certificates (they live in named Docker volumes"
@@ -139,6 +139,15 @@ do_backup() {
         fi
     fi
 
+    # And AIOMetadata, another compose stack of its own.
+    if [[ -d "$INSTALL_DIR/aiometadata-state" ]]; then
+        if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx aiometadata; then
+            touch "$INSTALL_DIR/aiometadata-state/was-active-at-backup"
+        else
+            rm -f "$INSTALL_DIR/aiometadata-state/was-active-at-backup"
+        fi
+    fi
+
     # And for the control panel, so a restore brings it back only if it was
     # running.
     if [[ -f "$INSTALL_DIR/ui-state/config" ]]; then
@@ -150,7 +159,8 @@ do_backup() {
     fi
     # Tells a restore which of the markers above this backup can have.
     # Format 2 added the panel's, format 3 the webhook's reboot notification,
-    # format 4 the backup schedule (backup-schedule, absent when it's off).
+    # format 4 the backup schedule (backup-schedule, absent when it's off),
+    # format 5 AIOMetadata's.
     # The AIOStreams build is only there for the control panel to show on the
     # backup; a restore doesn't act on it, so it doesn't change the format.
     # Read now, before AIOStreams is paused below. Its image is distroless,
@@ -162,7 +172,7 @@ do_backup() {
         build=""
     done
     {
-        printf '# Written by setup-backup.sh with each backup.\nformat=4\n'
+        printf '# Written by setup-backup.sh with each backup.\nformat=5\n'
         if [[ "$build" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\ (v[0-9]+\.[0-9]+\.[0-9]+|[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]{4}-nightly)$ ]]; then
             printf 'aiostreams_version=%s\naiostreams_tag=%s\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
         fi
@@ -216,26 +226,39 @@ do_backup() {
     # the archive is written so the database is copied in one piece, not
     # caught mid-write. A pause keeps it running (no restart, no VPN
     # re-check), and the trap unfreezes it however this script ends.
-    local paused=false started
-    if [[ "$(docker inspect -f '{{.State.Status}}' aiostreams 2>/dev/null)" == "running" ]] \
-        && docker pause aiostreams >/dev/null 2>&1; then
-        paused=true
-        trap 'docker unpause aiostreams >/dev/null 2>&1 || true' EXIT
-        echo "Pausing AIOStreams while the backup is written, so its database is copied cleanly..."
+    # AIOMetadata's database gets the same treatment.
+    local paused=() names c started base
+    base="$(basename "$INSTALL_DIR")"
+    for c in aiostreams aiometadata; do
+        if [[ "$(docker inspect -f '{{.State.Status}}' "$c" 2>/dev/null)" == "running" ]] \
+            && docker pause "$c" >/dev/null 2>&1; then
+            paused+=("$c")
+        fi
+    done
+    if (( ${#paused[@]} )); then
+        # shellcheck disable=SC2064  # expand now: the list is local
+        trap "docker unpause ${paused[*]} >/dev/null 2>&1 || true" EXIT
+        names="AIOStreams"
+        [[ " ${paused[*]} " == *" aiometadata "* ]] && names="AIOStreams and AIOMetadata"
+        [[ "${paused[*]}" == aiometadata ]] && names="AIOMetadata"
+        echo "Pausing $names while the backup is written, so the databases are copied cleanly..."
     fi
     started=$SECONDS
     # Sorted, so backup-info sits near the start and the panel can read it
-    # without unpacking the whole archive.
-    if ( umask 077; tar --warning=no-file-changed --sort=name --exclude="$(basename "$INSTALL_DIR")/caddy-logs" \
-            --exclude="$(basename "$INSTALL_DIR")/public-ip" --exclude="$(basename "$INSTALL_DIR")/backup-last-run" -czf "$out" -C "$(dirname "$INSTALL_DIR")" "$(basename "$INSTALL_DIR")" ); then
+    # without unpacking the whole archive. AIOMetadata's lookup files (about
+    # 50 MB) are left out: it downloads them again when it starts.
+    if ( umask 077; tar --warning=no-file-changed --sort=name --exclude="$base/caddy-logs" \
+            --exclude="$base/public-ip" --exclude="$base/backup-last-run" \
+            --exclude="$base/aiometadata-state/data/*.cache" --exclude="$base/aiometadata-state/data/imdb-ratings.bin" \
+            -czf "$out" -C "$(dirname "$INSTALL_DIR")" "$base" ); then
         tar_status=0
     else
         tar_status=$?
     fi
-    if $paused; then
-        docker unpause aiostreams >/dev/null 2>&1 || warn "Couldn't unpause AIOStreams. Run: docker unpause aiostreams"
+    if (( ${#paused[@]} )); then
+        docker unpause "${paused[@]}" >/dev/null 2>&1 || warn "Couldn't unpause everything. Run: docker unpause ${paused[*]}"
         trap - EXIT
-        echo "AIOStreams resumed (paused for $((SECONDS - started))s)."
+        echo "$names resumed (paused for $((SECONDS - started))s)."
     fi
     # GNU tar: 0 = clean, 1 = file changed while being read (archive still
     # usable), 2+ = genuinely failed.
@@ -812,6 +835,7 @@ find_script() {
 ADDONS=(
     "mediaflow|MediaFlow Proxy|mediaflow-state|50-mediaflow.caddy|mediaflow-proxy-light"
     "webhook|Webhook relay|webhook-relay-state|50-webhook-relay.caddy|aios-webhook-relay"
+    "aiometadata|AIOMetadata|aiometadata-state|55-aiometadata.caddy|aiometadata"
     "panel|Control panel|ui-state|60-ui.caddy|aios-ui"
 )
 # Filled in by check_addon_domains for each installed add-on, by id.
@@ -883,6 +907,7 @@ current_addons() {
     local found=()
     [[ -f "$INSTALL_DIR/mediaflow-state/docker-compose.yml" ]] && found+=("MediaFlow Proxy")
     [[ -f "$INSTALL_DIR/webhook-relay-state/docker-compose.yml" ]] && found+=("webhook relay")
+    [[ -f "$INSTALL_DIR/aiometadata-state/docker-compose.yml" ]] && found+=("AIOMetadata")
     [[ -f /etc/systemd/system/aiostreams-watchdog.timer ]] && found+=("watchdog")
     [[ -f /etc/systemd/system/aiostreams-vpn-boot.service ]] && found+=("VPN boot hook")
     [[ -f /etc/fail2ban/jail.d/aios-mediaflow.conf ]] && found+=("MediaFlow fail2ban jail")
@@ -1453,8 +1478,16 @@ do_restore() {
         case "$id" in
             mediaflow) own="$INSTALL_DIR/setup-mediaflow.sh" ;;
             webhook) own="$INSTALL_DIR/setup-webhook.sh" ;;
+            aiometadata) own="$INSTALL_DIR/setup-aiometadata.sh" ;;
             panel) own="$INSTALL_DIR/control-panel/setup-ui.sh" ;;
         esac
+        # Format 5 started recording whether AIOMetadata ran, so an older
+        # backup holding it can't say: a reminder rather than a guess.
+        if [[ "$id" == aiometadata ]] && ! ${ADDON_START[$id]} && [[ -z "${ADDON_OFF_BY_CHOICE[$id]:-}" ]] \
+            && (( $(grep -m1 -oP '^format=\K[0-9]+' "$INSTALL_DIR/backup-info" 2>/dev/null || echo 1) < 5 )); then
+            summary+=("$name$where: this backup is too old to say whether it was running, so it's left off. To start it: sudo bash $own start-aiometadata")
+            continue
+        fi
         if ! ${ADDON_START[$id]}; then
             if [[ -n "${ADDON_OFF_BY_CHOICE[$id]:-}" ]]; then
                 line="$name$where: left off, as you chose. Point its DNS here, then run 'sudo bash $own' and choose Start."
@@ -1474,6 +1507,11 @@ do_restore() {
             webhook)
                 script=$(find_script setup-webhook.sh)
                 [[ -n "$script" ]] && { bash "$script" start-relay < /dev/null || true; } ;;
+            aiometadata)
+                # Start rewrites its settings from the restored config, so a
+                # moved subdomain reaches its HOST_NAME too.
+                script=$(find_script setup-aiometadata.sh)
+                [[ -n "$script" ]] && { bash "$script" start-aiometadata < /dev/null || true; } ;;
             panel)
                 if in_panel_terminal; then
                     if $UNATTENDED; then
@@ -1530,6 +1568,9 @@ do_restore() {
         token=$(grep -m1 -oP "^WEBHOOK_TOKEN='?\K[^'\s]+" "$INSTALL_DIR/webhook-relay-state/config" 2>/dev/null || true)
         summary+=("Webhook relay moved: paste the new URL into the sites that send to it: https://${ADDON_NEW[webhook]}/hook/${token:-<token>}")
     fi
+    if [[ -n "${ADDON_NEW[aiometadata]:-}" ]]; then
+        summary+=("AIOMetadata moved to ${ADDON_NEW[aiometadata]}: apps keep using the old address, so open https://${ADDON_NEW[aiometadata]}/configure, load each configuration and install it again.")
+    fi
     if [[ -n "${ADDON_NAME[panel]:-}" && -f "$INSTALL_DIR/ui-state/gate-token" ]]; then
         summary+=("Control panel unlock link (open it once in each browser): https://${ADDON_DOMAIN[panel]}/unlock/$(cat "$INSTALL_DIR/ui-state/gate-token")")
     fi
@@ -1539,7 +1580,7 @@ do_restore() {
         summary+=("WireGuard .conf: $conf_restored_count original file(s) restored to /root and/or $REAL_HOME (convenience copies).")
     fi
 
-    rm -f "$INSTALL_DIR"/{watchdog-state,webhook-relay-state,mediaflow-state,ui-state}/was-active-at-backup \
+    rm -f "$INSTALL_DIR"/{watchdog-state,webhook-relay-state,mediaflow-state,aiometadata-state,ui-state}/was-active-at-backup \
         "$INSTALL_DIR/webhook-relay-state/boot-notify-at-backup"
 
     info "Restore complete!"

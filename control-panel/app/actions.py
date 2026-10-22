@@ -76,6 +76,14 @@ _STATIC: dict[str, Action] = {a.id: a for a in [
            needs=("setup-webhook.sh", "webhook-relay-state/docker-compose.yml"),
            confirm="Stop the webhook relay? Incoming webhooks will be rejected until it starts again."),
 
+    Action("aiometadata.start", "Start", "Starting", "Start finished", "setup-aiometadata.sh",
+           args=("start-aiometadata",), timeout=300,
+           needs=("setup-aiometadata.sh", "aiometadata-state/docker-compose.yml")),
+    Action("aiometadata.stop", "Stop", "Stopping", "Stop finished", "setup-aiometadata.sh",
+           args=("stop-aiometadata",), stdin="3\n10\n", timeout=120,
+           needs=("setup-aiometadata.sh", "aiometadata-state/docker-compose.yml"),
+           confirm="Stop AIOMetadata? Catalogs and metadata from it stop loading in Stremio and Nuvio."),
+
     # The VPN's own checks run in the script: the tunnel is confirmed before
     # AIOStreams starts, the boot hook follows the mode, and a failed switch
     # stops with the stack as it was. "off" keeps AIOStreams live throughout.
@@ -155,6 +163,17 @@ def build_update(backup: bool, channel: str | None) -> Action:
                   confirm=confirm)
 
 
+def build_meta_update(backup: bool) -> Action:
+    """AIOMetadata to its newest release: the script's question-free update-aiometadata,
+    which puts the previous release back by itself if the new one doesn't start."""
+    if not isinstance(backup, bool):
+        raise BadAction("backup must be true or false")
+    return Action("aiometadata.update", "Update", "Updating", "Update finished", "setup-aiometadata.sh",
+                  args=("update-aiometadata",) + (("--backup",) if backup else ()), timeout=1200,
+                  needs=("setup-aiometadata.sh", "aiometadata-state/docker-compose.yml"),
+                  confirm="Update AIOMetadata to its newest release? Its catalogs stop loading for a minute or so.")
+
+
 def build_restore(path: str) -> Action:
     """A same-server rollback to the backup at path, which the caller has
     matched against the backups actually on the server. --same-server runs
@@ -216,6 +235,23 @@ def build_vpn_uninstall(remove_image: bool, delete_confs: bool) -> Action:
                   args=("uninstall", *opts), timeout=600, needs=("setup-vpn-gluetun.sh", "vpn-state/active"))
 
 
+# The Add-ons page's Uninstall for the add-ons in Docker: each script's question-free
+# "uninstall", with "remove-image" where it has images of its own. main.py also
+# wants "uninstall" typed, like the VPN's.
+ADDON_UNINSTALL = {
+    "aiometadata": ("AIOMetadata", "setup-aiometadata.sh", "aiometadata-state/config", True),
+    "mediaflow": ("MediaFlow Proxy", "setup-mediaflow.sh", "mediaflow-state/config", True),
+    "webhook": ("the webhook relay", "setup-webhook.sh", "webhook-relay-state/config", False),
+}
+
+
+def build_addon_uninstall(addon: str, remove_image: bool) -> Action:
+    name, script, conf, images = ADDON_UNINSTALL[addon]
+    opts = ("remove-image",) if images and remove_image is True else ()
+    return Action(f"{addon}.uninstall", f"Uninstall {name}", f"Uninstalling {name}", f"{name[0].upper()}{name[1:]} uninstalled",
+                  script, args=("uninstall", *opts), timeout=300, needs=(script, conf))
+
+
 # ntfy topics: letters, digits, - and _; at least 12 so it stays private (the script checks the same)
 TOPIC_RE = re.compile(r"^[A-Za-z0-9_-]{12,64}$")
 
@@ -233,19 +269,24 @@ def build_set_topic(topic) -> Action:
 
 
 # Each add-on script's state folder: while it's there, the add-on is set up and its script stays
-ADDON_STATE = {"vpn": "vpn-state", "mediaflow": "mediaflow-state", "watchdog": "watchdog-state", "webhook": "webhook-relay-state"}
+ADDON_STATE = {"vpn": "vpn-state", "mediaflow": "mediaflow-state", "watchdog": "watchdog-state", "webhook": "webhook-relay-state",
+               "aiometadata": "aiometadata-state"}
 
 
 def resolve(action_id: str, params: dict | None = None) -> Action:
     params = params or {}
     if action_id == "stack.update":
         return build_update(params.get("backup", True), params.get("channel"))
+    if action_id == "aiometadata.update":
+        return build_meta_update(params.get("backup", True))
     if action_id == "vpn.use":
         return build_use_address(params.get("ip"))
     if action_id == "vpn.uninstall":
         return build_vpn_uninstall(params.get("remove_image") is True, params.get("delete_confs") is True)
     if action_id == "watchdog.topic":
         return build_set_topic(params.get("topic"))
+    if action_id.endswith(".uninstall") and action_id.split(".")[0] in ADDON_UNINSTALL:
+        return build_addon_uninstall(action_id.split(".")[0], params.get("remove_image") is True)
     if action_id == "vpn.config":
         return build_use_config(params.get("ip"), params.get("on") is True)
     act = _STATIC.get(action_id)
@@ -255,9 +296,9 @@ def resolve(action_id: str, params: dict | None = None) -> Action:
 
 
 def catalog() -> list[Action]:
-    return list(_STATIC.values()) + [build_update(True, None), build_use_address("192.0.2.1"), build_use_config("192.0.2.1"),
+    return list(_STATIC.values()) + [build_update(True, None), build_meta_update(True), build_use_address("192.0.2.1"), build_use_config("192.0.2.1"),
                                      build_delete_config("/"), build_use_file("/", "192.0.2.1"), build_vpn_uninstall(False, False),
-                                     build_set_topic("aios-example-topic")]
+                                     build_set_topic("aios-example-topic")] + [build_addon_uninstall(a, False) for a in ADDON_UNINSTALL]
 
 
 # The stack's scripts, in the order the Terminal tab lists them. Only the first
@@ -270,4 +311,5 @@ SCRIPTS = [
     ("mediaflow", "MediaFlow Proxy", "setup-mediaflow.sh"),
     ("watchdog", "Phone alerts", "setup-watchdog.sh"),
     ("webhook", "Webhook relay", "setup-webhook.sh"),
+    ("aiometadata", "AIOMetadata", "setup-aiometadata.sh"),
 ]

@@ -62,7 +62,8 @@ same way.
 - `webhook-relay-state/`, if you ever set up the [Webhook Relay](./webhook-relay.md) . 
   this contains your secret path token and ntfy topic
 - `backup-schedule`, if [scheduled backups](#scheduled-backups) are on
-- Every install script (`setup-aiostreams.sh`, `setup-backup.sh`, `setup-vpn-gluetun.sh`, `setup-watchdog.sh`, `setup-webhook.sh`, `setup-mediaflow.sh`): any `.sh` file in `/opt/aiostreams` is included automatically, which is why all install commands download there first
+- AIOMetadata's `aiometadata-state/` (settings, database, a note of whether it was running), without the lookup files it downloads again by itself; Redis is only a cache and isn't included. See the [AIOMetadata guide](./aiometadata.md#backups)
+- Every install script (`setup-aiostreams.sh`, `setup-backup.sh`, `setup-vpn-gluetun.sh`, `setup-watchdog.sh`, `setup-webhook.sh`, `setup-mediaflow.sh`, `setup-aiometadata.sh`): any `.sh` file in `/opt/aiostreams` is included automatically, which is why all install commands download there first
 
 **Not included:** Caddy's HTTPS certificates. They're in Docker volumes, and Caddy re-issues them automatically once DNS resolves on the new server. No point bundling them.
 
@@ -203,8 +204,8 @@ current one aside, right next to it (e.g.
 `/opt/aiostreams.pre-restore-YYYYMMDD-HHMMSS`) rather than deleting it
 outright, so you can recover if you picked the wrong tarball.
 
-Its add-ons go first: MediaFlow, the webhook relay, the watchdog timer, the
-VPN boot hook, MediaFlow's fail2ban jail and the control panel are stopped
+Its add-ons go first: AIOMetadata, MediaFlow, the webhook relay, the watchdog
+timer, the VPN boot hook, MediaFlow's fail2ban jail and the control panel are stopped
 and removed before the folder moves, and the restore warns you which ones it
 found. Their settings stay in the set-aside copy. Then the **backup's** own
 add-ons come back (see [Add-ons on restore](#add-ons-on-restore)), so you
@@ -341,7 +342,7 @@ A backup records which add-ons were **installed** (their settings are in it)
 and which were **running** when it was made. The restore uses both:
 
 - **Every installed add-on gets its subdomain checked**, running or not:
-  MediaFlow Proxy, the webhook relay and the control panel. One that's
+  AIOMetadata, MediaFlow Proxy, the webhook relay and the control panel. One that's
   switched off today still needs DNS pointing here the day you switch it on.
 - If a subdomain points here, nothing to do. If it points somewhere else
   (usually the old server) or doesn't resolve, the restore says so with both
@@ -360,6 +361,8 @@ and which were **running** when it was made. The restore uses both:
 - **The summary at the end** lists each add-on: running, waiting for DNS
   (started, and its certificate follows once DNS points here), or left off.
   It also lists what needs updating elsewhere:
+  - AIOMetadata on a new subdomain: its configurations live at the new
+    address, so install them in your apps (or AIOStreams) again.
   - MediaFlow on a new subdomain: set its **Public URL** in the AIOStreams
     dashboard to the new address.
   - Webhook relay on a new subdomain: the new webhook URL to paste into the

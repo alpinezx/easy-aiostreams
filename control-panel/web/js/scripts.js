@@ -14,6 +14,7 @@ const FALLBACK = [
   { id: "mediaflow", label: "MediaFlow Proxy", file: "setup-mediaflow.sh", present: false },
   { id: "watchdog", label: "Phone alerts", file: "setup-watchdog.sh", present: false },
   { id: "webhook", label: "Webhook relay", file: "setup-webhook.sh", present: false },
+  { id: "aiometadata", label: "AIOMetadata", file: "setup-aiometadata.sh", present: false },
 ];
 // The AIOStreams menu runs backup and restore through setup-backup.sh and only
 // downloads it when it's missing, so its Update refreshes both.

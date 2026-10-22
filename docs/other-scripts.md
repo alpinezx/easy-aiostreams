@@ -2,6 +2,10 @@
 
 Optional add-ons on top of the main install. Each is its own standalone script, run whenever you want.
 
+### AIOMetadata
+
+- **Want your own catalogs and metadata, not a shared public instance?** Runs a private [AIOMetadata](https://github.com/cedya77/aiometadata) on its own subdomain: catalogs, posters, ratings and episode lists from TMDB, TVDB, MDBList and more, for Stremio-based clients, Nuvio and AIOStreams. An addon password keeps it yours, your API keys stay on the server, and releases are pinned, with updates (and a way back) from the menu or the control panel. Included in backups. Run with `setup-aiometadata.sh`. → [Basic](./basic/aiometadata.md) · [Advanced](./advanced/aiometadata.md)
+
 ### Control Panel (beta)
 
 - **Rather manage your server from a web page than over SSH?** A private dashboard on its own subdomain: see what's running, start, stop, update and back up with a button, read the logs, and optionally open a terminal from your phone. Locked behind a secret unlock link plus its own login. Run with `control-panel/setup-ui.sh`. → [Basic](./basic/control-panel.md) · [Advanced](./advanced/control-panel.md)
@@ -12,7 +16,7 @@ Optional add-ons on top of the main install. Each is its own standalone script, 
 
 ### Watchdog Alerts
 
-- **Want a phone alert when your server needs you?** Works on any install: the site stops answering, the server restarts, the disk is nearly full, or the HTTPS certificate isn't renewing; plus the VPN tunnel and MediaFlow Proxy when they're set up. Optional alerts for new AIOStreams releases and a weekly check-in. With the control panel it gets a Phone alerts page. Run with `setup-watchdog.sh`. → [Basic](./basic/watchdog.md) · [Advanced](./advanced/watchdog.md)
+- **Want a phone alert when your server needs you?** Works on any install: the site stops answering, the server restarts, the disk is nearly full, or the HTTPS certificate isn't renewing; plus the VPN tunnel, MediaFlow Proxy and AIOMetadata when they're set up. Optional alerts for new AIOStreams and AIOMetadata releases and a weekly check-in. With the control panel it gets a Phone alerts page. Run with `setup-watchdog.sh`. → [Basic](./basic/watchdog.md) · [Advanced](./advanced/watchdog.md)
 
 ### Webhook Relay
 

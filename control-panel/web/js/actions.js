@@ -100,6 +100,18 @@ export async function runAction(act, params) {
     if (!res) return;
     if (res.channel && res.channel === channelNow) res.channel = null;
     params = res;
+  } else if (act.id === "aiometadata.update") {
+    const backup = h("input", { type: "checkbox", id: "meta-backup", checked: true });
+    const res = await ask({
+      title: "Update AIOMetadata",
+      body: "Gets its newest release and restarts it, so its catalogs stop loading for a minute or so. "
+        + "If the new release doesn't start, the previous one is put back by itself.",
+      confirmLabel: "Update",
+      options: { el: h("div", { class: "opts" }, h("label", { class: "check" }, backup, h("span", { text: "Back up first" }))),
+        read: () => ({ backup: backup.checked }) },
+    });
+    if (!res) return;
+    params = res;
   } else if (act.confirm) {
     const ok = await ask({ title: `${act.label}?`, body: act.confirm, confirmLabel: act.label, danger: /stop|forget|delete|uninstall/i.test(act.id) });
     if (!ok) return;

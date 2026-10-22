@@ -347,7 +347,7 @@ def test_scripts_compare_endpoint_covers_every_script_and_the_backup_one(client)
     login(client)
     out = client.get("/api/scripts/compare").json()
     assert set(out["files"]) == {"setup-aiostreams.sh", "setup-vpn-gluetun.sh", "setup-mediaflow.sh",
-                                 "setup-watchdog.sh", "setup-webhook.sh", "setup-backup.sh"}
+                                 "setup-watchdog.sh", "setup-webhook.sh", "setup-aiometadata.sh", "setup-backup.sh"}
     assert out["files"]["setup-mediaflow.sh"]["differs"] is True
     client.post("/api/logout"); client.cookies.clear()
     assert client.get("/api/scripts/compare").status_code == 401
@@ -488,7 +488,7 @@ def test_phone_alerts_history_can_be_cleared(client):
 def test_phone_alerts_switches(client):
     assert client.post("/api/watchdog/options", json={"name": "weekly", "on": True}).status_code == 401
     login(client)
-    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": False, "scripts": False, "backups": False, "security": False, "weekly": False, "weekly_day": 7, "weekly_time": "10:00"}
+    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": False, "scripts": False, "backups": False, "security": False, "weekly": False, "metadata": False, "weekly_day": 7, "weekly_time": "10:00"}
     for bad in ({"name": "nope", "on": True}, {"name": "weekly", "on": "yes"}, {}, {"name": "weekly_day", "value": 8},
                 {"name": "weekly_time", "value": "24:00"}, {"name": "weekly_time", "value": "9"}, {"name": "weekly_time", "value": 9},
                 {"name": "weekly_day", "value": True}, {"name": "weekly_hour", "value": 9}, {"name": "reboots", "on": "off"}):
@@ -500,7 +500,8 @@ def test_phone_alerts_switches(client):
     assert client.post("/api/watchdog/options", json={"name": "scripts", "on": True}).json() == {"scripts": True}
     assert client.post("/api/watchdog/options", json={"name": "backups", "on": True}).json() == {"backups": True}
     assert client.post("/api/watchdog/options", json={"name": "security", "on": True}).json() == {"security": True}
-    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": True, "scripts": True, "backups": True, "security": True, "weekly": True, "weekly_day": 1, "weekly_time": "07:05"}
+    assert client.post("/api/watchdog/options", json={"name": "metadata", "on": True}).json() == {"metadata": True}
+    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": True, "scripts": True, "backups": True, "security": True, "weekly": True, "metadata": True, "weekly_day": 1, "weekly_time": "07:05"}
     assert client.post("/api/watchdog/tally/clear").json() == {"cleared": True}
     assert client.get("/api/watchdog").json()["tally"] == []
 
@@ -560,15 +561,41 @@ def test_backup_schedule(client):
 def test_overview_layout(client):
     login(client)
     ids = lambda r: [(c["id"], c["show"]) for c in r.json()["cards"]]
-    default = [("flow", True), ("aiostreams", True), ("server", True), ("alerts", True), ("services", True)]
+    default = [("flow", True), ("aiostreams", True), ("aiometadata", True), ("server", True), ("alerts", True), ("services", True)]
     assert ids(client.get("/api/overview-layout")) == default
     # unknown and repeated cards are dropped; ones left out go back to their default place
     r = client.put("/api/overview-layout", json={"cards": [{"id": "services", "show": True}, {"id": "nope"},
                                                          {"id": "alerts", "show": False}, {"id": "services", "show": False}]})
-    assert ids(r) == [("flow", True), ("aiostreams", True), ("server", True), ("services", True), ("alerts", False)]
+    assert ids(r) == [("flow", True), ("aiostreams", True), ("aiometadata", True), ("server", True), ("services", True), ("alerts", False)]
     assert ids(client.get("/api/overview-layout")) == ids(r)
     assert client.put("/api/overview-layout", json={"cards": "x"}).status_code == 400
     assert ids(client.put("/api/overview-layout", json={"cards": []})) == default
+
+
+def test_aiometadata_status_reads_only_domain_and_version(tmp_path):
+    from types import SimpleNamespace
+    from app import stack
+    (tmp_path / "aiometadata-state").mkdir()
+    conf = tmp_path / "aiometadata-state" / "config"
+    conf.write_text("DOMAIN='meta.example.com'\nADDON_PASSWORD='s3cret'\nADMIN_KEY='k3y'\nAIOM_VERSION='3.6.1'\n")
+    me = SimpleNamespace(p=lambda rel: tmp_path / rel)
+    read = lambda c: stack.Backend._aiometadata(me, c)
+    assert read(None) == {"domain": "meta.example.com", "version": "3.6.1"}
+    # the running image's tag wins over the pinned one
+    running = SimpleNamespace(attrs={"Config": {"Image": "ghcr.io/cedya77/aiometadata:3.6.2"}})
+    assert read(running) == {"domain": "meta.example.com", "version": "3.6.2"}
+    conf.write_text("DOMAIN='meta.example.com'\nAIOM_VERSION='latest'\n")
+    assert read(None) is None
+    conf.unlink()
+    assert read(None) is None
+
+
+def test_aiometadata_update_action():
+    a = actions.resolve("aiometadata.update", {"backup": True})
+    assert a.script == "setup-aiometadata.sh" and a.args == ("update-aiometadata", "--backup")
+    assert actions.resolve("aiometadata.update", {"backup": False}).args == ("update-aiometadata",)
+    with pytest.raises(actions.BadAction):
+        actions.resolve("aiometadata.update", {"backup": "yes"})
 
 
 def test_maintenance_leaves_phased_updates_out():
@@ -591,3 +618,50 @@ def test_maintenance_leaves_phased_updates_out():
     # if the simulation can't run, every waiting update still shows
     u = stack.Backend._maint_updates(host({"apt": listing, "apt-get": "", "sh": ""}))
     assert (u["count"], u["phased"]) == (3, 0)
+
+
+def test_the_page_offers_restart_for_exactly_what_the_server_allows():
+    import re
+    from pathlib import Path
+    from app import stack
+    js = (Path(__file__).resolve().parents[1] / "web" / "js" / "overview.js").read_text(encoding="utf-8")
+    m = re.search(r"const RESTARTABLE = new Set\(\[([^\]]*)\]\)", js)
+    assert m and set(re.findall(r'"([^"]+)"', m.group(1))) == stack.RESTARTABLE
+
+
+def test_add_ons_page_leaves_the_secrets_out_until_asked(client):
+    assert client.get("/api/addons").status_code == 401
+    assert client.get("/api/addons/mediaflow/secret/api_password").status_code == 401
+    login(client)
+    r = client.get("/api/addons")
+    assert r.status_code == 200
+    assert [a["id"] for a in r.json()] == ["aiometadata", "mediaflow", "webhook"]
+    for s in ("demo-addon-password", "demo-admin-key", "demo-api-password", "demo-token", "demo-topic"):
+        assert s not in r.text
+    r = client.get("/api/addons/mediaflow/secret/api_password")
+    assert r.status_code == 200 and r.json()["value"] and r.headers["cache-control"] == "no-store"
+    assert client.get("/api/addons/mediaflow/secret/admin_key").status_code == 404
+    assert client.get("/api/addons/nope/secret/url").status_code == 404
+
+
+def test_add_on_uninstall_needs_the_word(client):
+    login(client)
+    for addon in ("aiometadata", "mediaflow", "webhook"):
+        for word in ("", "yes", "Uninstal"):
+            r = client.post(f"/api/actions/{addon}.uninstall", json={"params": {"confirm": word}})
+            assert r.status_code == 400, (addon, word)
+        a = actions.resolve(f"{addon}.uninstall")
+        assert a.args == ("uninstall",) and a.script.startswith("setup-")
+    r = client.post("/api/actions/webhook.uninstall", json={"params": {"confirm": " Uninstall "}})
+    assert r.status_code == 200 and wait_job(client, r.json()["id"])["code"] == 0
+
+
+def test_no_class_names_an_ad_blocker_hides():
+    """uBlock Origin's lists hide elements with classes like ad-card or ad-row, which blanked
+    the Add-ons page. Keep the panel's names clear of them."""
+    import re
+    from pathlib import Path
+    web = Path(__file__).resolve().parents[1] / "web"
+    for f in [*web.glob("js/*.js"), *web.glob("css/*.css"), web / "index.html"]:
+        found = re.findall(r"(?<![\w-])(?:ad|ads|advert|sponsor)[-_][\w-]+", f.read_text(encoding="utf-8"))
+        assert not found, (f.name, found[:5])

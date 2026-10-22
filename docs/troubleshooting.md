@@ -9,6 +9,7 @@ Every guide in this repo, basic and advanced. Jump straight to whichever one you
 | Firewall & Ports | [Basic](./basic/firewall-ports.md) | [Advanced](./advanced/firewall-ports.md) |
 | Addon Proxy Setup | [Basic](./basic/addon-proxy-setup.md) | [Advanced](./advanced/addon-proxy-setup.md) |
 | Proxy Setup | [Basic](./basic/proxy-setup.md) | [Advanced](./advanced/proxy-setup.md) |
+| AIOMetadata | [Basic](./basic/aiometadata.md) | [Advanced](./advanced/aiometadata.md) |
 | MediaFlow Proxy | [Basic](./basic/mediaflow-proxy.md) | [Advanced](./advanced/mediaflow-proxy.md) |
 | VPN Setup | [Basic](./basic/vpn-setup.md) | [Advanced](./advanced/vpn-setup.md) |
 | Watchdog Alerts | [Basic](./basic/watchdog.md) | [Advanced](./advanced/watchdog.md) |

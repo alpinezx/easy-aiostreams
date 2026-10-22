@@ -162,7 +162,7 @@ What would you like to do?
 - Realize the domain in the backup isn't the one you want live on this server (e.g. testing under a separate subdomain)? Pick **3** and type the correct one: it rewrites the config on the spot and re-checks immediately.
 - Nothing here will start Docker or touch your certificates until you choose: it's safe to sit and think.
 
-**Then it checks your add-ons' subdomains** (MediaFlow, webhook relay, control panel), whether or not they were running. For any that don't point at this server yet, it asks whether to move it to another subdomain, keep it and fix DNS yourself (Enter), or leave it off for now. The summary at the end says what's running, what's waiting for DNS, and anything to update elsewhere, like MediaFlow's Public URL in the AIOStreams dashboard. [More detail](../advanced/backup-restore.md#add-ons-on-restore).
+**Then it checks your add-ons' subdomains** (AIOMetadata, MediaFlow, webhook relay, control panel), whether or not they were running. For any that don't point at this server yet, it asks whether to move it to another subdomain, keep it and fix DNS yourself (Enter), or leave it off for now. The summary at the end says what's running, what's waiting for DNS, and anything to update elsewhere, like MediaFlow's Public URL in the AIOStreams dashboard. [More detail](../advanced/backup-restore.md#add-ons-on-restore).
 
 That's it: no other setup needed.
 

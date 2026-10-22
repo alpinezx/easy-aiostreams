@@ -103,11 +103,12 @@ SERVICES = [
     ("aiostreams", "aiostreams", "AIOStreams", "Addon aggregator", None),
     ("mediaflow", "mediaflow-proxy-light", "MediaFlow Proxy", "Faster video proxy", "mediaflow-state/docker-compose.yml"),
     ("webhook", "aios-webhook-relay", "Webhook relay", "Webhooks to phone alerts", "webhook-relay-state/docker-compose.yml"),
+    ("aiometadata", "aiometadata", "AIOMetadata", "Catalogs and metadata", "aiometadata-state/docker-compose.yml"),
 ]
-ADDONS = {"mediaflow", "webhook"}
+ADDONS = {"mediaflow", "webhook", "aiometadata"}
 # Services the panel may restart on their own. Caddy has the stack-wide Restart,
 # and bouncing the VPN tunnel can strand the containers routed through it.
-RESTARTABLE = {"aiostreams", "mediaflow", "webhook"}
+RESTARTABLE = {"aiostreams", "mediaflow", "webhook", "aiometadata"}
 
 
 TIME_RE = re.compile(r"^([01]?\d|2[0-3]):[0-5]\d$")
@@ -262,6 +263,53 @@ class Backend:
             ttl = 300
         self._cert_cache[host] = (now + ttl, val)
         return val
+
+    # Which add-on owns a caddy.d snippet, by its file name
+    _SITE_LABELS = (("mediaflow", "MediaFlow"), ("aiometadata", "AIOMetadata"),
+                    ("webhook", "Webhook relay"), ("ui", "Control panel"))
+
+    def _caddy_sites(self, main_domain: str | None) -> list[tuple[str, str]]:
+        """(label, host) for every site Caddy serves: the main domain from the Caddyfile and
+        one per add-on snippet in caddy.d. Read from the files, so a new add-on shows up
+        without the panel needing to know about it."""
+        sites: list[tuple[str, str]] = []
+        seen: set[str] = set()
+
+        def add(label: str, host: str):
+            host = host.lower()
+            if host not in seen and not host.startswith("localhost"):
+                seen.add(host)
+                sites.append((label, host))
+        if main_domain:
+            add("AIOStreams", main_domain)
+        files = [("Site", self.p("Caddyfile"))]
+        try:
+            files += [(f.name, f) for f in sorted(self.p("caddy.d").glob("*.caddy"))]
+        except OSError:
+            pass
+        for name, f in files:
+            label = next((lbl for key, lbl in self._SITE_LABELS if key in name), "Site")
+            for m in re.finditer(r"^([A-Za-z0-9.-]+\.[A-Za-z0-9-]+)(?=\s*\{)", _read(f), re.M):
+                add(label if name != "Site" else "AIOStreams", m.group(1))
+        return sites
+
+    def _certs(self, main_domain: str | None) -> list[dict]:
+        sites = self._caddy_sites(main_domain)
+        if not sites:
+            return []
+        # Parallel, so several unreachable hosts cost one timeout, not one each
+        out: list[dict | None] = [None] * len(sites)
+
+        def work(i: int):
+            label, host = sites[i]
+            c = self._cert(host)
+            out[i] = {**c, "label": label} if c else None
+        threads = [threading.Thread(target=work, args=(i,), daemon=True) for i in range(len(sites))]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(8)
+        return [c for c in out if c]
 
     def _systemd_enabled(self, unit: str) -> bool:
         try:
@@ -466,6 +514,7 @@ class Backend:
         stopped_marker = {
             "aiostreams": self.p("aiostreams-stopped-on-purpose").exists(),
             "mediaflow": self.p("mediaflow-state/stopped-on-purpose").exists(),
+            "aiometadata": self.p("aiometadata-state/stopped-on-purpose").exists(),
         }
 
         services = []
@@ -527,9 +576,78 @@ class Backend:
             "overall": overall, "headline": headline,
             "services": services, "watchdog": watchdog, "host": host,
             "cert": self._cert(domain) if domain and not domain.startswith("localhost") else None,
+            "certs": self._certs(domain),
             "backup": self.backup_summary() if installed else None,
+            "aiometadata": self._aiometadata(by_name.get("aiometadata")),
             "actions": self.available_actions(),
         }
+
+    def _aiometadata(self, container) -> dict | None:
+        """AIOMetadata's domain and the release it runs, once it's installed. Only those two
+        are read from its saved settings: the same file holds its passwords."""
+        conf = _read(self.p("aiometadata-state/config"))
+        if not conf:
+            return None
+
+        def get(key):
+            m = re.search(rf"^{key}=['\"]?([^'\"\s]+)", conf, re.M)
+            return m.group(1) if m else None
+        domain, version = get("DOMAIN"), get("AIOM_VERSION")
+        # The running image's tag is the truth when the container is there; the pinned one otherwise
+        if container is not None:
+            m = re.search(r":(\d+\.\d+\.\d+)$", container.attrs.get("Config", {}).get("Image") or "")
+            if m:
+                version = m.group(1)
+        if not domain or not version or not re.fullmatch(r"\d+\.\d+\.\d+", version):
+            return None
+        return {"domain": domain, "version": version}
+
+    # The Add-ons page. Each add-on's saved settings, as its script writes them (KEY='value').
+    _ADDON_CONF = {"aiometadata": "aiometadata-state/config", "mediaflow": "mediaflow-state/config",
+                   "webhook": "webhook-relay-state/config"}
+    # The secrets the page can show, each read only when asked for, one at a time
+    _ADDON_SECRETS = {
+        ("aiometadata", "addon_password"): lambda c: c.get("ADDON_PASSWORD"),
+        ("aiometadata", "admin_key"): lambda c: c.get("ADMIN_KEY"),
+        ("mediaflow", "api_password"): lambda c: c.get("MEDIAFLOW_API_PASSWORD"),
+        ("webhook", "url"): lambda c: f"https://{c['DOMAIN']}/hook/{c['WEBHOOK_TOKEN']}"
+            if c.get("DOMAIN") and c.get("WEBHOOK_TOKEN") else None,
+        ("webhook", "ntfy"): lambda c: f"{c['NTFY_SERVER'].rstrip('/')}/{c['NTFY_TOPIC']}"
+            if c.get("NTFY_SERVER") and c.get("NTFY_TOPIC") else None,
+    }
+
+    def _addon_conf(self, addon: str) -> dict:
+        out = {}
+        for m in re.finditer(r"^([A-Z][A-Z0-9_]*)=(.*)$", _read(self.p(self._ADDON_CONF[addon])), re.M):
+            v = m.group(2).strip()
+            if len(v) >= 2 and v[0] == v[-1] and v[0] in "'\"":
+                v = v[1:-1]
+            out[m.group(1)] = v
+        return out
+
+    def addons_info(self) -> list[dict]:
+        """What each installed add-on's script shows (its Status and Show options), with
+        the secrets left out: the page asks for one with addon_secret when the eye or
+        Copy is pressed. VPN and Phone alerts have their own pages' data."""
+        out = []
+        c = self._addon_conf("aiometadata")
+        if c.get("DOMAIN"):
+            out.append({"id": "aiometadata", "domain": c["DOMAIN"], "version": c.get("AIOM_VERSION") or None})
+        c = self._addon_conf("mediaflow")
+        if c.get("DOMAIN"):
+            # An outbound proxy's address without its login, as the script's Status prints it
+            m = re.match(r"^([a-z0-9]+://)(?:[^@/]*@)?([^/?#]+)", c.get("MEDIAFLOW_PROXY_URL") or "", re.I)
+            out.append({"id": "mediaflow", "domain": c["DOMAIN"], "proxy": m.group(1) + m.group(2) if m else None})
+        c = self._addon_conf("webhook")
+        if c.get("DOMAIN"):
+            server = re.sub(r"^https?://", "", c.get("NTFY_SERVER") or "").rstrip("/") or None
+            out.append({"id": "webhook", "domain": c["DOMAIN"], "ntfy_server": server,
+                        "reboots": self._systemd_enabled("aios-webhook-boot-notify.service")})
+        return out
+
+    def addon_secret(self, addon: str, name: str) -> str | None:
+        get = self._ADDON_SECRETS.get((addon, name))
+        return get(self._addon_conf(addon)) or None if get else None
 
     @staticmethod
     def _summarize(installed, docker_ok, services):
@@ -952,12 +1070,16 @@ class Backend:
         m = re.search(r"^(\S+)\s*\{", _read(self.p("Caddyfile")), re.M)
         if m:
             domain = m.group(1)
-        watches = ([f"https://{domain}"] if domain else ["The site"]) + ["Disk space", "HTTPS certificate"]
+        n_sites = len(self._caddy_sites(domain))
+        watches = ([f"https://{domain}"] if domain else ["The site"]) + [
+            "Disk space", f"HTTPS certificates ({n_sites} sites)" if n_sites > 1 else "HTTPS certificate"]
         img = re.search(r"^\s*image:\s*viren070/aiostreams:(\S+)\s*$", _read(self.p("docker-compose.yml")), re.M)
         if self.vpn_mode() == "on":
             watches += ["VPN tunnel", "AIOStreams through the VPN"]
         if (self.p("mediaflow-state") / "config").exists():
             watches.append("MediaFlow Proxy")
+        if (self.p("aiometadata-state") / "config").exists():
+            watches.append("AIOMetadata")
         return {
             "configured": True,
             "running": self._systemd_active("aiostreams-watchdog.timer"),
@@ -977,6 +1099,8 @@ class Backend:
             "channel": {"latest": "stable", "nightly": "nightly"}.get(img.group(1)) if img else None,
             # the webhook relay's own reboot notification; the watchdog leaves restarts to it
             "relay_reboots": self._systemd_enabled("aios-webhook-boot-notify.service"),
+            # its release switch only shows once it's installed
+            "aiometadata": (self.p("aiometadata-state") / "config").exists(),
         }
 
     def _host_timezone(self) -> str | None:
@@ -998,7 +1122,7 @@ class Backend:
         return {"updates": kv.get("updates") == "on", "reboots": kv.get("reboots", "on") == "on",
                 "scripts": kv.get("scripts") == "on", "backups": kv.get("backups") == "on",
                 "security": kv.get("security") == "on",
-                "weekly": kv.get("weekly") == "on",
+                "weekly": kv.get("weekly") == "on", "metadata": kv.get("metadata") == "on",
                 "weekly_day": int(day) if day in {str(i) for i in range(1, 8)} else 7,
                 "weekly_time": weekly_time(kv)}
 
@@ -1007,7 +1131,7 @@ class Backend:
         and the check-in's day and hour. Kept in watchdog-state/options, which
         the script reads; written on the host, since the install folder is
         read-only here."""
-        if name in ("updates", "reboots", "scripts", "backups", "security", "weekly") and isinstance(value, bool):
+        if name in ("updates", "reboots", "scripts", "backups", "security", "weekly", "metadata") and isinstance(value, bool):
             text = "on" if value else "off"
         elif name == "weekly_day" and isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 7:
             text = str(value)
