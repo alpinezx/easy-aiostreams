@@ -84,7 +84,7 @@ function releasedAgo(running) {
   return r && r.published ? `Released ${ago(Date.parse(r.published) / 1000)}` : "";
 }
 
-const RESTARTABLE = new Set(["aiostreams", "mediaflow", "webhook"]);
+const RESTARTABLE = new Set(["aiostreams", "mediaflow", "webhook", "aiometadata"]);
 const hist = {};          // cpu history per service, for the sparklines
 const keys = {};          // last structure key per region, so we only rebuild on real changes
 const SVG = "http://www.w3.org/2000/svg";
@@ -129,15 +129,16 @@ export function record(st) {
 // ---------------- folding ----------------
 // Every card folds to one line holding what matters most, and anything that needs a look
 // stays on that line. Remembered per browser, so a phone can keep cards folded and a
-// desktop open. Only the request flow starts folded.
+// desktop open. Only the request flow and the list of certificates start folded.
 const FOLD_KEYS = { flow: "aios.flowFolded" };
+const DEFAULT_FOLDED = new Set(["flow", "certs"]);
 const foldKey = (id) => FOLD_KEYS[id] || `aios.fold.${id}`;
 const folds = {};
 function isFolded(id) {
   if (!(id in folds)) {
     let v = null;
     try { v = localStorage.getItem(foldKey(id)); } catch (_) {}
-    folds[id] = v == null ? id === "flow" : v !== "0";
+    folds[id] = v == null ? DEFAULT_FOLDED.has(id) : v !== "0";
   }
   return folds[id];
 }
@@ -182,10 +183,22 @@ function certTone(c) {
   return d < 7 ? "bad" : d < (c.days_total ? c.days_total / 4 : 21) ? "warn" : "";
 }
 
+// Every certificate to show: the per-site list when the server sends it, else the single main one
+function allCerts(st) {
+  return st.certs && st.certs.length ? st.certs : st.cert ? [st.cert] : [];
+}
+
+// The certificate most in need of attention: a failed check first, then the fewest days left
+function worstCert(st) {
+  const cs = allCerts(st);
+  return cs.find((c) => !c.ok) || cs.slice().sort((a, b) => a.days_left - b.days_left)[0] || null;
+}
+
 function certChip(st, long) {
-  if (!st.cert.ok) return h("span", { class: "chip warn", text: long ? "Couldn't check HTTPS certificate" : "Couldn't check" });
-  const d = st.cert.days_left;
-  return h("span", { class: "chip " + (certTone(st.cert) || "ok"), title: st.cert.host ? `For ${st.cert.host}. Caddy renews it by itself.` : null,
+  const c = worstCert(st);
+  if (!c.ok) return h("span", { class: "chip warn", title: c.host ? `For ${c.host}` : null, text: long ? "Couldn't check HTTPS certificate" : "Couldn't check" });
+  const d = c.days_left;
+  return h("span", { class: "chip " + (certTone(c) || "ok"), title: c.host ? `For ${c.host}. Caddy renews it by itself.` : null,
     text: long ? `HTTPS certificate good for ${d} days` : `${d} days left` });
 }
 
@@ -194,7 +207,7 @@ function hero(st) {
   const avail = Object.fromEntries(st.actions.map((a) => [a.id, a]));
   const aio = st.services.find((s) => s.key === "aiostreams");
   const key = [st.overall, st.headline, st.domain, st.channel, st.version, st.build_tag, st.vpn, !!st.busy, aio && aio.state,
-    st.cert && st.cert.ok, st.cert && st.cert.days_left, st.cert && st.cert.days_total, st.installed, st.docker_ok, relLoading, rel && rel.checked_at, rel && rel.error, isFolded("aiostreams"),
+    allCerts(st).map((c) => `${c.host}:${c.ok}:${c.days_left}:${c.days_total}`).join(","), st.installed, st.docker_ok, relLoading, rel && rel.checked_at, rel && rel.error, isFolded("aiostreams"),
     JSON.stringify(st.aiometadata || null), isFolded("aiometadata")].join("|");
   rebuild("#hero", key, (el) => {
     // The headline, and after it the "Script updates" pill while a setup script here differs
@@ -207,7 +220,8 @@ function hero(st) {
       st.installed ? editBtn() : null));
     scriptsPill();
     // The certificate lives in This server; it comes up here only when it needs attention.
-    if (st.cert && (!st.cert.ok || certTone(st.cert))) el.append(h("div", { class: "hero-meta" }, certChip(st, true)));
+    const wc = worstCert(st);
+    if (wc && (!wc.ok || certTone(wc))) el.append(h("div", { class: "hero-meta" }, certChip(st, true)));
     // The version card has a slot of its own, so wide screens can put the request flow above it
     const ver = $("#ver");
     clear(ver);
@@ -524,15 +538,48 @@ function hostSum(st) {
   const bk = st.backup;
   const bad = bk && bk.every !== "off" && bk.last && (bk.last.status === "failed" || bk.last.status === "skipped");
   const load = hs.load ? (hs.load[0] / (hs.cpus || 1)) * 100 : 0;
+  const wc = worstCert(st);
   return foldSum([
     [hs.uptime != null ? `Up ${fmtDur(hs.uptime)}` : ""],
-    [st.cert && !st.cert.ok ? "Certificate: couldn't check" : st.cert && certTone(st.cert) ? `Certificate: ${st.cert.days_left} days left` : "",
-      st.cert && !st.cert.ok ? "warn" : st.cert && certTone(st.cert)],
+    [wc && !wc.ok ? "Certificate: couldn't check" : wc && certTone(wc) ? `Certificate: ${wc.days_left} days left` : "",
+      wc && !wc.ok ? "warn" : wc && certTone(wc)],
     [load >= 75 ? `Load ${hs.load[0].toFixed(2)}` : "", tone(load, 75, 90)],
     [hs.mem_total ? `Memory ${pct(hs.mem_used, hs.mem_total)}%` : "", hs.mem_total && tone(pct(hs.mem_used, hs.mem_total), 80, 90)],
     [hs.disk_total ? `Disk ${pct(hs.disk_used, hs.disk_total)}%` : "", hs.disk_total && tone(pct(hs.disk_used, hs.disk_total), 80, 90)],
     [bk ? (bad ? `Last scheduled backup ${bk.last.status === "skipped" ? "skipped" : "failed"}` : bk.newest ? `Backup ${ago(bk.newest)}` : "No backup yet") : "",
       bad || (bk && !bk.newest) ? "warn" : ""]]);
+}
+
+// HTTPS certificates. One site: a single tile. Several: folded to one tile with the soonest
+// expiry, open to one tile per site. A cert that needs a look keeps the list open.
+function certTiles(grid, st) {
+  const certs = allCerts(st);
+  if (!certs.length) return;
+  if (certs.length === 1) {
+    const c = certs[0], d = c.days_left;
+    grid.append(c.ok
+      ? stat("HTTPS certificate", `${d} day${d === 1 ? "" : "s"} left`, certTone(c) ? "Not renewed yet: check Caddy's logs" : "Auto-renews", certTone(c))
+      : stat("HTTPS certificate", "Couldn't check", "", "warn"));
+    return;
+  }
+  const needsLook = certs.some((c) => !c.ok || certTone(c));
+  const folded = isFolded("certs") && !needsLook;
+  const w = worstCert(st);
+  if (folded) {
+    grid.append(h("div", { class: "stat" }, h("div", { class: "ver-label cert-fold" }, foldTitle("certs", "HTTPS certificates")),
+      h("div", { class: "stat-value", text: `${w.days_left} day${w.days_left === 1 ? "" : "s"} left` }),
+      h("div", { class: "ver-sub", text: `soonest of ${certs.length} sites` })));
+    return;
+  }
+  grid.append(h("div", { class: "cert-head" }, needsLook
+    ? h("span", { class: "ver-label", text: "HTTPS certificates" })
+    : foldTitle("certs", "HTTPS certificates")));
+  for (const c of certs) {
+    const d = c.days_left, label = c.label || c.host;
+    grid.append(c.ok
+      ? stat(label, `${d} day${d === 1 ? "" : "s"} left`, certTone(c) ? "Not renewed yet: check Caddy's logs" : c.host, certTone(c))
+      : stat(label, "Couldn't check", c.host, "warn"));
+  }
 }
 
 function side(st) {
@@ -547,12 +594,7 @@ function side(st) {
   if (hostFolded) host.firstChild.append(hostSum(st));
   const grid = h("div", { class: "stat-grid" });
   if (hs.uptime != null) grid.append(stat("Up for", fmtDur(hs.uptime), `since ${dayMonth(Date.now() - hs.uptime * 1000)}`));
-  if (st.cert) {
-    const d = st.cert.days_left;
-    grid.append(st.cert.ok
-      ? stat("HTTPS certificate", `${d} day${d === 1 ? "" : "s"} left`, certTone(st.cert) ? "Not renewed yet: check Caddy's logs" : "Auto-renews", certTone(st.cert))
-      : stat("HTTPS certificate", "Couldn't check", "", "warn"));
-  }
+  certTiles(grid, st);
   if (st.vpn === "on" || st.vpn === "off") {
     grid.append(stat("VPN", st.vpn === "on" ? "On" : "Off", st.vpn === "on" ? "Traffic goes through it" : "A direct connection", st.vpn === "on" ? "ok" : ""));
   }

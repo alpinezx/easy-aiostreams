@@ -33,7 +33,7 @@ The same as check 5, for AIOMetadata: **Caddy is running**, **AIOMetadata's cont
 ### Warnings (alert once each way)
 
 6. **Disk nearly full.** The disk holding `/opt/aiostreams` at 90% used or more. The all-clear comes once it's back under 85%, so a disk hovering around 90% doesn't send a stream of alerts. A full disk is a common way for a Docker server to break quietly (old images and logs pile up, then nothing can write).
-7. **Certificate not renewing.** Every 6 hours, the certificate on this server's port 443. Caddy renews well before it runs out (with 30 days left on a 90-day certificate, about 15 on a 45-day one), so under 10 days left means renewal has been failing. An already expired or broken certificate fails the site check above instead.
+7. **Certificate not renewing.** Every 6 hours, the certificate of every site this server serves (the main domain and each add-on's subdomain: MediaFlow, the webhook relay, AIOMetadata, the control panel), asked of this server's port 443. Each site alerts once each way on its own, naming it, so a second site going bad still alerts while the first is. Caddy renews well before it runs out (with 30 days left on a 90-day certificate, about 15 on a 45-day one), so under 10 days left means renewal has been failing. An already expired or broken certificate fails the site check above instead.
 
 ### Once per boot, if switched on
 
@@ -87,7 +87,7 @@ Everything is in `/opt/aiostreams/watchdog-state/`, so a [backup](./backup-resto
 - `config`: the ntfy topic. `options`: the optional alerts and the check-in's day and hour.
 - `events`: what happened, newest last (first failure, alert sent, recovered, started, stopped, test alert, topic changed, restarted, disk, certificate, update, scripts, backup, security, weekly), the last 200, never the topic itself.
 - `tally`: how many checks passed and failed each day, the last 14 days.
-- Small state files: `last-check`, `alert-state`, `failcount`, `disk-state`, `cert-state`, `last-alive`, `shutdown-at`, `boot-reported`, and when the certificate and updates were last looked at.
+- Small state files: `last-check`, `alert-state`, `failcount`, `disk-state`, `cert-state` (bad while any site's certificate is; each site's own in `cert-hosts/`), `last-alive`, `shutdown-at`, `boot-reported`, and when the certificate and updates were last looked at.
 
 The systemd units live outside it (`aiostreams-watchdog.timer`, `.service`, and `aiostreams-watchdog-boot.service`), so a restore recreates them when the watchdog was running at backup time.
 

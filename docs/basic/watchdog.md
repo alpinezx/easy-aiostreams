@@ -51,7 +51,7 @@ If nothing shows up within a few seconds, don't move on yet. See the [advanced g
 
 - **🚨 AIOStreams is down** if a check fails twice in a row (not on a single blip). It says what failed and how to fix it: the site isn't answering, Caddy is down, the certificate is broken, or, when they're set up, the VPN tunnel, MediaFlow Proxy or AIOMetadata.
 - **✅ AIOStreams is back** once everything passes again. One alert each way, not a repeat every check.
-- **⚠️ Disk nearly full** at 90%, and **⚠️ Certificate not renewing** if Caddy hasn't renewed it with 10 days left. Each sends a quiet all-clear once it's fine again.
+- **⚠️ Disk nearly full** at 90%, and **⚠️ Certificate not renewing** if Caddy hasn't renewed one with 10 days left, for your main domain or any add-on's subdomain (it says which). Each sends a quiet all-clear once it's fine again.
 - **Silence when you stop something on purpose** from its own menu (Stop AIOStreams in `setup-aiostreams.sh` or the control panel, Stop in `setup-mediaflow.sh` or `setup-aiometadata.sh`), or turn the VPN off. Only unexpected stops alert.
 
 With the [control panel](./control-panel.md), each alert has an **Open panel** button that opens its **Phone alerts** page.

@@ -455,3 +455,21 @@ def test_weekly_time_reads_new_and_old_settings():
     assert stack.weekly_time({"weekly_hour": "8"}) == "08:00"          # an older script's setting carries over
     assert stack.weekly_time({"weekly_time": "25:00", "weekly_hour": "x"}) == "10:00"
     assert stack.weekly_time({}) == "10:00"
+
+
+def test_certs_lists_every_caddy_site(tmp_path, monkeypatch):
+    b = make_backend(tmp_path, monkeypatch, [container("aiostreams")])
+    root = config.INSTALL_DIR
+    (root / "Caddyfile").write_text("streams.example.com {\n    reverse_proxy aiostreams:3000\n}\nimport caddy.d/*.caddy\n")
+    (root / "caddy.d").mkdir()
+    (root / "caddy.d" / "55-aiometadata.caddy").write_text("meta.example.com {\n    reverse_proxy aiometadata:3232\n}\n")
+    (root / "caddy.d" / "60-ui.caddy").write_text("cp.example.com {\n    reverse_proxy panel:8080\n}\n")
+    b._cert = lambda host: {"host": host, "days_left": 80, "ok": True, "days_total": 90}
+    certs = b._certs("streams.example.com")
+    assert [(c["label"], c["host"]) for c in certs] == [
+        ("AIOStreams", "streams.example.com"), ("AIOMetadata", "meta.example.com"), ("Control panel", "cp.example.com")]
+
+
+def test_certs_empty_without_sites(tmp_path, monkeypatch):
+    b = make_backend(tmp_path, monkeypatch, [container("aiostreams")])
+    assert b._certs(None) == []

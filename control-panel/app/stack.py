@@ -264,6 +264,53 @@ class Backend:
         self._cert_cache[host] = (now + ttl, val)
         return val
 
+    # Which add-on owns a caddy.d snippet, by its file name
+    _SITE_LABELS = (("mediaflow", "MediaFlow"), ("aiometadata", "AIOMetadata"),
+                    ("webhook", "Webhook relay"), ("ui", "Control panel"))
+
+    def _caddy_sites(self, main_domain: str | None) -> list[tuple[str, str]]:
+        """(label, host) for every site Caddy serves: the main domain from the Caddyfile and
+        one per add-on snippet in caddy.d. Read from the files, so a new add-on shows up
+        without the panel needing to know about it."""
+        sites: list[tuple[str, str]] = []
+        seen: set[str] = set()
+
+        def add(label: str, host: str):
+            host = host.lower()
+            if host not in seen and not host.startswith("localhost"):
+                seen.add(host)
+                sites.append((label, host))
+        if main_domain:
+            add("AIOStreams", main_domain)
+        files = [("Site", self.p("Caddyfile"))]
+        try:
+            files += [(f.name, f) for f in sorted(self.p("caddy.d").glob("*.caddy"))]
+        except OSError:
+            pass
+        for name, f in files:
+            label = next((lbl for key, lbl in self._SITE_LABELS if key in name), "Site")
+            for m in re.finditer(r"^([A-Za-z0-9.-]+\.[A-Za-z0-9-]+)(?=\s*\{)", _read(f), re.M):
+                add(label if name != "Site" else "AIOStreams", m.group(1))
+        return sites
+
+    def _certs(self, main_domain: str | None) -> list[dict]:
+        sites = self._caddy_sites(main_domain)
+        if not sites:
+            return []
+        # Parallel, so several unreachable hosts cost one timeout, not one each
+        out: list[dict | None] = [None] * len(sites)
+
+        def work(i: int):
+            label, host = sites[i]
+            c = self._cert(host)
+            out[i] = {**c, "label": label} if c else None
+        threads = [threading.Thread(target=work, args=(i,), daemon=True) for i in range(len(sites))]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(8)
+        return [c for c in out if c]
+
     def _systemd_enabled(self, unit: str) -> bool:
         try:
             r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--",
@@ -529,6 +576,7 @@ class Backend:
             "overall": overall, "headline": headline,
             "services": services, "watchdog": watchdog, "host": host,
             "cert": self._cert(domain) if domain and not domain.startswith("localhost") else None,
+            "certs": self._certs(domain),
             "backup": self.backup_summary() if installed else None,
             "aiometadata": self._aiometadata(by_name.get("aiometadata")),
             "actions": self.available_actions(),
@@ -975,7 +1023,9 @@ class Backend:
         m = re.search(r"^(\S+)\s*\{", _read(self.p("Caddyfile")), re.M)
         if m:
             domain = m.group(1)
-        watches = ([f"https://{domain}"] if domain else ["The site"]) + ["Disk space", "HTTPS certificate"]
+        n_sites = len(self._caddy_sites(domain))
+        watches = ([f"https://{domain}"] if domain else ["The site"]) + [
+            "Disk space", f"HTTPS certificates ({n_sites} sites)" if n_sites > 1 else "HTTPS certificate"]
         img = re.search(r"^\s*image:\s*viren070/aiostreams:(\S+)\s*$", _read(self.p("docker-compose.yml")), re.M)
         if self.vpn_mode() == "on":
             watches += ["VPN tunnel", "AIOStreams through the VPN"]

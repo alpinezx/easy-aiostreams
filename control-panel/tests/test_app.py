@@ -618,3 +618,12 @@ def test_maintenance_leaves_phased_updates_out():
     # if the simulation can't run, every waiting update still shows
     u = stack.Backend._maint_updates(host({"apt": listing, "apt-get": "", "sh": ""}))
     assert (u["count"], u["phased"]) == (3, 0)
+
+
+def test_the_page_offers_restart_for_exactly_what_the_server_allows():
+    import re
+    from pathlib import Path
+    from app import stack
+    js = (Path(__file__).resolve().parents[1] / "web" / "js" / "overview.js").read_text(encoding="utf-8")
+    m = re.search(r"const RESTARTABLE = new Set\(\[([^\]]*)\]\)", js)
+    assert m and set(re.findall(r'"([^"]+)"', m.group(1))) == stack.RESTARTABLE

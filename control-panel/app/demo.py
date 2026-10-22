@@ -162,7 +162,7 @@ class DemoBackend:
         from .stack import mask_topic
         if not self.wd_configured:
             return {"configured": False}
-        watches = ["https://streams.example.com", "Disk space", "HTTPS certificate"] + (["VPN tunnel", "AIOStreams through the VPN"] if self.vpn == "on" else []) + ["MediaFlow Proxy", "AIOMetadata"]
+        watches = ["https://streams.example.com", "Disk space", "HTTPS certificates (3 sites)"] + (["VPN tunnel", "AIOStreams through the VPN"] if self.vpn == "on" else []) + ["MediaFlow Proxy", "AIOMetadata"]
         return {"configured": True, "running": self.wd_running, "alert_state": "up", "fails": 0,
                 "warnings": [w for w in os.environ.get("UI_DEMO_WD_WARN", "").split(",") if w],
                 "last_check": time.strftime("%d %b %Y, %H:%M:%S UTC", time.gmtime(time.time() - 40)) + " OK" if self.wd_running
@@ -255,6 +255,10 @@ class DemoBackend:
             "host": {"cpus": 2, "load": [0.21, 0.34, 0.29], "mem_total": 4 * GB, "mem_used": int(1.6 * GB),
                      "uptime": 41 * 86400 + 3 * 3600, "disk_total": 80 * GB, "disk_used": 23 * GB},
             "cert": {"host": "streams.example.com", "days_left": 61, "ok": True, "days_total": 90},
+            "certs": [{"host": "streams.example.com", "label": "AIOStreams", "days_left": 61, "ok": True, "days_total": 90},
+                      {"host": "meta.example.com", "label": "AIOMetadata", "ok": True, "days_total": 90,
+                       "days_left": 12 if os.environ.get("UI_DEMO_CERT_WARN") else 84},
+                      {"host": "cp.example.com", "label": "Control panel", "days_left": 73, "ok": True, "days_total": 90}],
             "backup": {"newest": max(b["mtime"] for b in self.backups()) if self.backups() else None,
                        **self.schedule, "last": self._last_run()},
             # AIOMetadata's card, only once it's installed; its newer releases come from GitHub

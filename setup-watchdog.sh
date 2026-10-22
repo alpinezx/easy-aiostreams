@@ -295,23 +295,66 @@ check_disk() {
 # Every 6 hours is plenty: Caddy renews weeks ahead. Asks this server's own
 # port 443, like the site check. A certificate that's already broken is the
 # site check's job.
+# Every site Caddy serves, main domain first: the Caddyfile's, then each
+# add-on's caddy.d site (MediaFlow, webhook relay, AIOMetadata, the control
+# panel). Each has a certificate of its own. Site lines are a hostname then
+# "{"; inner blocks ("handle @x {") have no dot in their first word.
+site_domains() {
+    awk 'NF && $1 !~ /^#/ && $2 == "{" && $1 ~ /\./ && $1 ~ /^[A-Za-z0-9.-]+$/ {print tolower($1)}' \
+        "$INSTALL_DIR/Caddyfile" "$INSTALL_DIR"/caddy.d/*.caddy 2>/dev/null | awk '!seen[$0]++' || true
+}
+
+# Every 6 hours, each site's certificate on this server's port 443. Each site
+# alerts once each way on its own (cert-hosts/<site> holds its state), so a
+# second one going bad still alerts while the first is. cert-state stays
+# "bad" while any is, for status and the control panel. A site that can't be
+# asked keeps the state it had.
 check_cert() {
-    local stamp="$STATE_DIR/cert-checked" domain end days
+    local stamp="$STATE_DIR/cert-checked" dir="$STATE_DIR/cert-hosts" domain end days state was f any=0 sites=()
     if [[ -f "$stamp" ]] && (( $(date +%s) - $(stat -c %Y "$stamp") < 21600 )); then return 0; fi
     touch "$stamp"
-    domain=$(site_domain)
-    [[ -n "$domain" ]] || return 0
-    end=$(echo | timeout 10 openssl s_client -connect 127.0.0.1:443 -servername "$domain" 2>/dev/null \
-        | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2) || true
-    [[ -n "$end" ]] || return 0
-    days=$(( ( $(date -d "$end" +%s) - $(date +%s) ) / 86400 ))
-    flag_change cert "$( (( days < CERT_WARN_DAYS )) && echo bad || echo ok)" \
-        "Certificate not renewing" \
-        "The HTTPS certificate for $domain runs out in $days days and Caddy hasn't renewed it. Check: docker logs caddy" \
-        "The certificate for $domain runs out in $days days and hasn't been renewed." \
-        "Certificate renewed" \
-        "The HTTPS certificate for $domain was renewed ($days days left)." \
-        "Certificate for $domain renewed, $days days left."
+    mkdir -p "$dir"
+    while IFS= read -r domain; do
+        [[ -n "$domain" ]] || continue
+        sites+=("$domain")
+        # An older watchdog kept one state for the main domain: carry it over, so no repeat alert
+        if [[ ! -f "$dir/$domain" && ${#sites[@]} -eq 1 && -f "$STATE_DIR/cert-state" ]]; then
+            cp "$STATE_DIR/cert-state" "$dir/$domain"
+        fi
+        was=$(cat "$dir/$domain" 2>/dev/null || echo ok)
+        end=$(echo | timeout 10 openssl s_client -connect 127.0.0.1:443 -servername "$domain" 2>/dev/null \
+            | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2) || true
+        if [[ -z "$end" ]]; then
+            [[ "$was" == bad ]] && any=1
+            continue
+        fi
+        days=$(( ( $(date -d "$end" +%s) - $(date +%s) ) / 86400 ))
+        state=$( (( days < CERT_WARN_DAYS )) && echo bad || echo ok)
+        [[ "$state" == bad ]] && any=1
+        [[ "$state" == "$was" ]] && continue
+        echo "$state" > "$dir/$domain"
+        if [[ "$state" == bad ]]; then
+            if send_ntfy "The HTTPS certificate for $domain runs out in $days days and Caddy hasn't renewed it. Check: docker logs caddy" \
+                "Certificate not renewing" 4 warning; then
+                log_event cert "The certificate for $domain runs out in $days days and hasn't been renewed. Alert sent."
+            else
+                log_event cert "The certificate for $domain runs out in $days days and hasn't been renewed. The alert couldn't be sent (ntfy.sh unreachable)."
+            fi
+        else
+            if send_ntfy "The HTTPS certificate for $domain was renewed ($days days left)." "Certificate renewed" 2 white_check_mark; then
+                log_event cert "Certificate for $domain renewed, $days days left. All-clear sent."
+            else
+                log_event cert "Certificate for $domain renewed, $days days left. The all-clear couldn't be sent (ntfy.sh unreachable)."
+            fi
+        fi
+    done < <(site_domains)
+    # Forget sites no longer served (an add-on uninstalled or moved)
+    for f in "$dir"/*; do
+        [[ -e "$f" ]] || continue
+        [[ " ${sites[*]} " == *" ${f##*/} "* ]] || rm -f "$f"
+    done
+    echo "$( (( any )) && echo bad || echo ok)" > "$STATE_DIR/cert-state"
+    return 0
 }
 
 # The control panel's address, if it's installed, for the alert's
@@ -1045,7 +1088,9 @@ do_status() {
     else
         echo "Watchdog:      STOPPED, no checks running"
     fi
-    watches="https://$(site_domain), disk space, HTTPS certificate"
+    local n_sites
+    n_sites=$(site_domains | grep -c . || true)
+    watches="https://$(site_domain), disk space, HTTPS certificate$( (( n_sites > 1 )) && echo "s ($n_sites sites)")"
     vpn_mode_on && watches+=", VPN tunnel, AIOStreams through the VPN"
     mediaflow_configured && watches+=", MediaFlow Proxy"
     aiometadata_configured && watches+=", AIOMetadata"
