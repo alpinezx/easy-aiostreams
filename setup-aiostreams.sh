@@ -633,6 +633,32 @@ do_free_space() {
     fi
 }
 
+# Ubuntu's waiting updates that Install updates would install now, one
+# "package/source version arch [upgradable ...]" line each. Ubuntu phases some
+# updates in (a growing share of servers over a few days) and apt holds those
+# back until this server's turn, so they're left out: installing wouldn't
+# touch them. upgradable_count counts every waiting one, phased included.
+# Read-only.
+upgradable_now() {
+    command -v apt >/dev/null 2>&1 || return 1
+    local sim list p line
+    local -A ready=()
+    list=$(apt list --upgradable 2>/dev/null | grep -F '[upgradable' || true)
+    [[ -n "$list" ]] || return 0
+    sim=$(apt-get -s -o Debug::NoLocking=1 upgrade --with-new-pkgs 2>/dev/null || true)
+    # If the simulation can't run, show them all rather than none
+    [[ -n "$sim" ]] || { echo "$list"; return 0; }
+    while read -r p; do [[ -n "$p" ]] && ready[$p]=1; done < <(awk '/^Inst /{print $2}' <<< "$sim")
+    while IFS= read -r line; do
+        [[ -n "${ready[${line%%/*}]:-}" ]] && echo "$line"
+    done <<< "$list"
+    return 0
+}
+
+upgradable_count() {
+    apt list --upgradable 2>/dev/null | grep -cF '[upgradable' || true
+}
+
 # Ubuntu's package updates, as "apt upgrade" over SSH would, keeping any config
 # file you've changed. If Docker itself was upgraded it restarts every
 # container, so the stack is brought back afterwards (the control panel runs
@@ -777,7 +803,7 @@ status_version() {
 }
 
 show_status() {
-    local domain end days c label st up load cpus mem total used pct sched every time day line list n s age newest
+    local domain end days c label st up load cpus mem total used pct sched every time day line list n s ph age newest
     cd "$INSTALL_DIR"
     domain=$(head -n1 "$CADDYFILE" 2>/dev/null | awk '{print $1}')
     echo "=== AIOStreams ==="
@@ -847,12 +873,15 @@ show_status() {
     else
         echo "  Backups:   none yet, $every"
     fi
-    if list=$(apt list --upgradable 2>/dev/null | grep -F '[upgradable'); then
+    if list=$(upgradable_now); then
         n=$(grep -c . <<< "$list" || true)
         s=$(grep -c -- '-security' <<< "$list" || true)
-        echo "  Updates:   $n waiting$( (( s )) && echo " ($s for security)"), option 11 installs them"
-    elif command -v apt >/dev/null 2>&1; then
-        echo "  Updates:   none waiting"
+        ph=$(( $(upgradable_count) - n ))
+        if (( n )); then
+            echo "  Updates:   $n waiting$( (( s )) && echo " ($s for security)"), option 11 installs them$( (( ph > 0 )) && echo "; $ph more rolling out gradually (phased)")"
+        else
+            echo "  Updates:   none waiting$( (( ph > 0 )) && echo " ($ph rolling out gradually, phased: Ubuntu offers them to this server in a few days)")"
+        fi
     fi
     if [[ -f /var/run/reboot-required ]]; then echo -e "  \033[1;33mA restart is needed to finish installing updates.\033[0m"; fi
     return 0
@@ -860,7 +889,7 @@ show_status() {
 
 # What Maintenance would do, before doing it
 maint_summary() {
-    local ids=() img size=0 b build journal list n s
+    local ids=() img size=0 b build journal list n s ph
     while IFS= read -r img; do [[ -n "$img" ]] && ids+=("$img"); done < <(docker images -f dangling=true -q 2>/dev/null)
     for img in $(docker images viren070/aiostreams --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | grep -v '<none>'); do
         if [[ -z "$(docker ps -aq --filter "ancestor=$img")" ]]; then ids+=("$(docker images -q "$img")"); fi
@@ -874,12 +903,15 @@ maint_summary() {
     echo "  Old images nothing uses: ${#ids[@]}$( (( ${#ids[@]} )) && echo " (up to $(bytes "$size"))")"
     echo "  Build leftovers:         ${build:-0B}"
     [[ -n "$journal" ]] && echo "  System logs:             $journal (free up space trims them to the newest 100 MB)"
-    if list=$(apt list --upgradable 2>/dev/null | grep -F '[upgradable'); then
+    if list=$(upgradable_now); then
         n=$(grep -c . <<< "$list" || true)
         s=$(grep -c -- '-security' <<< "$list" || true)
-        echo "  Updates waiting:         $n$( (( s )) && echo " ($s for security)")"
-    elif command -v apt >/dev/null 2>&1; then
-        echo "  Updates waiting:         none"
+        ph=$(( $(upgradable_count) - n ))
+        if (( n )); then
+            echo "  Updates waiting:         $n$( (( s )) && echo " ($s for security)")$( (( ph > 0 )) && echo ", and $ph rolling out gradually (phased)")"
+        else
+            echo "  Updates waiting:         none$( (( ph > 0 )) && echo " ($ph rolling out gradually, phased)")"
+        fi
     fi
     [[ -f /var/run/reboot-required ]] && echo "  A restart is needed to finish installing updates (sudo reboot, when it suits)."
     if [[ -s /etc/docker/daemon.json ]] && grep -q '"max-size"' /etc/docker/daemon.json; then

@@ -545,10 +545,25 @@ check_backup() {
 
 # Ubuntu's waiting updates, one "package/source version arch [upgradable ...]"
 # line each, from the package lists apt last downloaded (Ubuntu refreshes
-# them daily). Read-only; nothing here installs anything.
+# them daily). Only the ones installing would install now: Ubuntu phases some
+# updates in (a growing share of servers over a few days), and apt holds those
+# back until this server's turn, so they'd still be waiting after an install
+# (a simulated upgrade, as Install updates runs it, says which). Read-only;
+# nothing here installs anything.
 upgradable() {
     command -v apt >/dev/null 2>&1 || return 1
-    apt list --upgradable 2>/dev/null | grep -F '[upgradable' || true
+    local sim list p line
+    local -A ready=()
+    list=$(apt list --upgradable 2>/dev/null | grep -F '[upgradable' || true)
+    [[ -n "$list" ]] || return 0
+    sim=$(apt-get -s -o Debug::NoLocking=1 upgrade --with-new-pkgs 2>/dev/null || true)
+    # If the simulation can't run, show them all rather than none
+    [[ -n "$sim" ]] || { echo "$list"; return 0; }
+    while read -r p; do [[ -n "$p" ]] && ready[$p]=1; done < <(awk '/^Inst /{print $2}' <<< "$sim")
+    while IFS= read -r line; do
+        [[ -n "${ready[${line%%/*}]:-}" ]] && echo "$line"
+    done <<< "$list"
+    return 0
 }
 
 # Optional, off until switched on. Ubuntu installs security updates by
