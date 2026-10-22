@@ -452,11 +452,25 @@ do_status() {
     fi
 }
 
+# The Dashboard's plain key rows (TMDB API Key and so on) are published:
+# /api/config hands them to anyone, with no login. Prints the names of the
+# ones holding a key (never a key itself); fails if it can't ask. trakt and
+# simkl there are sign-in app IDs, not secrets, so they're left out.
+published_keys() {
+    local json pair found=()
+    json=$(docker exec "$CONTAINER_NAME" wget -qO- --timeout=5 "http://localhost:${INTERNAL_PORT}/api/config" 2>/dev/null) || return 1
+    [[ "$json" == "{"* ]] || return 1
+    for pair in tmdb:TMDB tvdb:TVDB fanart:Fanart rpdb:RPDB mdblist:MDBList gemini:Gemini; do
+        grep -qP "\"${pair%%:*}\":\s*\"[^\"]+\"" <<< "$json" && found+=("${pair#*:}")
+    done
+    echo "${found[*]}"
+}
+
 do_test() {
     container_running "$CONTAINER_NAME" || error "Not running. Start it first (option 2)."
     load_config
 
-    info "1/2: Checking AIOMetadata answers inside its container"
+    info "1/3: Checking AIOMetadata answers inside its container"
     if docker exec "$CONTAINER_NAME" wget -q --spider --timeout=5 "http://localhost:${INTERNAL_PORT}/health/live" 2>/dev/null; then
         echo "  OK, it's alive."
     else
@@ -464,7 +478,7 @@ do_test() {
         return 0
     fi
 
-    info "2/2: Checking https://${DOMAIN}, the way your apps reach it"
+    info "2/3: Checking https://${DOMAIN}, the way your apps reach it"
     local status
     status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 "https://${DOMAIN}/health/live" 2>/dev/null || echo "000")
     if [[ "$status" == "200" ]]; then
@@ -474,6 +488,20 @@ do_test() {
         warn "  Check its A record, and 'docker compose logs caddy' in $INSTALL_DIR."
     else
         warn "  Got HTTP ${status}, expected 200. Check 'docker compose logs caddy' in $INSTALL_DIR."
+    fi
+
+    info "3/3: Checking no API key is published"
+    local keys
+    if ! keys=$(published_keys); then
+        warn "  Couldn't ask it (its /api/config didn't answer)."
+    elif [[ -z "$keys" ]]; then
+        echo "  OK, none. Keys in the Dashboard's Built-in rows stay on this server."
+    else
+        alert "Published API keys: ${keys// /, }"
+        warn "  They're in the Dashboard's plain key rows, which AIOMetadata hands to anyone who"
+        warn "  opens your configure page. Move each to its Built-in row (e.g. Built-in TMDB Key)"
+        warn "  and clear the plain one. If this instance has been reachable, get a new key from"
+        warn "  that provider too."
     fi
 }
 
