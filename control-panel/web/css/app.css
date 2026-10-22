@@ -884,15 +884,15 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 
 /* The Overview: the headline, then the cards in the order Edit saved (layout.js sets
    --o-<card> and data-hide). By default: the request flow it illustrates, the version
-   card, This server and Phone alerts, then the services. */
+   card, the add-ons' cards (AIOMetadata, Phone alerts), then This server and the services. */
 #view-overview:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr); }
 #view-overview .cols, #view-overview .side { display: contents; }
 #view-overview .hero { order: 0; }
 #view-overview .path { order: var(--o-flow, 1); }
 #view-overview .ver-slot { order: var(--o-aiostreams, 2); margin: 0 0 30px; }
 #view-overview .meta-slot { order: var(--o-aiometadata, 3); }
-#view-overview .panel.host { order: var(--o-server, 4); margin: 0 0 30px; }
-#view-overview .panel.wd { order: var(--o-alerts, 5); margin: 0 0 30px; }
+#view-overview .panel.wd { order: var(--o-alerts, 4); margin: 0 0 30px; }
+#view-overview .panel.host { order: var(--o-server, 5); margin: 0 0 30px; }
 #view-overview .cols > div { order: var(--o-services, 6); margin: 0 0 30px; }
 #view-overview[data-hide~="flow"] .path, #view-overview[data-hide~="aiostreams"] .ver-slot:not(.meta-slot),
 #view-overview[data-hide~="aiometadata"] .meta-slot,

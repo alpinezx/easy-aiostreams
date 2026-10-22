@@ -142,6 +142,14 @@ function isFolded(id) {
   }
   return folds[id];
 }
+// Edit's Reset to default: forget this browser's folds, so each card is back to how it starts
+window.addEventListener("layout-reset", () => {
+  for (const id of Object.keys(folds)) {
+    delete folds[id];
+    try { localStorage.removeItem(foldKey(id)); } catch (_) {}
+  }
+  if (lastSt) render(lastSt, lastGoLogs);
+});
 function setFold(id) {
   folds[id] = !isFolded(id);
   try { localStorage.setItem(foldKey(id), folds[id] ? "1" : "0"); } catch (_) {}

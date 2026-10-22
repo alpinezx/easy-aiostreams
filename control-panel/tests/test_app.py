@@ -561,12 +561,18 @@ def test_backup_schedule(client):
 def test_overview_layout(client):
     login(client)
     ids = lambda r: [(c["id"], c["show"]) for c in r.json()["cards"]]
-    default = [("flow", True), ("aiostreams", True), ("aiometadata", True), ("server", True), ("alerts", True), ("services", True)]
+    default = [("flow", True), ("aiostreams", True), ("aiometadata", True), ("alerts", True), ("server", True), ("services", True)]
     assert ids(client.get("/api/overview-layout")) == default
     # unknown and repeated cards are dropped; ones left out go back to their default place
     r = client.put("/api/overview-layout", json={"cards": [{"id": "services", "show": True}, {"id": "nope"},
                                                          {"id": "alerts", "show": False}, {"id": "services", "show": False}]})
-    assert ids(r) == [("flow", True), ("aiostreams", True), ("aiometadata", True), ("server", True), ("services", True), ("alerts", False)]
+    assert ids(r) == [("flow", True), ("aiostreams", True), ("aiometadata", True), ("services", True), ("alerts", False), ("server", True)]
+    # layout.js lists the cards in the same default order
+    import re
+    from pathlib import Path
+    js = (Path(__file__).resolve().parents[1] / "web" / "js" / "layout.js").read_text(encoding="utf-8")
+    block = js[js.index("const CARDS = {"):js.index("};", js.index("const CARDS = {"))]
+    assert re.findall(r"^\s+(\w+): \[", block, re.M) == [c for c, _ in default]
     assert ids(client.get("/api/overview-layout")) == ids(r)
     assert client.put("/api/overview-layout", json={"cards": "x"}).status_code == 400
     assert ids(client.put("/api/overview-layout", json={"cards": []})) == default

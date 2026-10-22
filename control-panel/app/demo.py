@@ -175,7 +175,7 @@ class DemoBackend:
         from .stack import mask_topic
         if not self.wd_configured:
             return {"configured": False}
-        watches = ["https://streams.example.com", "Disk space", "HTTPS certificates (3 sites)"] + (["VPN tunnel", "AIOStreams through the VPN"] if self.vpn == "on" else []) + ["MediaFlow Proxy", "AIOMetadata"]
+        watches = ["https://streams.example.com", "Disk space", "HTTPS certificates (5 sites)"] + (["VPN tunnel", "AIOStreams through the VPN"] if self.vpn == "on" else []) + ["MediaFlow Proxy", "AIOMetadata"]
         return {"configured": True, "running": self.wd_running, "alert_state": "up", "fails": 0,
                 "warnings": [w for w in os.environ.get("UI_DEMO_WD_WARN", "").split(",") if w],
                 "last_check": time.strftime("%d %b %Y, %H:%M:%S UTC", time.gmtime(time.time() - 40)) + " OK" if self.wd_running

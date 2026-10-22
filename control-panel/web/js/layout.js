@@ -6,8 +6,8 @@ const CARDS = {
   flow: ["Request flow", "Visitors through Caddy to AIOStreams, and the add-ons"],
   aiostreams: ["AIOStreams", "Its version and updates"],
   aiometadata: ["AIOMetadata", "Its version, updates and pages"],
-  server: ["This server", "Uptime, certificate, memory, disk and backups"],
   alerts: ["Phone alerts", "The watchdog, its last check and 14 days"],
+  server: ["This server", "Uptime, certificate, memory, disk and backups"],
   services: ["Services", "Each container, with Logs, Restart and Stop"],
 };
 const DEFAULT = Object.keys(CARDS).map((id) => ({ id, show: true }));
@@ -137,6 +137,10 @@ function drag(grip, li, ul) {
 }
 
 $("#lay-x").addEventListener("click", closeLayout);
-$("#lay-reset").addEventListener("click", () => { cards = DEFAULT.map((c) => ({ ...c })); list(); save(); });
+// Reset puts this browser's folds back too (overview.js listens): only the request flow folded
+$("#lay-reset").addEventListener("click", () => {
+  cards = DEFAULT.map((c) => ({ ...c })); list(); save();
+  window.dispatchEvent(new CustomEvent("layout-reset"));
+});
 $("#scrim").addEventListener("click", closeLayout);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && $("#dialog").hidden) closeLayout(); });
