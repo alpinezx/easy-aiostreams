@@ -24,26 +24,23 @@ On a first run it used about 440 MB of memory, and Redis about 20 MB.
 
 ## How it's kept private
 
-- **Addon password (required).** Creating or deleting a configuration needs it. The configure page still opens, but won't save without it. Configurations you've made keep working in your apps through their install links, and each has its own password for editing it. Change the addon password with **4) Reconfigure**.
-- **The Dashboard is locked.** It opens only with the **admin key**, and guest mode is switched off (`DISABLE_GUEST_MODE=true`), so its stats, analytics and settings answer nobody else. The key is generated once and kept: AIOMetadata also signs its artwork links with it, so changing it would break links it has already handed out.
-- **No page-level login.** AIOMetadata's only whole-site lock (`AUTH_REQUIRE_SIGNIN`) needs a single sign-on provider, which is more than this setup takes on, and a Caddy password in front would break your apps, which use the same addresses as the configure page. The addon password and the locked Dashboard are what keep it yours.
+The script sets two things AIOMetadata leaves open by default:
 
-## API keys: Built-in rows only
+- **An addon password (`ADDON_PASSWORD`, always set).** Creating or deleting a configuration needs it, so nobody can piggyback on your instance, your server or your API keys. The configure page still opens, but won't save without it. Configurations you've made keep working in your apps through their install links. Change it with **4) Reconfigure**.
+- **Guest mode off (`DISABLE_GUEST_MODE=true`).** AIOMetadata's Dashboard otherwise lets anyone read its stats, analytics and system pages. With guest mode off, it opens only with the **admin key** the script generates. The key is kept once made: AIOMetadata also signs its artwork links with it, so changing it would break links it has already handed out.
 
-The Dashboard's **Settings → API Keys** has two kinds of rows, and they behave very differently:
+Two things it doesn't do:
 
-- **Built-in ... rows** (e.g. **Built-in TMDB Key**, `BUILT_IN_TMDB_API_KEY`) stay on your server. Any configuration without a key of its own uses them, and the configure page hides its own TMDB field once one is set. Saved in AIOMetadata's database, so backups include them.
-- **Plain rows** (e.g. **TMDB API Key**) are **published**: AIOMetadata hands them to anyone who asks, without a login, and the configure page fills them in for every visitor.
+- **No page-level login.** AIOMetadata's only whole-site lock (`AUTH_REQUIRE_SIGNIN`) needs a single sign-on provider, more than this setup takes on, and a password in front of the whole site would break your apps, which use the same addresses as the configure page.
+- **It can't stop you publishing a key.** In the Dashboard's API key settings, the **Built-in ...** rows stay on the server, but the plain rows (e.g. **TMDB API Key**) are handed to anyone who asks. To check nothing is published, ask as a stranger would:
 
-So use the Built-in rows. With the addon password set, your instance is private, which is when AIOMetadata's own docs say Built-in keys (even the per-request MDBList and Gemini ones) are fine.
+  ```bash
+  curl -s https://meta.yourdomain.com/api/config
+  ```
 
-To check nothing is published, ask it as a stranger would:
+  The plain keys (`tmdb` and so on) should be empty.
 
-```bash
-curl -s https://meta.yourdomain.com/api/config
-```
-
-The plain keys (`tmdb` and so on) should be empty, and `hasBuiltInTmdb` should be `true`.
+Everything else (catalogs, keys, configurations) is set up in AIOMetadata itself: see [its README](https://github.com/cedya77/aiometadata#readme).
 
 ## Updates and going back
 
