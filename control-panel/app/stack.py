@@ -689,9 +689,19 @@ class Backend:
         if not out and not self._on_host("sh", "-c", "command -v apt"):
             return {"available": False}
         lines = [l for l in out.splitlines() if "/" in l and "[upgradable" in l]
+        # Only what Install updates would install now: Ubuntu phases some updates in (a growing
+        # share of servers over a few days) and apt holds those back until this server's turn.
+        # A simulated upgrade, as Install updates runs it, says which; they're counted apart.
+        phased = 0
+        if lines:
+            sim = self._on_host("apt-get", "-s", "-o", "Debug::NoLocking=1", "upgrade", "--with-new-pkgs", timeout=60)
+            if sim:
+                ready = {l.split()[1] for l in sim.splitlines() if l.startswith("Inst ") and len(l.split()) > 1}
+                now = [l for l in lines if l.split("/", 1)[0] in ready]
+                phased, lines = len(lines) - len(now), now
         stamp = self._on_host("sh", "-c", "stat -c %Y /var/lib/apt/periodic/update-success-stamp 2>/dev/null "
                                        "|| stat -c %Y /var/lib/apt/lists 2>/dev/null").strip()
-        return {"available": True, "count": len(lines), "security": sum("-security" in l for l in lines),
+        return {"available": True, "count": len(lines), "security": sum("-security" in l for l in lines), "phased": phased,
                 "reboot": bool(self._on_host("sh", "-c", "test -e /var/run/reboot-required && echo y").strip()),
                 "checked_at": int(stamp) if stamp.isdigit() else None}
 
