@@ -194,7 +194,8 @@ function hero(st) {
   const avail = Object.fromEntries(st.actions.map((a) => [a.id, a]));
   const aio = st.services.find((s) => s.key === "aiostreams");
   const key = [st.overall, st.headline, st.domain, st.channel, st.version, st.build_tag, st.vpn, !!st.busy, aio && aio.state,
-    st.cert && st.cert.ok, st.cert && st.cert.days_left, st.cert && st.cert.days_total, st.installed, st.docker_ok, relLoading, rel && rel.checked_at, rel && rel.error, isFolded("aiostreams")].join("|");
+    st.cert && st.cert.ok, st.cert && st.cert.days_left, st.cert && st.cert.days_total, st.installed, st.docker_ok, relLoading, rel && rel.checked_at, rel && rel.error, isFolded("aiostreams"),
+    JSON.stringify(st.aiometadata || null), isFolded("aiometadata")].join("|");
   rebuild("#hero", key, (el) => {
     // The headline, and after it the "Script updates" pill while a setup script here differs
     // from GitHub (it drops below the headline when they don't fit on one line).
@@ -211,6 +212,10 @@ function hero(st) {
     const ver = $("#ver");
     clear(ver);
     if (st.version) ver.append(versionCard(st, avail));
+    // AIOMetadata's card, only once it's installed (it isn't nudged)
+    const meta = $("#meta");
+    clear(meta);
+    if (st.aiometadata) meta.append(metaCard(st, avail));
 
     if (!st.installed) {
       el.append(h("p", { class: "empty", text: "AIOStreams isn't installed on this server yet. Run setup-aiostreams.sh over SSH first." }));
@@ -234,6 +239,69 @@ function editBtn() {
 // The build in a card of its own, laid out like AIOStreams' own Version card:
 // the version here, the latest, and the buttons, with the channel in the corner. No
 // labels: the values say what they are ("v2.36.0", "Up to date", "v2.36.1 available").
+// A card's own pages, in blue beside its title, each opening in a new tab
+function cardPages(domain, pages) {
+  return h("span", { class: "card-pages" }, ...pages.map(([label, path]) => h("a", { class: "card-page",
+    href: `https://${domain}${path}`, target: "_blank", rel: "noopener noreferrer",
+    title: `Opens https://${domain}${path} in a new tab` }, label, extIcon())));
+}
+
+// AIOMetadata's releases, from GitHub, kept 3 hours like AIOStreams'. Check now asks again.
+let metaRel = null, metaRelLoading = false;
+async function loadMetaReleases(force) {
+  if (metaRelLoading) return;
+  metaRelLoading = true;
+  if (lastSt) { keys["#hero"] = null; hero(lastSt); }
+  try { metaRel = await api(`/api/aiometadata-releases${force ? "?force=1" : ""}`); }
+  catch (e) { metaRel = { channel: "aiometadata", releases: [], error: e.message }; }
+  metaRel.name = "AIOMetadata";
+  metaRel.page = "https://github.com/cedya77/aiometadata/releases";
+  metaRelLoading = false;
+  if (lastSt) { keys["#hero"] = null; hero(lastSt); }
+  if (force && lastSt && lastSt.aiometadata) {
+    const running = `v${lastSt.aiometadata.version}`;
+    const top = metaRel.releases.length ? behind(metaRel, running).newer[0] : null;
+    if (!metaRel.releases.length) toast(`Couldn't check for updates. ${metaRel.error || ""}`.trim(), true);
+    else toast(top ? `AIOMetadata ${top.tag} is available.` : `AIOMetadata ${running} is the latest release.`);
+  }
+}
+
+// AIOMetadata's card, laid out like AIOStreams'. Its releases come up to twice a day, so a
+// newer one is a plain line, never amber or a blue button: Update only when pressed.
+function metaCard(st, avail) {
+  const m = st.aiometadata;
+  const running = `v${m.version}`;
+  if (!metaRel) loadMetaReleases(false);
+  const list = metaRel && metaRel.releases.length ? metaRel : null;
+  const top = list ? behind(list, running).newer[0] : null;
+  const mine = list && list.releases.find((r) => r.tag === running);
+  const latest = !metaRel ? h("span", { class: "dim", text: "Checking…" })
+    : !list ? h("span", { class: "warn", title: metaRel.error || "", text: "Couldn't check" })
+    : h("span", { class: top ? "quiet" : "ok", text: top ? `${top.tag} available` : "Up to date" });
+  const upd = avail["aiometadata.update"];
+  const updBtn = upd && upd.available ? h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
+    title: "Update AIOMetadata to its newest release, with a backup first", onclick: () => runAction(upd) }) : null;
+  const title = h("div", { class: "fold-title" },
+    h("h2", {}, foldTitle("aiometadata", "AIOMetadata")),
+    m.domain ? cardPages(m.domain, [["Dashboard", "/dashboard"], ["Configure", "/configure"]]) : null);
+  if (isFolded("aiometadata")) {
+    return h("section", { class: "panel ver-card folded", "aria-label": "AIOMetadata version" },
+      h("div", { class: "ver-head" }, title, foldSum([[running], [latest]]), updBtn));
+  }
+  const col = (value, sub) => h("div", {}, h("div", { class: "ver-value" }, value), h("div", { class: "ver-sub", text: sub || "" }));
+  return h("section", { class: "panel ver-card", "aria-label": "AIOMetadata version" },
+    h("div", { class: "ver-head" }, title),
+    h("div", { class: "ver-grid" },
+      col(running, mine && mine.published ? `Released ${ago(Date.parse(mine.published) / 1000)}` : ""),
+      h("div", { class: "ver-right" },
+        col(latest, top && top.published ? `Released ${ago(Date.parse(top.published) / 1000)}` : list ? `Checked ${ago(metaRel.checked_at)}` : ""),
+        h("div", { class: "ver-btns" }, updBtn,
+          h("button", { class: "btn small", type: "button", text: metaRelLoading ? "Checking…" : "Check now", disabled: metaRelLoading,
+            title: "Ask GitHub for the latest AIOMetadata release now", onclick: () => loadMetaReleases(true) }),
+          list ? h("button", { class: "btn small", type: "button", text: "All releases",
+            title: "What changed in each AIOMetadata release", onclick: () => openReleases(list, running) }) : null))));
+}
+
 function versionCard(st, avail) {
   const nightly = relChannel(st) === "nightly";
   const running = runningTag(st);
@@ -245,11 +313,9 @@ function versionCard(st, avail) {
   if (upd && upd.available) btns.unshift(h("button", { class: "btn small" + (fresh ? " primary" : ""), type: "button", text: "Update",
     disabled: !!st.busy, title: "Update AIOStreams, or switch between stable and nightly", onclick: () => runAction(upd) }));
   // The title folds the card like the others; its two pages are links beside it
-  const page = (label, path) => h("a", { class: "card-page", href: `https://${st.domain}${path}`, target: "_blank", rel: "noopener noreferrer",
-    title: `Opens https://${st.domain}${path} in a new tab` }, label, extIcon());
   const title = h("div", { class: "fold-title" },
     h("h2", {}, foldTitle("aiostreams", "AIOStreams")),
-    st.domain ? h("span", { class: "card-pages" }, page("Dashboard", "/dashboard"), page("Configure", "/stremio/configure")) : null);
+    st.domain ? cardPages(st.domain, [["Dashboard", "/dashboard"], ["Configure", "/stremio/configure"]]) : null);
   if (isFolded("aiostreams")) {
     // One line: the version running, whether a newer one is out, and Update
     return h("section", { class: "panel ver-card folded", "aria-label": "AIOStreams version" },
@@ -263,8 +329,7 @@ function versionCard(st, avail) {
         title: nightly ? "AIOStreams' nightly builds (Docker tag: nightly). Switch with Update." : "AIOStreams' stable releases (Docker tag: latest). Switch with Update." })),
     h("div", { class: "ver-grid" },
       col(`v${st.version}`, nightly ? (running ? `Nightly ${running.slice(0, -8)}` : "") : releasedAgo(running)),
-      col(latest, latestSub),
-      h("div", { class: "ver-btns" }, ...btns)));
+      h("div", { class: "ver-right" }, col(latest, latestSub), h("div", { class: "ver-btns" }, ...btns))));
 }
 
 // ---------------- signal path ----------------

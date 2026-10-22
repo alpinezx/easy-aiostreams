@@ -78,9 +78,14 @@ export function openReleases(rel, running) {
   clear(list);
   const nightly = rel.channel === "nightly";
   const { newer, count } = behind(rel, running);
-  $("#rel-title").textContent = nightly ? "AIOStreams nightly builds" : "AIOStreams releases";
-  $("#rel-sub").textContent = `${nightly ? "Nightly builds" : "Stable releases"}, newest first. You're running ${tagLabel(running)}, `
+  // AIOStreams' by default; AIOMetadata's list carries its own name and page
+  const name = rel.name || "AIOStreams";
+  $("#rel-title").textContent = nightly ? `${name} nightly builds` : `${name} releases`;
+  $("#rel-sub").textContent = `${nightly ? "Nightly builds" : rel.name ? "Releases" : "Stable releases"}, newest first. You're running ${tagLabel(running)}, `
     + (newer.length ? `${count} behind.` : "the latest.");
+  const foot = $("#rel-foot");
+  foot.href = rel.page || "https://github.com/Viren070/AIOStreams/releases";
+  foot.firstChild.textContent = rel.page ? "Every release on GitHub " : "Every release on GitHub, nightlies included ";
   rel.releases.forEach((r, i) => {
     const body = h("div", { class: "rel-body" });
     const open = i === 0 || newer.includes(r);

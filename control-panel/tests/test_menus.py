@@ -42,7 +42,8 @@ def test_aiostreams_menu_numbers_the_panel_types():
 
 
 def test_addon_menu_numbers_the_panel_types():
-    for script, action_id in (("setup-mediaflow.sh", "mediaflow.stop"), ("setup-webhook.sh", "webhook.stop")):
+    for script, action_id in (("setup-mediaflow.sh", "mediaflow.stop"), ("setup-webhook.sh", "webhook.stop"),
+                              ("setup-aiometadata.sh", "aiometadata.stop")):
         m = menu(script)
         assert m["3"] == "Stop" and m["10"] == "Exit", script
         assert typed(action_id)[:2] == ["3", "10"], action_id
@@ -59,3 +60,8 @@ def test_the_panel_runs_named_commands_the_scripts_know():
     assert '"${1:-}" == "stop-relay"' in (ROOT / "setup-webhook.sh").read_text(encoding="utf-8")
     assert actions.resolve("mediaflow.stop").args == ("stop-mediaflow",)
     assert actions.resolve("webhook.stop").args == ("stop-relay",)
+    meta = (ROOT / "setup-aiometadata.sh").read_text(encoding="utf-8")
+    for cmd in ("start-aiometadata", "stop-aiometadata", "update-aiometadata"):
+        assert re.search(rf"^\s*{cmd}\)", meta, re.M), cmd
+    assert actions.resolve("aiometadata.stop").args == ("stop-aiometadata",)
+    assert actions.resolve("aiometadata.start").args == ("start-aiometadata",)

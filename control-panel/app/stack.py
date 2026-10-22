@@ -103,11 +103,12 @@ SERVICES = [
     ("aiostreams", "aiostreams", "AIOStreams", "Addon aggregator", None),
     ("mediaflow", "mediaflow-proxy-light", "MediaFlow Proxy", "Faster video proxy", "mediaflow-state/docker-compose.yml"),
     ("webhook", "aios-webhook-relay", "Webhook relay", "Webhooks to phone alerts", "webhook-relay-state/docker-compose.yml"),
+    ("aiometadata", "aiometadata", "AIOMetadata", "Catalogs and metadata", "aiometadata-state/docker-compose.yml"),
 ]
-ADDONS = {"mediaflow", "webhook"}
+ADDONS = {"mediaflow", "webhook", "aiometadata"}
 # Services the panel may restart on their own. Caddy has the stack-wide Restart,
 # and bouncing the VPN tunnel can strand the containers routed through it.
-RESTARTABLE = {"aiostreams", "mediaflow", "webhook"}
+RESTARTABLE = {"aiostreams", "mediaflow", "webhook", "aiometadata"}
 
 
 TIME_RE = re.compile(r"^([01]?\d|2[0-3]):[0-5]\d$")
@@ -466,6 +467,7 @@ class Backend:
         stopped_marker = {
             "aiostreams": self.p("aiostreams-stopped-on-purpose").exists(),
             "mediaflow": self.p("mediaflow-state/stopped-on-purpose").exists(),
+            "aiometadata": self.p("aiometadata-state/stopped-on-purpose").exists(),
         }
 
         services = []
@@ -528,8 +530,29 @@ class Backend:
             "services": services, "watchdog": watchdog, "host": host,
             "cert": self._cert(domain) if domain and not domain.startswith("localhost") else None,
             "backup": self.backup_summary() if installed else None,
+            "aiometadata": self._aiometadata(by_name.get("aiometadata")),
             "actions": self.available_actions(),
         }
+
+    def _aiometadata(self, container) -> dict | None:
+        """AIOMetadata's domain and the release it runs, once it's installed. Only those two
+        are read from its saved settings: the same file holds its passwords."""
+        conf = _read(self.p("aiometadata-state/config"))
+        if not conf:
+            return None
+
+        def get(key):
+            m = re.search(rf"^{key}=['\"]?([^'\"\s]+)", conf, re.M)
+            return m.group(1) if m else None
+        domain, version = get("DOMAIN"), get("AIOM_VERSION")
+        # The running image's tag is the truth when the container is there; the pinned one otherwise
+        if container is not None:
+            m = re.search(r":(\d+\.\d+\.\d+)$", container.attrs.get("Config", {}).get("Image") or "")
+            if m:
+                version = m.group(1)
+        if not domain or not version or not re.fullmatch(r"\d+\.\d+\.\d+", version):
+            return None
+        return {"domain": domain, "version": version}
 
     @staticmethod
     def _summarize(installed, docker_ok, services):

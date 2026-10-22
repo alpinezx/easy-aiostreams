@@ -347,7 +347,7 @@ def test_scripts_compare_endpoint_covers_every_script_and_the_backup_one(client)
     login(client)
     out = client.get("/api/scripts/compare").json()
     assert set(out["files"]) == {"setup-aiostreams.sh", "setup-vpn-gluetun.sh", "setup-mediaflow.sh",
-                                 "setup-watchdog.sh", "setup-webhook.sh", "setup-backup.sh"}
+                                 "setup-watchdog.sh", "setup-webhook.sh", "setup-aiometadata.sh", "setup-backup.sh"}
     assert out["files"]["setup-mediaflow.sh"]["differs"] is True
     client.post("/api/logout"); client.cookies.clear()
     assert client.get("/api/scripts/compare").status_code == 401
@@ -560,12 +560,38 @@ def test_backup_schedule(client):
 def test_overview_layout(client):
     login(client)
     ids = lambda r: [(c["id"], c["show"]) for c in r.json()["cards"]]
-    default = [("flow", True), ("aiostreams", True), ("server", True), ("alerts", True), ("services", True)]
+    default = [("flow", True), ("aiostreams", True), ("aiometadata", True), ("server", True), ("alerts", True), ("services", True)]
     assert ids(client.get("/api/overview-layout")) == default
     # unknown and repeated cards are dropped; ones left out go back to their default place
     r = client.put("/api/overview-layout", json={"cards": [{"id": "services", "show": True}, {"id": "nope"},
                                                          {"id": "alerts", "show": False}, {"id": "services", "show": False}]})
-    assert ids(r) == [("flow", True), ("aiostreams", True), ("server", True), ("services", True), ("alerts", False)]
+    assert ids(r) == [("flow", True), ("aiostreams", True), ("aiometadata", True), ("server", True), ("services", True), ("alerts", False)]
     assert ids(client.get("/api/overview-layout")) == ids(r)
     assert client.put("/api/overview-layout", json={"cards": "x"}).status_code == 400
     assert ids(client.put("/api/overview-layout", json={"cards": []})) == default
+
+
+def test_aiometadata_status_reads_only_domain_and_version(tmp_path):
+    from types import SimpleNamespace
+    from app import stack
+    (tmp_path / "aiometadata-state").mkdir()
+    conf = tmp_path / "aiometadata-state" / "config"
+    conf.write_text("DOMAIN='meta.example.com'\nADDON_PASSWORD='s3cret'\nADMIN_KEY='k3y'\nAIOM_VERSION='3.6.1'\n")
+    me = SimpleNamespace(p=lambda rel: tmp_path / rel)
+    read = lambda c: stack.Backend._aiometadata(me, c)
+    assert read(None) == {"domain": "meta.example.com", "version": "3.6.1"}
+    # the running image's tag wins over the pinned one
+    running = SimpleNamespace(attrs={"Config": {"Image": "ghcr.io/cedya77/aiometadata:3.6.2"}})
+    assert read(running) == {"domain": "meta.example.com", "version": "3.6.2"}
+    conf.write_text("DOMAIN='meta.example.com'\nAIOM_VERSION='latest'\n")
+    assert read(None) is None
+    conf.unlink()
+    assert read(None) is None
+
+
+def test_aiometadata_update_action():
+    a = actions.resolve("aiometadata.update", {"backup": True})
+    assert a.script == "setup-aiometadata.sh" and a.args == ("update-aiometadata", "--backup")
+    assert actions.resolve("aiometadata.update", {"backup": False}).args == ("update-aiometadata",)
+    with pytest.raises(actions.BadAction):
+        actions.resolve("aiometadata.update", {"backup": "yes"})

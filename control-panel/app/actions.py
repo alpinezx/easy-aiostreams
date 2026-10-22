@@ -76,6 +76,14 @@ _STATIC: dict[str, Action] = {a.id: a for a in [
            needs=("setup-webhook.sh", "webhook-relay-state/docker-compose.yml"),
            confirm="Stop the webhook relay? Incoming webhooks will be rejected until it starts again."),
 
+    Action("aiometadata.start", "Start", "Starting", "Start finished", "setup-aiometadata.sh",
+           args=("start-aiometadata",), timeout=300,
+           needs=("setup-aiometadata.sh", "aiometadata-state/docker-compose.yml")),
+    Action("aiometadata.stop", "Stop", "Stopping", "Stop finished", "setup-aiometadata.sh",
+           args=("stop-aiometadata",), stdin="3\n10\n", timeout=120,
+           needs=("setup-aiometadata.sh", "aiometadata-state/docker-compose.yml"),
+           confirm="Stop AIOMetadata? Catalogs and metadata from it stop loading in Stremio and Nuvio."),
+
     # The VPN's own checks run in the script: the tunnel is confirmed before
     # AIOStreams starts, the boot hook follows the mode, and a failed switch
     # stops with the stack as it was. "off" keeps AIOStreams live throughout.
@@ -153,6 +161,17 @@ def build_update(backup: bool, channel: str | None) -> Action:
     return Action("stack.update", "Update", "Updating", "Update finished", AIO,
                   args=args, stdin="\n".join(answers) + "\n", timeout=1200, needs=(AIO,),
                   confirm=confirm)
+
+
+def build_meta_update(backup: bool) -> Action:
+    """AIOMetadata to its newest release: the script's question-free update-aiometadata,
+    which puts the previous release back by itself if the new one doesn't start."""
+    if not isinstance(backup, bool):
+        raise BadAction("backup must be true or false")
+    return Action("aiometadata.update", "Update", "Updating", "Update finished", "setup-aiometadata.sh",
+                  args=("update-aiometadata",) + (("--backup",) if backup else ()), timeout=1200,
+                  needs=("setup-aiometadata.sh", "aiometadata-state/docker-compose.yml"),
+                  confirm="Update AIOMetadata to its newest release? Its catalogs stop loading for a minute or so.")
 
 
 def build_restore(path: str) -> Action:
@@ -233,13 +252,16 @@ def build_set_topic(topic) -> Action:
 
 
 # Each add-on script's state folder: while it's there, the add-on is set up and its script stays
-ADDON_STATE = {"vpn": "vpn-state", "mediaflow": "mediaflow-state", "watchdog": "watchdog-state", "webhook": "webhook-relay-state"}
+ADDON_STATE = {"vpn": "vpn-state", "mediaflow": "mediaflow-state", "watchdog": "watchdog-state", "webhook": "webhook-relay-state",
+               "aiometadata": "aiometadata-state"}
 
 
 def resolve(action_id: str, params: dict | None = None) -> Action:
     params = params or {}
     if action_id == "stack.update":
         return build_update(params.get("backup", True), params.get("channel"))
+    if action_id == "aiometadata.update":
+        return build_meta_update(params.get("backup", True))
     if action_id == "vpn.use":
         return build_use_address(params.get("ip"))
     if action_id == "vpn.uninstall":
@@ -255,7 +277,7 @@ def resolve(action_id: str, params: dict | None = None) -> Action:
 
 
 def catalog() -> list[Action]:
-    return list(_STATIC.values()) + [build_update(True, None), build_use_address("192.0.2.1"), build_use_config("192.0.2.1"),
+    return list(_STATIC.values()) + [build_update(True, None), build_meta_update(True), build_use_address("192.0.2.1"), build_use_config("192.0.2.1"),
                                      build_delete_config("/"), build_use_file("/", "192.0.2.1"), build_vpn_uninstall(False, False),
                                      build_set_topic("aios-example-topic")]
 
@@ -270,4 +292,5 @@ SCRIPTS = [
     ("mediaflow", "MediaFlow Proxy", "setup-mediaflow.sh"),
     ("watchdog", "Phone alerts", "setup-watchdog.sh"),
     ("webhook", "Webhook relay", "setup-webhook.sh"),
+    ("aiometadata", "AIOMetadata", "setup-aiometadata.sh"),
 ]

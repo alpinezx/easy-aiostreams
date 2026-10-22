@@ -29,7 +29,7 @@ else:
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 lockout = auth.Lockout()
 COOKIE = "ui_session"
-LOGGABLE = {"caddy", "gluetun", "aiostreams", "mediaflow-proxy-light", "aios-webhook-relay"}
+LOGGABLE = {"caddy", "gluetun", "aiostreams", "mediaflow-proxy-light", "aios-webhook-relay", "aiometadata"}
 
 
 # ---- security headers + CSRF ------------------------------------------
@@ -185,6 +185,13 @@ async def scripts_compare(force: bool = False, user: str = Depends(current_user)
     if config.DEMO:
         return scriptsync.demo(files)
     return await asyncio.to_thread(scriptsync.compare, config.INSTALL_DIR, files, force)
+
+
+@app.get("/api/aiometadata-releases")
+async def aiometadata_releases(force: bool = False, user: str = Depends(current_user)):
+    if config.DEMO:
+        return releases.demo("aiometadata")
+    return await asyncio.to_thread(releases.get, force, "aiometadata")
 
 
 @app.get("/api/aiostreams-releases")
@@ -429,7 +436,7 @@ async def backups(user: str = Depends(current_user)):
 
 # Which Overview cards show, and in what order. One layout for the install, kept with the
 # panel's state (so phone and desktop match, and a restore brings it back).
-OVERVIEW_CARDS = ["flow", "aiostreams", "server", "alerts", "services"]
+OVERVIEW_CARDS = ["flow", "aiostreams", "aiometadata", "server", "alerts", "services"]
 _layout_lock = threading.Lock()
 
 
