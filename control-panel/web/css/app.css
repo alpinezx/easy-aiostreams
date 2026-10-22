@@ -210,7 +210,12 @@ button.chip:hover { text-decoration: underline; }
 .ver-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .ver-head h2 { margin: 0; font-size: .98rem; font-weight: 650; }
 /* Opens AIOStreams: the title is the link, padded so it's an easy tap on a phone */
-.ver-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) auto; gap: 14px 24px; margin-top: 14px; align-items: end; }
+/* The version running on the left, the latest centred on the card's middle, the buttons on
+   the right: equal side columns keep the middle centred whatever the buttons' width, so it
+   lines up on every version card */
+.ver-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 14px 24px; margin-top: 14px; align-items: end; }
+.ver-right { display: contents; }
+.ver-right > :first-child { text-align: center; }
 .ver-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--faint); margin-bottom: 4px; }
 .ver-value { font-size: 1.2rem; font-weight: 650; letter-spacing: -.01em; }
 .ver-value .ok { color: var(--ok); } .ver-value .warn { color: var(--warn); }
@@ -220,6 +225,7 @@ button.chip:hover { text-decoration: underline; }
 .ver-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 @media (max-width: 720px) {
   .ver-grid { grid-template-columns: minmax(0, 1fr); }
+  .ver-right > :first-child { text-align: left; }
   /* a little less padding so all three buttons share one line on a phone; they still wrap with big text */
   .ver-card { padding: 16px 16px 18px; }
   .ver-btns { justify-content: flex-start; gap: 6px; }

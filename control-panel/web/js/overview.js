@@ -263,8 +263,7 @@ function versionCard(st, avail) {
         title: nightly ? "AIOStreams' nightly builds (Docker tag: nightly). Switch with Update." : "AIOStreams' stable releases (Docker tag: latest). Switch with Update." })),
     h("div", { class: "ver-grid" },
       col(`v${st.version}`, nightly ? (running ? `Nightly ${running.slice(0, -8)}` : "") : releasedAgo(running)),
-      col(latest, latestSub),
-      h("div", { class: "ver-btns" }, ...btns)));
+      h("div", { class: "ver-right" }, col(latest, latestSub), h("div", { class: "ver-btns" }, ...btns))));
 }
 
 // ---------------- signal path ----------------
