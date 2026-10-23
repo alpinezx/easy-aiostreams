@@ -961,13 +961,16 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 #view-overview[data-hide~="vpn"] .panel.vpnc,
 #view-overview[data-hide~="services"] .cols > div { display: none; }
 
-/* Wide screens: each card a full row, like AIOStreams' own dashboard; This server six
-   values to a line, and all seven (uptime to last backup) once there's room, a little closer together */
+/* Wide screens: each card a full row, like AIOStreams' own dashboard; This server four values
+   to a line, so its seven and Reboot server fill two even rows (short values like Load
+   left wide gaps when all seven shared one) */
 @media (min-width: 1141px) {
-  #view-overview .panel.host .stat-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  #view-overview .panel.host .stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
+/* Network's down and up side by side once its column always has room for both */
 @media (min-width: 1300px) {
-  #view-overview .panel.host .stat-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); column-gap: 16px; }
+  #view-overview .panel.host .stat-value .nowrap { display: inline; }
+  #view-overview .panel.host .stat-value .nowrap + .nowrap { margin-left: .6em; }
 }
 
 /* Edit, beside the headline */
