@@ -16,12 +16,14 @@ import termios
 import threading
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Callable, Iterator
 
 import docker
 
 from . import config
 from .actions import ADDON_STATE, SCRIPTS, Action
+from .traffic import dev_counters, host_net
 from .wgconf import check_wireguard_conf
 
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
@@ -193,6 +195,7 @@ class Backend:
     def __init__(self):
         self._client = None
         self._stats: dict[str, dict] = {}
+        self._netprev: dict[str, tuple[float, int, int]] = {}   # each container's last byte counts, for its speed
         self._last_view = 0.0          # when /api/status was last asked for
         self._cert_cache: dict = {}
         threading.Thread(target=self._stats_loop, daemon=True).start()
@@ -233,7 +236,19 @@ class Backend:
                         pct = (cpu / sysd * ncpu * 100.0) if sysd > 0 else 0.0
                         ms = s.get("memory_stats", {})
                         used = ms.get("usage", 0) - ms.get("stats", {}).get("inactive_file", ms.get("stats", {}).get("cache", 0))
-                        self._stats[c.name] = {"cpu": round(max(pct, 0), 1), "mem": max(used, 0)}
+                        row = {"cpu": round(max(pct, 0), 1), "mem": max(used, 0)}
+                        # Network speed, down and up, from its byte counts since the last look. A
+                        # container on the VPN's network (AIOStreams) has none of its own: gluetun's covers it.
+                        nets = s.get("networks") or {}
+                        if nets:
+                            now = time.time()
+                            rx = sum(n.get("rx_bytes", 0) for n in nets.values())
+                            tx = sum(n.get("tx_bytes", 0) for n in nets.values())
+                            prev = self._netprev.get(c.name)
+                            self._netprev[c.name] = (now, rx, tx)
+                            if prev and 0 < now - prev[0] < 120 and rx >= prev[1] and tx >= prev[2]:
+                                row["rx"], row["tx"] = (rx - prev[1]) / (now - prev[0]), (tx - prev[2]) / (now - prev[0])
+                        self._stats[c.name] = row
                     except Exception:
                         pass
             except Exception:
@@ -405,6 +420,22 @@ class Backend:
     # at most once a minute unless asked to check now.
     _VPN_FRESH = 60
     _vpn_cache: dict | None = None
+
+    def host_counters(self) -> tuple[int, int] | None:
+        """The server's own bytes down and up since boot, on the network card its internet
+        traffic leaves by (named differently on each server: eth0, ens3, enp0s6...). Read from
+        the host's /proc (the panel shares its process table), the same on any Linux."""
+        return host_net(Path("/proc/1/net"))
+
+    def vpn_counters(self) -> tuple[int, int] | None:
+        """The tunnel's bytes down and up since gluetun started, for the traffic graph;
+        None unless the VPN is on and gluetun answers."""
+        if "container_name: gluetun" not in _read(self.p("docker-compose.yml")):
+            return None
+        r = self.client.containers.get("gluetun").exec_run(["cat", "/proc/net/dev"])
+        if r.exit_code != 0:
+            return None
+        return dev_counters((r.output or b"").decode(errors="replace"), ["tun0", "wg0"])
 
     def vpn_info(self, fresh: bool = False) -> dict:
         compose = _read(self.p("docker-compose.yml"))

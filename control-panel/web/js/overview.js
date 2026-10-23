@@ -5,6 +5,8 @@ import { days, todayLine, parseCheck } from "./alerts.js";
 import { pill as scriptsPill } from "./scripts.js";
 import { scheduleText } from "./activity.js";
 import { applyLayout, openLayout } from "./layout.js";
+import { countryName } from "./vpn.js";
+import { loadTraffic, trafficData, trafficStale, summaryLine, feedNet, nowRate, today, fmtRate } from "./traffic.js";
 
 // ---------------- update check ----------------
 let rel = null, relLoading = false, relFor = null, lastSt = null;
@@ -119,6 +121,7 @@ function rebuild(region, key, build) {
 
 // Called once per status poll (not per repaint) so sparklines get one point per poll.
 export function record(st) {
+  feedNet(st.net);
   for (const s of st.services) {
     if (s.state !== "running") { hist[s.key] = []; continue; }
     (hist[s.key] ||= []).push(s.cpu ?? 0);
@@ -527,6 +530,20 @@ async function loadWdDays() {
   finally { wdDaysLoading = false; }
 }
 
+// The VPN card's details come from the VPN page's own data (the server asks from inside
+// gluetun at most once a minute), fetched again within a minute, or at once when it's switched.
+let vpnInfo = null, vpnAt = 0, vpnFor = null, vpnLoading = false;
+async function loadVpn(mode, fresh) {
+  if (vpnLoading || (!fresh && mode === vpnFor && Date.now() - vpnAt < 60000)) return;
+  vpnLoading = true;
+  if (fresh && lastSt) side(lastSt);
+  try { vpnInfo = await api(`/api/vpn${fresh ? "?fresh=1" : ""}`); }
+  catch (_) { vpnInfo = null; }
+  vpnAt = Date.now(); vpnFor = mode; vpnLoading = false;
+  if (lastSt) side(lastSt);
+  if (fresh && vpnInfo) toast(vpnInfo.connected ? "The VPN is connected." : vpnInfo.error || "The VPN isn't connected.", !vpnInfo.connected);
+}
+
 // ---------------- side panels ----------------
 // One labelled value with a quiet line under it, like the version card and
 // AIOStreams' own System card. Coloured only when it needs a look.
@@ -558,36 +575,34 @@ function hostSum(st) {
       bad || (bk && !bk.newest) ? "warn" : ""]]);
 }
 
-// HTTPS certificates. One site: a single tile. Several: folded to one tile with the soonest
-// expiry, open to one tile per site. A cert that needs a look keeps the list open.
+// HTTPS certificates. One site: a single tile. Several: one tile with the soonest expiry,
+// whose chevron opens a tile per site in a section of their own under the card's values,
+// so however many sites there are the values above don't move. A cert that needs a look
+// keeps that section open. Returns the section, or null.
 function certTiles(grid, st) {
   const certs = allCerts(st);
-  if (!certs.length) return;
+  if (!certs.length) return null;
   if (certs.length === 1) {
     const c = certs[0], d = c.days_left;
     grid.append(c.ok
       ? stat("HTTPS certificate", `${d} day${d === 1 ? "" : "s"} left`, certTone(c) ? "Not renewed yet: check Caddy's logs" : "Auto-renews", certTone(c))
       : stat("HTTPS certificate", "Couldn't check", "", "warn"));
-    return;
+    return null;
   }
   const needsLook = certs.some((c) => !c.ok || certTone(c));
-  const folded = isFolded("certs") && !needsLook;
   const w = worstCert(st);
-  if (folded) {
-    grid.append(h("div", { class: "stat" }, h("div", { class: "ver-label cert-fold" }, foldTitle("certs", "HTTPS certificates")),
-      h("div", { class: "stat-value", text: `${w.days_left} day${w.days_left === 1 ? "" : "s"} left` }),
-      h("div", { class: "ver-sub", text: `soonest of ${certs.length} sites` })));
-    return;
-  }
-  grid.append(h("div", { class: "cert-head" }, needsLook
-    ? h("span", { class: "ver-label", text: "HTTPS certificates" })
-    : foldTitle("certs", "HTTPS certificates")));
-  for (const c of certs) {
+  grid.append(h("div", { class: "stat" },
+    h("div", { class: "ver-label cert-fold" }, needsLook ? "HTTPS certificates" : foldTitle("certs", "HTTPS certificates")),
+    w.ok ? h("div", { class: "stat-value " + certTone(w), text: `${w.days_left} day${w.days_left === 1 ? "" : "s"} left` })
+      : h("div", { class: "stat-value warn", text: "Couldn't check" }),
+    h("div", { class: "ver-sub", text: `${w.ok ? "soonest" : "one"} of ${certs.length} sites` })));
+  if (isFolded("certs") && !needsLook) return null;
+  return h("div", { class: "cert-sec stat-grid" }, ...certs.map((c) => {
     const d = c.days_left, label = c.label || c.host;
-    grid.append(c.ok
+    return c.ok
       ? stat(label, `${d} day${d === 1 ? "" : "s"} left`, certTone(c) ? "Not renewed yet: check Caddy's logs" : c.host, certTone(c))
-      : stat(label, "Couldn't check", c.host, "warn"));
-  }
+      : stat(label, "Couldn't check", c.host, "warn");
+  }));
 }
 
 function side(st) {
@@ -602,10 +617,7 @@ function side(st) {
   if (hostFolded) host.firstChild.append(hostSum(st));
   const grid = h("div", { class: "stat-grid" });
   if (hs.uptime != null) grid.append(stat("Up for", fmtDur(hs.uptime), `since ${dayMonth(Date.now() - hs.uptime * 1000)}`));
-  certTiles(grid, st);
-  if (st.vpn === "on" || st.vpn === "off") {
-    grid.append(stat("VPN", st.vpn === "on" ? "On" : "Off", st.vpn === "on" ? "Traffic goes through it" : "A direct connection", st.vpn === "on" ? "ok" : ""));
-  }
+  const certList = certTiles(grid, st);
   if (hs.load) {
     const pct = (hs.load[0] / (hs.cpus || 1)) * 100;
     grid.append(stat("Load", hs.load[0].toFixed(2), `on ${hs.cpus} CPU${hs.cpus > 1 ? "s" : ""}`, tone(pct, 75, 90)));
@@ -614,6 +626,21 @@ function side(st) {
     if (!total) continue;
     const pct = (used / total) * 100;
     grid.append(stat(label, `${fmtBytes(used)} of ${fmtBytes(total)}`, `${Math.round(pct)}% used, ${fmtBytes(total - used)} free`, tone(pct, warn, 90)));
+  }
+  // The server's own network card, everything in and out (the VPN's tunnel travels through it
+  // too): the speed now and today's totals
+  if (st.net && st.net.host) {
+    if (trafficStale("host")) loadTraffic(false, "host").then(() => { if (lastSt) side(lastSt); }).catch(() => {});
+    const n = nowRate(trafficData("host"), "host"), t = today(trafficData("host"));
+    const net = stat("Network", n ? "" : "Measuring…", t && (t[0] || t[1]) ? `Today ↓ ${fmtBytes(t[0])} ↑ ${fmtBytes(t[1])}` : "");
+    // Its label opens the Network page, with a chevron like HTTPS certificates'
+    const go = chev();
+    go.classList.add("go-chev");
+    net.firstChild.textContent = "";
+    net.firstChild.append(h("a", { class: "stat-link", href: "#net", title: "Graphs and each service's traffic on the Network page" }, "Network", go));
+    // Down and up on a line each, so the value keeps its height however long the numbers are
+    if (n) net.children[1].append(h("span", { class: "nowrap", text: `↓ ${fmtRate(n[0])}` }), h("span", { class: "nowrap", text: `↑ ${fmtRate(n[1])}` }));
+    grid.append(net);
   }
   // The newest backup, any kind, and the schedule; amber when the last scheduled one failed or was skipped
   const bk = st.backup;
@@ -625,8 +652,9 @@ function side(st) {
   // Reboot sits in the last row's spare room, at its right, rather than a row of its own
   grid.append(h("div", { class: "grid-btn" },
     h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer })));
-  if (!hostFolded) host.append(grid);
+  if (!hostFolded) { host.append(grid); if (certList) host.append(certList); }
   el.append(host);
+  vpnCard(el, st, avail);
 
   // Phone alerts are an optional add-on: the card only appears once they're set up, so it never
   // reads as something missing. The Scripts tab lists the add-on for anyone who wants it.
@@ -660,4 +688,55 @@ function side(st) {
         h("div", { class: "dim wd-today", text: todayLine(wdDays) })), btns));
   } else wd.append(btns);
   el.append(wd);
+}
+
+// The VPN, once it's set up (on or off), like Phone alerts: whether it's connected, where
+// traffic leaves and the server, with Turn VPN off/on and Check now. The rest is on its page.
+function vpnCard(el, st, avail) {
+  const mode = st.vpn;
+  if (mode !== "on" && mode !== "off") return;
+  loadVpn(mode, false);
+  const v = vpnInfo && vpnInfo.mode === mode ? vpnInfo : null;
+  const up = mode === "on" && v && v.connected;
+  const country = up ? countryName(v.country) : "";
+  const where = up ? v.city || country : "";
+  const [word, sub, tn] = mode === "off" ? ["Off", "A direct connection", ""]
+    : vpnLoading && !v ? ["On", "Checking…", ""]
+    : !v ? ["On", "Couldn't check", "warn"]
+    : v.connected ? ["Connected", v.checked_at ? `Checked ${ago(v.checked_at)}` : "", "ok"]
+    : ["Not connected", (v.error || "").slice(0, 70), "bad"];
+  const folded = isFolded("vpn");
+  const card = h("section", { class: "panel vpnc" + (folded ? " folded" : "") }, h("div", { class: "card-head" },
+    h("h3", {}, foldTitle("vpn", "VPN")),
+    folded ? foldSum([[word, tn], [where]]) : null,
+    h("a", { href: "#vpn", class: "dim card-link", text: "Details" })));
+  el.append(card);
+  if (folded) return;
+  // Short values, so they fit beside their labels on a phone: the city with the country under it,
+  // the server's address with its name under it (that can break at its dots, never mid-word)
+  let server = null;
+  if (v && (v.endpoint_ip || v.endpoint_host)) {
+    server = stat("Server", v.endpoint_ip || v.endpoint_host, "");
+    const host = v.endpoint_ip && v.endpoint_host;
+    if (host) server.lastChild.append(...host.split(".").flatMap((p, i) => i ? [".", h("wbr"), p] : [p]));
+  }
+  card.append(h("div", { class: "stat-grid" },
+    stat("Tunnel", word, sub, tn),
+    up ? stat("Leaves from", where || "Unknown", [where !== country ? country : "", v.exit_ip].filter(Boolean).join(", ")) : null,
+    server));
+  // What's going through it now and today, quietly at the left; the graph is on the VPN page
+  if (mode === "on" && trafficStale()) loadTraffic().then(() => { if (lastSt) side(lastSt); }).catch(() => {});
+  const line = mode === "on" ? summaryLine(trafficData()) : [];
+  // Turning it on with no config saved asks for one, which only the VPN page does
+  const btns = h("div", { class: "card-foot vpnc-foot" }, line.length ? h("a", { class: "vpnc-traffic dim", href: "#net/vpn",
+    title: "The VPN's traffic graph is on the Network page" }, ...line.map((t) => h("span", { text: t }))) : null);
+  const a = avail[mode === "on" ? "vpn.off" : "vpn.on"];
+  if (a && a.available && !(mode === "off" && v && v.has_config === false)) {
+    btns.append(h("button", { class: "btn small", type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
+  }
+  if (mode === "on") {
+    btns.append(h("button", { class: "btn small", type: "button", text: vpnLoading ? "Checking…" : "Check now", disabled: vpnLoading,
+      title: "Ask from inside the VPN where traffic leaves now", onclick: () => loadVpn(mode, true) }));
+  }
+  card.append(btns);
 }

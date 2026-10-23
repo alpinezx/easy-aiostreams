@@ -561,12 +561,12 @@ def test_backup_schedule(client):
 def test_overview_layout(client):
     login(client)
     ids = lambda r: [(c["id"], c["show"]) for c in r.json()["cards"]]
-    default = [("flow", True), ("aiostreams", True), ("aiometadata", True), ("alerts", True), ("server", True), ("services", True)]
+    default = [("flow", True), ("aiostreams", True), ("aiometadata", True), ("alerts", True), ("vpn", True), ("server", True), ("services", True)]
     assert ids(client.get("/api/overview-layout")) == default
     # unknown and repeated cards are dropped; ones left out go back to their default place
     r = client.put("/api/overview-layout", json={"cards": [{"id": "services", "show": True}, {"id": "nope"},
                                                          {"id": "alerts", "show": False}, {"id": "services", "show": False}]})
-    assert ids(r) == [("flow", True), ("aiostreams", True), ("aiometadata", True), ("services", True), ("alerts", False), ("server", True)]
+    assert ids(r) == [("flow", True), ("aiostreams", True), ("aiometadata", True), ("services", True), ("alerts", False), ("vpn", True), ("server", True)]
     # layout.js lists the cards in the same default order
     import re
     from pathlib import Path
@@ -576,6 +576,28 @@ def test_overview_layout(client):
     assert ids(client.get("/api/overview-layout")) == ids(r)
     assert client.put("/api/overview-layout", json={"cards": "x"}).status_code == 400
     assert ids(client.put("/api/overview-layout", json={"cards": []})) == default
+
+
+def test_rail_layout(client):
+    login(client)
+    from app.main import RAIL_PAGES
+    ids = lambda r: [c["id"] for c in r.json()["cards"]]
+    assert ids(client.get("/api/rail-layout")) == RAIL_PAGES
+    r = client.put("/api/rail-layout", json={"cards": [{"id": "maint", "show": True}, {"id": "overview"}, {"id": "logs", "show": False}]})
+    assert ids(r)[:2] == ["maint", "logs"] and r.json()["cards"][1]["show"] is False   # Overview isn't one: always first
+    assert sorted(ids(r)) == sorted(RAIL_PAGES)
+    assert ids(client.get("/api/overview-layout"))[0] == "flow"                     # the Overview's own layout untouched
+    assert ids(client.put("/api/rail-layout", json={"cards": []})) == RAIL_PAGES
+    # layout.js lists the same pages in the same order, and each has its tab on the rail
+    import re
+    from pathlib import Path
+    web = Path(__file__).resolve().parents[1] / "web"
+    js = (web / "js" / "layout.js").read_text(encoding="utf-8")
+    block = js[js.index("const PAGES = {"):js.index("};", js.index("const PAGES = {"))]
+    assert re.findall(r"^\s+(\w+): \[", block, re.M) == RAIL_PAGES
+    html = (web / "index.html").read_text(encoding="utf-8")
+    links = html[html.index('<div class="rail-links">'):html.index('<div class="rail-end">')]
+    assert re.findall(r'data-view="(\w+)"', links) == ["overview"] + RAIL_PAGES
 
 
 def test_aiometadata_status_reads_only_domain_and_version(tmp_path):

@@ -107,6 +107,8 @@ body { padding-left: var(--rail); }
 .rail .tab svg, .icon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .rail .tab svg.solid { width: 19px; height: 19px; fill: currentColor; stroke: none; }
 .rail .tab:hover { color: var(--text); background: var(--hover); }
+/* A page switched off in Edit menu (order comes from layout.js too) */
+.rail .tab.user-hidden { display: none; }
 .rail .tab[aria-current="page"] { color: var(--text); background: var(--accent-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent); }
 .rail .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .demo-flag { background: var(--warn-soft); color: var(--warn); border-radius: 999px; padding: 1px 7px; font-size: .68rem; font-weight: 600; white-space: nowrap; }
@@ -370,6 +372,63 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .vpn-value.mono { font-size: .9rem; font-weight: 500; }
 .vpn-note { margin: 16px 0 0; font-size: .9rem; }
 .vpn-foot { margin: 14px 0 0; font-size: .88rem; }
+/* The VPN page's Traffic card: figures, the graph (down filled, up a line), the last 7 days */
+.tr-title { margin: 0; font-size: 1.05rem; font-weight: 650; }
+.tr-ranges { display: flex; gap: 6px; }
+.tr-figs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.tr-sub { font-size: .84rem; margin-top: 2px; }
+.tr-chart { margin-top: 20px; }
+.tr-plot { position: relative; height: 200px; border-bottom: 1px solid var(--line-soft); touch-action: pan-y; cursor: crosshair; }
+.tr-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.tr-grid { stroke: var(--line-soft); stroke-dasharray: 4 4; }
+.tr-area { fill: var(--accent); opacity: .16; }
+.tr-down { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linejoin: round; }
+.tr-up { fill: none; stroke: var(--dim); stroke-width: 1.3; stroke-linejoin: round; }
+.tr-ymax, .tr-ymid { position: absolute; left: 0; font-size: .74rem; color: var(--faint); pointer-events: none; }
+.tr-ymax { top: -2px; } .tr-ymid { top: calc(50% - 16px); }
+.tr-ticks { display: flex; justify-content: space-between; margin-top: 6px; font-size: .76rem; color: var(--faint); }
+.tr-cursor { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--dim); pointer-events: none; }
+.tr-tip { position: absolute; top: 8px; transform: translateX(-50%); background: var(--sunk, var(--bg)); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 10px; font-size: .84rem; white-space: nowrap; pointer-events: none; z-index: 1; }
+.tr-tip-t { font-weight: 600; margin-bottom: 2px; }
+.tr-cursor[hidden], .tr-tip[hidden] { display: none; }
+.tr-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin-top: 10px; font-size: .84rem; }
+.tr-key::before { content: ""; display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.tr-key.down::before { background: var(--accent); } .tr-key.up::before { background: var(--dim); }
+.tr-step { margin-left: auto; }
+.tr-days { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
+.tr-day { display: grid; grid-template-columns: 110px minmax(0, 1fr) 190px; align-items: center; gap: 14px; padding: 5px 0; font-size: .9rem; }
+.tr-bar { height: 8px; border-radius: 4px; background: var(--line-soft); overflow: hidden; }
+.tr-bar i { display: block; height: 100%; background: var(--accent); opacity: .7; border-radius: 4px; }
+.tr-day-tot { text-align: right; font-variant-numeric: tabular-nums; white-space: pre; }
+.tr-since { margin-right: auto; font-size: .84rem; }
+/* The Network page: the Traffic card, then each service's speed now */
+.ns-card { margin-top: 18px; }
+.ns-list { margin-top: 12px; }
+.ns-row { display: grid; grid-template-columns: minmax(0, 1fr) 130px 130px; gap: 12px; align-items: baseline; padding: 9px 0; border-top: 1px solid var(--line-soft); font-size: .92rem; }
+.ns-row .num { text-align: right; font-variant-numeric: tabular-nums; }
+.ns-head { border-top: 0; padding-top: 0; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--faint); }
+.ns-name { font-weight: 600; }
+.ns-shared { grid-column: 2 / -1; text-align: right; font-size: .86rem; }
+.ns-note { font-size: .84rem; }
+@media (max-width: 720px) { .ns-row { grid-template-columns: minmax(0, 1fr) 96px 96px; gap: 8px; } }
+.vpnc-foot .vpnc-traffic { margin-right: auto; font-size: .88rem; text-decoration: none; }
+.vpnc-traffic span { white-space: nowrap; }
+/* This server's Network: down and up a line each, always, so the row doesn't change height as the speeds change */
+.stat-value .nowrap { display: block; white-space: nowrap; }
+.vpnc-traffic span + span::before { content: " · "; }
+.vpnc-foot .vpnc-traffic:hover { color: var(--text); text-decoration: underline; }
+@media (max-width: 720px) {
+  .tr-card .vpn-head { flex-wrap: wrap; }
+  .tr-card .vpn-grid.tr-figs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
+  .tr-plot { height: 160px; }
+  .tr-ticks span:nth-child(2n) { display: none; }
+  .tr-step { margin-left: 0; flex-basis: 100%; }
+  .tr-day { grid-template-columns: 82px minmax(0, 1fr); gap: 4px 12px; }
+  .tr-day-tot { grid-column: 1 / -1; text-align: left; font-size: .84rem; color: var(--dim); }
+  .vpnc-foot .vpnc-traffic { flex-basis: 100%; display: grid; gap: 2px; padding-bottom: 4px; }
+  .vpnc-traffic span + span::before { content: none; }
+}
 .vpn-card-acts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
 /* Phone alerts page */
 .wd-grid .vpn-value { font-weight: 500; font-size: .94rem; }
@@ -403,11 +462,14 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .stat-value.warn { color: var(--warn); } .stat-value.bad { color: var(--bad); } .stat-value.ok { color: var(--ok); }
 .row .num.warn { color: var(--warn); } .row .num.bad { color: var(--bad); }
 .stat .ver-sub { font-size: .8rem; }
-.cert-head { grid-column: 1 / -1; }
 /* The fold button reads as a stat label: same size, case and colour as the others */
-.cert-fold .fold-toggle, .cert-head .fold-toggle { font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; }
-.cert-head { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--faint); }
-@media (max-width: 720px) { .cert-head { padding: 12px 0 4px; border-top: 1px solid var(--line-soft); } }
+.stat-link { display: inline-flex; align-items: center; gap: 6px; color: inherit; text-decoration: none; }
+.stat-link:hover { color: var(--text); }
+.go-chev svg { width: 11px; height: 11px; transform: rotate(-90deg); }
+.cert-fold .fold-toggle { font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; }
+/* This server's certificates, opened: a section of their own under its values */
+.stat-grid.cert-sec { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
+@media (max-width: 720px) { .stat-grid.cert-sec { margin-top: 10px; padding-top: 4px; } }
 /* Phones: one value per line, the label on the left and the value with its note on the right,
    so nothing has to wrap in a half-width column */
 @media (max-width: 720px) {
@@ -884,7 +946,7 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 
 /* The Overview: the headline, then the cards in the order Edit saved (layout.js sets
    --o-<card> and data-hide). By default: the request flow it illustrates, the version
-   card, the add-ons' cards (AIOMetadata, Phone alerts), then This server and the services. */
+   card, the add-ons' cards (AIOMetadata, Phone alerts, VPN), then This server and the services. */
 #view-overview:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr); }
 #view-overview .cols, #view-overview .side { display: contents; }
 #view-overview .hero { order: 0; }
@@ -892,17 +954,25 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 #view-overview .ver-slot { order: var(--o-aiostreams, 2); margin: 0 0 30px; }
 #view-overview .meta-slot { order: var(--o-aiometadata, 3); }
 #view-overview .panel.wd { order: var(--o-alerts, 4); margin: 0 0 30px; }
-#view-overview .panel.host { order: var(--o-server, 5); margin: 0 0 30px; }
-#view-overview .cols > div { order: var(--o-services, 6); margin: 0 0 30px; }
+#view-overview .panel.vpnc { order: var(--o-vpn, 5); margin: 0 0 30px; }
+#view-overview .panel.host { order: var(--o-server, 6); margin: 0 0 30px; }
+#view-overview .cols > div { order: var(--o-services, 7); margin: 0 0 30px; }
 #view-overview[data-hide~="flow"] .path, #view-overview[data-hide~="aiostreams"] .ver-slot:not(.meta-slot),
 #view-overview[data-hide~="aiometadata"] .meta-slot,
 #view-overview[data-hide~="server"] .panel.host, #view-overview[data-hide~="alerts"] .panel.wd,
+#view-overview[data-hide~="vpn"] .panel.vpnc,
 #view-overview[data-hide~="services"] .cols > div { display: none; }
 
-/* Wide screens: each card a full row, like AIOStreams' own dashboard; This server six
-   values to a line */
+/* Wide screens: each card a full row, like AIOStreams' own dashboard; This server four values
+   to a line, so its seven and Reboot server fill two even rows (short values like Load
+   left wide gaps when all seven shared one) */
 @media (min-width: 1141px) {
-  #view-overview .panel.host .stat-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  #view-overview .panel.host .stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+/* Network's down and up side by side once its column always has room for both */
+@media (min-width: 1300px) {
+  #view-overview .panel.host .stat-value .nowrap { display: inline; }
+  #view-overview .panel.host .stat-value .nowrap + .nowrap { margin-left: .6em; }
 }
 
 /* Edit, beside the headline */
@@ -911,11 +981,20 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 
 /* Edit's drawer: a card per row, its switch, and ≡ to drag it */
 .lay-drawer { width: min(460px, 100vw); }
+/* Edit menu's drawer comes out of the rail's side, and the rail stays above the dimming so its
+   icons can be seen moving; on phones, where the rail is the menu, from the left edge */
+.lay-drawer.from-left { right: auto; left: var(--rail); border-left: 0; border-right: 1px solid var(--line);
+  box-shadow: 24px 0 60px rgba(0, 0, 0, .35); animation-name: slide-left; }
+@keyframes slide-left { from { transform: translateX(-24px); opacity: 0; } }
+@media (min-width: 721px) { body:has(.lay-drawer.from-left:not([hidden])) .rail { z-index: 42; } }
+@media (max-width: 720px) { .lay-drawer.from-left { left: 0; } }
 .lay-drawer .drawer-foot { justify-content: space-between; flex-wrap: wrap; font-size: .86rem; }
 .lay-list { flex: 1; overflow: auto; margin: 0; padding: 14px 20px; list-style: none; user-select: none; display: grid; gap: 8px; align-content: start; }
 .lay-row { display: flex; align-items: center; gap: 14px; padding: 12px 8px 12px 16px; border: 1px solid var(--line-soft); border-radius: 12px; background: var(--raised); }
 .lay-row.dragging { position: relative; z-index: 2; border-color: var(--accent); box-shadow: 0 12px 30px rgba(0, 0, 0, .35); }
 .lay-text { display: grid; gap: 2px; min-width: 0; margin-right: auto; }
+.lay-icon { flex: none; width: 20px; height: 20px; fill: none; stroke: var(--dim); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.lay-icon.solid { fill: var(--dim); stroke: none; }
 .lay-title { font-weight: 650; }
 .lay-sub { font-size: .84rem; }
 .lay-grip { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 8px; background: none; color: var(--dim);
@@ -999,7 +1078,7 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 /* Phones: the request flow on one line of small status pills, the add-ons on a line under
    it, uptimes left to Services. A tall chain of boxes used to fill a screen and a half. */
 @media (max-width: 720px) {
-  #view-overview .ver-slot, #view-overview .panel.host, #view-overview .panel.wd, #view-overview .cols > div { margin-bottom: 22px; }
+  #view-overview .ver-slot, #view-overview .panel.host, #view-overview .panel.wd, #view-overview .panel.vpnc, #view-overview .cols > div { margin-bottom: 22px; }
   .path { margin: 0 0 22px; padding: 16px 14px 14px; }
   .path-head { margin: 0 0 12px; }
   .chain { flex-direction: row; align-items: center; }

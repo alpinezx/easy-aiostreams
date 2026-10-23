@@ -58,6 +58,48 @@ class FakeStream:
         self._stop.set()
 
 
+def demo_rate(t: float) -> float:
+    """Made-up bytes a second down the VPN at time t: quiet with search blips, streaming most
+    evenings (a 4K film two nights ago), and a weekend afternoon."""
+    lt = datetime.fromtimestamp(t)
+    day, hr = (datetime.now().date() - lt.date()).days, lt.hour + lt.minute / 60
+    rnd = random.Random(int(t // 60))
+    mbit = 0.02 + (rnd.uniform(2, 6) if rnd.random() < 0.03 else 0)
+    if 0 <= time.time() - t < 1800:
+        return rnd.uniform(25, 40) * 1e6 / 8     # someone watching right now, so the demo has speeds to show
+    if 19.5 <= hr < 22.5 and day not in (3, 5):
+        mbit = (rnd.uniform(60, 85) if day == 2 else rnd.uniform(18, 40))
+    if lt.weekday() >= 5 and 14 <= hr < 16.2:
+        mbit = rnd.uniform(15, 30)
+    return mbit * 1e6 / 8
+
+
+def host_rate(t: float, rx: float) -> tuple[float, float]:
+    """The server's own card: the VPN's traffic (encrypted, a little bigger) coming in and the
+    streams going back out to viewers, plus visitors and updates."""
+    return rx * 1.04 + 9000, rx * 0.97 + 6000
+
+
+def demo_traffic(now: float, host: bool = False) -> tuple[dict, dict]:
+    """A week of history for the demo's traffic graphs, with the VPN off for a while yesterday
+    (the server's own card carries on through it)."""
+    minutes, hours = {}, {}
+    start = int(now // 60 * 60) - 7 * 24 * 3600
+    off = datetime.combine(datetime.now().date() - timedelta(days=1), datetime.min.time()).timestamp() + 13 * 3600
+    for m in range(start, int(now // 60 * 60), 60):
+        if off <= m < off + 2.5 * 3600 and not host:
+            continue
+        rx = int(demo_rate(m) * 60)
+        tx = int(rx * 0.015 + 4000)
+        if host:
+            rx, tx = (int(x * 60) for x in host_rate(m, rx / 60))
+        if m >= now - 24 * 3600:
+            minutes[m] = [rx, tx]
+        hb = hours.setdefault(m // 3600 * 3600, [0, 0, 0, 0])
+        hb[0] += rx; hb[1] += tx; hb[2] = max(hb[2], rx); hb[3] = max(hb[3], tx)
+    return minutes, hours
+
+
 class DemoBackend:
     def __init__(self, scenario: str = "ok"):
         self.scenario = scenario
@@ -105,6 +147,29 @@ class DemoBackend:
             self.running["aiostreams"] = False
         self.started = {k: datetime.now(timezone.utc) - timedelta(hours=random.randint(30, 400)) for k in self.running}
         self.hist = {k: [random.uniform(0.5, 6) for _ in range(30)] for k in self.running}
+
+    _ctr = None
+    _hctr = None
+
+    def host_counters(self):
+        now = time.time()
+        if self._hctr is None:
+            self._hctr = [now, 154 * GB + int(now * 3000), 150 * GB + int(now * 2900)]   # grows across demo restarts, as a real counter would
+        d, u = host_rate(now, demo_rate(now) * random.uniform(0.85, 1.15))
+        dt = now - self._hctr[0]
+        self._hctr = [now, self._hctr[1] + int(d * dt), self._hctr[2] + int(u * dt)]
+        return self._hctr[1], self._hctr[2]
+
+    def vpn_counters(self):
+        if self.vpn != "on":
+            self._ctr = None
+            return None
+        now = time.time()
+        if self._ctr is None:
+            self._ctr = [now, 5 * GB + int(now * 2000), 80 * MB + int(now * 30)]
+        rx = int(demo_rate(now) * (now - self._ctr[0]))
+        self._ctr = [now, self._ctr[1] + rx, self._ctr[2] + int(rx * 0.015 + 70 * (now - self._ctr[0]))]
+        return self._ctr[1], self._ctr[2]
 
     def vpn_info(self, fresh: bool = False) -> dict:
         out = {"mode": self.vpn, "endpoint_host": None, "endpoint_ip": None, "endpoint_port": None,
@@ -248,6 +313,15 @@ class DemoBackend:
                 s.update(started_at=self.started[cname].isoformat().replace("+00:00", "Z"),
                          cpu=round(random.uniform(0.2, 9.0) if key == "aiostreams" else random.uniform(0.0, 1.5), 1),
                          mem=int({"caddy": 31, "gluetun": 44, "aiostreams": 318, "mediaflow": 22, "webhook": 19, "aiometadata": 452}[key] * MB * random.uniform(0.97, 1.03)))
+                # Network speeds: a stream comes in through the VPN (or straight to AIOStreams
+                # without one), over to Caddy and out to the viewer; AIOStreams on the VPN's
+                # network has no counters of its own
+                r = demo_rate(time.time()) * random.uniform(0.9, 1.1)
+                net = {"caddy": (r + 9000, r * 0.98 + 6000), "gluetun": (r * 1.04, r * 0.98 + 2000),
+                       "aiostreams": None if self.vpn == "on" else (r * 1.02, r * 0.98),
+                       "mediaflow": (4000, 3000), "webhook": (40, 30), "aiometadata": (30000, 12000)}[key]
+                if net:
+                    s.update(rx=net[0], tx=net[1])
             services.append(s)
         down = [s for s in services if s["state"] != "running" and not s["on_purpose"]]
         if down:

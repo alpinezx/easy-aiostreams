@@ -9,7 +9,7 @@ import { runAction, ask } from "./actions.js";
 
 let checking = false, last = null, st = null;
 const REGION = (() => { try { return new Intl.DisplayNames([], { type: "region" }); } catch (_) { return null; } })();
-const countryName = (code) => { try { return (code && REGION && REGION.of(code)) || code; } catch (_) { return code; } };
+export const countryName = (code) => { try { return (code && REGION && REGION.of(code)) || code; } catch (_) { return code; } };
 
 const actFor = (id) => { const a = st && st.actions.find((x) => x.id === id); return a && a.available ? a : null; };
 
