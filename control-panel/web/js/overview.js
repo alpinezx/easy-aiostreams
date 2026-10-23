@@ -693,7 +693,8 @@ function vpnCard(el, st, avail) {
   loadVpn(mode, false);
   const v = vpnInfo && vpnInfo.mode === mode ? vpnInfo : null;
   const up = mode === "on" && v && v.connected;
-  const where = up ? [v.city, countryName(v.country)].filter(Boolean).join(", ") : "";
+  const country = up ? countryName(v.country) : "";
+  const where = up ? v.city || country : "";
   const [word, sub, tn] = mode === "off" ? ["Off", "A direct connection", ""]
     : vpnLoading && !v ? ["On", "Checking…", ""]
     : !v ? ["On", "Couldn't check", "warn"]
@@ -706,17 +707,24 @@ function vpnCard(el, st, avail) {
     h("a", { href: "#vpn", class: "dim card-link", text: "Details" })));
   el.append(card);
   if (folded) return;
+  // Short values, so they fit beside their labels on a phone: the city with the country under it,
+  // the server's address with its name under it (that can break at its dots, never mid-word)
+  let server = null;
+  if (v && (v.endpoint_ip || v.endpoint_host)) {
+    server = stat("Server", v.endpoint_ip || v.endpoint_host, "");
+    const host = v.endpoint_ip && v.endpoint_host;
+    if (host) server.lastChild.append(...host.split(".").flatMap((p, i) => i ? [".", h("wbr"), p] : [p]));
+  }
   card.append(h("div", { class: "stat-grid" },
     stat("Tunnel", word, sub, tn),
-    up ? stat("Leaves from", where || "Unknown", v.exit_ip || "") : null,
-    v && v.endpoint_host ? stat("Server", v.endpoint_host, v.endpoint_ip || "")
-      : v && v.endpoint_ip ? stat("Server", v.endpoint_ip, v.endpoint_port ? `Port ${v.endpoint_port}` : "") : null));
+    up ? stat("Leaves from", where || "Unknown", [where !== country ? country : "", v.exit_ip].filter(Boolean).join(", ")) : null,
+    server));
   // What's going through it now and today, quietly at the left; the graph is on the VPN page
   if (mode === "on" && trafficStale()) loadTraffic().then(() => { if (lastSt) side(lastSt); }).catch(() => {});
-  const line = mode === "on" ? summaryLine(trafficData()) : "";
+  const line = mode === "on" ? summaryLine(trafficData()) : [];
   // Turning it on with no config saved asks for one, which only the VPN page does
-  const btns = h("div", { class: "card-foot vpnc-foot" }, line ? h("a", { class: "vpnc-traffic dim", href: "#vpn",
-    title: "The traffic graph is on the VPN page", text: line }) : null);
+  const btns = h("div", { class: "card-foot vpnc-foot" }, line.length ? h("a", { class: "vpnc-traffic dim", href: "#vpn",
+    title: "The traffic graph is on the VPN page" }, ...line.map((t) => h("span", { text: t }))) : null);
   const a = avail[mode === "on" ? "vpn.off" : "vpn.on"];
   if (a && a.available && !(mode === "off" && v && v.has_config === false)) {
     btns.append(h("button", { class: "btn small", type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));

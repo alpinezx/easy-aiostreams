@@ -75,14 +75,14 @@ export function today(d) {
 export function fmtPair([d, u]) {
   const unit = fmtRate(Math.max(d, u)).split(" ")[1];
   const div = { "bit/s": 1, "kbit/s": 1e3, "Mbit/s": 1e6 }[unit];
-  const n = (v) => { const x = (v * 8) / div; return x >= 10 || x === 0 ? Math.round(x) : x.toFixed(1); };
+  const n = (v) => { const x = (v * 8) / div; return x >= 10 || x < 0.05 ? Math.round(x) : x.toFixed(1); };   // "0", not "0.0"
   return `↓ ${n(d)} ↑ ${n(u)} ${unit}`;
 }
 
-// The Overview's VPN line: "Now ↓ 32 ↑ 1.2 Mbit/s · Today ↓ 3.2 GB ↑ 48 MB"
+// The Overview's VPN line, in two halves that each stay whole: "Now ↓ 32 ↑ 1.2 Mbit/s", "Today ↓ 3.2 GB ↑ 48 MB"
 export function summaryLine(d) {
   const n = nowRate(d), t = today(d);
-  return [n ? `Now ${fmtPair(n)}` : "", t && (t[0] || t[1]) ? `Today ↓ ${fmtBytes(t[0])} ↑ ${fmtBytes(t[1])}` : ""].filter(Boolean).join(" · ");
+  return [n ? `Now ${fmtPair(n)}` : "", t && (t[0] || t[1]) ? `Today ↓ ${fmtBytes(t[0])} ↑ ${fmtBytes(t[1])}` : ""].filter(Boolean);
 }
 
 // One range's points: [slot start, down bytes/s, up bytes/s] or null for a gap, plus its figures
