@@ -236,7 +236,7 @@ The same switch works without the menu: `sudo bash
 options 2 and 3; `off` keeps AIOStreams live through the switch (the menu's
 "Continue anyway"). Both do nothing when the VPN is already that way, and
 neither sets the VPN up for the first time. The control panel's VPN page
-runs these.
+and its Overview card run these.
 
 The panel's other VPN buttons use more commands, also without questions
 and only once the VPN is set up: `update` (option 5), `addresses [name]`
