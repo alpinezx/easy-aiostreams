@@ -981,6 +981,13 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 
 /* Edit's drawer: a card per row, its switch, and ≡ to drag it */
 .lay-drawer { width: min(460px, 100vw); }
+/* Edit menu's drawer comes out of the rail's side, and the rail stays above the dimming so its
+   icons can be seen moving; on phones, where the rail is the menu, from the left edge */
+.lay-drawer.from-left { right: auto; left: var(--rail); border-left: 0; border-right: 1px solid var(--line);
+  box-shadow: 24px 0 60px rgba(0, 0, 0, .35); animation-name: slide-left; }
+@keyframes slide-left { from { transform: translateX(-24px); opacity: 0; } }
+@media (min-width: 721px) { body:has(.lay-drawer.from-left:not([hidden])) .rail { z-index: 42; } }
+@media (max-width: 720px) { .lay-drawer.from-left { left: 0; } }
 .lay-drawer .drawer-foot { justify-content: space-between; flex-wrap: wrap; font-size: .86rem; }
 .lay-list { flex: 1; overflow: auto; margin: 0; padding: 14px 20px; list-style: none; user-select: none; display: grid; gap: 8px; align-content: start; }
 .lay-row { display: flex; align-items: center; gap: 14px; padding: 12px 8px 12px 16px; border: 1px solid var(--line-soft); border-radius: 12px; background: var(--raised); }

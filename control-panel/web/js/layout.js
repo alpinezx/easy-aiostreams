@@ -95,6 +95,8 @@ const isOpen = () => !$("#lay-drawer").hidden;
 export function openLayout(which = "overview") {
   mode = MODES[which] || MODES.overview;
   lastFocus = document.activeElement;
+  // The rail's opens on the left, beside the rail and its Edit menu button; the Overview's on the right, by its Edit
+  $("#lay-drawer").classList.toggle("from-left", mode === MODES.rail);
   $("#lay-title").textContent = mode.title;
   $("#lay-hint").textContent = mode.hint;
   list();
