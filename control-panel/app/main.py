@@ -398,7 +398,7 @@ async def host_traffic_history(user: str = Depends(current_user)):
 
 @app.post("/api/{kind}/traffic/clear")
 async def clear_traffic(kind: str, user: str = Depends(current_user)):
-    """Clear history, on the VPN page (vpn) or Maintenance (vpn or host): it starts again from now."""
+    """Clear history, on the Network page (vpn or host): it starts again from now."""
     store = {"vpn": vpn_traffic, "host": host_traffic}.get(kind)
     if store is None:
         raise HTTPException(404, "Not found")

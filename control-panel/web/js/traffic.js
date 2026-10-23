@@ -23,10 +23,10 @@ export function loadTraffic(force, kind = "vpn") {
 export const trafficData = (kind = "vpn") => hist[kind].data;
 export const trafficStale = (kind = "vpn") => !hist[kind].loading && (!hist[kind].data || Date.now() - hist[kind].at >= 55000);
 
-// Clear history (the VPN page, Maintenance): asks, then the record starts again from now.
+// Clear history, on the Network page: asks, then the record starts again from now.
 // True once it's cleared.
 const WHAT = { vpn: ["the VPN's", "VPN"], host: ["the server's network", "network"] };
-export async function clearHistory(kind) {
+async function clearHistory(kind) {
   const ok = await ask({ title: `Clear ${WHAT[kind][0]} traffic history?`, confirmLabel: "Clear history", danger: true,
     body: `${kind === "vpn" ? "The graph and totals start" : "Today's totals start"} again from the next minute. Only the panel's record goes: nothing on the server changes, and streaming isn't touched. This can't be undone.` });
   if (!ok) return false;
