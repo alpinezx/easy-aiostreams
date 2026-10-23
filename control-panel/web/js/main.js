@@ -149,7 +149,7 @@ async function tick() {
   } catch (e) {
     if (e.message !== "signed out") $("#offline").hidden = false;
   }
-  timer = setTimeout(tick, document.hidden ? 15000 : status && status.busy ? 1500 : 4000);
+  timer = setTimeout(tick, document.hidden ? 15000 : status && status.busy ? 1500 : 3000);
 }
 
 async function boot() {
