@@ -110,6 +110,10 @@ do_backup() {
         fi
     fi
 
+    # The retired webhook relay's markers, left by older backups: without them,
+    # an older restore script leaves the relay off instead of starting it
+    rm -f "$INSTALL_DIR"/webhook-relay-state/{was-active,boot-notify}-at-backup
+
     # Same idea again for MediaFlow Proxy Light: a separate compose stack on
     # aios_shared, not part of the main docker-compose.yml, so it needs its
     # own was-active marker to know whether to bring it back on restore.
