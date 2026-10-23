@@ -469,7 +469,15 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .cert-fold .fold-toggle { font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; }
 /* This server's certificates, opened: a section of their own under its values */
 .stat-grid.cert-sec { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
-@media (max-width: 720px) { .stat-grid.cert-sec { margin-top: 10px; padding-top: 4px; } }
+/* Inside the values' grid: a full-width row after everything, Reboot's row included */
+.stat-grid > .cert-sec { grid-column: 1 / -1; order: 2; margin-top: 0; }
+/* Phones: the certificates come last among the values, their list right under them, Reboot at the end */
+@media (max-width: 720px) {
+  .stat-grid.cert-sec { margin-top: 10px; padding-top: 4px; }
+  .stat-grid > .cert-tile { order: 1; }
+  .stat-grid > .cert-sec { order: 2; margin-top: 0; }
+  .stat-grid > .grid-btn { order: 3; }
+}
 /* Phones: one value per line, the label on the left and the value with its note on the right,
    so nothing has to wrap in a half-width column */
 @media (max-width: 720px) {

@@ -584,14 +584,16 @@ function certTiles(grid, st) {
   if (!certs.length) return null;
   if (certs.length === 1) {
     const c = certs[0], d = c.days_left;
-    grid.append(c.ok
+    const one = c.ok
       ? stat("HTTPS certificate", `${d} day${d === 1 ? "" : "s"} left`, certTone(c) ? "Not renewed yet: check Caddy's logs" : "Auto-renews", certTone(c))
-      : stat("HTTPS certificate", "Couldn't check", "", "warn"));
+      : stat("HTTPS certificate", "Couldn't check", "", "warn");
+    one.classList.add("cert-tile");
+    grid.append(one);
     return null;
   }
   const needsLook = certs.some((c) => !c.ok || certTone(c));
   const w = worstCert(st);
-  grid.append(h("div", { class: "stat" },
+  grid.append(h("div", { class: "stat cert-tile" },
     h("div", { class: "ver-label cert-fold" }, needsLook ? "HTTPS certificates" : foldTitle("certs", "HTTPS certificates")),
     w.ok ? h("div", { class: "stat-value " + certTone(w), text: `${w.days_left} day${w.days_left === 1 ? "" : "s"} left` })
       : h("div", { class: "stat-value warn", text: "Couldn't check" }),
@@ -653,7 +655,10 @@ function side(st) {
   // Reboot sits in the last row's spare room, at its right, rather than a row of its own
   grid.append(h("div", { class: "grid-btn" },
     h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer })));
-  if (!hostFolded) { host.append(grid); if (certList) host.append(certList); }
+  // The opened certificates go in the grid too, so on phones CSS can put them (and their
+  // tile) after the other values, with Reboot last
+  if (certList) grid.append(certList);
+  if (!hostFolded) host.append(grid);
   el.append(host);
   vpnCard(el, st, avail);
 
