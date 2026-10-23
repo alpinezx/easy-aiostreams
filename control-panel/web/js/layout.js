@@ -14,14 +14,14 @@ const CARDS = {
 };
 const PAGES = {
   logs: ["Logs", "Each service's logs, filtered and searched"],
+  activity: ["Activity", "What the panel has done"],
   net: ["Network", "Traffic graphs and each service's speed"],
   backups: ["Backup & Restore", "Backups, the schedule and Restore"],
+  maint: ["Maintenance", "Free space, system updates and log limits"],
+  addons: ["Add-ons", "Each optional add-on, with Uninstall"],
   vpn: ["VPN", "The tunnel, its server and configs"],
   alerts: ["Phone alerts", "The watchdog and its alerts"],
-  addons: ["Add-ons", "Each optional add-on, with Uninstall"],
-  activity: ["Activity", "What the panel has done"],
   scripts: ["Scripts", "The setup scripts and panel updates"],
-  maint: ["Maintenance", "Free space, system updates and log limits"],
   terminal: ["Terminal", "A shell on the server"],
 };
 
