@@ -602,7 +602,7 @@ class Backend:
             "domain": domain, "channel": tag, "version": version, "build_tag": build_tag,
             "vpn": vpn, "install_dir": str(config.INSTALL_DIR),
             "scripts": [{"id": i, "label": l, "file": f, "present": self.p(f).exists(),
-                         "in_use": i not in ADDON_STATE or self.p(ADDON_STATE[i]).exists()} for i, l, f in SCRIPTS],
+                         "in_use": i not in ADDON_STATE or self.addon_set_up(i)} for i, l, f in SCRIPTS],
             "user_copy": self.user_copy(),
             "overall": overall, "headline": headline,
             "services": services, "watchdog": watchdog, "host": host,
@@ -1063,19 +1063,32 @@ class Backend:
         except subprocess.TimeoutExpired:
             return {"addresses": [], "error": "The lookup took too long."}
 
+    def addon_set_up(self, script_id: str) -> bool:
+        """Whether an add-on is set up: its state folder has something in it. Each script makes
+        the folder before its first question, so a setup cancelled part-way leaves it empty."""
+        d = self.p(ADDON_STATE[script_id])
+        try:
+            return d.is_dir() and any(d.iterdir())
+        except OSError:
+            return d.exists()
+
     def remove_script(self, script_id: str) -> str:
         """Deletes an add-on's script from the install folder once the add-on
-        isn't set up (no state folder). Never the AIOStreams script."""
+        isn't set up, and the empty state folder a cancelled setup leaves (rmdir
+        only ever removes an empty one). Never the AIOStreams script."""
         found = next(((i, f) for i, _, f in SCRIPTS if i == script_id), None)
         if not found or script_id not in ADDON_STATE:
             raise ValueError("Only an add-on's script can be removed.")
-        if self.p(ADDON_STATE[script_id]).exists():
+        if self.addon_set_up(script_id):
             raise ValueError("It's still set up. Uninstall it with its own menu first.")
+        host = ["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--"]
         path = str(config.INSTALL_DIR / found[1])
-        r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "rm", "-f", "--", path],
-                           capture_output=True, text=True, timeout=20)
+        r = subprocess.run([*host, "rm", "-f", "--", path], capture_output=True, text=True, timeout=20)
         if r.returncode != 0:
             raise ValueError("Couldn't remove it.")
+        state = self.p(ADDON_STATE[script_id])
+        if state.is_dir():
+            subprocess.run([*host, "rmdir", "--", str(state)], capture_output=True, text=True, timeout=20)
         return found[1]
 
     def watchdog_info(self) -> dict:
