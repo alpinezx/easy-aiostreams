@@ -370,6 +370,48 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .vpn-value.mono { font-size: .9rem; font-weight: 500; }
 .vpn-note { margin: 16px 0 0; font-size: .9rem; }
 .vpn-foot { margin: 14px 0 0; font-size: .88rem; }
+/* The VPN page's Traffic card: figures, the graph (down filled, up a line), the last 7 days */
+.tr-card { margin-top: 18px; }
+.tr-title { margin: 0; font-size: 1.05rem; font-weight: 650; }
+.tr-ranges { display: flex; gap: 6px; }
+.tr-figs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.tr-sub { font-size: .84rem; margin-top: 2px; }
+.tr-chart { margin-top: 20px; }
+.tr-plot { position: relative; height: 200px; border-bottom: 1px solid var(--line-soft); touch-action: pan-y; cursor: crosshair; }
+.tr-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.tr-grid { stroke: var(--line-soft); stroke-dasharray: 4 4; }
+.tr-area { fill: var(--accent); opacity: .16; }
+.tr-down { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linejoin: round; }
+.tr-up { fill: none; stroke: var(--faint); stroke-width: 1.3; stroke-linejoin: round; }
+.tr-ymax, .tr-ymid { position: absolute; left: 0; font-size: .74rem; color: var(--faint); pointer-events: none; }
+.tr-ymax { top: -2px; } .tr-ymid { top: calc(50% - 16px); }
+.tr-ticks { display: flex; justify-content: space-between; margin-top: 6px; font-size: .76rem; color: var(--faint); }
+.tr-cursor { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--dim); pointer-events: none; }
+.tr-tip { position: absolute; top: 8px; transform: translateX(-50%); background: var(--sunk, var(--bg)); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 10px; font-size: .84rem; white-space: nowrap; pointer-events: none; z-index: 1; }
+.tr-tip-t { font-weight: 600; margin-bottom: 2px; }
+.tr-cursor[hidden], .tr-tip[hidden] { display: none; }
+.tr-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin-top: 10px; font-size: .84rem; }
+.tr-key::before { content: ""; display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.tr-key.down::before { background: var(--accent); } .tr-key.up::before { background: var(--faint); }
+.tr-step { margin-left: auto; }
+.tr-days { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
+.tr-day { display: grid; grid-template-columns: 110px minmax(0, 1fr) 190px; align-items: center; gap: 14px; padding: 5px 0; font-size: .9rem; }
+.tr-bar { height: 8px; border-radius: 4px; background: var(--line-soft); overflow: hidden; }
+.tr-bar i { display: block; height: 100%; background: var(--accent); opacity: .7; border-radius: 4px; }
+.tr-day-tot { text-align: right; font-variant-numeric: tabular-nums; white-space: pre; }
+.vpnc-foot .vpnc-traffic { margin-right: auto; font-size: .88rem; text-decoration: none; }
+.vpnc-foot .vpnc-traffic:hover { color: var(--text); text-decoration: underline; }
+@media (max-width: 720px) {
+  .tr-card .vpn-head { flex-wrap: wrap; }
+  .tr-card .vpn-grid.tr-figs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
+  .tr-plot { height: 160px; }
+  .tr-ticks span:nth-child(2n) { display: none; }
+  .tr-step { margin-left: 0; flex-basis: 100%; }
+  .tr-day { grid-template-columns: 82px minmax(0, 1fr); gap: 4px 12px; }
+  .tr-day-tot { grid-column: 1 / -1; text-align: left; font-size: .84rem; color: var(--dim); }
+  .vpnc-foot .vpnc-traffic { flex-basis: 100%; }
+}
 .vpn-card-acts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
 /* Phone alerts page */
 .wd-grid .vpn-value { font-weight: 500; font-size: .94rem; }

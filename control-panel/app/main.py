@@ -26,7 +26,38 @@ else:
     from .stack import Backend
     backend = Backend()
 
-app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+# Network traffic, read once a minute whether or not the panel is open: the VPN's tunnel
+# (from gluetun) and the server's own network card
+from .traffic import Traffic
+vpn_traffic = Traffic(config.STATE_DIR / "vpn-traffic.json", backend.vpn_counters)
+host_traffic = Traffic(config.STATE_DIR / "host-traffic.json", backend.host_counters)
+if config.DEMO:
+    from .demo import demo_traffic
+    for _t, _host in ((vpn_traffic, False), (host_traffic, True)):
+        if not _t.hours:
+            _t.minutes, _t.hours = demo_traffic(time.time(), _host)
+vpn_traffic.start()
+host_traffic.start()
+
+# And every few seconds while the panel is open, for the speeds "now": the counters as they
+# stand, which the page turns into a speed from one status check to the next
+_net_cache: tuple[float, dict] | None = None
+
+
+def net_now() -> dict:
+    global _net_cache
+    now = time.time()
+    if _net_cache is None or now - _net_cache[0] > 2:
+        out = {"t": now, "host": None, "vpn": None}
+        for k, read in (("host", backend.host_counters), ("vpn", backend.vpn_counters)):
+            try:
+                out[k] = read()
+            except Exception:
+                pass
+        _net_cache = (now, out)
+    return _net_cache[1]
+
+app =FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 lockout = auth.Lockout()
 COOKIE = "ui_session"
 LOGGABLE = {"caddy", "gluetun", "aiostreams", "mediaflow-proxy-light", "aios-webhook-relay", "aiometadata"}
@@ -143,6 +174,7 @@ async def status(user: str = Depends(current_user)):
         _status_cache = (now, data)
     data = dict(_status_cache[1])
     data["busy"] = jobs.current_id()
+    data["net"] = await asyncio.to_thread(net_now)
     return data
 
 
@@ -350,6 +382,18 @@ async def watchdog_clear_tally(user: str = Depends(current_user)):
 async def vpn(fresh: bool = False, user: str = Depends(current_user)):
     """The VPN page: mode, endpoint and, with the tunnel on, where traffic leaves. Never the keys."""
     return await asyncio.to_thread(backend.vpn_info, fresh)
+
+
+@app.get("/api/vpn/traffic")
+async def vpn_traffic_history(user: str = Depends(current_user)):
+    """Bytes through the tunnel: each minute of the last day, each hour of the last week."""
+    return vpn_traffic.view()
+
+
+@app.get("/api/host/traffic")
+async def host_traffic_history(user: str = Depends(current_user)):
+    """The same for the server's own network card."""
+    return host_traffic.view()
 
 
 @app.get("/api/addons")

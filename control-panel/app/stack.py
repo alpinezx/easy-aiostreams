@@ -16,12 +16,14 @@ import termios
 import threading
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Callable, Iterator
 
 import docker
 
 from . import config
 from .actions import ADDON_STATE, SCRIPTS, Action
+from .traffic import dev_counters, host_net
 from .wgconf import check_wireguard_conf
 
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
@@ -405,6 +407,22 @@ class Backend:
     # at most once a minute unless asked to check now.
     _VPN_FRESH = 60
     _vpn_cache: dict | None = None
+
+    def host_counters(self) -> tuple[int, int] | None:
+        """The server's own bytes down and up since boot, on the network card its internet
+        traffic leaves by (named differently on each server: eth0, ens3, enp0s6...). Read from
+        the host's /proc (the panel shares its process table), the same on any Linux."""
+        return host_net(Path("/proc/1/net"))
+
+    def vpn_counters(self) -> tuple[int, int] | None:
+        """The tunnel's bytes down and up since gluetun started, for the traffic graph;
+        None unless the VPN is on and gluetun answers."""
+        if "container_name: gluetun" not in _read(self.p("docker-compose.yml")):
+            return None
+        r = self.client.containers.get("gluetun").exec_run(["cat", "/proc/net/dev"])
+        if r.exit_code != 0:
+            return None
+        return dev_counters((r.output or b"").decode(errors="replace"), ["tun0", "wg0"])
 
     def vpn_info(self, fresh: bool = False) -> dict:
         compose = _read(self.p("docker-compose.yml"))

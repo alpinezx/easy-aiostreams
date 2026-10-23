@@ -1,5 +1,6 @@
 import { $, h, clear, api, ago, toast } from "./util.js";
 import { runAction, ask } from "./actions.js";
+import { trafficCard, updateNow } from "./traffic.js";
 
 // The VPN page. Whether the tunnel is up, where traffic leaves (asked from
 // inside the VPN container), which server address the config points at, and
@@ -8,6 +9,7 @@ import { runAction, ask } from "./actions.js";
 // Update VPN. Changing the config itself stays in the script for now.
 
 let checking = false, last = null, st = null;
+let trafficBox = null, trafficDrawn = Date.now();
 const REGION = (() => { try { return new Intl.DisplayNames([], { type: "region" }); } catch (_) { return null; } })();
 export const countryName = (code) => { try { return (code && REGION && REGION.of(code)) || code; } catch (_) { return code; } };
 
@@ -18,6 +20,12 @@ const actFor = (id) => { const a = st && st.actions.find((x) => x.id === id); re
 export function setStatus(status) {
   st = status;
   toggle();
+  updateNow();
+  // The traffic graph gains a point a minute; redraw it when one is due
+  if (trafficBox && trafficBox.isConnected && Date.now() - trafficDrawn > 60000) {
+    trafficDrawn = Date.now();
+    trafficCard(trafficBox);
+  }
 }
 
 function toggle() {
@@ -311,6 +319,8 @@ function render(v) {
         title: "Pull the newest gluetun v3 release", onclick: () => runAction(upd) }) : null));
   }
   const confBox = h("div");
-  box.append(card, confBox);
+  trafficBox = h("div");
+  box.append(card, trafficBox, confBox);
+  trafficCard(trafficBox);
   showConfigs(confBox);
 }

@@ -6,6 +6,7 @@ import { pill as scriptsPill } from "./scripts.js";
 import { scheduleText } from "./activity.js";
 import { applyLayout, openLayout } from "./layout.js";
 import { countryName } from "./vpn.js";
+import { loadTraffic, trafficData, trafficStale, summaryLine, feedNet, nowRate, today, fmtPair } from "./traffic.js";
 
 // ---------------- update check ----------------
 let rel = null, relLoading = false, relFor = null, lastSt = null;
@@ -120,6 +121,7 @@ function rebuild(region, key, build) {
 
 // Called once per status poll (not per repaint) so sparklines get one point per poll.
 export function record(st) {
+  feedNet(st.net);
   for (const s of st.services) {
     if (s.state !== "running") { hist[s.key] = []; continue; }
     (hist[s.key] ||= []).push(s.cpu ?? 0);
@@ -627,6 +629,14 @@ function side(st) {
     const pct = (used / total) * 100;
     grid.append(stat(label, `${fmtBytes(used)} of ${fmtBytes(total)}`, `${Math.round(pct)}% used, ${fmtBytes(total - used)} free`, tone(pct, warn, 90)));
   }
+  // The server's own network card, everything in and out (the VPN's tunnel travels through it
+  // too): the speed now and today's totals
+  if (st.net && st.net.host) {
+    if (trafficStale("host")) loadTraffic(false, "host").then(() => { if (lastSt) side(lastSt); }).catch(() => {});
+    const n = nowRate(trafficData("host"), "host"), t = today(trafficData("host"));
+    grid.append(stat("Network", n ? fmtPair(n) : "Measuring…",
+      t && (t[0] || t[1]) ? `Today ↓ ${fmtBytes(t[0])} ↑ ${fmtBytes(t[1])}` : ""));
+  }
   // The newest backup, any kind, and the schedule; amber when the last scheduled one failed or was skipped
   const bk = st.backup;
   if (bk) {
@@ -701,8 +711,12 @@ function vpnCard(el, st, avail) {
     up ? stat("Leaves from", where || "Unknown", v.exit_ip || "") : null,
     v && v.endpoint_host ? stat("Server", v.endpoint_host, v.endpoint_ip || "")
       : v && v.endpoint_ip ? stat("Server", v.endpoint_ip, v.endpoint_port ? `Port ${v.endpoint_port}` : "") : null));
+  // What's going through it now and today, quietly at the left; the graph is on the VPN page
+  if (mode === "on" && trafficStale()) loadTraffic().then(() => { if (lastSt) side(lastSt); }).catch(() => {});
+  const line = mode === "on" ? summaryLine(trafficData()) : "";
   // Turning it on with no config saved asks for one, which only the VPN page does
-  const btns = h("div", { class: "card-foot" });
+  const btns = h("div", { class: "card-foot vpnc-foot" }, line ? h("a", { class: "vpnc-traffic dim", href: "#vpn",
+    title: "The traffic graph is on the VPN page", text: line }) : null);
   const a = avail[mode === "on" ? "vpn.off" : "vpn.on"];
   if (a && a.available && !(mode === "off" && v && v.has_config === false)) {
     btns.append(h("button", { class: "btn small", type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
