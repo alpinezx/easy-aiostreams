@@ -5,6 +5,7 @@ import { days, todayLine, parseCheck } from "./alerts.js";
 import { pill as scriptsPill } from "./scripts.js";
 import { scheduleText } from "./activity.js";
 import { applyLayout, openLayout } from "./layout.js";
+import { countryName } from "./vpn.js";
 
 // ---------------- update check ----------------
 let rel = null, relLoading = false, relFor = null, lastSt = null;
@@ -527,6 +528,20 @@ async function loadWdDays() {
   finally { wdDaysLoading = false; }
 }
 
+// The VPN card's details come from the VPN page's own data (the server asks from inside
+// gluetun at most once a minute), fetched again within a minute, or at once when it's switched.
+let vpnInfo = null, vpnAt = 0, vpnFor = null, vpnLoading = false;
+async function loadVpn(mode, fresh) {
+  if (vpnLoading || (!fresh && mode === vpnFor && Date.now() - vpnAt < 60000)) return;
+  vpnLoading = true;
+  if (fresh && lastSt) side(lastSt);
+  try { vpnInfo = await api(`/api/vpn${fresh ? "?fresh=1" : ""}`); }
+  catch (_) { vpnInfo = null; }
+  vpnAt = Date.now(); vpnFor = mode; vpnLoading = false;
+  if (lastSt) side(lastSt);
+  if (fresh && vpnInfo) toast(vpnInfo.connected ? "The VPN is connected." : vpnInfo.error || "The VPN isn't connected.", !vpnInfo.connected);
+}
+
 // ---------------- side panels ----------------
 // One labelled value with a quiet line under it, like the version card and
 // AIOStreams' own System card. Coloured only when it needs a look.
@@ -603,9 +618,6 @@ function side(st) {
   const grid = h("div", { class: "stat-grid" });
   if (hs.uptime != null) grid.append(stat("Up for", fmtDur(hs.uptime), `since ${dayMonth(Date.now() - hs.uptime * 1000)}`));
   certTiles(grid, st);
-  if (st.vpn === "on" || st.vpn === "off") {
-    grid.append(stat("VPN", st.vpn === "on" ? "On" : "Off", st.vpn === "on" ? "Traffic goes through it" : "A direct connection", st.vpn === "on" ? "ok" : ""));
-  }
   if (hs.load) {
     const pct = (hs.load[0] / (hs.cpus || 1)) * 100;
     grid.append(stat("Load", hs.load[0].toFixed(2), `on ${hs.cpus} CPU${hs.cpus > 1 ? "s" : ""}`, tone(pct, 75, 90)));
@@ -627,6 +639,7 @@ function side(st) {
     h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer })));
   if (!hostFolded) host.append(grid);
   el.append(host);
+  vpnCard(el, st, avail);
 
   // Phone alerts are an optional add-on: the card only appears once they're set up, so it never
   // reads as something missing. The Scripts tab lists the add-on for anyone who wants it.
@@ -660,4 +673,43 @@ function side(st) {
         h("div", { class: "dim wd-today", text: todayLine(wdDays) })), btns));
   } else wd.append(btns);
   el.append(wd);
+}
+
+// The VPN, once it's set up (on or off), like Phone alerts: whether it's connected, where
+// traffic leaves and the server, with Turn VPN off/on and Check now. The rest is on its page.
+function vpnCard(el, st, avail) {
+  const mode = st.vpn;
+  if (mode !== "on" && mode !== "off") return;
+  loadVpn(mode, false);
+  const v = vpnInfo && vpnInfo.mode === mode ? vpnInfo : null;
+  const up = mode === "on" && v && v.connected;
+  const where = up ? [v.city, countryName(v.country)].filter(Boolean).join(", ") : "";
+  const [word, sub, tn] = mode === "off" ? ["Off", "A direct connection", ""]
+    : vpnLoading && !v ? ["On", "Checking…", ""]
+    : !v ? ["On", "Couldn't check", "warn"]
+    : v.connected ? ["Connected", v.checked_at ? `Checked ${ago(v.checked_at)}` : "", "ok"]
+    : ["Not connected", (v.error || "").slice(0, 70), "bad"];
+  const folded = isFolded("vpn");
+  const card = h("section", { class: "panel vpnc" + (folded ? " folded" : "") }, h("div", { class: "card-head" },
+    h("h3", {}, foldTitle("vpn", "VPN")),
+    folded ? foldSum([[word, tn], [where]]) : null,
+    h("a", { href: "#vpn", class: "dim card-link", text: "Details" })));
+  el.append(card);
+  if (folded) return;
+  card.append(h("div", { class: "stat-grid" },
+    stat("Tunnel", word, sub, tn),
+    up ? stat("Leaves from", where || "Unknown", v.exit_ip || "") : null,
+    v && v.endpoint_host ? stat("Server", v.endpoint_host, v.endpoint_ip || "")
+      : v && v.endpoint_ip ? stat("Server", v.endpoint_ip, v.endpoint_port ? `Port ${v.endpoint_port}` : "") : null));
+  // Turning it on with no config saved asks for one, which only the VPN page does
+  const btns = h("div", { class: "card-foot" });
+  const a = avail[mode === "on" ? "vpn.off" : "vpn.on"];
+  if (a && a.available && !(mode === "off" && v && v.has_config === false)) {
+    btns.append(h("button", { class: "btn small", type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
+  }
+  if (mode === "on") {
+    btns.append(h("button", { class: "btn small", type: "button", text: vpnLoading ? "Checking…" : "Check now", disabled: vpnLoading,
+      title: "Ask from inside the VPN where traffic leaves now", onclick: () => loadVpn(mode, true) }));
+  }
+  card.append(btns);
 }

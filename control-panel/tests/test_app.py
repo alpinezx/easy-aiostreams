@@ -561,12 +561,12 @@ def test_backup_schedule(client):
 def test_overview_layout(client):
     login(client)
     ids = lambda r: [(c["id"], c["show"]) for c in r.json()["cards"]]
-    default = [("flow", True), ("aiostreams", True), ("aiometadata", True), ("alerts", True), ("server", True), ("services", True)]
+    default = [("flow", True), ("aiostreams", True), ("aiometadata", True), ("alerts", True), ("vpn", True), ("server", True), ("services", True)]
     assert ids(client.get("/api/overview-layout")) == default
     # unknown and repeated cards are dropped; ones left out go back to their default place
     r = client.put("/api/overview-layout", json={"cards": [{"id": "services", "show": True}, {"id": "nope"},
                                                          {"id": "alerts", "show": False}, {"id": "services", "show": False}]})
-    assert ids(r) == [("flow", True), ("aiostreams", True), ("aiometadata", True), ("services", True), ("alerts", False), ("server", True)]
+    assert ids(r) == [("flow", True), ("aiostreams", True), ("aiometadata", True), ("services", True), ("alerts", False), ("vpn", True), ("server", True)]
     # layout.js lists the cards in the same default order
     import re
     from pathlib import Path

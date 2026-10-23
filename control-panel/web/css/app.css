@@ -884,7 +884,7 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 
 /* The Overview: the headline, then the cards in the order Edit saved (layout.js sets
    --o-<card> and data-hide). By default: the request flow it illustrates, the version
-   card, the add-ons' cards (AIOMetadata, Phone alerts), then This server and the services. */
+   card, the add-ons' cards (AIOMetadata, Phone alerts, VPN), then This server and the services. */
 #view-overview:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr); }
 #view-overview .cols, #view-overview .side { display: contents; }
 #view-overview .hero { order: 0; }
@@ -892,11 +892,13 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 #view-overview .ver-slot { order: var(--o-aiostreams, 2); margin: 0 0 30px; }
 #view-overview .meta-slot { order: var(--o-aiometadata, 3); }
 #view-overview .panel.wd { order: var(--o-alerts, 4); margin: 0 0 30px; }
-#view-overview .panel.host { order: var(--o-server, 5); margin: 0 0 30px; }
-#view-overview .cols > div { order: var(--o-services, 6); margin: 0 0 30px; }
+#view-overview .panel.vpnc { order: var(--o-vpn, 5); margin: 0 0 30px; }
+#view-overview .panel.host { order: var(--o-server, 6); margin: 0 0 30px; }
+#view-overview .cols > div { order: var(--o-services, 7); margin: 0 0 30px; }
 #view-overview[data-hide~="flow"] .path, #view-overview[data-hide~="aiostreams"] .ver-slot:not(.meta-slot),
 #view-overview[data-hide~="aiometadata"] .meta-slot,
 #view-overview[data-hide~="server"] .panel.host, #view-overview[data-hide~="alerts"] .panel.wd,
+#view-overview[data-hide~="vpn"] .panel.vpnc,
 #view-overview[data-hide~="services"] .cols > div { display: none; }
 
 /* Wide screens: each card a full row, like AIOStreams' own dashboard; This server six
@@ -999,7 +1001,7 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 /* Phones: the request flow on one line of small status pills, the add-ons on a line under
    it, uptimes left to Services. A tall chain of boxes used to fill a screen and a half. */
 @media (max-width: 720px) {
-  #view-overview .ver-slot, #view-overview .panel.host, #view-overview .panel.wd, #view-overview .cols > div { margin-bottom: 22px; }
+  #view-overview .ver-slot, #view-overview .panel.host, #view-overview .panel.wd, #view-overview .panel.vpnc, #view-overview .cols > div { margin-bottom: 22px; }
   .path { margin: 0 0 22px; padding: 16px 14px 14px; }
   .path-head { margin: 0 0 12px; }
   .chain { flex-direction: row; align-items: center; }

@@ -7,6 +7,7 @@ const CARDS = {
   aiostreams: ["AIOStreams", "Its version and updates"],
   aiometadata: ["AIOMetadata", "Its version, updates and pages"],
   alerts: ["Phone alerts", "The watchdog, its last check and 14 days"],
+  vpn: ["VPN", "Whether it's connected, where traffic leaves and the server"],
   server: ["This server", "Uptime, certificate, memory, disk and backups"],
   services: ["Services", "Each container, with Logs, Restart and Stop"],
 };
@@ -15,6 +16,7 @@ const DEFAULT = Object.keys(CARDS).map((id) => ({ id, show: true }));
 let cards = DEFAULT;
 let hasAlerts = false;    // the Phone alerts card only exists once the watchdog is set up
 let hasMeta = false;      // and AIOMetadata's once it's installed
+let hasVpn = false;       // and the VPN's once it's set up (on or off)
 let lastFocus = null, saveTimer = null;
 
 api("/api/overview-layout").then((r) => { cards = r.cards; apply(); if (isOpen()) list(); }).catch(() => {});
@@ -30,6 +32,7 @@ function apply() {
 export function applyLayout(st) {
   hasAlerts = !!(st.watchdog && st.watchdog.configured);
   hasMeta = !!st.aiometadata;
+  hasVpn = st.vpn === "on" || st.vpn === "off";
   apply();
 }
 
@@ -66,7 +69,7 @@ function list() {
   const ul = $("#lay-list");
   clear(ul);
   for (const c of cards) {
-    if ((c.id === "alerts" && !hasAlerts) || (c.id === "aiometadata" && !hasMeta)) continue;
+    if ((c.id === "alerts" && !hasAlerts) || (c.id === "aiometadata" && !hasMeta) || (c.id === "vpn" && !hasVpn)) continue;
     const [title, text] = CARDS[c.id];
     const input = h("input", { type: "checkbox", "aria-label": `Show ${title}` });
     input.checked = c.show;
