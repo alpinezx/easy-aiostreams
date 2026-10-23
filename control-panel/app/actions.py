@@ -2,7 +2,7 @@
 
 Each action maps to one of the existing setup-*.sh scripts, driven the same
 way a person would drive it: either through the script's own non-interactive
-entry point (e.g. 'backup', 'start-relay') or by typing the menu choices.
+entry point (e.g. 'backup', 'start-mediaflow') or by typing the menu choices.
 The scripts get a pseudo-terminal for stdin, exactly like an SSH session.
 That matters: do_backup ends with '[[ -t 0 ]] && read ...', which returns
 failure (and kills the script under set -e) when stdin is not a terminal.
@@ -30,6 +30,7 @@ class Action:
     timeout: int = 600
     confirm: str | None = None   # confirmation text; None = no modal
     needs: tuple[str, ...] = ()  # paths (relative to INSTALL_DIR) that must exist
+    script_has: str = ""         # text the script must contain: a command older copies lack
     env: tuple[str, ...] = ()    # extra NAME=value for the script
     # Run on the host as a systemd unit of its own rather than under the panel:
     # for anything that restarts Docker, which restarts this container too
@@ -68,13 +69,11 @@ _STATIC: dict[str, Action] = {a.id: a for a in [
            needs=("setup-mediaflow.sh", "mediaflow-state/docker-compose.yml"),
            confirm="Stop MediaFlow Proxy? Streams that use it will stop playing."),
 
-    Action("webhook.start", "Start", "Starting", "Start finished", "setup-webhook.sh",
-           args=("start-relay",), timeout=300,
-           needs=("setup-webhook.sh", "webhook-relay-state/docker-compose.yml")),
-    Action("webhook.stop", "Stop", "Stopping", "Stop finished", "setup-webhook.sh",
-           args=("stop-relay",), stdin="3\n10\n", timeout=120,
-           needs=("setup-webhook.sh", "webhook-relay-state/docker-compose.yml"),
-           confirm="Stop the webhook relay? Incoming webhooks will be rejected until it starts again."),
+    # The webhook relay was retired in October 2026; this only removes one that's
+    # still installed, with setup-aiostreams.sh (setup-webhook.sh is off GitHub)
+    Action("webhook.uninstall", "Uninstall the webhook relay", "Uninstalling the webhook relay", "Webhook relay uninstalled",
+           AIO, args=("remove-webhook-relay",), timeout=300, needs=(AIO, "webhook-relay-state"),
+           script_has="remove-webhook-relay"),
 
     Action("aiometadata.start", "Start", "Starting", "Start finished", "setup-aiometadata.sh",
            args=("start-aiometadata",), timeout=300,
@@ -241,7 +240,6 @@ def build_vpn_uninstall(remove_image: bool, delete_confs: bool) -> Action:
 ADDON_UNINSTALL = {
     "aiometadata": ("AIOMetadata", "setup-aiometadata.sh", "aiometadata-state/config", True),
     "mediaflow": ("MediaFlow Proxy", "setup-mediaflow.sh", "mediaflow-state/config", True),
-    "webhook": ("the webhook relay", "setup-webhook.sh", "webhook-relay-state/config", False),
 }
 
 
@@ -269,7 +267,7 @@ def build_set_topic(topic) -> Action:
 
 
 # Each add-on script's state folder: while it's there, the add-on is set up and its script stays
-ADDON_STATE = {"vpn": "vpn-state", "mediaflow": "mediaflow-state", "watchdog": "watchdog-state", "webhook": "webhook-relay-state",
+ADDON_STATE = {"vpn": "vpn-state", "mediaflow": "mediaflow-state", "watchdog": "watchdog-state",
                "aiometadata": "aiometadata-state"}
 
 
@@ -310,6 +308,5 @@ SCRIPTS = [
     ("vpn", "VPN (Gluetun)", "setup-vpn-gluetun.sh"),
     ("mediaflow", "MediaFlow Proxy", "setup-mediaflow.sh"),
     ("watchdog", "Phone alerts", "setup-watchdog.sh"),
-    ("webhook", "Webhook relay", "setup-webhook.sh"),
     ("aiometadata", "AIOMetadata", "setup-aiometadata.sh"),
 ]

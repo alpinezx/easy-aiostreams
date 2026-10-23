@@ -40,7 +40,6 @@ SCRIPT_COPY="$STATE_DIR/watchdog.sh"
 SERVICE_FILE="/etc/systemd/system/aiostreams-watchdog.service"
 TIMER_FILE="/etc/systemd/system/aiostreams-watchdog.timer"
 BOOT_SERVICE_FILE="/etc/systemd/system/aiostreams-watchdog-boot.service"
-WEBHOOK_BOOT_UNIT="aios-webhook-boot-notify.service"
 
 FAIL_THRESHOLD=2        # consecutive failed checks before an alert fires
 DISK_WARN_PCT=90        # disk alert at this % used, all-clear once below DISK_CLEAR_PCT
@@ -296,8 +295,8 @@ check_disk() {
 # port 443, like the site check. A certificate that's already broken is the
 # site check's job.
 # Every site Caddy serves, main domain first: the Caddyfile's, then each
-# add-on's caddy.d site (MediaFlow, webhook relay, AIOMetadata, the control
-# panel). Each has a certificate of its own. Site lines are a hostname then
+# add-on's caddy.d site (MediaFlow, AIOMetadata, the control panel and any
+# other). Each has a certificate of its own. Site lines are a hostname then
 # "{"; inner blocks ("handle @x {") have no dot in their first word.
 site_domains() {
     awk 'NF && $1 !~ /^#/ && $2 == "{" && $1 ~ /\./ && $1 ~ /^[A-Za-z0-9.-]+$/ {print tolower($1)}' \
@@ -849,11 +848,6 @@ do_boot() {
     elif (( last > 0 && last < boot_at )); then
         down=" without a clean shutdown (a crash or power cut?). It was last seen at $(date -d "@$last" '+%H:%M')"
     fi
-    # The webhook relay can send its own reboot notification; one is enough
-    if systemctl is-enabled --quiet "$WEBHOOK_BOOT_UNIT" 2>/dev/null; then
-        log_event reboot "Server restarted at $when$down. The webhook relay sent the notification."
-        return 0
-    fi
     if ! reboots_on; then
         log_event reboot "Server restarted at $when$down. No alert: restart alerts are off."
         return 0
@@ -1135,11 +1129,7 @@ do_extras() {
             *) note="this server runs a pinned version, so there's nothing to alert about" ;;
         esac
         echo "1) New AIOStreams release: $(option_on updates && echo on || echo off)  ($note)"
-        if systemctl is-enabled --quiet "$WEBHOOK_BOOT_UNIT" 2>/dev/null; then
-            echo "2) Server restarted: $(reboots_on && echo on || echo off)  (the webhook relay sends these while its own is on)"
-        else
-            echo "2) Server restarted: $(reboots_on && echo on || echo off)  (with how long it was down)"
-        fi
+        echo "2) Server restarted: $(reboots_on && echo on || echo off)  (with how long it was down)"
         echo "3) Script updates: $(option_on scripts && echo on || echo off)  (scripts can change several times a week, so this can be chatty; at most one alert a day)"
         echo "4) Scheduled backup made: $(option_on backups && echo on || echo off)  (a failed or skipped one always alerts)"
         echo "5) Security updates waiting: $(option_on security && echo on || echo off)  (after $SEC_WAIT_DAYS days; Ubuntu usually installs them by itself)"

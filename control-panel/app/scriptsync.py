@@ -98,7 +98,7 @@ DEMO_SAME: set[str] = set()     # demo scripts "updated" this run
 
 
 def demo(files: list[str]) -> dict:
-    here = {"setup-aiostreams.sh", "setup-backup.sh", "setup-mediaflow.sh", "setup-webhook.sh", "setup-watchdog.sh", "setup-aiometadata.sh"}
+    here = {"setup-aiostreams.sh", "setup-backup.sh", "setup-mediaflow.sh", "setup-watchdog.sh", "setup-aiometadata.sh"}
     return {"checked_at": time.time(), "error": None,
             "files": {f: {"present": f in here, "differs": (f == "setup-mediaflow.sh" and f not in DEMO_SAME) if f in here else None}
                       for f in files}, "branch": "main"}

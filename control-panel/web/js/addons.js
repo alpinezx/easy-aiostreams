@@ -100,14 +100,13 @@ function dockerCard(a) {
       { label: "API password", secret: ["mediaflow", "api_password"], note: "Goes in AIOStreams" },
       { label: "Outbound proxy", text: a.proxy || "None", note: a.proxy ? "Video goes out through it" : "Video uses this server's IP" });
   } else if (a.id === "webhook") {
-    rows.push({ label: "Webhook URL", secret: ["webhook", "url"], hidden: `${a.domain}/hook/••••`, note: "For your uptime tracker" },
-      { label: "Sends to", secret: ["webhook", "ntfy"], hidden: `${a.ntfy_server || "ntfy"}/••••` },
-      { label: "Reboot alert", text: a.reboots ? "On" : "Off", note: "When the server restarts" });
+    rows.push({ label: "Address", text: a.domain, note: "Gets no updates" });
   }
   const cert = certTile(a.domain);
   if (cert) rows.push(cert);
   return card({ id: a.id, name: NAMES[a.id], chip, mem: running && s.mem ? fmtBytes(s.mem) : null, rows,
-    foot: a.id === "aiometadata" ? "API keys go in the Dashboard's Built-in rows only." : null });
+    foot: a.id === "aiometadata" ? "API keys go in the Dashboard's Built-in rows only."
+      : a.id === "webhook" ? "Retired. Uptime trackers can send to ntfy directly." : null });
 }
 
 function country(code) {
@@ -169,8 +168,9 @@ const UNINSTALL = {
     body: "Its containers, its cache, its site and its saved settings are removed, including every configuration and account in its database. AIOStreams and the other add-ons stay. Remove it from your apps and AIOStreams afterwards." },
   mediaflow: { title: "MediaFlow Proxy", action: "mediaflow.uninstall", image: "Remove the MediaFlow image too",
     body: "Its container, its site, its saved settings (the API password too) and its fail2ban jail, if it has one, are removed. AIOStreams and the other add-ons stay. Switch AIOStreams' proxy setting off MediaFlow afterwards." },
-  webhook: { title: "the webhook relay", action: "webhook.uninstall",
-    body: "Its container, its site, its reboot alert and its saved settings (the token and event history too) are removed. AIOStreams and the other add-ons stay." },
+  // A restore leaves the retired relay out, so a backup can't bring it back
+  webhook: { title: "the webhook relay", action: "webhook.uninstall", noBackup: true,
+    body: "Its container, its site, its reboot alert, its saved settings and its script are removed. AIOStreams and the other add-ons stay. It was retired, so it can't be set up again." },
   vpn: { title: "the VPN", action: "vpn.uninstall", image: "Remove the gluetun image too",
     body: "AIOStreams switches to a direct connection, and the VPN's container and everything saved for it, keys included, are removed. AIOStreams and Caddy stay." },
   alerts: { title: "phone alerts", action: "watchdog.uninstall",
@@ -188,7 +188,7 @@ async function uninstall(id) {
   const confs = h("input", { type: "checkbox", checked: true });
   const gate = h("input", { class: "input", type: "text", autocomplete: "off", spellcheck: "false", "aria-label": "Type uninstall to confirm" });
   const el = h("div", { class: "opts" },
-    h("label", { class: "check" }, backup, h("span", { text: "Back up first (a backup holds its settings, so this can be undone)" })),
+    u.noBackup ? null : h("label", { class: "check" }, backup, h("span", { text: "Back up first (a backup holds its settings, so this can be undone)" })),
     u.image ? h("label", { class: "check" }, image, h("span", { text: u.image })) : null,
     files.length ? h("label", { class: "check" }, confs, h("span", {}, "Delete the .conf ", files.length === 1 ? "file" : "files",
       " in your home folder: ", h("span", { class: "mono", text: files.map((f) => f.split("/").pop()).join(", ") }))) : null,
@@ -196,7 +196,7 @@ async function uninstall(id) {
   const res = await ask({ title: `Uninstall ${u.title}?`, confirmLabel: "Uninstall", danger: true,
     body: u.body + " Its card goes afterwards.",
     options: { el, gate, word: "uninstall",
-      read: () => ({ backup: backup.checked, remove_image: !!u.image && image.checked, delete_confs: files.length > 0 && confs.checked, confirm: gate.value.trim() }) } });
+      read: () => ({ backup: !u.noBackup && backup.checked, remove_image: !!u.image && image.checked, delete_confs: files.length > 0 && confs.checked, confirm: gate.value.trim() }) } });
   if (!res) return;
   try {
     if (res.backup) {

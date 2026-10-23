@@ -50,15 +50,16 @@ It is still root-equivalent on your server, because it has to run the scripts an
 | Button | Script and input |
 | --- | --- |
 | Start, Stop (AIOStreams' row), Restart stack | `setup-aiostreams.sh start`, `stop`, `restart` (menu options 3, 2, 4 without their questions) |
-| Restart (per service) | restarts just that container through Docker; AIOStreams, MediaFlow, the webhook relay and AIOMetadata only |
+| Restart (per service) | restarts just that container through Docker; AIOStreams, MediaFlow and AIOMetadata only |
 | Update | `setup-aiostreams.sh update`, with `--backup` and `--channel latest\|nightly` from the dialog (menu option 5 without its questions) |
 | Back up now | `setup-aiostreams.sh backup` |
 | Scheduled backups: Set, Off | `setup-backup.sh schedule daily HH:MM`, `weekly <1-7> HH:MM`, `off`, which writes `backup-schedule` and the systemd timer |
-| MediaFlow, webhook relay | `start-mediaflow`, `start-relay`, `stop-mediaflow`, `stop-relay` |
+| MediaFlow | `setup-mediaflow.sh start-mediaflow`, `stop-mediaflow` |
 | AIOMetadata: Start, Stop, Update | `setup-aiometadata.sh start-aiometadata`, `stop-aiometadata`, `update-aiometadata` (with `--backup` from the dialog) |
 | Phone alerts: Start, Stop, Send test alert | `setup-watchdog.sh install-timer`, `stop` (with menu option 3 typed too, for older copies of the script), `test` |
 | Add-ons: Uninstall (Phone alerts) | `setup-watchdog.sh uninstall` (menu option 9 without its question; the panel asks first) |
-| Add-ons: Uninstall (AIOMetadata, MediaFlow, Webhook relay) | `setup-aiostreams.sh backup` first if ticked, then the add-on's `uninstall`, with `remove-image` if ticked (AIOMetadata's and MediaFlow's; the webhook relay's image is a common Python one, left for Free up space) |
+| Add-ons: Uninstall (AIOMetadata, MediaFlow) | `setup-aiostreams.sh backup` first if ticked, then the add-on's `uninstall`, with `remove-image` if ticked |
+| Add-ons: Uninstall (the retired webhook relay) | `setup-aiostreams.sh remove-webhook-relay`, offered once the script has it; no backup, since a restore leaves the relay out, and its common Python image is left for Free up space |
 | Phone alerts: Change topic | `setup-watchdog.sh set-topic`, with the topic on stdin (never on a command line or in Activity), then a test alert to it |
 | Phone alerts: the switches, the check-in's day and time, Reset, Clear history | written straight to `watchdog-state/options`, `tally` and `events` (the script's `set-option` does the same over SSH) |
 | Turn VPN on, Turn VPN off | `setup-vpn-gluetun.sh on`, `off` (the same steps as its menu options 2 and 3) |
@@ -107,7 +108,7 @@ Uninstalling the VPN is on the [Add-ons page](#add-ons-page). The script's `unin
 
 ## Add-ons page
 
-It appears on the rail once any optional add-on is installed: AIOMetadata, MediaFlow Proxy, the webhook relay, the VPN or phone alerts. Each gets a card with what its script's Status and Show options print, its subdomain's certificate and its memory use; the VPN's and Phone alerts' cards are short, since their own pages hold their settings. Links show their host and path, with Copy and open buttons. Secrets (AIOMetadata's addon password and admin key, MediaFlow's API password, the webhook URL and its ntfy target) aren't in the page: the panel reads each from the add-on's saved settings only when its eye or Copy is pressed, one at a time, sent with `Cache-Control: no-store`, and the page doesn't keep it. A MediaFlow outbound proxy shows without its login. The watchdog's topic stays masked here too.
+It appears on the rail once any optional add-on is installed: AIOMetadata, MediaFlow Proxy, the VPN or phone alerts (and the retired webhook relay, with only its address and Uninstall). Each gets a card with what its script's Status and Show options print, its subdomain's certificate and its memory use; the VPN's and Phone alerts' cards are short, since their own pages hold their settings. Links show their host and path, with Copy and open buttons. Secrets (AIOMetadata's addon password and admin key, MediaFlow's API password) aren't in the page: the panel reads each from the add-on's saved settings only when its eye or Copy is pressed, one at a time, sent with `Cache-Control: no-store`, and the page doesn't keep it. A MediaFlow outbound proxy shows without its login. The watchdog's topic stays masked here too.
 
 **Uninstall** on each card asks for `uninstall` to be typed. **Back up first** runs a normal backup and stops if it fails (a backup holds the add-on's settings, so a restore brings it back). Tick boxes cover the script's own questions: removing the images, and the VPN's `.conf` files. Each script's question-free `uninstall` does exactly what its menu's Uninstall does. The card goes once the add-on has.
 

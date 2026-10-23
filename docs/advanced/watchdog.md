@@ -33,11 +33,11 @@ The same as check 5, for AIOMetadata: **Caddy is running**, **AIOMetadata's cont
 ### Warnings (alert once each way)
 
 6. **Disk nearly full.** The disk holding `/opt/aiostreams` at 90% used or more. The all-clear comes once it's back under 85%, so a disk hovering around 90% doesn't send a stream of alerts. A full disk is a common way for a Docker server to break quietly (old images and logs pile up, then nothing can write).
-7. **Certificate not renewing.** Every 6 hours, the certificate of every site this server serves (the main domain and each add-on's subdomain: MediaFlow, the webhook relay, AIOMetadata, the control panel), asked of this server's port 443. Each site alerts once each way on its own, naming it, so a second site going bad still alerts while the first is. Caddy renews well before it runs out (with 30 days left on a 90-day certificate, about 15 on a 45-day one), so under 10 days left means renewal has been failing. An already expired or broken certificate fails the site check above instead.
+7. **Certificate not renewing.** Every 6 hours, the certificate of every site this server serves (the main domain and each add-on's subdomain: MediaFlow, AIOMetadata, the control panel), asked of this server's port 443. Each site alerts once each way on its own, naming it, so a second site going bad still alerts while the first is. Caddy renews well before it runs out (with 30 days left on a 90-day certificate, about 15 on a 45-day one), so under 10 days left means renewal has been failing. An already expired or broken certificate fails the site check above instead.
 
 ### Once per boot, if switched on
 
-8. **Server restarted** (`set-option reboots on`; off for new setups, and a watchdog set up before it was a switch keeps it on). A small boot-time service (`aiostreams-watchdog-boot.service`) stays active until the server shuts down, and records the time as it does. After a clean restart the alert says how long the server was down, to the second. With no record (a crash, a power cut, a forced reset by the host) it says the shutdown wasn't clean and when the server was last seen, from the last check before it went. Each boot is reported once (by the kernel's boot ID), and only within 15 minutes of booting, so starting the service by hand never sends one. If the [webhook relay](./webhook-relay.md)'s own reboot notification is on, the watchdog only records the restart, so you don't get two. With the switch off, the restart is still recorded in the events and counted in the weekly check-in.
+8. **Server restarted** (`set-option reboots on`; off for new setups, and a watchdog set up before it was a switch keeps it on). A small boot-time service (`aiostreams-watchdog-boot.service`) stays active until the server shuts down, and records the time as it does. After a clean restart the alert says how long the server was down, to the second. With no record (a crash, a power cut, a forced reset by the host) it says the shutdown wasn't clean and when the server was last seen, from the last check before it went. Each boot is reported once (by the kernel's boot ID), and only within 15 minutes of booting, so starting the service by hand never sends one. With the switch off, the restart is still recorded in the events and counted in the weekly check-in.
 
 ### Optional, off until switched on
 
@@ -129,7 +129,7 @@ The timer runs a saved copy of the script, not the one you downloaded. Run **2) 
 That's a delivery problem, not a detection problem. Confirm you're subscribed to the *exact* topic shown in Status (one wrong character and nothing arrives; the panel's Change topic has Copy for this), and that the server can reach ntfy.sh at all: `curl -v https://ntfy.sh` from the VPS.
 
 **No restart alert after a reboot**
-Check `systemctl is-enabled aiostreams-watchdog-boot.service` says `enabled` (Start turns it on, Stop turns it off), and `sudo journalctl -u aiostreams-watchdog-boot.service -b` for this boot's run. If the webhook relay's reboot notification is on, the watchdog records the restart on the Phone alerts page but leaves the notification to the relay.
+Check `systemctl is-enabled aiostreams-watchdog-boot.service` says `enabled` (Start turns it on, Stop turns it off), and `sudo journalctl -u aiostreams-watchdog-boot.service -b` for this boot's run.
 
 **The weekly check-in comes at the wrong time**
 It goes by the server's clock: `timedatectl` shows the time zone, and `sudo timedatectl set-timezone Europe/London` (your own Area/City) changes it.

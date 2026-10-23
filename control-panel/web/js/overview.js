@@ -86,7 +86,7 @@ function releasedAgo(running) {
   return r && r.published ? `Released ${ago(Date.parse(r.published) / 1000)}` : "";
 }
 
-const RESTARTABLE = new Set(["aiostreams", "mediaflow", "webhook", "aiometadata"]);
+const RESTARTABLE = new Set(["aiostreams", "mediaflow", "aiometadata"]);
 const hist = {};          // cpu history per service, for the sparklines
 const keys = {};          // last structure key per region, so we only rebuild on real changes
 const SVG = "http://www.w3.org/2000/svg";

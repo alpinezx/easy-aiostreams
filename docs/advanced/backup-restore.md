@@ -59,11 +59,9 @@ same way.
   contains your WireGuard **private key**
 - `watchdog-state/`, if you ever set up [Watchdog Alerts](./watchdog.md) . 
   this contains your ntfy topic name
-- `webhook-relay-state/`, if you ever set up the [Webhook Relay](./webhook-relay.md) . 
-  this contains your secret path token and ntfy topic
 - `backup-schedule`, if [scheduled backups](#scheduled-backups) are on
 - AIOMetadata's `aiometadata-state/` (settings, database, a note of whether it was running), without the lookup files it downloads again by itself; Redis is only a cache and isn't included. See the [AIOMetadata guide](./aiometadata.md#backups)
-- Every install script (`setup-aiostreams.sh`, `setup-backup.sh`, `setup-vpn-gluetun.sh`, `setup-watchdog.sh`, `setup-webhook.sh`, `setup-mediaflow.sh`, `setup-aiometadata.sh`): any `.sh` file in `/opt/aiostreams` is included automatically, which is why all install commands download there first
+- Every install script (`setup-aiostreams.sh`, `setup-backup.sh`, `setup-vpn-gluetun.sh`, `setup-watchdog.sh`, `setup-mediaflow.sh`, `setup-aiometadata.sh`): any `.sh` file in `/opt/aiostreams` is included automatically, which is why all install commands download there first
 
 **Not included:** Caddy's HTTPS certificates. They're in Docker volumes, and Caddy re-issues them automatically once DNS resolves on the new server. No point bundling them.
 
@@ -342,7 +340,7 @@ A backup records which add-ons were **installed** (their settings are in it)
 and which were **running** when it was made. The restore uses both:
 
 - **Every installed add-on gets its subdomain checked**, running or not:
-  AIOMetadata, MediaFlow Proxy, the webhook relay and the control panel. One that's
+  AIOMetadata, MediaFlow Proxy and the control panel. One that's
   switched off today still needs DNS pointing here the day you switch it on.
 - If a subdomain points here, nothing to do. If it points somewhere else
   (usually the old server) or doesn't resolve, the restore says so with both
@@ -365,8 +363,6 @@ and which were **running** when it was made. The restore uses both:
     address, so install them in your apps (or AIOStreams) again.
   - MediaFlow on a new subdomain: set its **Public URL** in the AIOStreams
     dashboard to the new address.
-  - Webhook relay on a new subdomain: the new webhook URL to paste into the
-    sites that send to it.
   - The control panel's unlock link, to open once in each browser.
   - MediaFlow's fail2ban protection, if it was on: it lives outside the
     backup, so add it again with `setup-mediaflow.sh` option 7.
@@ -378,10 +374,9 @@ off if not. Backups from before scheduled backups existed can't say, so if
 this server had them on, the summary says they're off now and how to turn
 them on again.
 
-The webhook relay's reboot notification comes back on if it was on when the
-backup was made. Backups made before this was recorded can't say, so the
-summary reminds you to switch it on again with `setup-webhook.sh` option 7 if
-you had it.
+The webhook relay was retired in October 2026, so it never comes back from a
+backup: the restore drops its settings and Caddy site, and the summary says
+so. Older backups that have it restore fine otherwise.
 
 ---
 
@@ -408,4 +403,4 @@ stack. If it's missing, the backup was likely taken before the
 **Restored under a new domain, and an add-on still uses its old subdomain**
 You chose to keep it when the restore asked. Point that subdomain's DNS at
 this server, or move the add-on with its own script's Reconfigure option
-(`setup-mediaflow.sh` or `setup-webhook.sh`, option 4).
+(for MediaFlow, `setup-mediaflow.sh` option 4).

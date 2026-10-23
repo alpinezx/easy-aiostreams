@@ -60,7 +60,7 @@ def net_now() -> dict:
 app =FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 lockout = auth.Lockout()
 COOKIE = "ui_session"
-LOGGABLE = {"caddy", "gluetun", "aiostreams", "mediaflow-proxy-light", "aios-webhook-relay", "aiometadata"}
+LOGGABLE = {"caddy", "gluetun", "aiostreams", "mediaflow-proxy-light", "aiometadata"}
 
 
 # ---- security headers + CSRF ------------------------------------------
@@ -1181,7 +1181,7 @@ async def server_reboot(request: Request, user: str = Depends(current_user)):
 
 @app.post("/api/services/{key}/restart")
 async def service_restart(key: str, request: Request, user: str = Depends(current_user)):
-    """Restart a single container (AIOStreams, MediaFlow, webhook relay)."""
+    """Restart a single container (AIOStreams, MediaFlow, AIOMetadata)."""
     if key not in RESTARTABLE:
         raise HTTPException(404, "That service can't be restarted on its own.")
     if jobs.current_id():

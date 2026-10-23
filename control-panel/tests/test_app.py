@@ -347,7 +347,7 @@ def test_scripts_compare_endpoint_covers_every_script_and_the_backup_one(client)
     login(client)
     out = client.get("/api/scripts/compare").json()
     assert set(out["files"]) == {"setup-aiostreams.sh", "setup-vpn-gluetun.sh", "setup-mediaflow.sh",
-                                 "setup-watchdog.sh", "setup-webhook.sh", "setup-aiometadata.sh", "setup-backup.sh"}
+                                 "setup-watchdog.sh", "setup-aiometadata.sh", "setup-backup.sh"}
     assert out["files"]["setup-mediaflow.sh"]["differs"] is True
     client.post("/api/logout"); client.cookies.clear()
     assert client.get("/api/scripts/compare").status_code == 401
@@ -663,8 +663,8 @@ def test_add_ons_page_leaves_the_secrets_out_until_asked(client):
     login(client)
     r = client.get("/api/addons")
     assert r.status_code == 200
-    assert [a["id"] for a in r.json()] == ["aiometadata", "mediaflow", "webhook"]
-    for s in ("demo-addon-password", "demo-admin-key", "demo-api-password", "demo-token", "demo-topic"):
+    assert [a["id"] for a in r.json()] == ["aiometadata", "mediaflow"]
+    for s in ("demo-addon-password", "demo-admin-key", "demo-api-password"):
         assert s not in r.text
     r = client.get("/api/addons/mediaflow/secret/api_password")
     assert r.status_code == 200 and r.json()["value"] and r.headers["cache-control"] == "no-store"
@@ -678,9 +678,10 @@ def test_add_on_uninstall_needs_the_word(client):
         for word in ("", "yes", "Uninstal"):
             r = client.post(f"/api/actions/{addon}.uninstall", json={"params": {"confirm": word}})
             assert r.status_code == 400, (addon, word)
-        a = actions.resolve(f"{addon}.uninstall")
-        assert a.args == ("uninstall",) and a.script.startswith("setup-")
-    r = client.post("/api/actions/webhook.uninstall", json={"params": {"confirm": " Uninstall "}})
+        if addon != "webhook":
+            a = actions.resolve(f"{addon}.uninstall")
+            assert a.args == ("uninstall",) and a.script.startswith("setup-")
+    r = client.post("/api/actions/mediaflow.uninstall", json={"params": {"confirm": " Uninstall "}})
     assert r.status_code == 200 and wait_job(client, r.json()["id"])["code"] == 0
 
 

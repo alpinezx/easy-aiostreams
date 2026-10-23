@@ -212,9 +212,7 @@ function extras(w) {
     // only once AIOMetadata is installed
     w.aiometadata ? row("metadata", "When a new AIOMetadata release is out", "At most one alert a day, naming the newest: "
       + "its releases can come twice a day.") : null,
-    row("reboots", "When the server restarts", w.relay_reboots
-      ? "The webhook relay sends these while its own reboot notification is on."
-      : "With how long it was down, and whether it shut down cleanly.", !!w.relay_reboots),
+    row("reboots", "When the server restarts", "With how long it was down, and whether it shut down cleanly."),
     row("scripts", "When a script here differs from GitHub's copy", "Scripts can change several times a week, "
       + "so this can be chatty. At most one alert a day."),
     row("backups", "When a scheduled backup is made", "A failed or skipped one always alerts, with this on or off."),
