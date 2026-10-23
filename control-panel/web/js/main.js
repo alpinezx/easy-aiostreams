@@ -11,6 +11,7 @@ import * as net from "./net.js";
 import * as alerts from "./alerts.js";
 import * as maint from "./maint.js";
 import * as addons from "./addons.js";
+import { openLayout } from "./layout.js";
 
 let status = null;
 let view = "overview";
@@ -67,6 +68,8 @@ function initNav() {
   $("#nav-scrim").addEventListener("click", () => navOpen(false));
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") navOpen(false); });
   $("#nav").addEventListener("click", (e) => { if (e.target.closest("a")) navOpen(false); });
+  // Edit menu, at the rail's foot: the menu closes (on phones) and Edit's drawer opens on the rail's pages
+  $("#rail-edit").addEventListener("click", () => { navOpen(false); openLayout("rail"); });
   window.matchMedia("(max-width: 720px)").addEventListener("change", () => navOpen(false));
 
   // Desktop: the rail shows icons only, so each one names itself beside the rail on hover or focus.
