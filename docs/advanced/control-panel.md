@@ -14,7 +14,7 @@ A private web dashboard for the Easy AIOStreams stack. It shows what's running, 
 | Path | What's there |
 | --- | --- |
 | `/opt/aiostreams/control-panel` | The panel's code and `setup-ui.sh`. It's built straight from here. |
-| `/opt/aiostreams/ui-state` | Its settings, login, unlock token, terminal key hash, activity history and terminal log. Part of every backup. |
+| `/opt/aiostreams/ui-state` | Its settings, login, unlock token, terminal key hash, activity history, terminal log, the Overview's and the rail's layouts (`overview-layout.json`, `rail-layout.json`) and traffic history (`host-traffic.json`, `vpn-traffic.json`). Part of every backup. |
 | `/opt/aiostreams/caddy.d/60-ui.caddy` | Its Caddy site, picked up by the main Caddy through the drop-in folder. |
 
 It runs as one container, `aios-ui`, on the shared `aios_shared` network, with no published ports: only Caddy can reach it.
@@ -81,7 +81,21 @@ The version chip on the Overview tab is read from the running AIOStreams contain
 
 Each line is split the way AIOStreams' own log viewer shows it: time, a dot for its JSON `level`, `[module]`, the message, then any other fields. The **INFO**, **WARN** and **ERROR** buttons show only the levels picked (none picked shows everything). For Caddy, **Hide noise** hides the lines that look alarming but are expected (a restart, the log viewer reconnecting) and says how many it is hiding; those lines are logged as warnings and errors themselves, so the level buttons can't do this. All of these are display filters only; they never change what's logged. **Clear** hides everything logged so far, and it stays hidden after a reload; Docker's own log file is left alone on purpose, since emptying it behind Docker's back breaks `docker logs`.
 
+## Layouts: the Overview and the rail
+
+**Edit** beside the Overview's headline and **Edit menu** at the rail's foot open the same drawer, on the right for the Overview's cards and on the left for the rail's pages. Each list is one layout for the install, saved on the server (`ui-state/overview-layout.json` and `rail-layout.json`), so a phone and a desktop match. Overview always stays first on the rail, and Edit menu, GitHub and Sign out stay at its foot. A card or page that isn't on this server (the VPN before it's set up, Phone alerts before the watchdog, an add-on not installed) keeps its place in the saved order but isn't listed, so nothing reads as missing; it shows up where it was once it's set up. **Reset to default** puts back the standard order. The rail's goes by use: Logs, Activity, Network, Backup & Restore, Maintenance, Add-ons, then each add-on's own page under it (VPN, Phone alerts), Scripts and Terminal.
+
+## Network page
+
+Once a minute, whether or not the panel is open, it reads two sets of byte counters: the server's own network card (the one its default route leaves by, `eth0`, `ens3` and so on, from the host's `/proc/1/net`) and, with the VPN on, gluetun's tunnel (`tun0`). What went through since the last reading is added to that minute and that hour. Minutes are kept for a day and hours for 30 days, in `ui-state/host-traffic.json` and `ui-state/vpn-traffic.json`, saved every few minutes, so an update or reboot only loses the minutes in between, and a backup and restore carries the history. A minute with no reading (the VPN off, the panel not running) is a gap in the graph rather than zero. Counters starting again from zero (a reboot, gluetun restarting) are taken as a fresh start, not traffic.
+
+**Whole server** and **VPN tunnel** (only once the VPN is set up) switch the Traffic card between the two. The graph is minute by minute over 1 hour, 5-minute averages over 24 hours and hourly averages over 7 days. **Clear history** empties the one shown and starts it again from now. **By service** is each container's speed from Docker's own counters, worked out from the panel's last two looks at them. AIOStreams on the VPN shares gluetun's network and has no counters of its own, so it's shown once, under the tunnel.
+
+The Overview's **This server** shows the server's speed now and today's totals as its **Network** value, and the VPN's card shows the tunnel's; both link here. On desktop, This server is two rows of four values, with the certificates in a section of their own below, folded to the soonest one unless one needs a look.
+
 ## VPN page
+
+The VPN also gets a card on the Overview once it's set up, listed in Edit's drawer: whether the tunnel is connected, where traffic leaves, the server, and with the VPN on, its speed now and today's totals, with **Turn VPN off** (or on) and **Check now**. Turning it on with no config saved goes through this page, which asks for one.
 
 It appears on the rail once `setup-vpn-gluetun.sh` has set the VPN up, on or off. It shows whether the tunnel is connected and, asked from inside the VPN container (`ipinfo.io`, falling back to plain IP lookups), where traffic leaves: the exit IP, city, country and network. It also shows the endpoint name and server address, read from `vpn-state`; the panel reads only those lines, never the keys. **DNS** makes a lookup inside gluetun and reads its open connections from `/proc/net/tcp`: DNS-over-TLS (port 853) to 1.1.1.1/1.0.0.1 or 9.9.9.9/149.112.112.112 shows as encrypted with Cloudflare or Quad9 named; plain DNS on port 53 shows amber; nothing seen shows nothing. It's the script's own "DNS: encrypted" check. A check is reused for a minute; **Check now** asks again. **Turn VPN off** keeps AIOStreams live through the switch and **Turn VPN on** waits for the tunnel before starting it; both are the script doing the work, with its own checks. **Change server** appears when the config's endpoint is a name: the script looks it up again, pings each address from the server and lists them fastest first; the address picked is the only thing sent back, and the panel accepts only an IPv4 address. **Update VPN** pulls the newest `qmcgaw/gluetun:v3` and restarts the stack only if the image changed and the VPN is on.
 
