@@ -272,6 +272,39 @@ remove_addons_on_uninstall() {
     fi
 }
 
+# The webhook relay was retired in October 2026 and setup-webhook.sh is no
+# longer on GitHub. This removes one that's still installed, asking nothing
+# (the control panel's Uninstall runs it too): container, reboot
+# notification, Caddy site, settings and the script. Its python image is a
+# common one, so it's left for Free up space.
+remove_webhook_relay() {
+    local state="$INSTALL_DIR/webhook-relay-state" site="$CADDY_DROPIN_DIR/50-webhook-relay.caddy"
+    if [[ ! -e "$state" && ! -e "$site" && ! -f /etc/systemd/system/aios-webhook-boot-notify.service ]] \
+        && ! docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx aios-webhook-relay; then
+        echo "No webhook relay found on this server, nothing to remove."
+        rm -f "$INSTALL_DIR/setup-webhook.sh"
+        return 0
+    fi
+    if [[ -f "$state/docker-compose.yml" ]]; then
+        (cd "$state" && docker compose -f docker-compose.yml down >/dev/null 2>&1) || true
+    fi
+    docker rm -f aios-webhook-relay >/dev/null 2>&1 || true
+    if [[ -f /etc/systemd/system/aios-webhook-boot-notify.service ]]; then
+        systemctl disable aios-webhook-boot-notify.service >/dev/null 2>&1 || true
+        rm -f /etc/systemd/system/aios-webhook-boot-notify.service
+        systemctl daemon-reload >/dev/null 2>&1 || true
+    fi
+    rm -f "$site" "$site.rejected"
+    # A reload, not a restart: a bad config elsewhere can't take the main site down
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx caddy; then
+        docker exec -w /etc/caddy caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 \
+            || warn "Caddy didn't reload; it drops the relay's site at its next restart."
+    fi
+    rm -rf "$state"
+    rm -f "$INSTALL_DIR/setup-webhook.sh"
+    echo "Webhook relay removed. Point your uptime tracker straight at ntfy if it can send there."
+}
+
 # Waits up to 90s for Caddy to obtain a valid HTTPS cert for $1, then, if it
 # didn't confirm in time, tries to work out why. If Caddy's actually bound
 # to 80/443 locally AND DNS matches this server's own public IP, DNS and the
@@ -1152,6 +1185,7 @@ case "${1:-}" in
     free-space) do_free_space; exit 0 ;;
     system-updates) do_system_updates; exit 0 ;;
     log-limits) do_log_limits; exit 0 ;;
+    remove-webhook-relay) remove_webhook_relay; exit 0 ;;
 esac
 
 

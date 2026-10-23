@@ -13,7 +13,6 @@ Every guide in this repo, basic and advanced. Jump straight to whichever one you
 | MediaFlow Proxy | [Basic](./basic/mediaflow-proxy.md) | [Advanced](./advanced/mediaflow-proxy.md) |
 | VPN Setup | [Basic](./basic/vpn-setup.md) | [Advanced](./advanced/vpn-setup.md) |
 | Watchdog Alerts | [Basic](./basic/watchdog.md) | [Advanced](./advanced/watchdog.md) |
-| Webhook Relay | [Basic](./basic/webhook-relay.md) | [Advanced](./advanced/webhook-relay.md) |
 | Backup & Restore | [Basic](./basic/backup-restore.md) | [Advanced](./advanced/backup-restore.md) |
 | Control Panel (beta) | [Basic](./basic/control-panel.md) | [Advanced](./advanced/control-panel.md) |
 
@@ -56,16 +55,10 @@ A quick-reference list pulled from the advanced guides' own troubleshooting sect
 12. **Test alert works, but you never get a DOWN alert.** Either you're in direct mode, where the VPN checks are skipped by design (MediaFlow is still checked), or the service was stopped from its own script's menu, which deliberately suppresses alerts until it's running again.
     → [Watchdog: Troubleshooting](./advanced/watchdog.md#troubleshooting)
 
-13. **A site's webhook verification fails with a challenge/mismatch error.** The running relay container is almost always still on an older version of the code than you think. A plain `docker restart` doesn't pick up script updates, run **Start** or **Reconfigure** from `setup-webhook.sh` instead.
-    → [Webhook Relay: Troubleshooting](./advanced/webhook-relay.md#troubleshooting)
-
-14. **`curl -I` against the webhook relay's domain returns `501`.** Expected, not a bug, `curl -I` sends a `HEAD` request and the receiver only implements `GET`/`HEAD` health checks and `POST`. Use a plain `curl` (no `-I`) to test instead.
-    → [Webhook Relay: Troubleshooting](./advanced/webhook-relay.md#troubleshooting)
-
-15. **A stream hangs right after toggling MediaFlow Proxy or the VPN layer, but works again later without you changing anything else.** Not confirmed as a reproducible bug, one report, and a retest of the same toggle came back clean, but cheap enough to rule out first: refresh the stream list in your Stremio-based client (not a full addon reinstall) before digging further. AIOStreams reads its proxy setting live on each stream request, so a stale, already-displayed stream list is the most likely explanation for a one-off hang like this, not a config or networking problem.
+13. **A stream hangs right after toggling MediaFlow Proxy or the VPN layer, but works again later without you changing anything else.** Not confirmed as a reproducible bug, one report, and a retest of the same toggle came back clean, but cheap enough to rule out first: refresh the stream list in your Stremio-based client (not a full addon reinstall) before digging further. AIOStreams reads its proxy setting live on each stream request, so a stale, already-displayed stream list is the most likely explanation for a one-off hang like this, not a config or networking problem.
     → [MediaFlow Proxy (advanced): What you lose: visibility](./advanced/mediaflow-proxy.md#what-you-lose-visibility)
 
-16. **`sudo docker compose logs gluetun` shows a `WARN` about a TLS/DoT connection reset to `149.112.112.112:853` or `1.1.1.1:853` during startup**, something like `read tcp ...: read: connection reset by peer`. Looks alarming, isn't, same idea as item 4 above. Gluetun's configured with two independent DoT resolvers (Cloudflare and Quad9) specifically so one hiccuping doesn't matter, and this warning is just that: one of the two dropping a single query while the setup carries on. Only worth investigating if the lines right after it never reach `[dns] ready`, or if **Status**/**Turn VPN ON** never actually confirms `DNS: encrypted`, that's the one thing that can't be faked here.
+14. **`sudo docker compose logs gluetun` shows a `WARN` about a TLS/DoT connection reset to `149.112.112.112:853` or `1.1.1.1:853` during startup**, something like `read tcp ...: read: connection reset by peer`. Looks alarming, isn't, same idea as item 4 above. Gluetun's configured with two independent DoT resolvers (Cloudflare and Quad9) specifically so one hiccuping doesn't matter, and this warning is just that: one of the two dropping a single query while the setup carries on. Only worth investigating if the lines right after it never reach `[dns] ready`, or if **Status**/**Turn VPN ON** never actually confirms `DNS: encrypted`, that's the one thing that can't be faked here.
     → [VPN Setup: Confirming DNS is actually encrypted](./advanced/vpn-setup.md#confirming-dns-is-actually-encrypted-not-just-the-tunnel)
 
 For bugs in the script itself: [open an issue](https://github.com/alpinezx/easy-aiostreams/issues). For setup questions not covered here or in the linked guides, check out these Reddit threads [r/streamioaddons](https://www.reddit.com/r/StremioAddons/comments/1vo6a5q/self_hosted_aiostreams_easy_install_script/) - [r/nuvioaddons](https://www.reddit.com/r/nuvioaddons/comments/1vsud3b/self_hosted_aiostreams_easy_install_script_nuvio/)

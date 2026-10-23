@@ -18,12 +18,16 @@ Optional add-ons on top of the main install. Each is its own standalone script, 
 
 - **Want a phone alert when your server needs you?** Works on any install: the site stops answering, the server restarts, the disk is nearly full, or the HTTPS certificate isn't renewing; plus the VPN tunnel, MediaFlow Proxy and AIOMetadata when they're set up. Optional alerts for new AIOStreams and AIOMetadata releases and a weekly check-in. With the control panel it gets a Phone alerts page. Run with `setup-watchdog.sh`. → [Basic](./basic/watchdog.md) · [Advanced](./advanced/watchdog.md)
 
-### Webhook Relay
+### Webhook Relay (retired)
 
 > [!NOTE]
-> **Being retired.** The webhook relay still works, but it won't get new features and will be removed from these docs in a future update. For alerts about this server, use [phone alerts](./basic/watchdog.md) instead. To get another site's alerts on your phone, send them straight to ntfy if it can (many uptime trackers can). Already using the relay? It keeps working, and the control panel's Add-ons page can uninstall it.
-
-- **Want to turn a third-party site's "Webhook" notification option into a phone alert?** Gives you a real HTTPS endpoint on your own domain (something webhook fields require but a topic-based service like ntfy doesn't provide on its own), and relays whatever it receives to ntfy. Run with `setup-webhook.sh`. → [Basic](./basic/webhook-relay.md) · [Advanced](./advanced/webhook-relay.md)
+> **Retired in October 2026.** For alerts about this server, use [phone alerts](./basic/watchdog.md). To get another site's alerts on your phone, send them straight to ntfy if it can (many uptime trackers can). Still have the relay? It keeps running until you remove it, with **Uninstall** on its card on the control panel's Add-ons page, or over SSH once your scripts are up to date:
+>
+> ```bash
+> sudo bash /opt/aiostreams/setup-aiostreams.sh remove-webhook-relay
+> ```
+>
+> A restore leaves the relay out, even from a backup that has it.
 
 ### MediaFlow Proxy
 

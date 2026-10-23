@@ -110,24 +110,6 @@ do_backup() {
         fi
     fi
 
-    # Same idea as the watchdog marker above, but keyed on the container
-    # actually running rather than a systemd timer, since the webhook relay
-    # is a separate docker compose stack, not a systemd unit.
-    if [[ -d "$INSTALL_DIR/webhook-relay-state" ]]; then
-        if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx aios-webhook-relay; then
-            touch "$INSTALL_DIR/webhook-relay-state/was-active-at-backup"
-        else
-            rm -f "$INSTALL_DIR/webhook-relay-state/was-active-at-backup"
-        fi
-        # Its reboot notification is a systemd unit, outside the folder, so
-        # a restore can only bring it back if the backup says it was on.
-        if systemctl is-enabled --quiet aios-webhook-boot-notify.service 2>/dev/null; then
-            touch "$INSTALL_DIR/webhook-relay-state/boot-notify-at-backup"
-        else
-            rm -f "$INSTALL_DIR/webhook-relay-state/boot-notify-at-backup"
-        fi
-    fi
-
     # Same idea again for MediaFlow Proxy Light: a separate compose stack on
     # aios_shared, not part of the main docker-compose.yml, so it needs its
     # own was-active marker to know whether to bring it back on restore.
@@ -834,7 +816,6 @@ find_script() {
 # id|name|state folder|Caddy site file|container
 ADDONS=(
     "mediaflow|MediaFlow Proxy|mediaflow-state|50-mediaflow.caddy|mediaflow-proxy-light"
-    "webhook|Webhook relay|webhook-relay-state|50-webhook-relay.caddy|aios-webhook-relay"
     "aiometadata|AIOMetadata|aiometadata-state|55-aiometadata.caddy|aiometadata"
     "panel|Control panel|ui-state|60-ui.caddy|aios-ui"
 )
@@ -1410,6 +1391,15 @@ do_restore() {
     install_script_copy "$keep/setup-backup.sh" setup-backup.sh
     install_script_copy "$keep/setup-aiostreams.sh" setup-aiostreams.sh
 
+    # The webhook relay was retired in October 2026, so a backup holding one
+    # comes back without it (the current install's went with its add-ons).
+    local relay_dropped=false
+    if [[ -e "$INSTALL_DIR/webhook-relay-state" || -e "$INSTALL_DIR/caddy.d/50-webhook-relay.caddy" ]]; then
+        rm -rf "$INSTALL_DIR/webhook-relay-state"
+        rm -f "$INSTALL_DIR"/caddy.d/50-webhook-relay.caddy{,.rejected} "$INSTALL_DIR/setup-webhook.sh"
+        relay_dropped=true
+    fi
+
     check_restored_domain_dns
     check_addon_domains
 
@@ -1477,7 +1467,6 @@ do_restore() {
         [[ -n "$domain" ]] && where=" ($domain)"
         case "$id" in
             mediaflow) own="$INSTALL_DIR/setup-mediaflow.sh" ;;
-            webhook) own="$INSTALL_DIR/setup-webhook.sh" ;;
             aiometadata) own="$INSTALL_DIR/setup-aiometadata.sh" ;;
             panel) own="$INSTALL_DIR/control-panel/setup-ui.sh" ;;
         esac
@@ -1504,9 +1493,6 @@ do_restore() {
             mediaflow)
                 script=$(find_script setup-mediaflow.sh)
                 [[ -n "$script" ]] && { bash "$script" start-mediaflow < /dev/null || true; } ;;
-            webhook)
-                script=$(find_script setup-webhook.sh)
-                [[ -n "$script" ]] && { bash "$script" start-relay < /dev/null || true; } ;;
             aiometadata)
                 # Start rewrites its settings from the restored config, so a
                 # moved subdomain reaches its HOST_NAME too.
@@ -1541,32 +1527,9 @@ do_restore() {
         summary+=("$line")
     done
 
-    # The webhook's reboot notification: back on if it was on. Backups from
-    # before format 3 can't say, so they only get a reminder.
-    if [[ -n "${ADDON_NAME[webhook]:-}" ]]; then
-        local backup_format
-        backup_format=$(grep -m1 -oP '^format=\K[0-9]+' "$INSTALL_DIR/backup-info" 2>/dev/null || echo 1)
-        if [[ -f "$INSTALL_DIR/webhook-relay-state/boot-notify-at-backup" ]]; then
-            script=$(find_script setup-webhook.sh)
-            if [[ -n "$script" ]] && bash "$script" enable-boot-notify < /dev/null \
-                && systemctl is-enabled --quiet aios-webhook-boot-notify.service 2>/dev/null; then
-                summary+=("Webhook reboot notification: on again.")
-            else
-                summary+=("Webhook reboot notification was on, but couldn't be switched back on. Run 'sudo bash $INSTALL_DIR/setup-webhook.sh' and choose option 7.")
-            fi
-        elif (( backup_format < 3 )); then
-            summary+=("Webhook reboot notification: this backup is too old to say whether it was on. If it was, run 'sudo bash $INSTALL_DIR/setup-webhook.sh' and choose option 7.")
-        fi
-    fi
-
     # What changed with a new subdomain needs updating elsewhere too.
-    local token
     if [[ -n "${ADDON_NEW[mediaflow]:-}" ]]; then
         summary+=("MediaFlow moved to ${ADDON_NEW[mediaflow]}: in the AIOStreams dashboard, set its Public URL to https://${ADDON_NEW[mediaflow]}")
-    fi
-    if [[ -n "${ADDON_NEW[webhook]:-}" ]]; then
-        token=$(grep -m1 -oP "^WEBHOOK_TOKEN='?\K[^'\s]+" "$INSTALL_DIR/webhook-relay-state/config" 2>/dev/null || true)
-        summary+=("Webhook relay moved: paste the new URL into the sites that send to it: https://${ADDON_NEW[webhook]}/hook/${token:-<token>}")
     fi
     if [[ -n "${ADDON_NEW[aiometadata]:-}" ]]; then
         summary+=("AIOMetadata moved to ${ADDON_NEW[aiometadata]}: apps keep using the old address, so open https://${ADDON_NEW[aiometadata]}/configure, load each configuration and install it again.")
@@ -1574,14 +1537,15 @@ do_restore() {
     if [[ -n "${ADDON_NAME[panel]:-}" && -f "$INSTALL_DIR/ui-state/gate-token" ]]; then
         summary+=("Control panel unlock link (open it once in each browser): https://${ADDON_DOMAIN[panel]}/unlock/$(cat "$INSTALL_DIR/ui-state/gate-token")")
     fi
+    $relay_dropped && \
+        summary+=("Webhook relay: retired, so it wasn't restored. Uptime trackers that sent to it can send to ntfy directly.")
     $mediaflow_jail_lost && \
         summary+=("MediaFlow's fail2ban protection was on, but lives outside the backup: add it again with setup-mediaflow.sh option 7.")
     if (( conf_restored_count > 0 )); then
         summary+=("WireGuard .conf: $conf_restored_count original file(s) restored to /root and/or $REAL_HOME (convenience copies).")
     fi
 
-    rm -f "$INSTALL_DIR"/{watchdog-state,webhook-relay-state,mediaflow-state,aiometadata-state,ui-state}/was-active-at-backup \
-        "$INSTALL_DIR/webhook-relay-state/boot-notify-at-backup"
+    rm -f "$INSTALL_DIR"/{watchdog-state,mediaflow-state,aiometadata-state,ui-state}/was-active-at-backup
 
     info "Restore complete!"
     echo ""

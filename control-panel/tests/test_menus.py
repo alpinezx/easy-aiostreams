@@ -42,8 +42,7 @@ def test_aiostreams_menu_numbers_the_panel_types():
 
 
 def test_addon_menu_numbers_the_panel_types():
-    for script, action_id in (("setup-mediaflow.sh", "mediaflow.stop"), ("setup-webhook.sh", "webhook.stop"),
-                              ("setup-aiometadata.sh", "aiometadata.stop")):
+    for script, action_id in (("setup-mediaflow.sh", "mediaflow.stop"), ("setup-aiometadata.sh", "aiometadata.stop")):
         m = menu(script)
         assert m["3"] == "Stop" and m["10"] == "Exit", script
         assert typed(action_id)[:2] == ["3", "10"], action_id
@@ -57,9 +56,7 @@ def test_the_panel_runs_named_commands_the_scripts_know():
     assert actions.build_update(True, "latest").args == ("update", "--backup", "--channel", "latest")
     assert actions.build_update(False, None).args == ("update",)
     assert '"${1:-}" == "stop-mediaflow"' in (ROOT / "setup-mediaflow.sh").read_text(encoding="utf-8")
-    assert '"${1:-}" == "stop-relay"' in (ROOT / "setup-webhook.sh").read_text(encoding="utf-8")
     assert actions.resolve("mediaflow.stop").args == ("stop-mediaflow",)
-    assert actions.resolve("webhook.stop").args == ("stop-relay",)
     meta = (ROOT / "setup-aiometadata.sh").read_text(encoding="utf-8")
     for cmd in ("start-aiometadata", "stop-aiometadata", "update-aiometadata"):
         assert re.search(rf"^\s*{cmd}\)", meta, re.M), cmd
@@ -71,13 +68,18 @@ def test_the_add_ons_uninstall_is_a_named_command():
     """The Add-ons page's Uninstall runs each script's "uninstall"; the menus keep their numbers."""
     meta = (ROOT / "setup-aiometadata.sh").read_text(encoding="utf-8")
     assert re.search(r"^\s*uninstall\)", meta, re.M)
-    for script in ("setup-mediaflow.sh", "setup-webhook.sh"):
-        assert '"${1:-}" == "uninstall"' in (ROOT / script).read_text(encoding="utf-8"), script
+    assert '"${1:-}" == "uninstall"' in (ROOT / "setup-mediaflow.sh").read_text(encoding="utf-8")
     assert menu("setup-aiometadata.sh")["8"] == "Uninstall"
     assert menu("setup-mediaflow.sh")["9"] == "Uninstall"
-    assert menu("setup-webhook.sh")["9"] == "Uninstall"
     assert actions.resolve("aiometadata.uninstall", {"remove_image": True}).args == ("uninstall", "remove-image")
     assert actions.resolve("mediaflow.uninstall", {"remove_image": True}).args == ("uninstall", "remove-image")
     assert actions.resolve("mediaflow.uninstall", {"remove_image": "yes"}).args == ("uninstall",)
-    # The relay's python image is a common one: it's never removed
-    assert actions.resolve("webhook.uninstall", {"remove_image": True}).args == ("uninstall",)
+
+    # The retired webhook relay's Uninstall is setup-aiostreams.sh's, offered only
+    # once the script on the server knows the command (an older one would open its menu)
+    relay = actions.resolve("webhook.uninstall", {"remove_image": True})
+    assert relay.script == "setup-aiostreams.sh" and relay.args == ("remove-webhook-relay",)
+    assert relay.script_has == "remove-webhook-relay"
+    aio = (ROOT / "setup-aiostreams.sh").read_text(encoding="utf-8")
+    assert re.search(r"^\s*remove-webhook-relay\)", aio, re.M)
+    assert not (ROOT / "setup-webhook.sh").exists()

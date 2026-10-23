@@ -192,7 +192,7 @@ def test_clear_logs_only_hides_and_never_touches_the_log_file(tmp_path, monkeypa
 def test_status_reports_which_scripts_exist(tmp_path, monkeypatch):
     b = make_backend(tmp_path, monkeypatch, [container("caddy")], extra_files=("setup-aiostreams.sh", "setup-backup.sh", "setup-mediaflow.sh"))
     got = {s["id"]: s["present"] for s in b.status()["scripts"]}
-    assert got == {"aiostreams": True, "vpn": False, "mediaflow": True, "watchdog": False, "webhook": False}
+    assert got == {"aiostreams": True, "vpn": False, "mediaflow": True, "watchdog": False, "aiometadata": False}
 
 
 def test_set_asides_listed_and_only_those_deleted(tmp_path, monkeypatch):
@@ -477,7 +477,6 @@ def test_certs_empty_without_sites(tmp_path, monkeypatch):
 
 def test_add_ons_read_from_their_saved_settings(tmp_path, monkeypatch):
     b = make_backend(tmp_path, monkeypatch, [])
-    b._systemd_enabled = lambda unit: unit == "aios-webhook-boot-notify.service"
     root = config.INSTALL_DIR
     for rel, text in (
             ("aiometadata-state/config", "DOMAIN='meta.example.com'\nADDON_PASSWORD='pw-one'\nADMIN_KEY='key-two'\nAIOM_VERSION='3.7.0'\n"),
@@ -493,12 +492,10 @@ def test_add_ons_read_from_their_saved_settings(tmp_path, monkeypatch):
         assert s not in text, s
     assert info == [{"id": "aiometadata", "domain": "meta.example.com", "version": "3.7.0"},
                     {"id": "mediaflow", "domain": "mf.example.com", "proxy": "socks5://proxy.example.net:1080"},
-                    {"id": "webhook", "domain": "hooks.example.com", "ntfy_server": "ntfy.sh", "reboots": True}]
+                    {"id": "webhook", "domain": "hooks.example.com", "retired": True}]
     assert b.addon_secret("aiometadata", "admin_key") == "key-two"
     assert b.addon_secret("mediaflow", "api_password") == "pw-three"
-    assert b.addon_secret("webhook", "url") == "https://hooks.example.com/hook/tok-four"
-    assert b.addon_secret("webhook", "ntfy") == "https://ntfy.sh/topic-five"
-    assert b.addon_secret("webhook", "DOMAIN") is None
+    assert b.addon_secret("webhook", "url") is None
     assert b.addon_secret("../x", "url") is None
     # Nothing installed: nothing listed
     for rel in ("aiometadata-state", "mediaflow-state", "webhook-relay-state"):

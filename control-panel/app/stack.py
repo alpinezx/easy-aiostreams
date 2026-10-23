@@ -110,7 +110,7 @@ SERVICES = [
 ADDONS = {"mediaflow", "webhook", "aiometadata"}
 # Services the panel may restart on their own. Caddy has the stack-wide Restart,
 # and bouncing the VPN tunnel can strand the containers routed through it.
-RESTARTABLE = {"aiostreams", "mediaflow", "webhook", "aiometadata"}
+RESTARTABLE = {"aiostreams", "mediaflow", "aiometadata"}
 
 
 TIME_RE = re.compile(r"^([01]?\d|2[0-3]):[0-5]\d$")
@@ -641,10 +641,6 @@ class Backend:
         ("aiometadata", "addon_password"): lambda c: c.get("ADDON_PASSWORD"),
         ("aiometadata", "admin_key"): lambda c: c.get("ADMIN_KEY"),
         ("mediaflow", "api_password"): lambda c: c.get("MEDIAFLOW_API_PASSWORD"),
-        ("webhook", "url"): lambda c: f"https://{c['DOMAIN']}/hook/{c['WEBHOOK_TOKEN']}"
-            if c.get("DOMAIN") and c.get("WEBHOOK_TOKEN") else None,
-        ("webhook", "ntfy"): lambda c: f"{c['NTFY_SERVER'].rstrip('/')}/{c['NTFY_TOPIC']}"
-            if c.get("NTFY_SERVER") and c.get("NTFY_TOPIC") else None,
     }
 
     def _addon_conf(self, addon: str) -> dict:
@@ -669,11 +665,10 @@ class Backend:
             # An outbound proxy's address without its login, as the script's Status prints it
             m = re.match(r"^([a-z0-9]+://)(?:[^@/]*@)?([^/?#]+)", c.get("MEDIAFLOW_PROXY_URL") or "", re.I)
             out.append({"id": "mediaflow", "domain": c["DOMAIN"], "proxy": m.group(1) + m.group(2) if m else None})
+        # The retired webhook relay: only its address, for a card whose one job is Uninstall
         c = self._addon_conf("webhook")
         if c.get("DOMAIN"):
-            server = re.sub(r"^https?://", "", c.get("NTFY_SERVER") or "").rstrip("/") or None
-            out.append({"id": "webhook", "domain": c["DOMAIN"], "ntfy_server": server,
-                        "reboots": self._systemd_enabled("aios-webhook-boot-notify.service")})
+            out.append({"id": "webhook", "domain": c["DOMAIN"], "retired": True})
         return out
 
     def addon_secret(self, addon: str, name: str) -> str | None:
@@ -894,7 +889,7 @@ class Backend:
         from .actions import catalog
         res = []
         for a in catalog():
-            ok = all(self.p(n).exists() for n in a.needs)
+            ok = all(self.p(n).exists() for n in a.needs) and (not a.script_has or a.script_has in _read(self.p(a.script)))
             res.append({"id": a.id, "label": a.label, "confirm": a.confirm, "available": ok})
         return res
 
@@ -1141,8 +1136,6 @@ class Backend:
             "timezone": self._host_timezone(),
             # the release alert follows the channel; a pinned version gets none
             "channel": {"latest": "stable", "nightly": "nightly"}.get(img.group(1)) if img else None,
-            # the webhook relay's own reboot notification; the watchdog leaves restarts to it
-            "relay_reboots": self._systemd_enabled("aios-webhook-boot-notify.service"),
             # its release switch only shows once it's installed
             "aiometadata": (self.p("aiometadata-state") / "config").exists(),
         }
@@ -1241,8 +1234,6 @@ class Backend:
                                 str(config.INSTALL_DIR / "setup-watchdog.sh"), "refresh"],
                                stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
             note = None if r.returncode == 0 else "The script is updated, but the watchdog's running copy wasn't. Use Start on the Phone alerts page."
-        elif script_id == "webhook" and self.p("webhook-relay-state").exists():
-            note = "The relay keeps running its current version until it's started again (Start in its menu)."
         return {"updated": files, "note": note}
 
     def vpn_mode(self) -> str:
