@@ -7,6 +7,7 @@ import { currentJobId, openJob } from "./actions.js";
 import * as terminal from "./terminal.js";
 import * as scripts from "./scripts.js";
 import * as vpn from "./vpn.js";
+import * as net from "./net.js";
 import * as alerts from "./alerts.js";
 import * as maint from "./maint.js";
 import * as addons from "./addons.js";
@@ -17,7 +18,7 @@ let pendingLogs = null;
 let lastBusy = null;
 let timer = null;
 
-const VIEWS = ["overview", "logs", "activity", "backups", "scripts", "vpn", "alerts", "addons", "maint", "terminal"];
+const VIEWS = ["overview", "logs", "net", "activity", "backups", "scripts", "vpn", "alerts", "addons", "maint", "terminal"];
 let terminalOn = false;
 let vpnSetUp = false;     // the VPN page shows once setup-vpn-gluetun.sh has set the VPN up
 let alertsSetUp = false;  // and Phone alerts once setup-watchdog.sh has been set up
@@ -41,6 +42,7 @@ function enter() {
   if (view === "overview") render(status, goLogs);
   if (view === "scripts") scripts.show(status, terminalOn);
   if (view === "terminal") terminal.show(status);
+  if (view === "net") net.show(status);
   if (view === "vpn") vpn.show(false, status);
   if (view === "alerts") alerts.show(status);
   if (view === "addons") addons.show(status);
@@ -136,6 +138,7 @@ async function tick() {
       if (view === "alerts") alerts.show(status);
     }
     if (view === "alerts") alerts.setStatus(status);
+    if (view === "net") net.setStatus(status);
     if (view === "vpn") vpn.setStatus(status);
     if (view === "maint") maint.setStatus(status);
     if (view === "addons") addons.setStatus(status);

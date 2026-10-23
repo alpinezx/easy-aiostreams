@@ -313,6 +313,15 @@ class DemoBackend:
                 s.update(started_at=self.started[cname].isoformat().replace("+00:00", "Z"),
                          cpu=round(random.uniform(0.2, 9.0) if key == "aiostreams" else random.uniform(0.0, 1.5), 1),
                          mem=int({"caddy": 31, "gluetun": 44, "aiostreams": 318, "mediaflow": 22, "webhook": 19, "aiometadata": 452}[key] * MB * random.uniform(0.97, 1.03)))
+                # Network speeds: a stream comes in through the VPN (or straight to AIOStreams
+                # without one), over to Caddy and out to the viewer; AIOStreams on the VPN's
+                # network has no counters of its own
+                r = demo_rate(time.time()) * random.uniform(0.9, 1.1)
+                net = {"caddy": (r + 9000, r * 0.98 + 6000), "gluetun": (r * 1.04, r * 0.98 + 2000),
+                       "aiostreams": None if self.vpn == "on" else (r * 1.02, r * 0.98),
+                       "mediaflow": (4000, 3000), "webhook": (40, 30), "aiometadata": (30000, 12000)}[key]
+                if net:
+                    s.update(rx=net[0], tx=net[1])
             services.append(s)
         down = [s for s in services if s["state"] != "running" and not s["on_purpose"]]
         if down:

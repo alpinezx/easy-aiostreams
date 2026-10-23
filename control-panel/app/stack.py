@@ -195,6 +195,7 @@ class Backend:
     def __init__(self):
         self._client = None
         self._stats: dict[str, dict] = {}
+        self._netprev: dict[str, tuple[float, int, int]] = {}   # each container's last byte counts, for its speed
         self._last_view = 0.0          # when /api/status was last asked for
         self._cert_cache: dict = {}
         threading.Thread(target=self._stats_loop, daemon=True).start()
@@ -235,7 +236,19 @@ class Backend:
                         pct = (cpu / sysd * ncpu * 100.0) if sysd > 0 else 0.0
                         ms = s.get("memory_stats", {})
                         used = ms.get("usage", 0) - ms.get("stats", {}).get("inactive_file", ms.get("stats", {}).get("cache", 0))
-                        self._stats[c.name] = {"cpu": round(max(pct, 0), 1), "mem": max(used, 0)}
+                        row = {"cpu": round(max(pct, 0), 1), "mem": max(used, 0)}
+                        # Network speed, down and up, from its byte counts since the last look. A
+                        # container on the VPN's network (AIOStreams) has none of its own: gluetun's covers it.
+                        nets = s.get("networks") or {}
+                        if nets:
+                            now = time.time()
+                            rx = sum(n.get("rx_bytes", 0) for n in nets.values())
+                            tx = sum(n.get("tx_bytes", 0) for n in nets.values())
+                            prev = self._netprev.get(c.name)
+                            self._netprev[c.name] = (now, rx, tx)
+                            if prev and 0 < now - prev[0] < 120 and rx >= prev[1] and tx >= prev[2]:
+                                row["rx"], row["tx"] = (rx - prev[1]) / (now - prev[0]), (tx - prev[2]) / (now - prev[0])
+                        self._stats[c.name] = row
                     except Exception:
                         pass
             except Exception:

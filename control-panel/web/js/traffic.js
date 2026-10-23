@@ -239,43 +239,46 @@ function days(d) {
 }
 
 // The Traffic card's Now, kept up to date with each status check between the minute's redraws
-let nowFig = null;
+const nowFigs = {};
 export function updateNow() {
-  const n = nowFig && nowFig.isConnected && nowRate(trafficData());
-  if (!n) return;
-  nowFig.querySelector(".vpn-value").textContent = `↓ ${fmtRate(n[0])}`;
-  nowFig.querySelector(".tr-sub").textContent = `↑ ${fmtRate(n[1])}`;
+  for (const [kind, f] of Object.entries(nowFigs)) {
+    const n = f.isConnected && nowRate(trafficData(kind), kind);
+    if (!n) continue;
+    f.querySelector(".vpn-value").textContent = `↓ ${fmtRate(n[0])}`;
+    f.querySelector(".tr-sub").textContent = `↑ ${fmtRate(n[1])}`;
+  }
 }
 
-// The VPN page's Traffic card, drawn into box (and again once a minute while the page is open)
-export async function trafficCard(box, force) {
+// A Traffic card, drawn into box (and again once a minute while its page is open): the VPN's
+// tunnel ("vpn") or the server's own network card ("host")
+export async function trafficCard(box, force, kind = "vpn") {
   let d;
-  try { d = await loadTraffic(force); } catch (_) { return; }
+  try { d = await loadTraffic(force, kind); } catch (_) { return; }
   if (!box.isConnected) return;
   clear(box);
   const s = series(d, range);
-  const n = nowRate(d);
-  nowFig = null;
+  const n = nowRate(d, kind);
   const btns = h("div", { class: "tr-ranges", role: "group", "aria-label": "Time range" },
     ...Object.entries(RANGES).map(([k, [label]]) => h("button", { class: "btn small", type: "button", text: label,
       "aria-pressed": String(k === range), onclick: () => {
         range = k;
         try { localStorage.setItem("aios.vpnRange", k); } catch (_) {}
-        trafficCard(box);
+        trafficCard(box, false, kind);
       } })));
   const label = RANGES[range][0];
+  const what = kind === "vpn" ? "Everything through the VPN" : "Everything in and out of this server";
   box.append(h("div", { class: "panel vpn-card tr-card" },
     h("div", { class: "vpn-head" }, h("h3", { class: "tr-title", text: "Traffic" }), btns),
     h("div", { class: "vpn-grid tr-figs" },
-      nowFig = fig("Now", n ? `↓ ${fmtRate(n[0])}` : "Measuring…", n ? `↑ ${fmtRate(n[1])}` : ""),
+      nowFigs[kind] = fig("Now", n ? `↓ ${fmtRate(n[0])}` : "Measuring…", n ? `↑ ${fmtRate(n[1])}` : ""),
       fig("Peak", s.peak && s.peak[1] ? `↓ ${fmtRate(s.peak[1])}` : "None", s.peak && s.peak[1] ? `${s.peak[2] ? "Busiest minute, " : ""}${when(s.peak[0])}` : ""),
       fig("Down", fmtBytes(s.tot[0]), `in the last ${label}`),
       fig("Up", fmtBytes(s.tot[1]), `in the last ${label}`)),
     chart(s, range),
     h("div", { class: "tr-legend dim" }, h("span", { class: "tr-key down", text: "Down" }), h("span", { class: "tr-key up", text: "Up" }),
-      h("span", { class: "tr-step", text: `Everything through the VPN, ${range === "7d" ? "hourly averages" : range === "24h" ? "5-minute averages" : "minute by minute"}` })),
+      h("span", { class: "tr-step", text: `${what}, ${range === "7d" ? "hourly averages" : range === "24h" ? "5-minute averages" : "minute by minute"}` })),
     days(d),
     d.since ? h("div", { class: "card-foot" }, h("span", { class: "dim tr-since", text: `Recorded since ${dayName(d.since)}, ${hhmm(d.since)}` }),
       h("button", { class: "btn small quiet", type: "button", text: "Clear history",
-        onclick: async () => { if (await clearHistory("vpn")) trafficCard(box); } })) : null));
+        onclick: async () => { if (await clearHistory(kind)) trafficCard(box, false, kind); } })) : null));
 }

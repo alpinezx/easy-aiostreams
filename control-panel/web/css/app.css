@@ -382,7 +382,7 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .tr-grid { stroke: var(--line-soft); stroke-dasharray: 4 4; }
 .tr-area { fill: var(--accent); opacity: .16; }
 .tr-down { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linejoin: round; }
-.tr-up { fill: none; stroke: var(--faint); stroke-width: 1.3; stroke-linejoin: round; }
+.tr-up { fill: none; stroke: var(--dim); stroke-width: 1.3; stroke-linejoin: round; }
 .tr-ymax, .tr-ymid { position: absolute; left: 0; font-size: .74rem; color: var(--faint); pointer-events: none; }
 .tr-ymax { top: -2px; } .tr-ymid { top: calc(50% - 16px); }
 .tr-ticks { display: flex; justify-content: space-between; margin-top: 6px; font-size: .76rem; color: var(--faint); }
@@ -393,7 +393,7 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .tr-cursor[hidden], .tr-tip[hidden] { display: none; }
 .tr-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin-top: 10px; font-size: .84rem; }
 .tr-key::before { content: ""; display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
-.tr-key.down::before { background: var(--accent); } .tr-key.up::before { background: var(--faint); }
+.tr-key.down::before { background: var(--accent); } .tr-key.up::before { background: var(--dim); }
 .tr-step { margin-left: auto; }
 .tr-days { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
 .tr-day { display: grid; grid-template-columns: 110px minmax(0, 1fr) 190px; align-items: center; gap: 14px; padding: 5px 0; font-size: .9rem; }
@@ -401,6 +401,17 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .tr-bar i { display: block; height: 100%; background: var(--accent); opacity: .7; border-radius: 4px; }
 .tr-day-tot { text-align: right; font-variant-numeric: tabular-nums; white-space: pre; }
 .tr-since { margin-right: auto; font-size: .84rem; }
+/* The Network page: the Traffic card, then each service's speed now */
+#net-root .tr-card { margin-top: 0; }
+.ns-card { margin-top: 18px; }
+.ns-list { margin-top: 12px; }
+.ns-row { display: grid; grid-template-columns: minmax(0, 1fr) 130px 130px; gap: 12px; align-items: baseline; padding: 9px 0; border-top: 1px solid var(--line-soft); font-size: .92rem; }
+.ns-row .num { text-align: right; font-variant-numeric: tabular-nums; }
+.ns-head { border-top: 0; padding-top: 0; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--faint); }
+.ns-name { font-weight: 600; }
+.ns-shared { grid-column: 2 / -1; text-align: right; font-size: .86rem; }
+.ns-note { font-size: .84rem; }
+@media (max-width: 720px) { .ns-row { grid-template-columns: minmax(0, 1fr) 96px 96px; gap: 8px; } }
 .vpnc-foot .vpnc-traffic { margin-right: auto; font-size: .88rem; text-decoration: none; }
 .vpnc-traffic span { white-space: nowrap; }
 /* This server's Network: down and up a line each, always, so the row doesn't change height as the speeds change */
@@ -454,6 +465,9 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .stat .ver-sub { font-size: .8rem; }
 .cert-head { grid-column: 1 / -1; }
 /* The fold button reads as a stat label: same size, case and colour as the others */
+.stat-link { display: inline-flex; align-items: center; gap: 6px; color: inherit; text-decoration: none; }
+.stat-link:hover { color: var(--text); }
+.go-chev svg { width: 11px; height: 11px; transform: rotate(-90deg); }
 .cert-fold .fold-toggle, .cert-head .fold-toggle { font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; }
 .cert-head { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--faint); }
 @media (max-width: 720px) { .cert-head { padding: 12px 0 4px; border-top: 1px solid var(--line-soft); } }

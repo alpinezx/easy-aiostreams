@@ -23,6 +23,7 @@ MINUTE_KEEP = 24 * 3600
 HOUR_KEEP = 30 * 24 * 3600
 MAX_GAP = 300          # readings further apart than this aren't counted: when it went through is unknown
 SAVE_EVERY = 300
+MAX_RATE = 10e9 / 8    # bytes a second: 10 Gbit/s
 
 
 def dev_counters(text: str, names) -> tuple[int, int] | None:
@@ -115,9 +116,11 @@ class Traffic:
             if not last or now - last[0] > MAX_GAP or now <= last[0]:
                 return
             if rx < last[1] or tx < last[2]:
-                drx, dtx = rx, tx          # gluetun restarted: its counters began again from zero
+                drx, dtx = rx, tx          # gluetun (or the server) restarted: its counters began again from zero
             else:
                 drx, dtx = rx - last[1], tx - last[2]
+            if max(drx, dtx) / (now - last[0]) > MAX_RATE:
+                return                     # faster than any server's card: not traffic, so a counter that jumped
             mid = (now + last[0]) / 2      # readings come just after each minute starts: the bytes are the minute before's
             mb = self.minutes.setdefault(int(mid // 60 * 60), [0, 0])
             mb[0] += drx

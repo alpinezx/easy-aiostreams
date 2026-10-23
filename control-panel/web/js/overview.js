@@ -635,6 +635,11 @@ function side(st) {
     if (trafficStale("host")) loadTraffic(false, "host").then(() => { if (lastSt) side(lastSt); }).catch(() => {});
     const n = nowRate(trafficData("host"), "host"), t = today(trafficData("host"));
     const net = stat("Network", n ? "" : "Measuring…", t && (t[0] || t[1]) ? `Today ↓ ${fmtBytes(t[0])} ↑ ${fmtBytes(t[1])}` : "");
+    // Its label opens the Network page, with a chevron like HTTPS certificates'
+    const go = chev();
+    go.classList.add("go-chev");
+    net.firstChild.textContent = "";
+    net.firstChild.append(h("a", { class: "stat-link", href: "#net", title: "Graphs and each service's traffic on the Network page" }, "Network", go));
     // Down and up on a line each, so the value keeps its height however long the numbers are
     if (n) net.children[1].append(h("span", { class: "nowrap", text: `↓ ${fmtRate(n[0])}` }), h("span", { class: "nowrap", text: `↑ ${fmtRate(n[1])}` }));
     grid.append(net);

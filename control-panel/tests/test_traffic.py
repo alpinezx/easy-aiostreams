@@ -138,3 +138,12 @@ def test_clear_endpoint():
         assert c.post("/api/nope/traffic/clear", headers=hdr).status_code == 404
     finally:
         main.app.dependency_overrides.clear()
+
+
+def test_a_counter_that_jumps_is_not_traffic(tmp_path):
+    t = store(tmp_path)
+    t.add(T0 + 1, (1000, 1000))
+    t.add(T0 + 61, (5 * 10**12, 1000))     # 5 TB in a minute: no card does that
+    assert not t.minutes
+    t.add(T0 + 121, (5 * 10**12 + 600, 1060))
+    assert t.minutes == {T0 + 60: [600, 60]}
