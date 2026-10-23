@@ -54,12 +54,14 @@ export function feedNet(net) {
 }
 export const liveRate = (kind) => live[kind];
 
-// Bytes a second as a network speed, in bits like a speed test
+// Bytes a second as a speed, in the same KB and MB as the panel's totals ("Today 2.5 GB")
+const KB = 1024, MB = 1024 * 1024;
 export function fmtRate(bps) {
-  const b = (bps || 0) * 8;
-  if (b >= 1e6) return `${b >= 1e7 ? Math.round(b / 1e6) : (b / 1e6).toFixed(1)} Mbit/s`;
-  if (b >= 1e3) return `${Math.round(b / 1e3)} kbit/s`;
-  return `${Math.round(b)} bit/s`;
+  const b = bps || 0;
+  const num = (v) => (v < 10 ? +v.toFixed(1) : Math.round(v));   // "2.5", "5" rather than "5.0"
+  if (b >= MB) return `${num(b / MB)} MB/s`;
+  if (b >= KB) return `${num(b / KB)} KB/s`;
+  return `${Math.round(b)} B/s`;
 }
 
 const hhmm = (t) => new Date(t * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -88,10 +90,10 @@ export function today(d) {
   return d.minutes.reduce((s, m) => (m[0] >= from ? [s[0] + m[1], s[1] + m[2]] : s), [0, 0]);
 }
 
-// Down and up speeds, each with its own unit: "↓ 387 kbit/s ↑ 1.4 kbit/s"
+// Down and up speeds, each with its own unit: "↓ 387 KB/s ↑ 1.4 KB/s"
 export const fmtPair = ([d, u]) => `↓ ${fmtRate(d)} ↑ ${fmtRate(u)}`;
 
-// The Overview's VPN line, in two halves that each stay whole: "Now ↓ 32 ↑ 1.2 Mbit/s", "Today ↓ 3.2 GB ↑ 48 MB"
+// The Overview's VPN line, in two halves that each stay whole: "Now ↓ 3.2 MB/s ↑ 48 KB/s", "Today ↓ 3.2 GB ↑ 48 MB"
 export function summaryLine(d) {
   const n = nowRate(d), t = today(d);
   return [n ? `Now ${fmtPair(n)}` : "", t && (t[0] || t[1]) ? `Today ↓ ${fmtBytes(t[0])} ↑ ${fmtBytes(t[1])}` : ""].filter(Boolean);
@@ -134,11 +136,13 @@ function series(d, key) {
   return { pts, peak, tot, step };
 }
 
-// A round top for the scale, in bits: 1, 2 or 5 times a power of ten
+// A round top for the scale in KB/s or MB/s, as fmtRate shows them: 1, 2 or 5 times a
+// power of ten, at least 10 KB/s; past 500 KB/s it goes to 1 MB/s rather than 1000 KB/s
 function niceTop(bps) {
-  const b = Math.max(bps * 8, 1e5);
-  const p = 10 ** Math.floor(Math.log10(b));
-  return ([1, 2, 5, 10].find((m) => m * p >= b) * p) / 8;
+  const b = Math.max(bps, 10 * KB);
+  const u = b > 500 * KB ? MB : KB;
+  const v = b / u, p = 10 ** Math.floor(Math.log10(v));
+  return [1, 2, 5, 10].find((m) => m * p >= v) * p * u;
 }
 
 const SVG = "http://www.w3.org/2000/svg";
