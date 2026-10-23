@@ -15,6 +15,7 @@ import subprocess
 import termios
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Iterator
@@ -221,39 +222,45 @@ class Backend:
     def _stats_loop(self):
         # Sampling every container costs Docker real CPU, so only do it while
         # somebody has the panel open (status polls keep _last_view fresh).
+        # Docker takes a second or two to answer for each container, so they're
+        # asked all at once: fresh figures about every 3s, however many there are.
+        pool = ThreadPoolExecutor(max_workers=8)
         while True:
             if time.time() - self._last_view > 45:
                 self._stats = {}
                 time.sleep(2)
                 continue
             try:
-                for c in self.client.containers.list():
-                    try:
-                        s = c.stats(stream=False)
-                        cpu = s["cpu_stats"]["cpu_usage"]["total_usage"] - s["precpu_stats"]["cpu_usage"]["total_usage"]
-                        sysd = s["cpu_stats"].get("system_cpu_usage", 0) - s["precpu_stats"].get("system_cpu_usage", 0)
-                        ncpu = s["cpu_stats"].get("online_cpus") or 1
-                        pct = (cpu / sysd * ncpu * 100.0) if sysd > 0 else 0.0
-                        ms = s.get("memory_stats", {})
-                        used = ms.get("usage", 0) - ms.get("stats", {}).get("inactive_file", ms.get("stats", {}).get("cache", 0))
-                        row = {"cpu": round(max(pct, 0), 1), "mem": max(used, 0)}
-                        # Network speed, down and up, from its byte counts since the last look. A
-                        # container on the VPN's network (AIOStreams) has none of its own: gluetun's covers it.
-                        nets = s.get("networks") or {}
-                        if nets:
-                            now = time.time()
-                            rx = sum(n.get("rx_bytes", 0) for n in nets.values())
-                            tx = sum(n.get("tx_bytes", 0) for n in nets.values())
-                            prev = self._netprev.get(c.name)
-                            self._netprev[c.name] = (now, rx, tx)
-                            if prev and 0 < now - prev[0] < 120 and rx >= prev[1] and tx >= prev[2]:
-                                row["rx"], row["tx"] = (rx - prev[1]) / (now - prev[0]), (tx - prev[2]) / (now - prev[0])
-                        self._stats[c.name] = row
-                    except Exception:
-                        pass
+                list(pool.map(self._sample, self.client.containers.list()))
             except Exception:
                 pass
-            time.sleep(5)
+            time.sleep(1)
+
+    def _sample(self, c):
+        """One container's CPU, memory and network speed, into _stats."""
+        try:
+            s = c.stats(stream=False)
+            cpu = s["cpu_stats"]["cpu_usage"]["total_usage"] - s["precpu_stats"]["cpu_usage"]["total_usage"]
+            sysd = s["cpu_stats"].get("system_cpu_usage", 0) - s["precpu_stats"].get("system_cpu_usage", 0)
+            ncpu = s["cpu_stats"].get("online_cpus") or 1
+            pct = (cpu / sysd * ncpu * 100.0) if sysd > 0 else 0.0
+            ms = s.get("memory_stats", {})
+            used = ms.get("usage", 0) - ms.get("stats", {}).get("inactive_file", ms.get("stats", {}).get("cache", 0))
+            row = {"cpu": round(max(pct, 0), 1), "mem": max(used, 0)}
+            # Network speed, down and up, from its byte counts since the last look. A
+            # container on the VPN's network (AIOStreams) has none of its own: gluetun's covers it.
+            nets = s.get("networks") or {}
+            if nets:
+                now = time.time()
+                rx = sum(n.get("rx_bytes", 0) for n in nets.values())
+                tx = sum(n.get("tx_bytes", 0) for n in nets.values())
+                prev = self._netprev.get(c.name)
+                self._netprev[c.name] = (now, rx, tx)
+                if prev and 0 < now - prev[0] < 120 and rx >= prev[1] and tx >= prev[2]:
+                    row["rx"], row["tx"] = (rx - prev[1]) / (now - prev[0]), (tx - prev[2]) / (now - prev[0])
+            self._stats[c.name] = row
+        except Exception:
+            pass
 
     # ---- status --------------------------------------------------------
     def _cert(self, host: str) -> dict | None:

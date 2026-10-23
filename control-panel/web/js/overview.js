@@ -125,7 +125,7 @@ export function record(st) {
   for (const s of st.services) {
     if (s.state !== "running") { hist[s.key] = []; continue; }
     (hist[s.key] ||= []).push(s.cpu ?? 0);
-    if (hist[s.key].length > 36) hist[s.key].shift();
+    if (hist[s.key].length > 40) hist[s.key].shift();
   }
 }
 
