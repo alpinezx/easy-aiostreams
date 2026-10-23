@@ -54,11 +54,12 @@ export function feedNet(net) {
 }
 export const liveRate = (kind) => live[kind];
 
-// Bytes a second as a speed, in the same KB and MB as the panel's totals ("Today 2.5 GB")
-const KB = 1024, MB = 1024 * 1024;
+// Bytes a second as a speed, written as AIOStreams' own dashboard writes them: KB and MB of
+// 1000, one decimal left off when it's zero ("3 MB/s", "15.8 MB/s")
+const KB = 1000, MB = 1000 * 1000;
 export function fmtRate(bps) {
   const b = bps || 0;
-  const num = (v) => (v < 10 ? +v.toFixed(1) : Math.round(v));   // "2.5", "5" rather than "5.0"
+  const num = (v) => +v.toFixed(1);
   if (b >= MB) return `${num(b / MB)} MB/s`;
   if (b >= KB) return `${num(b / KB)} KB/s`;
   return `${Math.round(b)} B/s`;
