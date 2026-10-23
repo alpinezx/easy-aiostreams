@@ -575,36 +575,34 @@ function hostSum(st) {
       bad || (bk && !bk.newest) ? "warn" : ""]]);
 }
 
-// HTTPS certificates. One site: a single tile. Several: folded to one tile with the soonest
-// expiry, open to one tile per site. A cert that needs a look keeps the list open.
+// HTTPS certificates. One site: a single tile. Several: one tile with the soonest expiry,
+// whose chevron opens a tile per site in a section of their own under the card's values,
+// so however many sites there are the values above don't move. A cert that needs a look
+// keeps that section open. Returns the section, or null.
 function certTiles(grid, st) {
   const certs = allCerts(st);
-  if (!certs.length) return;
+  if (!certs.length) return null;
   if (certs.length === 1) {
     const c = certs[0], d = c.days_left;
     grid.append(c.ok
       ? stat("HTTPS certificate", `${d} day${d === 1 ? "" : "s"} left`, certTone(c) ? "Not renewed yet: check Caddy's logs" : "Auto-renews", certTone(c))
       : stat("HTTPS certificate", "Couldn't check", "", "warn"));
-    return;
+    return null;
   }
   const needsLook = certs.some((c) => !c.ok || certTone(c));
-  const folded = isFolded("certs") && !needsLook;
   const w = worstCert(st);
-  if (folded) {
-    grid.append(h("div", { class: "stat" }, h("div", { class: "ver-label cert-fold" }, foldTitle("certs", "HTTPS certificates")),
-      h("div", { class: "stat-value", text: `${w.days_left} day${w.days_left === 1 ? "" : "s"} left` }),
-      h("div", { class: "ver-sub", text: `soonest of ${certs.length} sites` })));
-    return;
-  }
-  grid.append(h("div", { class: "cert-head" }, needsLook
-    ? h("span", { class: "ver-label", text: "HTTPS certificates" })
-    : foldTitle("certs", "HTTPS certificates")));
-  for (const c of certs) {
+  grid.append(h("div", { class: "stat" },
+    h("div", { class: "ver-label cert-fold" }, needsLook ? "HTTPS certificates" : foldTitle("certs", "HTTPS certificates")),
+    w.ok ? h("div", { class: "stat-value " + certTone(w), text: `${w.days_left} day${w.days_left === 1 ? "" : "s"} left` })
+      : h("div", { class: "stat-value warn", text: "Couldn't check" }),
+    h("div", { class: "ver-sub", text: `${w.ok ? "soonest" : "one"} of ${certs.length} sites` })));
+  if (isFolded("certs") && !needsLook) return null;
+  return h("div", { class: "cert-sec stat-grid" }, ...certs.map((c) => {
     const d = c.days_left, label = c.label || c.host;
-    grid.append(c.ok
+    return c.ok
       ? stat(label, `${d} day${d === 1 ? "" : "s"} left`, certTone(c) ? "Not renewed yet: check Caddy's logs" : c.host, certTone(c))
-      : stat(label, "Couldn't check", c.host, "warn"));
-  }
+      : stat(label, "Couldn't check", c.host, "warn");
+  }));
 }
 
 function side(st) {
@@ -619,7 +617,7 @@ function side(st) {
   if (hostFolded) host.firstChild.append(hostSum(st));
   const grid = h("div", { class: "stat-grid" });
   if (hs.uptime != null) grid.append(stat("Up for", fmtDur(hs.uptime), `since ${dayMonth(Date.now() - hs.uptime * 1000)}`));
-  certTiles(grid, st);
+  const certList = certTiles(grid, st);
   if (hs.load) {
     const pct = (hs.load[0] / (hs.cpus || 1)) * 100;
     grid.append(stat("Load", hs.load[0].toFixed(2), `on ${hs.cpus} CPU${hs.cpus > 1 ? "s" : ""}`, tone(pct, 75, 90)));
@@ -654,7 +652,7 @@ function side(st) {
   // Reboot sits in the last row's spare room, at its right, rather than a row of its own
   grid.append(h("div", { class: "grid-btn" },
     h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer })));
-  if (!hostFolded) host.append(grid);
+  if (!hostFolded) { host.append(grid); if (certList) host.append(certList); }
   el.append(host);
   vpnCard(el, st, avail);
 

@@ -460,14 +460,14 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .stat-value.warn { color: var(--warn); } .stat-value.bad { color: var(--bad); } .stat-value.ok { color: var(--ok); }
 .row .num.warn { color: var(--warn); } .row .num.bad { color: var(--bad); }
 .stat .ver-sub { font-size: .8rem; }
-.cert-head { grid-column: 1 / -1; }
 /* The fold button reads as a stat label: same size, case and colour as the others */
 .stat-link { display: inline-flex; align-items: center; gap: 6px; color: inherit; text-decoration: none; }
 .stat-link:hover { color: var(--text); }
 .go-chev svg { width: 11px; height: 11px; transform: rotate(-90deg); }
-.cert-fold .fold-toggle, .cert-head .fold-toggle { font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; }
-.cert-head { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--faint); }
-@media (max-width: 720px) { .cert-head { padding: 12px 0 4px; border-top: 1px solid var(--line-soft); } }
+.cert-fold .fold-toggle { font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; }
+/* This server's certificates, opened: a section of their own under its values */
+.stat-grid.cert-sec { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
+@media (max-width: 720px) { .stat-grid.cert-sec { margin-top: 10px; padding-top: 4px; } }
 /* Phones: one value per line, the label on the left and the value with its note on the right,
    so nothing has to wrap in a half-width column */
 @media (max-width: 720px) {
