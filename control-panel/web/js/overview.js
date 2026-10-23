@@ -617,16 +617,6 @@ function side(st) {
   if (hostFolded) host.firstChild.append(hostSum(st));
   const grid = h("div", { class: "stat-grid" });
   if (hs.uptime != null) grid.append(stat("Up for", fmtDur(hs.uptime), `since ${dayMonth(Date.now() - hs.uptime * 1000)}`));
-  const certList = certTiles(grid, st);
-  if (hs.load) {
-    const pct = (hs.load[0] / (hs.cpus || 1)) * 100;
-    grid.append(stat("Load", hs.load[0].toFixed(2), `on ${hs.cpus} CPU${hs.cpus > 1 ? "s" : ""}`, tone(pct, 75, 90)));
-  }
-  for (const [label, used, total, warn] of [["Memory", hs.mem_used, hs.mem_total, 80], ["Disk", hs.disk_used, hs.disk_total, 80]]) {
-    if (!total) continue;
-    const pct = (used / total) * 100;
-    grid.append(stat(label, `${fmtBytes(used)} of ${fmtBytes(total)}`, `${Math.round(pct)}% used, ${fmtBytes(total - used)} free`, tone(pct, warn, 90)));
-  }
   // The server's own network card, everything in and out (the VPN's tunnel travels through it
   // too): the speed now and today's totals
   if (st.net && st.net.host) {
@@ -642,6 +632,17 @@ function side(st) {
     if (n) net.children[1].append(h("span", { class: "nowrap", text: `↓ ${fmtRate(n[0])}` }), h("span", { class: "nowrap", text: `↑ ${fmtRate(n[1])}` }));
     grid.append(net);
   }
+  if (hs.load) {
+    const pct = (hs.load[0] / (hs.cpus || 1)) * 100;
+    grid.append(stat("Load", hs.load[0].toFixed(2), `on ${hs.cpus} CPU${hs.cpus > 1 ? "s" : ""}`, tone(pct, 75, 90)));
+  }
+  for (const [label, used, total, warn] of [["Memory", hs.mem_used, hs.mem_total, 80], ["Disk", hs.disk_used, hs.disk_total, 80]]) {
+    if (!total) continue;
+    const pct = (used / total) * 100;
+    grid.append(stat(label, `${fmtBytes(used)} of ${fmtBytes(total)}`, `${Math.round(pct)}% used, ${fmtBytes(total - used)} free`, tone(pct, warn, 90)));
+  }
+  // On the bottom row, right above the section its chevron opens
+  const certList = certTiles(grid, st);
   // The newest backup, any kind, and the schedule; amber when the last scheduled one failed or was skipped
   const bk = st.backup;
   if (bk) {

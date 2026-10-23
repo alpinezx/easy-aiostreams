@@ -10,10 +10,10 @@ const ADDONS_GUIDE = `${REPO}/blob/main/docs/other-scripts.md`;
 const RAW_BASE = "https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/";
 const FALLBACK = [
   { id: "aiostreams", label: "AIOStreams menu", file: "setup-aiostreams.sh", present: true },
+  { id: "aiometadata", label: "AIOMetadata", file: "setup-aiometadata.sh", present: false },
+  { id: "watchdog", label: "Phone alerts", file: "setup-watchdog.sh", present: false },
   { id: "vpn", label: "VPN (Gluetun)", file: "setup-vpn-gluetun.sh", present: false },
   { id: "mediaflow", label: "MediaFlow Proxy", file: "setup-mediaflow.sh", present: false },
-  { id: "watchdog", label: "Phone alerts", file: "setup-watchdog.sh", present: false },
-  { id: "aiometadata", label: "AIOMetadata", file: "setup-aiometadata.sh", present: false },
 ];
 // The AIOStreams menu runs backup and restore through setup-backup.sh and only
 // downloads it when it's missing, so its Update refreshes both.

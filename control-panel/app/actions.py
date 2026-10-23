@@ -305,8 +305,8 @@ def catalog() -> list[Action]:
 # and the Terminal tab updates it together with setup-aiostreams.sh.
 SCRIPTS = [
     ("aiostreams", "AIOStreams menu", "setup-aiostreams.sh"),
+    ("aiometadata", "AIOMetadata", "setup-aiometadata.sh"),
+    ("watchdog", "Phone alerts", "setup-watchdog.sh"),
     ("vpn", "VPN (Gluetun)", "setup-vpn-gluetun.sh"),
     ("mediaflow", "MediaFlow Proxy", "setup-mediaflow.sh"),
-    ("watchdog", "Phone alerts", "setup-watchdog.sh"),
-    ("aiometadata", "AIOMetadata", "setup-aiometadata.sh"),
 ]
