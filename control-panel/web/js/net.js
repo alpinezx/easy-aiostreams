@@ -21,6 +21,7 @@ function sourceSwitch() {
       "aria-pressed": String(kind() === k), onclick: () => {
         source = k;
         try { localStorage.setItem("aios.netSource", k); } catch (_) {}
+        if (location.hash !== "#net") history.replaceState(null, "", "#net");   // so #net/vpn doesn't pick the tunnel again
         show(st);
       } }))));
 }
@@ -52,6 +53,11 @@ function services(box) {
 
 export function show(status) {
   if (status) st = status;
+  // The Overview's VPN line opens the page at #net/vpn: the VPN tunnel's graph
+  if (location.hash === "#net/vpn") {
+    source = "vpn";
+    try { localStorage.setItem("aios.netSource", "vpn"); } catch (_) {}
+  }
   sourceSwitch();
   const root = $("#net-root");
   clear(root);

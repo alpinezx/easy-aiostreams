@@ -1,6 +1,6 @@
 // The VPN's traffic: everything through the tunnel, every viewer and search together.
 // The panel reads gluetun's counters once a minute (app/traffic.py); this draws them.
-// The VPN page gets the graph, its figures and the last 7 days; the Overview card one line.
+// The Network page gets the graph, its figures and the last 7 days; the Overview one line each.
 import { h, clear, api, fmtBytes, toast } from "./util.js";
 import { ask } from "./actions.js";
 

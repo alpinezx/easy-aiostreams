@@ -730,8 +730,8 @@ function vpnCard(el, st, avail) {
   if (mode === "on" && trafficStale()) loadTraffic().then(() => { if (lastSt) side(lastSt); }).catch(() => {});
   const line = mode === "on" ? summaryLine(trafficData()) : [];
   // Turning it on with no config saved asks for one, which only the VPN page does
-  const btns = h("div", { class: "card-foot vpnc-foot" }, line.length ? h("a", { class: "vpnc-traffic dim", href: "#vpn",
-    title: "The traffic graph is on the VPN page" }, ...line.map((t) => h("span", { text: t }))) : null);
+  const btns = h("div", { class: "card-foot vpnc-foot" }, line.length ? h("a", { class: "vpnc-traffic dim", href: "#net/vpn",
+    title: "The VPN's traffic graph is on the Network page" }, ...line.map((t) => h("span", { text: t }))) : null);
   const a = avail[mode === "on" ? "vpn.off" : "vpn.on"];
   if (a && a.available && !(mode === "off" && v && v.has_config === false)) {
     btns.append(h("button", { class: "btn small", type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
