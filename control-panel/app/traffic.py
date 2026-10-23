@@ -150,10 +150,19 @@ class Traffic:
     def start(self):
         threading.Thread(target=self.run, daemon=True).start()
 
+    def clear(self):
+        """Start the history again from now: the next minute is the first. Only the panel's
+        record goes; nothing on the server or in gluetun changes."""
+        with self.lock:
+            self.minutes, self.hours = {}, {}
+        self.save()
+
     def view(self, now: float | None = None) -> dict:
-        """The last day's minutes and the last week's hours, oldest first, for the browser to draw."""
+        """The last day's minutes and the last week's hours, oldest first, for the browser to
+        draw; and since when there's history, with everything kept added up (up to 30 days)."""
         now = time.time() if now is None else now
         with self.lock:
-            return {"now": now,
+            return {"now": now, "since": min(self.hours, default=None),
+                    "total": [sum(v[0] for v in self.hours.values()), sum(v[1] for v in self.hours.values())],
                     "minutes": [[k, *v] for k, v in sorted(self.minutes.items()) if k >= now - MINUTE_KEEP],
                     "hours": [[k, *v] for k, v in sorted(self.hours.items()) if k >= now - 7 * 24 * 3600 - 3600]}

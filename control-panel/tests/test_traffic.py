@@ -110,3 +110,31 @@ def test_status_carries_the_counters():
     finally:
         main.app.dependency_overrides.clear()
     assert len(net["host"]) == 2 and len(net["vpn"]) == 2 and net["t"] > 0
+
+
+def test_clear_starts_again_from_now(tmp_path):
+    t = store(tmp_path)
+    t.add(T0 + 1, (0, 0))
+    t.add(T0 + 61, (600, 60))
+    v = t.view(T0 + 70)
+    assert v["since"] == T0 and v["total"] == [600, 60]
+    t.clear()
+    assert store(tmp_path).view(T0 + 70)["since"] is None     # saved cleared
+    t.add(T0 + 121, (900, 90))                                  # and the next minute counts
+    assert t.minutes == {T0 + 60: [300, 30]}
+
+
+def test_clear_endpoint():
+    import os
+    os.environ["UI_DEMO"] = "1"
+    from fastapi.testclient import TestClient
+    from app import main
+    main.app.dependency_overrides[main.current_user] = lambda: "demo"
+    try:
+        c = TestClient(main.app)
+        hdr = {"x-ui-request": "1"}
+        assert c.post("/api/host/traffic/clear", headers=hdr).json() == {"cleared": True}
+        assert c.get("/api/host/traffic").json()["since"] is None
+        assert c.post("/api/nope/traffic/clear", headers=hdr).status_code == 404
+    finally:
+        main.app.dependency_overrides.clear()

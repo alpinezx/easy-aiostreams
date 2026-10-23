@@ -1,7 +1,8 @@
 // The VPN's traffic: everything through the tunnel, every viewer and search together.
 // The panel reads gluetun's counters once a minute (app/traffic.py); this draws them.
 // The VPN page gets the graph, its figures and the last 7 days; the Overview card one line.
-import { h, clear, api, fmtBytes } from "./util.js";
+import { h, clear, api, fmtBytes, toast } from "./util.js";
+import { ask } from "./actions.js";
 
 let range = "24h";
 try { range = localStorage.getItem("aios.vpnRange") || "24h"; } catch (_) {}
@@ -21,6 +22,22 @@ export function loadTraffic(force, kind = "vpn") {
 }
 export const trafficData = (kind = "vpn") => hist[kind].data;
 export const trafficStale = (kind = "vpn") => !hist[kind].loading && (!hist[kind].data || Date.now() - hist[kind].at >= 55000);
+
+// Clear history (the VPN page, Maintenance): asks, then the record starts again from now.
+// True once it's cleared.
+const WHAT = { vpn: ["the VPN's", "VPN"], host: ["the server's network", "network"] };
+export async function clearHistory(kind) {
+  const ok = await ask({ title: `Clear ${WHAT[kind][0]} traffic history?`, confirmLabel: "Clear history", danger: true,
+    body: `${kind === "vpn" ? "The graph and totals start" : "Today's totals start"} again from the next minute. Only the panel's record goes: nothing on the server changes, and streaming isn't touched. This can't be undone.` });
+  if (!ok) return false;
+  try {
+    await api(`/api/${kind}/traffic/clear`, { method: "POST" });
+    hist[kind].at = 0;
+    await loadTraffic(true, kind).catch(() => {});
+    toast(`The ${WHAT[kind][1]} traffic history is cleared.`);
+    return true;
+  } catch (e) { toast(e.message || "Couldn't clear it.", true); return false; }
+}
 
 // Speeds right now, from the counters in each status check (every few seconds): what went
 // through between the last two checks. Null until there are two, or after a counter restarted.
@@ -71,13 +88,8 @@ export function today(d) {
   return d.minutes.reduce((s, m) => (m[0] >= from ? [s[0] + m[1], s[1] + m[2]] : s), [0, 0]);
 }
 
-// Down and up speeds sharing one unit, the larger's: "↓ 38 ↑ 36 Mbit/s"
-export function fmtPair([d, u]) {
-  const unit = fmtRate(Math.max(d, u)).split(" ")[1];
-  const div = { "bit/s": 1, "kbit/s": 1e3, "Mbit/s": 1e6 }[unit];
-  const n = (v) => { const x = (v * 8) / div; return x >= 10 || x < 0.05 ? Math.round(x) : x.toFixed(1); };   // "0", not "0.0"
-  return `↓ ${n(d)} ↑ ${n(u)} ${unit}`;
-}
+// Down and up speeds, each with its own unit: "↓ 387 kbit/s ↑ 1.4 kbit/s"
+export const fmtPair = ([d, u]) => `↓ ${fmtRate(d)} ↑ ${fmtRate(u)}`;
 
 // The Overview's VPN line, in two halves that each stay whole: "Now ↓ 32 ↑ 1.2 Mbit/s", "Today ↓ 3.2 GB ↑ 48 MB"
 export function summaryLine(d) {
@@ -262,5 +274,8 @@ export async function trafficCard(box, force) {
     chart(s, range),
     h("div", { class: "tr-legend dim" }, h("span", { class: "tr-key down", text: "Down" }), h("span", { class: "tr-key up", text: "Up" }),
       h("span", { class: "tr-step", text: `Everything through the VPN, ${range === "7d" ? "hourly averages" : range === "24h" ? "5-minute averages" : "minute by minute"}` })),
-    days(d)));
+    days(d),
+    d.since ? h("div", { class: "card-foot" }, h("span", { class: "dim tr-since", text: `Recorded since ${dayName(d.since)}, ${hhmm(d.since)}` }),
+      h("button", { class: "btn small quiet", type: "button", text: "Clear history",
+        onclick: async () => { if (await clearHistory("vpn")) trafficCard(box); } })) : null));
 }

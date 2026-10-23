@@ -396,6 +396,16 @@ async def host_traffic_history(user: str = Depends(current_user)):
     return host_traffic.view()
 
 
+@app.post("/api/{kind}/traffic/clear")
+async def clear_traffic(kind: str, user: str = Depends(current_user)):
+    """Clear history, on the VPN page (vpn) or Maintenance (vpn or host): it starts again from now."""
+    store = {"vpn": vpn_traffic, "host": host_traffic}.get(kind)
+    if store is None:
+        raise HTTPException(404, "Not found")
+    await asyncio.to_thread(store.clear)
+    return {"cleared": True}
+
+
 @app.get("/api/addons")
 async def addons(user: str = Depends(current_user)):
     """The Add-ons page: what each add-on's script shows, its secrets left out."""

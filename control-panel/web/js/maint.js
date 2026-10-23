@@ -1,5 +1,6 @@
 import { $, h, clear, api, ago, toast, fmtBytes } from "./util.js";
 import { runAction } from "./actions.js";
+import { loadTraffic, trafficData, clearHistory } from "./traffic.js";
 
 // Maintenance: upkeep that's easy to forget. Each card says what it found, coloured
 // only when something needs a look, with its one button at the bottom right. The
@@ -61,6 +62,27 @@ function logs(m) {
   ], l.limited ? "" : "Setting it restarts every container once: a few seconds of downtime.", l.limited ? null : button("maint.logs", true));
 }
 
+// The traffic histories the panel keeps (the VPN's, the server's network), each with its own Clear
+function traffic() {
+  const kinds = [["vpn", "VPN"], ["host", "Network"]].filter(([k]) =>
+    k === "host" || (status && (status.vpn === "on" || status.vpn === "off")) || (trafficData(k) && trafficData(k).since));
+  const grid = [], btns = [];
+  for (const [k, label] of kinds) {
+    const d = trafficData(k);
+    if (!d) continue;
+    const since = d.since && new Date(d.since * 1000);
+    const short = !since ? "" : since.toDateString() === new Date().toDateString()
+      ? since.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : since.toLocaleDateString([], { day: "numeric", month: "short" });
+    grid.push(stat(label, d.since ? `Since ${short}` : "Nothing yet",
+      d.since ? `↓ ${fmtBytes(d.total[0])} ↑ ${fmtBytes(d.total[1])} in all` : "Starts from the next minute"));
+    if (d.since) btns.push(h("button", { class: "btn small quiet", type: "button", text: `Clear ${label === "VPN" ? "VPN" : "network"} history`,
+      onclick: async () => { if (await clearHistory(k)) render(); } }));
+  }
+  if (!grid.length) return null;
+  return card("Traffic history", grid, "The graphs and today's totals. Kept for 30 days.",
+    btns.length ? h("span", { class: "maint-btns" }, ...btns) : null);
+}
+
 // How the last job ended: it may have outlived a panel restart (Docker restarts it)
 function lastRun(m) {
   const j = m.last;
@@ -77,6 +99,8 @@ async function load(force) {
   loading = true;
   const root = $("#maint-root");
   if (!last) { clear(root); root.append(h("p", { class: "dim", text: "Looking around the server…" })); }
+  // The traffic histories come with it, so the page draws once
+  for (const k of ["vpn", "host"]) loadTraffic(force, k).then(() => { if (last && !loading) render(); }).catch(() => {});
   try { last = await api(`/api/maintenance${force ? "?force=1" : ""}`); }
   catch (e) { if (!last) { clear(root); root.append(h("p", { class: "empty", text: e.message || "Couldn't load it." })); } return; }
   finally { loading = false; }
@@ -88,7 +112,7 @@ function render() {
   const root = $("#maint-root");
   const open = !!(root.querySelector(".maint-last") || {}).open;   // keep the output open across refreshes
   clear(root);
-  root.append(h("div", { class: "maint-grid" }, space(last), updates(last), logs(last)));
+  root.append(h("div", { class: "maint-grid" }, space(last), updates(last), logs(last), traffic()));
   const run = lastRun(last);
   if (run) root.append(run);
   if (open && root.querySelector(".maint-last")) root.querySelector(".maint-last").open = true;

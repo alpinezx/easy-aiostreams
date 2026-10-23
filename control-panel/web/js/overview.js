@@ -6,7 +6,7 @@ import { pill as scriptsPill } from "./scripts.js";
 import { scheduleText } from "./activity.js";
 import { applyLayout, openLayout } from "./layout.js";
 import { countryName } from "./vpn.js";
-import { loadTraffic, trafficData, trafficStale, summaryLine, feedNet, nowRate, today, fmtPair } from "./traffic.js";
+import { loadTraffic, trafficData, trafficStale, summaryLine, feedNet, nowRate, today, fmtRate } from "./traffic.js";
 
 // ---------------- update check ----------------
 let rel = null, relLoading = false, relFor = null, lastSt = null;
@@ -634,8 +634,10 @@ function side(st) {
   if (st.net && st.net.host) {
     if (trafficStale("host")) loadTraffic(false, "host").then(() => { if (lastSt) side(lastSt); }).catch(() => {});
     const n = nowRate(trafficData("host"), "host"), t = today(trafficData("host"));
-    grid.append(stat("Network", n ? fmtPair(n) : "Measuring…",
-      t && (t[0] || t[1]) ? `Today ↓ ${fmtBytes(t[0])} ↑ ${fmtBytes(t[1])}` : ""));
+    const net = stat("Network", n ? "" : "Measuring…", t && (t[0] || t[1]) ? `Today ↓ ${fmtBytes(t[0])} ↑ ${fmtBytes(t[1])}` : "");
+    // Down and up each stay whole, so a narrow column puts them on two lines rather than splitting one
+    if (n) net.children[1].append(h("span", { class: "nowrap", text: `↓ ${fmtRate(n[0])}` }), " ", h("span", { class: "nowrap", text: `↑ ${fmtRate(n[1])}` }));
+    grid.append(net);
   }
   // The newest backup, any kind, and the schedule; amber when the last scheduled one failed or was skipped
   const bk = st.backup;

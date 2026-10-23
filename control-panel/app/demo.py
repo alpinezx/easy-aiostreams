@@ -154,7 +154,7 @@ class DemoBackend:
     def host_counters(self):
         now = time.time()
         if self._hctr is None:
-            self._hctr = [now, 154 * GB, 150 * GB]
+            self._hctr = [now, 154 * GB + int(now * 3000), 150 * GB + int(now * 2900)]   # grows across demo restarts, as a real counter would
         d, u = host_rate(now, demo_rate(now) * random.uniform(0.85, 1.15))
         dt = now - self._hctr[0]
         self._hctr = [now, self._hctr[1] + int(d * dt), self._hctr[2] + int(u * dt)]
@@ -166,7 +166,7 @@ class DemoBackend:
             return None
         now = time.time()
         if self._ctr is None:
-            self._ctr = [now, 5 * GB, 80 * MB]
+            self._ctr = [now, 5 * GB + int(now * 2000), 80 * MB + int(now * 30)]
         rx = int(demo_rate(now) * (now - self._ctr[0]))
         self._ctr = [now, self._ctr[1] + rx, self._ctr[2] + int(rx * 0.015 + 70 * (now - self._ctr[0]))]
         return self._ctr[1], self._ctr[2]
