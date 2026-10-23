@@ -402,7 +402,9 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .tr-day-tot { text-align: right; font-variant-numeric: tabular-nums; white-space: pre; }
 .tr-since { margin-right: auto; font-size: .84rem; }
 .vpnc-foot .vpnc-traffic { margin-right: auto; font-size: .88rem; text-decoration: none; }
-.vpnc-traffic span, .stat-value .nowrap { white-space: nowrap; }
+.vpnc-traffic span { white-space: nowrap; }
+/* This server's Network: down and up a line each, always, so the row doesn't change height as the speeds change */
+.stat-value .nowrap { display: block; white-space: nowrap; }
 .vpnc-traffic span + span::before { content: " · "; }
 .vpnc-foot .vpnc-traffic:hover { color: var(--text); text-decoration: underline; }
 @media (max-width: 720px) {

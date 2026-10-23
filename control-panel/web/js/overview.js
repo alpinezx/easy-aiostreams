@@ -635,8 +635,8 @@ function side(st) {
     if (trafficStale("host")) loadTraffic(false, "host").then(() => { if (lastSt) side(lastSt); }).catch(() => {});
     const n = nowRate(trafficData("host"), "host"), t = today(trafficData("host"));
     const net = stat("Network", n ? "" : "Measuring…", t && (t[0] || t[1]) ? `Today ↓ ${fmtBytes(t[0])} ↑ ${fmtBytes(t[1])}` : "");
-    // Down and up each stay whole, so a narrow column puts them on two lines rather than splitting one
-    if (n) net.children[1].append(h("span", { class: "nowrap", text: `↓ ${fmtRate(n[0])}` }), " ", h("span", { class: "nowrap", text: `↑ ${fmtRate(n[1])}` }));
+    // Down and up on a line each, so the value keeps its height however long the numbers are
+    if (n) net.children[1].append(h("span", { class: "nowrap", text: `↓ ${fmtRate(n[0])}` }), h("span", { class: "nowrap", text: `↑ ${fmtRate(n[1])}` }));
     grid.append(net);
   }
   // The newest backup, any kind, and the schedule; amber when the last scheduled one failed or was skipped
