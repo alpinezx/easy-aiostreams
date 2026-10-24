@@ -243,14 +243,23 @@ function days(d) {
     }));
 }
 
-// The Traffic card's Now, kept up to date with each status check between the minute's redraws
+// The Traffic card's Now: down and up at the same size, side by side (each on its own line
+// where there isn't room), kept up to date with each status check between the minute's redraws
 const nowFigs = {};
+function nowValue(el, n) {
+  el.replaceChildren(...(n ? [h("span", { text: `↓ ${fmtRate(n[0])}` }), h("span", { text: `↑ ${fmtRate(n[1])}` })] : ["Measuring…"]));
+}
+function nowFig(n) {
+  const f = fig("Now", "", "");
+  const v = f.querySelector(".vpn-value");
+  v.classList.add("tr-now");
+  nowValue(v, n);
+  return f;
+}
 export function updateNow() {
   for (const [kind, f] of Object.entries(nowFigs)) {
     const n = f.isConnected && nowRate(trafficData(kind), kind);
-    if (!n) continue;
-    f.querySelector(".vpn-value").textContent = `↓ ${fmtRate(n[0])}`;
-    f.querySelector(".tr-sub").textContent = `↑ ${fmtRate(n[1])}`;
+    if (n) nowValue(f.querySelector(".vpn-value"), n);
   }
 }
 
@@ -275,7 +284,7 @@ export async function trafficCard(box, force, kind = "vpn") {
   box.append(h("div", { class: "panel vpn-card tr-card" },
     h("div", { class: "vpn-head" }, h("h3", { class: "tr-title", text: "Traffic" }), btns),
     h("div", { class: "vpn-grid tr-figs" },
-      nowFigs[kind] = fig("Now", n ? `↓ ${fmtRate(n[0])}` : "Measuring…", n ? `↑ ${fmtRate(n[1])}` : ""),
+      nowFigs[kind] = nowFig(n),
       fig("Peak", s.peak && s.peak[1] ? `↓ ${fmtRate(s.peak[1])}` : "None", s.peak && s.peak[1] ? `${s.peak[2] ? "Busiest minute, " : ""}${when(s.peak[0])}` : ""),
       fig("Down", fmtBytes(s.tot[0]), `in the last ${label}`),
       fig("Up", fmtBytes(s.tot[1]), `in the last ${label}`)),
