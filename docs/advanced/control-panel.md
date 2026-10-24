@@ -47,6 +47,8 @@ It is still root-equivalent on your server, because it has to run the scripts an
 
 ## What each button runs
 
+![Update or switch build, with a backup first](../images/control-panel/update-dialog.png)
+
 | Button | Script and input |
 | --- | --- |
 | Start, Stop (AIOStreams' row), Restart stack | `setup-aiostreams.sh start`, `stop`, `restart` (menu options 3, 2, 4 without their questions) |
@@ -80,13 +82,19 @@ The version chip on the Overview tab is read from the running AIOStreams contain
 
 ## Logs
 
+![The Logs tab](../images/control-panel/logs.png)
+
 Each line is split the way AIOStreams' own log viewer shows it: time, a dot for its JSON `level`, `[module]`, the message, then any other fields. The **INFO**, **WARN** and **ERROR** buttons show only the levels picked (none picked shows everything). For Caddy, **Hide noise** hides the lines that look alarming but are expected (a restart, the log viewer reconnecting) and says how many it is hiding; those lines are logged as warnings and errors themselves, so the level buttons can't do this. All of these are display filters only; they never change what's logged. **Clear** hides everything logged so far, and it stays hidden after a reload; Docker's own log file is left alone on purpose, since emptying it behind Docker's back breaks `docker logs`.
 
 ## Layouts: the Overview and the rail
 
+![Edit menu: drag or hide the rail's pages](../images/control-panel/edit-menu.png)
+
 **Edit** beside the Overview's headline and **Edit menu** at the rail's foot open the same drawer, on the right for the Overview's cards and on the left for the rail's pages. Each list is one layout for the install, saved on the server (`ui-state/overview-layout.json` and `rail-layout.json`), so a phone and a desktop match. Overview always stays first on the rail, and Edit menu, GitHub and Sign out stay at its foot. A card or page that isn't on this server (the VPN before it's set up, Phone alerts before the watchdog, an add-on not installed) keeps its place in the saved order but isn't listed, so nothing reads as missing; it shows up where it was once it's set up. **Reset to default** puts back the standard order. The rail's goes by use: Logs, Activity, Network, Backup & Restore, Maintenance, Add-ons, then each add-on's own page under it (VPN, Phone alerts), Scripts and Terminal.
 
 ## Network page
+
+![The Network page: traffic over the last 24 hours, the last 7 days and each service](../images/control-panel/network.png)
 
 Once a minute, whether or not the panel is open, it reads two sets of byte counters: the server's own network card (the one its default route leaves by, `eth0`, `ens3` and so on, from the host's `/proc/1/net`) and, with the VPN on, gluetun's tunnel (`tun0`). What went through since the last reading is added to that minute and that hour. Minutes are kept for a day and hours for 30 days, in `ui-state/host-traffic.json` and `ui-state/vpn-traffic.json`, saved every few minutes, so an update or reboot only loses the minutes in between, and a backup and restore carries the history. A minute with no reading (the VPN off, the panel not running) is a gap in the graph rather than zero. Counters starting again from zero (a reboot, gluetun restarting) are taken as a fresh start, not traffic.
 
@@ -95,6 +103,8 @@ Once a minute, whether or not the panel is open, it reads two sets of byte count
 The Overview's **This server** shows the server's speed now and today's totals as its **Network** value, and the VPN's card shows the tunnel's; both link here. On desktop, This server is two rows of four values, with the certificates in a section of their own below, folded to the soonest one unless one needs a look.
 
 ## VPN page
+
+![The VPN page, with the configs on this server](../images/control-panel/vpn.png)
 
 The VPN also gets a card on the Overview once it's set up, listed in Edit's drawer: whether the tunnel is connected, where traffic leaves, the server, and with the VPN on, its speed now and today's totals, with **Turn VPN off** (or on) and **Check now**. Turning it on with no config saved goes through this page, which asks for one.
 
@@ -108,21 +118,29 @@ Uninstalling the VPN is on the [Add-ons page](#add-ons-page). The script's `unin
 
 ## Add-ons page
 
+![The Add-ons page: a card for each add-on, with its links, hidden passwords and keys, and Uninstall](../images/control-panel/addons.png)
+
 It appears on the rail once any optional add-on is installed: AIOMetadata, MediaFlow Proxy, the VPN or phone alerts (and the retired webhook relay, with only its address and Uninstall). Each gets a card with what its script's Status and Show options print, its subdomain's certificate and its memory use; the VPN's and Phone alerts' cards are short, since their own pages hold their settings. Links show their host and path, with Copy and open buttons. Secrets (AIOMetadata's addon password and admin key, MediaFlow's API password) aren't in the page: the panel reads each from the add-on's saved settings only when its eye or Copy is pressed, one at a time, sent with `Cache-Control: no-store`, and the page doesn't keep it. A MediaFlow outbound proxy shows without its login. The watchdog's topic stays masked here too.
 
 **Uninstall** on each card asks for `uninstall` to be typed. **Back up first** runs a normal backup and stops if it fails (a backup holds the add-on's settings, so a restore brings it back). Tick boxes cover the script's own questions: removing the images, and the VPN's `.conf` files. Each script's question-free `uninstall` does exactly what its menu's Uninstall does. The card goes once the add-on has.
 
 ## Phone alerts page
 
+![The Phone alerts page: status, the last 14 days, the optional alerts and recent events](../images/control-panel/alerts.png)
+
 It appears on the rail once the [watchdog](./watchdog.md) has been set up over SSH (first-time setup asks you to subscribe in the ntfy app, so it stays a script job). It reads `watchdog-state/`: whether the timer is running, the last check, what it watches, the daily tally as 14 squares, the event list, and the two optional switches. The topic is only ever sent to the browser masked (its first five and last two characters). **Change topic** suggests a random topic in groups of four with no look-alike characters, with **Copy**, and links to it on ntfy.sh so you can subscribe first.
 
 ## Maintenance page
+
+![The Maintenance page](../images/control-panel/maintenance.png)
 
 Read when the page opens and kept for 5 minutes. **Free up space** counts untagged images and `viren070/aiostreams` images no container uses, by the space only they hold (layers shared with an image that stays aren't freed), build cache Docker would remove (not records shared with an image in use), and the journal beyond 100 MB (`journalctl --disk-usage`). Other tagged images, such as gluetun's while the VPN is off, are kept for when they're wanted again. **System updates** reads `apt list --upgradable` (security ones by their `-security` source), `/var/run/reboot-required`, and when the package lists were last refreshed. **Container logs** reads `/etc/docker/daemon.json` and each container's own log settings.
 
 `system-updates` runs `apt-get update` and `apt-get upgrade --with-new-pkgs` non-interactively, keeping changed config files, then brings the stack back as Start would (AIOStreams has `restart: "no"` in VPN mode, so a Docker restart would otherwise leave it stopped; stopped on purpose stays stopped). `log-limits` adds `"log-opts": {"max-size": "10m", "max-file": "3"}` to `daemon.json`, keeping any other settings (with `python3`), checks it with `dockerd --validate` where Docker has that, restarts Docker (putting the old file back if it won't start), then recreates the stack, the running add-ons and the panel so they take it. `daemon.json` is outside `/opt/aiostreams`, so a backup doesn't carry it; on a new server the card shows **Not set** again.
 
 ## Backups and restores
+
+![The Backup & Restore tab](../images/control-panel/backups.png)
 
 Backups are listed from root's home and the login user's home, merged by name. Locks and notes are kept in `ui-state/backup-meta.json`, which scheduled backups also read so they never remove a locked one. Over SSH, `setup-backup.sh keep` and `unkeep` change the same lock.
 
