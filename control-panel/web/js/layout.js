@@ -97,6 +97,35 @@ function save(m) {
 
 const isOpen = () => !$("#lay-drawer").hidden;
 
+// Colours: System follows the device; Light or Dark overrides it in this browser only (theme.js
+// applies it before the page paints). Kept out of the server's layouts on purpose, so a phone and
+// a desktop can differ.
+const THEMES = [["system", "System"], ["light", "Light"], ["dark", "Dark"]];
+function themeNow() {
+  const t = document.documentElement.dataset.theme;
+  return t === "light" || t === "dark" ? t : "system";
+}
+function setTheme(t) {
+  if (t === "system") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = t;
+  try { t === "system" ? localStorage.removeItem("aios.theme") : localStorage.setItem("aios.theme", t); } catch (_) { /* this visit only */ }
+  document.dispatchEvent(new Event("aios-theme"));
+  themeRow();
+}
+function themeRow() {
+  const box = $("#lay-theme");
+  clear(box);
+  box.hidden = mode !== MODES.overview;
+  if (box.hidden) return;
+  const now = themeNow();
+  box.append(
+    h("div", { class: "lay-text" }, h("span", { class: "lay-title", text: "Colours" }),
+      h("span", { class: "dim lay-sub", text: "This browser only. System follows your device." })),
+    h("div", { class: "lay-theme-btns", role: "group", "aria-label": "Colours" },
+      ...THEMES.map(([id, label]) => h("button", { class: "btn small", type: "button", text: label,
+        "aria-pressed": String(id === now), onclick: () => setTheme(id) }))));
+}
+
 // "overview" (Edit beside the headline) or "rail" (Edit menu at the rail's foot)
 export function openLayout(which = "overview") {
   mode = MODES[which] || MODES.overview;
@@ -105,6 +134,7 @@ export function openLayout(which = "overview") {
   $("#lay-drawer").classList.toggle("from-left", mode === MODES.rail);
   $("#lay-title").textContent = mode.title;
   $("#lay-hint").textContent = mode.hint;
+  themeRow();
   list();
   $("#lay-drawer").hidden = false;
   $("#scrim").hidden = false;
