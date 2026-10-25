@@ -203,7 +203,7 @@ class DemoBackend:
     def addons_info(self) -> list[dict]:
         return [{"id": "aiometadata", "domain": "meta.example.com", "version": "3.6.1"},
                 {"id": "aiomanager", "domain": "manager.example.com", "version": "2.0.0"},
-                {"id": "mediaflow", "domain": "mediaflow.example.com", "proxy": None}]
+                {"id": "mediaflow", "domain": "mediaflow.example.com", "url": "http://mediaflow-proxy-light:8888", "proxy": None}]
 
     def addon_secret(self, addon: str, name: str) -> str | None:
         # Plainly made up, so nothing mistakes them for real ones

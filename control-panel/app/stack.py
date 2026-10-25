@@ -721,7 +721,9 @@ class Backend:
         if c.get("DOMAIN"):
             # An outbound proxy's address without its login, as the script's Status prints it
             m = re.match(r"^([a-z0-9]+://)(?:[^@/]*@)?([^/?#]+)", c.get("MEDIAFLOW_PROXY_URL") or "", re.I)
-            out.append({"id": "mediaflow", "domain": c["DOMAIN"], "proxy": m.group(1) + m.group(2) if m else None})
+            # url: what AIOStreams' URL field takes, MediaFlow's address between the containers
+            out.append({"id": "mediaflow", "domain": c["DOMAIN"], "url": "http://mediaflow-proxy-light:8888",
+                        "proxy": m.group(1) + m.group(2) if m else None})
         # The retired webhook relay: only its address, for a card whose one job is Uninstall
         c = self._addon_conf("webhook")
         if c.get("DOMAIN"):

@@ -32,10 +32,11 @@ const secret = (addon, name) => api(`/api/addons/${addon}/secret/${name}`).then(
 // A link shows its host and path, not https://
 const short = (url) => url.replace(/^https?:\/\//, "");
 
-// One tile. r: { label, note, link } | { label, note, secret: [addon, name], hidden } | { label, note, text, tone }
+// One tile. r: { label, note, link } | { label, note, copy } (an address only this server can open)
+// | { label, note, secret: [addon, name], hidden } | { label, note, text, tone }
 // | { label, note, text, tone, toggle: { on, title, change, working } }
 function tile(r) {
-  const value = h("span", { class: "ao-val" + (r.link || r.secret ? " mono" : "") + (r.tone ? " " + r.tone : "") });
+  const value = h("span", { class: "ao-val" + (r.link || r.copy || r.secret ? " mono" : "") + (r.tone ? " " + r.tone : "") });
   // While a switch's change is being made: a spinner beside the value, and the switch held where it was put
   const spin = r.toggle && r.toggle.working ? h("span", { class: "spin", "aria-hidden": "true" }) : null;
   const btns = h("span", { class: "ao-btns" });
@@ -45,6 +46,10 @@ function tile(r) {
     const open = h("a", { class: "ao-ic", href: r.link, target: "_blank", rel: "noopener noreferrer", "aria-label": `Open ${r.label}`, title: `Open ${r.label}` });
     open.innerHTML = ICON.open;
     btns.append(iconBtn("copy", `Copy ${r.label}`, () => copy(r.link, r.label)), open);
+  } else if (r.copy) {
+    value.textContent = r.copy;
+    value.title = r.copy;
+    btns.append(iconBtn("copy", `Copy ${r.label}`, () => copy(r.copy, r.label)));
   } else if (r.secret) {
     const hidden = r.hidden || "••••••••••";
     let shown = false;
@@ -142,8 +147,10 @@ function dockerCard(a) {
       { label: "Logins", text: m.logins != null ? String(m.logins) : "Unknown", note: "Each one a UUID and password" },
       { label: "Version", text: m.version || a.version || "Unknown", note: "Updates are on the Overview" });
   } else if (a.id === "mediaflow") {
-    rows.push({ label: "Address", link: `https://${a.domain}` },
-      { label: "API password", secret: ["mediaflow", "api_password"], note: "Goes in AIOStreams" },
+    // Named as AIOStreams' Proxy settings name them, where all three go (Proxy Service: MediaFlow Proxy)
+    rows.push({ label: "URL", copy: a.url || "http://mediaflow-proxy-light:8888", note: "AIOStreams' URL: its address inside this server" },
+      { label: "Public URL", link: `https://${a.domain}`, note: "AIOStreams' Public URL: what your apps connect to" },
+      { label: "API password", secret: ["mediaflow", "api_password"], note: "AIOStreams' Password" },
       { label: "Outbound proxy", text: a.proxy || "None", note: a.proxy ? "Video goes out through it" : "Video uses this server's IP" });
   } else if (a.id === "webhook") {
     rows.push({ label: "Address", text: a.domain, note: "Gets no updates" });
