@@ -114,7 +114,7 @@ class DemoBackend:
         self.removed_scripts: set[str] = set()
         self.wd_running = True
         self.wd_configured = True
-        self.wd_options = {"updates": False, "reboots": False, "scripts": False, "backups": False, "security": False, "weekly": False, "metadata": False, "weekly_day": 7, "weekly_time": "10:00"}
+        self.wd_options = {"updates": False, "reboots": False, "scripts": False, "backups": False, "security": False, "weekly": False, "metadata": False, "manager": False, "weekly_day": 7, "weekly_time": "10:00"}
         self.schedule = {"every": "daily", "day": 7, "time": "04:00"}
         self.wd_topic = "aios-7f3k29xq81"
         now = time.time()
@@ -213,7 +213,7 @@ class DemoBackend:
 
     def set_watchdog_option(self, name: str, value) -> None:
         from .stack import TIME_RE
-        ok = (name in ("updates", "reboots", "scripts", "backups", "security", "weekly", "metadata") and isinstance(value, bool)) or \
+        ok = (name in ("updates", "reboots", "scripts", "backups", "security", "weekly", "metadata", "manager") and isinstance(value, bool)) or \
             (name == "weekly_day" and type(value) is int and 1 <= value <= 7) or \
             (name == "weekly_time" and isinstance(value, str) and bool(TIME_RE.match(value.strip())))
         if not ok:
@@ -247,7 +247,7 @@ class DemoBackend:
                 "topic": mask_topic(self.wd_topic), "events": self.wd_events, "tally": self.wd_tally,
                 "watches": watches, "every_min": 2, "threshold": 2,
                 "options": dict(self.wd_options), "channel": "nightly" if self.channel == "nightly" else "stable",
-                "aiometadata": True,
+                "aiometadata": True, "aiomanager": True,
                 "timezone": os.environ.get("UI_DEMO_TZ", "Europe/London")}
 
     def update_script(self, script_id: str) -> dict:
