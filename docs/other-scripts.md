@@ -6,6 +6,10 @@ Optional add-ons on top of the main install. Each is its own standalone script, 
 
 - **Want your own catalogs and metadata, not a shared public instance?** Runs a private [AIOMetadata](https://github.com/cedya77/aiometadata) on its own subdomain: catalogs, posters, ratings and episode lists from TMDB, TVDB, MDBList and more, for Stremio-based clients, Nuvio and AIOStreams. An addon password keeps it yours, your API keys stay on the server, and releases are pinned, with updates (and a way back) from the menu or the control panel. Included in backups. Run with `setup-aiometadata.sh`. → [Basic](./basic/aiometadata.md) · [Advanced](./advanced/aiometadata.md)
 
+### AIOManager
+
+- **Managing addons across several Stremio accounts?** Runs a private [AIOManager](https://github.com/sonicx161/aiomanager) on its own subdomain: every account's addons in one place, snapshots, autopilot failover rules, watch history, and syncing to Nuvio. Sign-ups stay closed once your login is made (open them for 30 minutes to add someone), releases are pinned, with updates (and a way back) from the menu or the control panel, and it's included in backups. Run with `setup-aiomanager.sh`. → [Basic](./basic/aiomanager.md) · [Advanced](./advanced/aiomanager.md)
+
 ### Control Panel (beta)
 
 - **Rather manage your server from a web page than over SSH?** A private dashboard on its own subdomain: see what's running, start, stop, update and back up with a button, read the logs, and optionally open a terminal from your phone. Locked behind a secret unlock link plus its own login. Run with `control-panel/setup-ui.sh`. → [Basic](./basic/control-panel.md) · [Advanced](./advanced/control-panel.md)
@@ -16,7 +20,7 @@ Optional add-ons on top of the main install. Each is its own standalone script, 
 
 ### Watchdog Alerts
 
-- **Want a phone alert when your server needs you?** Works on any install: the site stops answering, the server restarts, the disk is nearly full, or the HTTPS certificate isn't renewing; plus the VPN tunnel, MediaFlow Proxy and AIOMetadata when they're set up. Optional alerts for new AIOStreams and AIOMetadata releases and a weekly check-in. With the control panel it gets a Phone alerts page. Run with `setup-watchdog.sh`. → [Basic](./basic/watchdog.md) · [Advanced](./advanced/watchdog.md)
+- **Want a phone alert when your server needs you?** Works on any install: the site stops answering, the server restarts, the disk is nearly full, or the HTTPS certificate isn't renewing; plus the VPN tunnel, MediaFlow Proxy, AIOMetadata and AIOManager when they're set up. Optional alerts for new AIOStreams, AIOMetadata, AIOManager and MediaFlow releases and a weekly check-in. With the control panel it gets a Phone alerts page. Run with `setup-watchdog.sh`. → [Basic](./basic/watchdog.md) · [Advanced](./advanced/watchdog.md)
 
 ### Webhook Relay (retired)
 
@@ -31,7 +35,7 @@ Optional add-ons on top of the main install. Each is its own standalone script, 
 
 ### MediaFlow Proxy
 
-- **Seeing a CPU spike every time you scrub/seek during playback?** Swaps AIOStreams' built-in proxy for [MediaFlow Proxy Light](https://github.com/mhdzumair/MediaFlow-Proxy-Light), a faster, lighter Rust-based proxy that handles the same scrub-triggered request bursts with far less CPU cost. Trade-off: you lose AIOStreams' own per-stream dashboard visibility while it's active (see the advanced guide). Includes optional hardening (blocked UI pages, a fail2ban jail). Run with `setup-mediaflow.sh`. → [Basic](./basic/mediaflow-proxy.md) · [Advanced](./advanced/mediaflow-proxy.md)
+- **Seeing a CPU spike every time you scrub/seek during playback?** Swaps AIOStreams' built-in proxy for [MediaFlow Proxy Light](https://github.com/mhdzumair/MediaFlow-Proxy-Light), a faster, lighter Rust-based proxy that handles the same scrub-triggered request bursts with far less CPU cost. Trade-off: you lose AIOStreams' own per-stream dashboard visibility while it's active (see the advanced guide). Includes optional hardening (blocked UI pages, a fail2ban jail). Releases are pinned, with updates (and a way back) from the menu or the control panel. Run with `setup-mediaflow.sh`. → [Basic](./basic/mediaflow-proxy.md) · [Advanced](./advanced/mediaflow-proxy.md)
 
 ---
 

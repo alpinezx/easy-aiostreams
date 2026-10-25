@@ -6,7 +6,7 @@
 
 Most things that go wrong on a server go wrong quietly: the site stops answering, Caddy can't renew a certificate, the disk fills up, or (with the [VPN layer](./vpn-setup.md)) the tunnel drops and the kill switch, doing its job, makes AIOStreams go silent. You find out when you go to watch something. `setup-watchdog.sh` closes that gap: it runs a set of checks every couple of minutes and sends a push notification (via [ntfy.sh](https://ntfy.sh)) when something's wrong, saying what failed and how to fix it, and again once it's fine.
 
-It works on any install. The site, disk and certificate checks always run; the VPN, MediaFlow and AIOMetadata checks join in when those are set up.
+It works on any install. The site, disk and certificate checks always run; the VPN, MediaFlow, AIOMetadata and AIOManager checks join in when those are set up.
 
 ---
 
@@ -30,10 +30,14 @@ It works on any install. The site, disk and certificate checks always run; the V
 
 The same as check 5, for AIOMetadata: **Caddy is running**, **AIOMetadata's container is running**, and **AIOMetadata answers its health check** (`http://aiometadata:3232/health/live`, the one its image uses), asked from inside the Caddy container in the same way. See the [AIOMetadata guide](./aiometadata.md#phone-alerts).
 
+### Every 2 minutes, whenever AIOManager is set up
+
+The same again for AIOManager: **Caddy is running**, **AIOManager's container is running**, and **AIOManager answers `http://aiomanager:1610/api/health`** (what its own health check asks, and it fails if AIOManager's database isn't healthy), asked from inside the Caddy container. See the [AIOManager guide](./aiomanager.md#phone-alerts).
+
 ### Warnings (alert once each way)
 
 6. **Disk nearly full.** The disk holding `/opt/aiostreams` at 90% used or more. The all-clear comes once it's back under 85%, so a disk hovering around 90% doesn't send a stream of alerts. A full disk is a common way for a Docker server to break quietly (old images and logs pile up, then nothing can write).
-7. **Certificate not renewing.** Every 6 hours, the certificate of every site this server serves (the main domain and each add-on's subdomain: MediaFlow, AIOMetadata, the control panel), asked of this server's port 443. Each site alerts once each way on its own, naming it, so a second site going bad still alerts while the first is. Caddy renews well before it runs out (with 30 days left on a 90-day certificate, about 15 on a 45-day one), so under 10 days left means renewal has been failing. An already expired or broken certificate fails the site check above instead.
+7. **Certificate not renewing.** Every 6 hours, the certificate of every site this server serves (the main domain and each add-on's subdomain: MediaFlow, AIOMetadata, AIOManager, the control panel), asked of this server's port 443. Each site alerts once each way on its own, naming it, so a second site going bad still alerts while the first is. Caddy renews well before it runs out (with 30 days left on a 90-day certificate, about 15 on a 45-day one), so under 10 days left means renewal has been failing. An already expired or broken certificate fails the site check above instead.
 
 ### Once per boot, if switched on
 
@@ -49,6 +53,8 @@ Switched from the script's **6) Extra alerts** menu, the control panel's Phone a
 12. **Security updates waiting** (`set-option security on`). Ubuntu installs security updates by itself every day (`unattended-upgrades`), so one that waits means that has stopped, a package is held back, or something needs a hand. Every 6 hours it reads `apt list --upgradable` (read-only, from the package lists Ubuntu refreshes daily), takes the ones from a `-security` source, and records when it first saw each package and version (`watchdog-state/security-seen`). Once any has waited 3 days, one alert (high priority) with how many and which, and how to install them (the panel's Maintenance page, or `setup-aiostreams.sh system-updates`); then a reminder each week while any still wait. Once none wait, the next time starts afresh.
 13. **Weekly check-in** (`set-option weekly on`). Once a week: the last 7 days' checks (from the daily tally), alerts and restarts (from the event list), disk space, how old the newest backup is, and how many updates are waiting ("Updates waiting: 12 (2 for security)."). It goes out on the first check at or after the chosen time on the chosen day (so within 2 minutes of it), `set-option weekly_day 1-7` (Monday to Sunday) and `set-option weekly_time HH:MM`, Sunday 10:00 to start with (a `weekly_hour` saved by an older copy still counts, as that hour on the dot), by the **server's clock**: `timedatectl` shows its time zone, `sudo timedatectl set-timezone Europe/London` (your own Area/City) changes it. Its real job is to fail visibly: a watchdog that has stopped working shows by the check-in not arriving.
 14. **A new AIOMetadata release** (`set-option metadata on`), listed only once AIOMetadata is installed (option 8 in **6) Extra alerts**). Every 6 hours it asks GitHub for AIOMetadata's latest release and compares it with the one running (the container's image tag, or the pinned release while it's stopped). Its releases come up to twice a day, so it sends at most one alert a day, naming the newest.
+15. **A new AIOManager release** (`set-option manager on`), listed only once AIOManager is installed (option 9). The same check, every 6 hours; its releases are months apart, so one alert per release.
+16. **A new MediaFlow Proxy release** (`set-option mediaflow on`), listed only once MediaFlow is set up (option 10). The same again, one alert per release. A MediaFlow set up before its releases were pinned runs "latest", so it gets none until its next Start pins it.
 
 ---
 
@@ -76,7 +82,7 @@ With the [control panel](./control-panel.md) installed, each alert has an **Open
 ## When it stays quiet on purpose
 
 - **In direct mode, the VPN checks (2–4) are skipped.** It reads the same `vpn-state/active` marker `setup-vpn-gluetun.sh` uses, so turning the VPN off on purpose doesn't trigger a false alarm.
-- **Deliberate stops don't alert.** Stop AIOStreams (in `setup-aiostreams.sh` or the control panel) and Stop in `setup-mediaflow.sh` and `setup-aiometadata.sh` each leave a small `stopped-on-purpose` marker, and the watchdog skips the checks that depend on it while it's there: with AIOStreams stopped on purpose, the site check is skipped too. Stopping with a plain `docker stop` leaves no marker, so it alerts, same as a crash. The marker clears itself as soon as the watchdog sees the container running again, however it got started.
+- **Deliberate stops don't alert.** Stop AIOStreams (in `setup-aiostreams.sh` or the control panel) and Stop in `setup-mediaflow.sh`, `setup-aiometadata.sh` and `setup-aiomanager.sh` each leave a small `stopped-on-purpose` marker, and the watchdog skips the checks that depend on it while it's there: with AIOStreams stopped on purpose, the site check is skipped too. Stopping with a plain `docker stop` leaves no marker, so it alerts, same as a crash. The marker clears itself as soon as the watchdog sees the container running again, however it got started.
 
 ---
 
@@ -145,6 +151,7 @@ Use **4) Send test alert** for pure delivery testing any time. To test full dete
 - **AIOStreams (VPN mode):** `cd /opt/aiostreams && sudo docker compose stop aiostreams`, wait for the alert, then `sudo bash /opt/aiostreams/setup-aiostreams.sh` → **4) Restart the stack**.
 - **MediaFlow:** `sudo docker stop mediaflow-proxy-light`, wait for the alert, then `sudo bash setup-mediaflow.sh` → **2) Start**. Stopping it with **3) Stop** in that menu instead should produce *no* alert, which confirms the stopped-on-purpose marker works.
 - **AIOMetadata:** `sudo docker stop aiometadata`, wait for the alert, then `sudo bash setup-aiometadata.sh` → **2) Start**. As with MediaFlow, its own **3) Stop** should produce no alert.
+- **AIOManager:** `sudo docker stop aiomanager`, wait for the alert, then `sudo bash setup-aiomanager.sh` → **2) Start**. Its own **3) Stop** should produce no alert either.
 - **Restart:** `sudo reboot`. The alert should say it shut down cleanly and how long it was down.
 
 ---
