@@ -269,11 +269,45 @@ check_subdomain_dns() {
 # ---- Sign-ups -----------------------------------------------------------
 # Open only while someone makes a login: the first one at setup, more
 # later from Sign-ups (option 10) or the control panel. Each opening closes
-# by itself after a while, through a one-off systemd timer.
+# by itself after a while, through a systemd timer that survives a reboot.
+
+SIGNUPS_UNIT_DIR="/etc/systemd/system"
 
 cancel_signups_timer() {
-    systemctl stop "${SIGNUPS_CLOSE_UNIT}.timer" >/dev/null 2>&1 || true
+    systemctl disable --now "${SIGNUPS_CLOSE_UNIT}.timer" >/dev/null 2>&1 || true
+    if [[ -f "$SIGNUPS_UNIT_DIR/${SIGNUPS_CLOSE_UNIT}.timer" || -f "$SIGNUPS_UNIT_DIR/${SIGNUPS_CLOSE_UNIT}.service" ]]; then
+        rm -f "$SIGNUPS_UNIT_DIR/${SIGNUPS_CLOSE_UNIT}.timer" "$SIGNUPS_UNIT_DIR/${SIGNUPS_CLOSE_UNIT}.service"
+        systemctl daemon-reload >/dev/null 2>&1 || true
+    fi
     systemctl reset-failed "${SIGNUPS_CLOSE_UNIT}.service" "${SIGNUPS_CLOSE_UNIT}.timer" >/dev/null 2>&1 || true
+}
+
+# A timer for the closing time itself, kept on disk so a reboot doesn't lose
+# it: Persistent=true runs it soon after the server is back if the time
+# passed while it was off. Closing removes it again.
+schedule_signups_close() {
+    local until="$1"
+    [[ -f "$SCRIPT_PATH" ]] && command -v systemctl >/dev/null 2>&1 || return 1
+    cat > "$SIGNUPS_UNIT_DIR/${SIGNUPS_CLOSE_UNIT}.service" << EOF
+[Unit]
+Description=Close AIOManager's sign-ups (opened for a while by setup-aiomanager.sh)
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash ${SCRIPT_PATH} signups close
+EOF
+    cat > "$SIGNUPS_UNIT_DIR/${SIGNUPS_CLOSE_UNIT}.timer" << EOF
+[Unit]
+Description=Close AIOManager's sign-ups at the time they were opened until
+
+[Timer]
+OnCalendar=$(date -u -d "@$until" '+%Y-%m-%d %H:%M:%S') UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+    systemctl daemon-reload >/dev/null 2>&1 && systemctl enable --now "${SIGNUPS_CLOSE_UNIT}.timer" >/dev/null 2>&1
 }
 
 # Puts the sign-ups setting into the running container. Changing its env
@@ -294,9 +328,7 @@ signups_open() {
     load_config
     apply_signups
     cancel_signups_timer
-    if [[ -f "$SCRIPT_PATH" ]] && command -v systemd-run >/dev/null 2>&1 \
-        && systemd-run --quiet --unit="$SIGNUPS_CLOSE_UNIT" --on-active="${minutes}m" \
-            /bin/bash "$SCRIPT_PATH" signups close >/dev/null 2>&1; then
+    if schedule_signups_close "$until"; then
         echo "Sign-ups are open until $(date -d "@$until" '+%H:%M') (server time), then close by themselves."
     else
         warn "Sign-ups are open, but couldn't set them to close by themselves. Close them with option 10 when you're done."
@@ -322,8 +354,8 @@ signups_line() {
     fi
 }
 
-# A reopening outlived by a reboot (the timer doesn't survive one) closes
-# the next time AIOManager is started.
+# A safety net for a reopening whose timer went missing (deleted by hand, or
+# systemd off): it closes the next time AIOManager is started.
 close_overdue_signups() {
     if [[ "$SIGNUPS" == open && -n "$SIGNUPS_UNTIL" ]] && (( SIGNUPS_UNTIL <= $(date +%s) )); then
         write_config "$DOMAIN" "$AIOMAN_VERSION" closed ""

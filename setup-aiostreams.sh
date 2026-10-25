@@ -249,7 +249,8 @@ remove_addons_on_uninstall() {
     # Its data is a folder, not a volume, so nothing else to keep. The timer
     # that closes reopened sign-ups would run against a folder that's gone.
     if [[ -f "$INSTALL_DIR/aiomanager-state/docker-compose.yml" ]]; then
-        systemctl stop aiomanager-signups-close.timer >/dev/null 2>&1 || true
+        systemctl disable --now aiomanager-signups-close.timer >/dev/null 2>&1 || true
+        rm -f /etc/systemd/system/aiomanager-signups-close.timer /etc/systemd/system/aiomanager-signups-close.service
         (cd "$INSTALL_DIR/aiomanager-state" && docker compose -f docker-compose.yml down >/dev/null 2>&1) || \
             docker rm -f aiomanager >/dev/null 2>&1 || true
         removed+=("AIOManager container")
