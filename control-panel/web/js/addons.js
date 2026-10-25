@@ -33,9 +33,11 @@ const secret = (addon, name) => api(`/api/addons/${addon}/secret/${name}`).then(
 const short = (url) => url.replace(/^https?:\/\//, "");
 
 // One tile. r: { label, note, link } | { label, note, secret: [addon, name], hidden } | { label, note, text, tone }
-// | { label, note, text, tone, toggle: { on, title, change } }
+// | { label, note, text, tone, toggle: { on, title, change, working } }
 function tile(r) {
   const value = h("span", { class: "ao-val" + (r.link || r.secret ? " mono" : "") + (r.tone ? " " + r.tone : "") });
+  // While a switch's change is being made: a spinner beside the value, and the switch held where it was put
+  const spin = r.toggle && r.toggle.working ? h("span", { class: "spin", "aria-hidden": "true" }) : null;
   const btns = h("span", { class: "ao-btns" });
   if (r.link) {
     value.textContent = short(r.link);
@@ -65,13 +67,13 @@ function tile(r) {
     value.textContent = r.text;
   }
   if (r.toggle) {
-    const input = h("input", { type: "checkbox", checked: r.toggle.on, disabled: !!(st && st.busy), "aria-label": r.toggle.title });
+    const input = h("input", { type: "checkbox", checked: r.toggle.on, disabled: !!(st && st.busy) || !!r.toggle.working, "aria-label": r.toggle.title });
     input.addEventListener("change", () => r.toggle.change(input));
     btns.append(h("label", { class: "sw", title: r.toggle.title }, input, h("i", { "aria-hidden": "true" })));
   }
   return h("div", { class: "ao-row" },
     h("div", { class: "ver-label", text: r.label }),
-    h("div", { class: "ao-line" }, value, btns.childNodes.length ? btns : null),
+    h("div", { class: "ao-line" }, spin, value, btns.childNodes.length ? btns : null),
     h("div", { class: "ver-sub ao-note", text: r.note || "", title: r.note || null }));
 }
 
@@ -89,21 +91,27 @@ function certTile(host) {
 const NAMES = { aiometadata: "AIOMetadata", aiomanager: "AIOManager", mediaflow: "MediaFlow Proxy", webhook: "Webhook relay" };
 
 // AIOManager's sign-ups switch: open runs the script's "signups open 30" (it closes them
-// itself after that), off closes them now. Either recreates its container, a few seconds.
+// itself after that), off closes them now. Either recreates its container, a few seconds,
+// so the switch says so meanwhile rather than flick back while the status catches up.
 const untilTime = (t) => new Date(t * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+let signupsWant = null;    // "open" | "closed" while a change is being made
+let signupsSince = 0;
 async function setSignups(input) {
   const open = input.checked;
-  input.disabled = true;
+  signupsWant = open ? "open" : "closed";
+  signupsSince = Date.now();
+  render();
   try {
     const job = await api(`/api/actions/aiomanager.signups_${open ? "open" : "close"}`, { method: "POST", body: JSON.stringify({ params: {} }) });
     window.dispatchEvent(new CustomEvent("job-started"));
     const done = await waitJob(job.id);
-    if (done.code !== 0) { toast(`Couldn't ${open ? "open" : "close"} sign-ups. Activity has the output.`, true); input.checked = !open; }
+    if (done.code !== 0) { signupsWant = null; toast(`Couldn't ${open ? "open" : "close"} sign-ups. Activity has the output.`, true); }
     else toast(open ? "Sign-ups are open for 30 minutes, then close by themselves." : "Sign-ups are closed.");
   } catch (e) {
-    input.checked = !open;
+    signupsWant = null;
     toast(e.message, true);
-  } finally { input.disabled = false; }
+  }
+  render();
 }
 
 function dockerCard(a) {
@@ -122,10 +130,15 @@ function dockerCard(a) {
   } else if (a.id === "aiomanager") {
     const m = (st && st.aiomanager) || {};
     const open = m.signups === "open";
-    rows.push({ label: "Address", link: `https://${a.domain}` },
-      { label: "Sign-ups", text: open ? (m.signups_until ? `Open until ${untilTime(m.signups_until)}` : "Open") : "Closed",
-        tone: open ? "warn" : "", note: open ? "Anyone with the address can make a login" : "Open for 30 minutes to make a login",
-        toggle: { on: open, title: open ? "Close sign-ups now" : "Open sign-ups for 30 minutes", change: setSignups } },
+    // A change being made ends once the status shows it (or after a minute, whatever it shows)
+    if (signupsWant && (m.signups === signupsWant || Date.now() - signupsSince > 60000)) signupsWant = null;
+    const signups = signupsWant
+      ? { label: "Sign-ups", text: signupsWant === "open" ? "Opening…" : "Closing…", note: "AIOManager restarts with it, a few seconds",
+          toggle: { on: signupsWant === "open", title: "Working on it", working: true, change: setSignups } }
+      : { label: "Sign-ups", text: open ? (m.signups_until ? `Open until ${untilTime(m.signups_until)}` : "Open") : "Closed",
+          tone: open ? "warn" : "", note: open ? "Anyone with the address can make a login" : "Open for 30 minutes to make a login",
+          toggle: { on: open, title: open ? "Close sign-ups now" : "Open sign-ups for 30 minutes", change: setSignups } };
+    rows.push({ label: "Address", link: `https://${a.domain}` }, signups,
       { label: "Logins", text: m.logins != null ? String(m.logins) : "Unknown", note: "Each one a UUID and password" },
       { label: "Version", text: m.version || a.version || "Unknown", note: "Updates are on the Overview" });
   } else if (a.id === "mediaflow") {
@@ -296,6 +309,6 @@ export function setStatus(status) {
   st = status;
   const busy = !!status.busy;
   if (wasBusy && !busy) load();
-  else if (busy !== wasBusy) render();
+  else if (busy !== wasBusy || signupsWant) render();
   wasBusy = busy;
 }
