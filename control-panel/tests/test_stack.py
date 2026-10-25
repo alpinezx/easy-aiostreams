@@ -192,7 +192,8 @@ def test_clear_logs_only_hides_and_never_touches_the_log_file(tmp_path, monkeypa
 def test_status_reports_which_scripts_exist(tmp_path, monkeypatch):
     b = make_backend(tmp_path, monkeypatch, [container("caddy")], extra_files=("setup-aiostreams.sh", "setup-backup.sh", "setup-mediaflow.sh"))
     got = {s["id"]: s["present"] for s in b.status()["scripts"]}
-    assert got == {"aiostreams": True, "vpn": False, "mediaflow": True, "watchdog": False, "aiometadata": False}
+    assert got == {"aiostreams": True, "vpn": False, "mediaflow": True, "watchdog": False, "aiometadata": False,
+                   "aiomanager": False}
 
 
 def test_set_asides_listed_and_only_those_deleted(tmp_path, monkeypatch):

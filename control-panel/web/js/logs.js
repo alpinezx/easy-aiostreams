@@ -197,7 +197,7 @@ function services() {
 
 export function show(status, pick) {
   // AIOStreams first (it's the one you read most); the Overview keeps its own order.
-  const ORDER = ["aiostreams", "caddy", "gluetun", "mediaflow", "aiometadata"];
+  const ORDER = ["aiostreams", "caddy", "gluetun", "mediaflow", "aiometadata", "aiomanager"];
   const rank = (s) => { const i = ORDER.indexOf(s.key); return i < 0 ? ORDER.length : i; };
   svcs = status.services.filter((s) => s.present).sort((a, b) => rank(a) - rank(b));
   const was = current;

@@ -11,6 +11,7 @@ const RAW_BASE = "https://raw.githubusercontent.com/alpinezx/easy-aiostreams/ref
 const FALLBACK = [
   { id: "aiostreams", label: "AIOStreams menu", file: "setup-aiostreams.sh", present: true },
   { id: "aiometadata", label: "AIOMetadata", file: "setup-aiometadata.sh", present: false },
+  { id: "aiomanager", label: "AIOManager", file: "setup-aiomanager.sh", present: false },
   { id: "watchdog", label: "Phone alerts", file: "setup-watchdog.sh", present: false },
   { id: "vpn", label: "VPN (Gluetun)", file: "setup-vpn-gluetun.sh", present: false },
   { id: "mediaflow", label: "MediaFlow Proxy", file: "setup-mediaflow.sh", present: false },

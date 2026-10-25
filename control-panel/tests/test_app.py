@@ -347,7 +347,7 @@ def test_scripts_compare_endpoint_covers_every_script_and_the_backup_one(client)
     login(client)
     out = client.get("/api/scripts/compare").json()
     assert set(out["files"]) == {"setup-aiostreams.sh", "setup-vpn-gluetun.sh", "setup-mediaflow.sh",
-                                 "setup-watchdog.sh", "setup-aiometadata.sh", "setup-backup.sh"}
+                                 "setup-watchdog.sh", "setup-aiometadata.sh", "setup-aiomanager.sh", "setup-backup.sh"}
     assert out["files"]["setup-mediaflow.sh"]["differs"] is True
     client.post("/api/logout"); client.cookies.clear()
     assert client.get("/api/scripts/compare").status_code == 401
@@ -488,7 +488,7 @@ def test_phone_alerts_history_can_be_cleared(client):
 def test_phone_alerts_switches(client):
     assert client.post("/api/watchdog/options", json={"name": "weekly", "on": True}).status_code == 401
     login(client)
-    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": False, "scripts": False, "backups": False, "security": False, "weekly": False, "metadata": False, "weekly_day": 7, "weekly_time": "10:00"}
+    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": False, "scripts": False, "backups": False, "security": False, "weekly": False, "metadata": False, "manager": False, "mediaflow": False, "weekly_day": 7, "weekly_time": "10:00"}
     for bad in ({"name": "nope", "on": True}, {"name": "weekly", "on": "yes"}, {}, {"name": "weekly_day", "value": 8},
                 {"name": "weekly_time", "value": "24:00"}, {"name": "weekly_time", "value": "9"}, {"name": "weekly_time", "value": 9},
                 {"name": "weekly_day", "value": True}, {"name": "weekly_hour", "value": 9}, {"name": "reboots", "on": "off"}):
@@ -501,7 +501,9 @@ def test_phone_alerts_switches(client):
     assert client.post("/api/watchdog/options", json={"name": "backups", "on": True}).json() == {"backups": True}
     assert client.post("/api/watchdog/options", json={"name": "security", "on": True}).json() == {"security": True}
     assert client.post("/api/watchdog/options", json={"name": "metadata", "on": True}).json() == {"metadata": True}
-    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": True, "scripts": True, "backups": True, "security": True, "weekly": True, "metadata": True, "weekly_day": 1, "weekly_time": "07:05"}
+    assert client.post("/api/watchdog/options", json={"name": "manager", "on": True}).json() == {"manager": True}
+    assert client.post("/api/watchdog/options", json={"name": "mediaflow", "on": True}).json() == {"mediaflow": True}
+    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": True, "scripts": True, "backups": True, "security": True, "weekly": True, "metadata": True, "manager": True, "mediaflow": True, "weekly_day": 1, "weekly_time": "07:05"}
     assert client.post("/api/watchdog/tally/clear").json() == {"cleared": True}
     assert client.get("/api/watchdog").json()["tally"] == []
 
@@ -561,12 +563,12 @@ def test_backup_schedule(client):
 def test_overview_layout(client):
     login(client)
     ids = lambda r: [(c["id"], c["show"]) for c in r.json()["cards"]]
-    default = [("flow", True), ("aiostreams", True), ("aiometadata", True), ("alerts", True), ("vpn", True), ("server", True), ("services", True)]
+    default = [("flow", True), ("aiostreams", True), ("aiometadata", True), ("aiomanager", True), ("mediaflow", True), ("alerts", True), ("vpn", True), ("server", True), ("services", True)]
     assert ids(client.get("/api/overview-layout")) == default
     # unknown and repeated cards are dropped; ones left out go back to their default place
     r = client.put("/api/overview-layout", json={"cards": [{"id": "services", "show": True}, {"id": "nope"},
                                                          {"id": "alerts", "show": False}, {"id": "services", "show": False}]})
-    assert ids(r) == [("flow", True), ("aiostreams", True), ("aiometadata", True), ("services", True), ("alerts", False), ("vpn", True), ("server", True)]
+    assert ids(r) == [("flow", True), ("aiostreams", True), ("aiometadata", True), ("aiomanager", True), ("mediaflow", True), ("services", True), ("alerts", False), ("vpn", True), ("server", True)]
     # layout.js lists the cards in the same default order
     import re
     from pathlib import Path
@@ -626,6 +628,84 @@ def test_aiometadata_update_action():
         actions.resolve("aiometadata.update", {"backup": "yes"})
 
 
+def test_aiomanager_status_reads_its_settings_and_counts_logins(tmp_path):
+    from types import SimpleNamespace
+    from app import stack
+    (tmp_path / "aiomanager-state").mkdir()
+    conf = tmp_path / "aiomanager-state" / "config"
+    conf.write_text("DOMAIN='manager.example.com'\nAIOMAN_VERSION='2.0.0'\nSIGNUPS='closed'\nSIGNUPS_UNTIL=''\n")
+    me = SimpleNamespace(p=lambda rel: tmp_path / rel, _ADDON_CONF=stack.Backend._ADDON_CONF)
+    me._addon_conf = lambda a: stack.Backend._addon_conf(me, a)
+    me._login_count = lambda c: stack.Backend._login_count(me, c)
+    read = lambda c: stack.Backend._aiomanager(me, c)
+    assert read(None) == {"domain": "manager.example.com", "version": "2.0.0", "signups": "closed",
+                          "signups_until": None, "logins": None}
+    asked = []
+
+    def exec_run(cmd, workdir=None):
+        asked.append((cmd[0], workdir))
+        return SimpleNamespace(exit_code=0, output=b"3\n")
+    running = SimpleNamespace(attrs={"Config": {"Image": "ghcr.io/sonicx161/aiomanager:2.0.1"}, "State": {"Running": True}},
+                              exec_run=exec_run)
+    conf.write_text("DOMAIN='manager.example.com'\nAIOMAN_VERSION='2.0.0'\nSIGNUPS='open'\nSIGNUPS_UNTIL='1792892521'\n")
+    got = read(running)
+    assert got == {"domain": "manager.example.com", "version": "2.0.1", "signups": "open",
+                   "signups_until": 1792892521, "logins": 3}
+    # asked inside its own container, then kept for a minute rather than every status poll
+    assert asked == [("/nodejs/bin/node", "/app/server")]
+    read(running)
+    assert len(asked) == 1
+    conf.unlink()
+    assert read(None) is None
+
+
+def test_aiomanager_actions():
+    a = actions.resolve("aiomanager.update", {"backup": True})
+    assert a.script == "setup-aiomanager.sh" and a.args == ("update-aiomanager", "--backup")
+    assert actions.resolve("aiomanager.update", {"backup": False}).args == ("update-aiomanager",)
+    with pytest.raises(actions.BadAction):
+        actions.resolve("aiomanager.update", {"backup": "yes"})
+    assert actions.resolve("aiomanager.signups_open").args == ("signups", "open", "30")
+    assert actions.resolve("aiomanager.signups_close").args == ("signups", "close")
+    assert actions.resolve("aiomanager.uninstall", {"remove_image": True}).args == ("uninstall", "remove-image")
+
+
+def test_aiomanager_signups_switch(client):
+    login(client)
+    assert client.get("/api/status").json()["aiomanager"]["signups"] == "closed"
+    r = client.post("/api/actions/aiomanager.signups_open", json={"params": {}})
+    assert r.status_code == 200 and wait_job(client, r.json()["id"])["code"] == 0
+    m = client.get("/api/status").json()["aiomanager"]
+    assert m["signups"] == "open" and m["signups_until"] > time.time() + 25 * 60
+    r = client.post("/api/actions/aiomanager.signups_close", json={"params": {}})
+    assert r.status_code == 200 and wait_job(client, r.json()["id"])["code"] == 0
+    assert client.get("/api/status").json()["aiomanager"]["signups"] == "closed"
+
+
+def test_mediaflow_status_and_update(tmp_path):
+    from types import SimpleNamespace
+    from app import stack
+    (tmp_path / "mediaflow-state").mkdir()
+    conf = tmp_path / "mediaflow-state" / "config"
+    conf.write_text("DOMAIN='mf.example.com'\nMEDIAFLOW_API_PASSWORD='demo-api-password'\nMEDIAFLOW_PROXY_URL=''\nMF_VERSION='1.1.1'\n")
+    me = SimpleNamespace(p=lambda rel: tmp_path / rel, _ADDON_CONF=stack.Backend._ADDON_CONF)
+    me._addon_conf = lambda a: stack.Backend._addon_conf(me, a)
+    read = lambda c: stack.Backend._mediaflow(me, c)
+    assert read(None) == {"domain": "mf.example.com", "version": "1.1.1"}
+    running = SimpleNamespace(attrs={"Config": {"Image": "ghcr.io/mhdzumair/mediaflow-proxy-light:1.1.2"}})
+    assert read(running) == {"domain": "mf.example.com", "version": "1.1.2"}
+    # set up before pinning: still on "latest", so no version to compare
+    latest = SimpleNamespace(attrs={"Config": {"Image": "ghcr.io/mhdzumair/mediaflow-proxy-light:latest"}})
+    assert read(latest) == {"domain": "mf.example.com", "version": None}
+    assert "demo-api-password" not in str(read(None))
+    a = actions.resolve("mediaflow.update", {"backup": True})
+    assert a.script == "setup-mediaflow.sh" and a.args == ("update-mediaflow", "--backup")
+    # an older script on a server doesn't know the command, so the button waits for a newer one
+    assert a.script_has == "update-mediaflow"
+    with pytest.raises(actions.BadAction):
+        actions.resolve("mediaflow.update", {"backup": "yes"})
+
+
 def test_maintenance_leaves_phased_updates_out():
     from types import SimpleNamespace
     from app import stack
@@ -663,7 +743,7 @@ def test_add_ons_page_leaves_the_secrets_out_until_asked(client):
     login(client)
     r = client.get("/api/addons")
     assert r.status_code == 200
-    assert [a["id"] for a in r.json()] == ["aiometadata", "mediaflow"]
+    assert [a["id"] for a in r.json()] == ["aiometadata", "aiomanager", "mediaflow"]
     for s in ("demo-addon-password", "demo-admin-key", "demo-api-password"):
         assert s not in r.text
     r = client.get("/api/addons/mediaflow/secret/api_password")
@@ -674,7 +754,7 @@ def test_add_ons_page_leaves_the_secrets_out_until_asked(client):
 
 def test_add_on_uninstall_needs_the_word(client):
     login(client)
-    for addon in ("aiometadata", "mediaflow", "webhook"):
+    for addon in ("aiometadata", "aiomanager", "mediaflow", "webhook"):
         for word in ("", "yes", "Uninstal"):
             r = client.post(f"/api/actions/{addon}.uninstall", json={"params": {"confirm": word}})
             assert r.status_code == 400, (addon, word)

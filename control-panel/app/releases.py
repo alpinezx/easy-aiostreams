@@ -1,7 +1,7 @@
 """AIOStreams releases from GitHub, the same list AIOStreams' own dashboard
 reads: stable tags (v2.35.9) or nightly ones (2026.10.10.1200-nightly), and
-AIOMetadata's (v3.6.1). Kept for a few hours: GitHub allows 60
-unauthenticated requests an hour per IP."""
+AIOMetadata's (v3.6.1) and AIOManager's (v2.0.0). Kept for a few hours: GitHub
+allows 60 unauthenticated requests an hour per IP."""
 from __future__ import annotations
 
 import re
@@ -12,6 +12,8 @@ import requests
 
 URL = "https://api.github.com/repos/viren070/aiostreams/releases"
 META_URL = "https://api.github.com/repos/cedya77/aiometadata/releases"
+MANAGER_URL = "https://api.github.com/repos/sonicx161/aiomanager/releases"
+MEDIAFLOW_URL = "https://api.github.com/repos/mhdzumair/MediaFlow-Proxy-Light/releases"
 FRESH = 3 * 3600
 RETRY = 10 * 60
 FORCE_GAP = 60
@@ -22,8 +24,10 @@ STABLE = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
 # Not the desktop app's "desktop-nightly".
 NIGHTLY = re.compile(r"^\d{4}\.\d{2}\.\d{2}\.\d{4}-nightly$")
 CHANNELS = ("stable", "nightly")
-# Each list: where it comes from and which tags count. AIOMetadata has only one channel.
-SOURCES = {"stable": (URL, STABLE), "nightly": (URL, NIGHTLY), "aiometadata": (META_URL, STABLE)}
+# Each list: where it comes from and which tags count. The add-ons have one channel each;
+# AIOManager's build releases (v1.8.5+build.2) have no image of their own, so they don't count.
+SOURCES = {"stable": (URL, STABLE), "nightly": (URL, NIGHTLY), "aiometadata": (META_URL, STABLE),
+           "aiomanager": (MANAGER_URL, STABLE), "mediaflow": (MEDIAFLOW_URL, re.compile(r"^v?\d+\.\d+\.\d+$"))}
 
 _lock = threading.Lock()
 _cache: dict = {}
@@ -53,6 +57,9 @@ def _fetch(channel: str) -> list[dict]:
             tag = str(rel.get("tag_name") or "")
             if rel.get("draft") or not wanted.match(tag):
                 continue
+            # MediaFlow tags its releases 1.1.2: listed as v1.1.2, like the rest
+            if not tag.startswith("v") and STABLE.match("v" + tag):
+                tag = "v" + tag
             url = str(rel.get("html_url") or "")
             found.append({"tag": tag, "published": rel.get("published_at"),
                           "url": url if url.startswith("https://github.com/") else None,
@@ -93,6 +100,17 @@ def demo(channel: str = "stable") -> dict:
                  "v3.6.0": "## What's Changed\n\n* New: Gemini-powered search catalogs\n* Dashboard: per-key usage graphs\n"}
         rels = [{"tag": t, "published": iso(h), "url": f"https://github.com/cedya77/aiometadata/releases/tag/{t}", "body": notes[t]}
                 for t, h in (("v3.6.2", 4), ("v3.6.1", 30), ("v3.6.0", 32))]
+        return {"channel": channel, "checked_at": now, "error": None, "keep": KEEP, "releases": rels}
+    if channel == "mediaflow":
+        notes = {"v1.1.2": "## What's Changed\n\n* Faster HLS segment proxying\n", "v1.1.1": "## What's Changed\n\n* Fix range requests on some hosts\n"}
+        rels = [{"tag": t, "published": p, "url": f"https://github.com/mhdzumair/MediaFlow-Proxy-Light/releases/tag/{t[1:]}", "body": notes[t]}
+                for t, p in (("v1.1.2", "2026-06-03T04:19:34Z"), ("v1.1.1", "2026-05-19T10:59:20Z"))]
+        return {"channel": channel, "checked_at": now, "error": None, "keep": KEEP, "releases": rels}
+    if channel == "aiomanager":
+        notes = {"v2.0.0": "# AIOManager 2.0.0\n\n* Nuvio, RealStream and Hydra as connections\n* End-to-end encrypted cloud sync\n",
+                 "v1.8.5": "## What's Changed\n\n* Fix autopilot failover for disabled addons\n"}
+        rels = [{"tag": t, "published": p, "url": f"https://github.com/sonicx161/aiomanager/releases/tag/{t}", "body": notes[t]}
+                for t, p in (("v2.0.0", "2026-09-24T03:51:17Z"), ("v1.8.5", "2026-03-10T13:30:32Z"))]
         return {"channel": channel, "checked_at": now, "error": None, "keep": KEEP, "releases": rels}
     if channel == "nightly":
         def stamp(hours_ago):

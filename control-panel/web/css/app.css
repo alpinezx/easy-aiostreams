@@ -97,6 +97,9 @@ body { padding-left: var(--rail); }
 /* "Script updates": only while a script here differs from GitHub's copy */
 .scripts-pill { font-size: .88rem; font-weight: 500; text-decoration: none; padding: 4px 12px; }
 .scripts-pill:hover { text-decoration: underline; }
+/* a chip that links somewhere (AIOManager's "Sign-ups open", to the Add-ons page) */
+a.chip { text-decoration: none; }
+a.chip:hover { text-decoration: underline; }
 .page-brand-sub { font-weight: 500; font-size: .86rem; color: var(--faint); padding-left: 10px; border-left: 1px solid var(--line); letter-spacing: 0; }
 .rail-links, .rail-end { display: grid; gap: 6px; justify-items: center; }
 .rail-end { margin-top: auto; }
@@ -211,6 +214,13 @@ button.chip:hover { text-decoration: underline; }
 .ver-card { padding: 16px 20px 18px; }
 .ver-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .ver-head h2 { margin: 0; font-size: .98rem; font-weight: 650; }
+/* the corner chip (Stable, "1 login", "Sign-ups open", MediaFlow's speed) keeps its one line; when
+   it and the title don't fit side by side (a phone), it drops below the title */
+.ver-head { flex-wrap: wrap; }
+.ver-head > .chip { flex: none; white-space: nowrap; }
+/* MediaFlow's live speed, quiet like the VPN card's traffic line */
+.ver-head > .ver-now { flex: none; white-space: nowrap; font-size: .88rem; text-decoration: none; }
+.ver-head > .ver-now:hover { color: var(--text); text-decoration: underline; }
 /* Opens AIOStreams: the title is the link, padded so it's an easy tap on a phone */
 /* The version running on the left, the latest centred on the card's middle, the buttons on
    the right: equal side columns keep the middle centred whatever the buttons' width, so it
@@ -618,6 +628,8 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .ln time { flex: none; color: var(--faint); }
 .ln.error { color: var(--bad); } .ln.warn { color: var(--warn); }
 .ln.info { color: var(--accent); } .ln.out { color: var(--text); }
+/* the job that ran first (Back up first), with a link to its output */
+.ln.job-before { display: block; color: var(--dim); padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid var(--line); }
 .term-empty { padding: 24px 16px; color: var(--faint); font-family: var(--font); font-size: .95rem; }
 .conn { color: var(--faint); display: inline-flex; gap: 6px; align-items: center; }
 .conn::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
@@ -955,19 +967,22 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 
 /* The Overview: the headline, then the cards in the order Edit saved (layout.js sets
    --o-<card> and data-hide). By default: the request flow it illustrates, the version
-   card, the add-ons' cards (AIOMetadata, Phone alerts, VPN), then This server and the services. */
+   card, the add-ons' cards (AIOMetadata, AIOManager, MediaFlow, Phone alerts, VPN), then This server and the services. */
 #view-overview:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr); }
 #view-overview .cols, #view-overview .side { display: contents; }
 #view-overview .hero { order: 0; }
 #view-overview .path { order: var(--o-flow, 1); }
 #view-overview .ver-slot { order: var(--o-aiostreams, 2); margin: 0 0 30px; }
 #view-overview .meta-slot { order: var(--o-aiometadata, 3); }
-#view-overview .panel.wd { order: var(--o-alerts, 4); margin: 0 0 30px; }
-#view-overview .panel.vpnc { order: var(--o-vpn, 5); margin: 0 0 30px; }
-#view-overview .panel.host { order: var(--o-server, 6); margin: 0 0 30px; }
-#view-overview .cols > div { order: var(--o-services, 7); margin: 0 0 30px; }
-#view-overview[data-hide~="flow"] .path, #view-overview[data-hide~="aiostreams"] .ver-slot:not(.meta-slot),
-#view-overview[data-hide~="aiometadata"] .meta-slot,
+#view-overview .mgr-slot { order: var(--o-aiomanager, 4); }
+#view-overview .mf-slot { order: var(--o-mediaflow, 5); }
+#view-overview .panel.wd { order: var(--o-alerts, 6); margin: 0 0 30px; }
+#view-overview .panel.vpnc { order: var(--o-vpn, 7); margin: 0 0 30px; }
+#view-overview .panel.host { order: var(--o-server, 8); margin: 0 0 30px; }
+#view-overview .cols > div { order: var(--o-services, 9); margin: 0 0 30px; }
+#view-overview[data-hide~="flow"] .path, #view-overview[data-hide~="aiostreams"] .ver-slot:not(.meta-slot):not(.mgr-slot):not(.mf-slot),
+#view-overview[data-hide~="aiometadata"] .meta-slot, #view-overview[data-hide~="aiomanager"] .mgr-slot,
+#view-overview[data-hide~="mediaflow"] .mf-slot,
 #view-overview[data-hide~="server"] .panel.host, #view-overview[data-hide~="alerts"] .panel.wd,
 #view-overview[data-hide~="vpn"] .panel.vpnc,
 #view-overview[data-hide~="services"] .cols > div { display: none; }
@@ -1136,6 +1151,9 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .ao-line { display: flex; align-items: center; gap: 8px; min-height: 30px; }
 .ao-val { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; font-size: 1rem; font-weight: 600; }
 .ao-val.mono { font-size: .9rem; font-weight: 500; }
+/* coloured only when something needs a look (a certificate not renewing, sign-ups open) */
+.ao-val.warn { color: var(--warn); }
+.ao-val.bad { color: var(--bad); }
 .ao-note { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ao-btns { display: flex; gap: 4px; flex: none; }
 .ao-ic { width: 30px; height: 28px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: 8px;

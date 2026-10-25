@@ -33,7 +33,7 @@ ALIVE_FILE="$STATE_DIR/last-alive"  # when the last check ran
 SHUTDOWN_FILE="$STATE_DIR/shutdown-at"  # written as the server shuts down cleanly
 BOOT_ID_FILE="$STATE_DIR/boot-reported" # the kernel's boot ID once that boot is reported
 OPTIONS_FILE="$STATE_DIR/options"   # extra alerts: "updates=on", "reboots=on", "scripts=on", "backups=on", "security=on", "weekly=on",
-                                    # "metadata=on" (AIOMetadata releases), and the
+                                    # "metadata=on" (AIOMetadata releases), "manager=on" and "mediaflow=on" (theirs), and the
                                     # check-in's "weekly_day=7" (1 Mon .. 7 Sun), "weekly_time=10:15"
                                     # (older copies saved "weekly_hour=10", still read as 10:00)
 SCRIPT_COPY="$STATE_DIR/watchdog.sh"
@@ -61,6 +61,8 @@ MEDIAFLOW_STATE_DIR="$INSTALL_DIR/mediaflow-state"
 MEDIAFLOW_STOPPED_MARKER="$MEDIAFLOW_STATE_DIR/stopped-on-purpose"
 AIOMETADATA_STATE_DIR="$INSTALL_DIR/aiometadata-state"
 AIOMETADATA_STOPPED_MARKER="$AIOMETADATA_STATE_DIR/stopped-on-purpose"
+AIOMANAGER_STATE_DIR="$INSTALL_DIR/aiomanager-state"
+AIOMANAGER_STOPPED_MARKER="$AIOMANAGER_STATE_DIR/stopped-on-purpose"
 
 vpn_mode_on() {
     [[ "$(cat "$VPN_ACTIVE_MARKER" 2>/dev/null)" == "vpn" ]]
@@ -72,6 +74,10 @@ mediaflow_configured() {
 
 aiometadata_configured() {
     [[ -f "$AIOMETADATA_STATE_DIR/config" ]]
+}
+
+aiomanager_configured() {
+    [[ -f "$AIOMANAGER_STATE_DIR/config" ]]
 }
 
 check_gluetun_tunnel() {
@@ -179,9 +185,34 @@ check_aiometadata() {
     return 0
 }
 
+# AIOManager too: /api/health, what its own health check asks, which also
+# fails when its database isn't healthy.
+check_aiomanager() {
+    if [[ -f "$AIOMANAGER_STOPPED_MARKER" ]]; then
+        if [[ "$(docker inspect -f '{{.State.Running}}' aiomanager 2>/dev/null)" == "true" ]]; then
+            rm -f "$AIOMANAGER_STOPPED_MARKER"
+        else
+            return 0
+        fi
+    fi
+    if [[ "$(docker inspect -f '{{.State.Running}}' caddy 2>/dev/null)" != "true" ]]; then
+        FAIL_REASON="caddy is NOT running, so the main site and AIOManager are both unreachable. Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"
+        return 1
+    fi
+    if [[ "$(docker inspect -f '{{.State.Running}}' aiomanager 2>/dev/null)" != "true" ]]; then
+        FAIL_REASON="AIOManager is NOT running. Fix: sudo bash setup-aiomanager.sh, option 2 (Start)"
+        return 1
+    fi
+    if ! docker exec caddy wget -q -O /dev/null -T 5 http://aiomanager:1610/api/health >/dev/null 2>&1; then
+        FAIL_REASON="AIOManager is running but not answering its health check. Check: docker logs aiomanager"
+        return 1
+    fi
+    return 0
+}
+
 # Sets FAIL_REASON on failure, for the alert text. The site is checked in
-# every mode; the VPN checks only in VPN mode, MediaFlow and AIOMetadata only
-# if they're set up.
+# every mode; the VPN checks only in VPN mode, the add-ons only if they're
+# set up.
 run_checks() {
     FAIL_REASON=""
     if vpn_mode_on && ! check_gluetun_tunnel; then
@@ -219,6 +250,9 @@ run_checks() {
     fi
     if aiometadata_configured; then
         check_aiometadata || return 1
+    fi
+    if aiomanager_configured; then
+        check_aiomanager || return 1
     fi
     return 0
 }
@@ -479,6 +513,68 @@ check_metadata_updates() {
         log_event update "AIOMetadata $latest is out (this server runs $running). Alert sent."
     else
         log_event update "AIOMetadata $latest is out (this server runs $running). The alert couldn't be sent (ntfy.sh unreachable)."
+    fi
+    return 0
+}
+
+# The same for AIOManager, once it's installed. Its releases are months apart,
+# so one alert per release is plenty. Asks GitHub every 6 hours too.
+check_manager_updates() {
+    option_on manager || return 0
+    aiomanager_configured || return 0
+    local stamp="$STATE_DIR/manager-checked" latest running how
+    if [[ -f "$stamp" ]] && (( $(date +%s) - $(stat -c %Y "$stamp") < 21600 )); then return 0; fi
+    touch "$stamp"
+    # Build releases (v1.8.5+build.2) have no image of their own, so the tag must be plain
+    latest=$(curl -fsS -m 15 https://api.github.com/repos/sonicx161/aiomanager/releases/latest 2>/dev/null \
+        | grep -oP '"tag_name":\s*"\Kv[0-9]+\.[0-9]+\.[0-9]+(?=")' | head -n 1) || true
+    [[ -n "$latest" ]] || return 0
+    # The running image's tag; the pinned release in its settings if it's stopped
+    running=$(docker inspect -f '{{.Config.Image}}' aiomanager 2>/dev/null | grep -oP ':\K[0-9]+\.[0-9]+\.[0-9]+$') || true
+    [[ -n "$running" ]] || running=$(grep -oP "^AIOMAN_VERSION=['\"]?\K[0-9]+\.[0-9]+\.[0-9]+" "$AIOMANAGER_STATE_DIR/config" 2>/dev/null) || true
+    [[ -n "$running" ]] || return 0
+    running="v$running"
+    [[ "$running" == "$latest" ]] && return 0
+    [[ "$(printf '%s\n%s\n' "$running" "$latest" | sort -V | tail -n 1)" == "$latest" ]] || return 0
+    [[ "$(cat "$STATE_DIR/manager-notified" 2>/dev/null)" == "$latest" ]] && return 0
+    echo "$latest" > "$STATE_DIR/manager-notified"
+    how="Update with: sudo bash setup-aiomanager.sh, option 7."
+    [[ -n "$(panel_domain)" ]] && how="Use Open panel, then Update on AIOManager's card (it offers a backup first)."
+    if send_ntfy "AIOManager $latest is out; this server runs $running. $how" \
+        "AIOManager update" 3 package overview; then
+        log_event update "AIOManager $latest is out (this server runs $running). Alert sent."
+    else
+        log_event update "AIOManager $latest is out (this server runs $running). The alert couldn't be sent (ntfy.sh unreachable)."
+    fi
+    return 0
+}
+
+# And MediaFlow Proxy Light, once it's set up and pinned to a release (an
+# older setup runs "latest" until its next Start). One alert per release.
+check_mediaflow_updates() {
+    option_on mediaflow || return 0
+    mediaflow_configured || return 0
+    local stamp="$STATE_DIR/mediaflow-checked" latest running how
+    if [[ -f "$stamp" ]] && (( $(date +%s) - $(stat -c %Y "$stamp") < 21600 )); then return 0; fi
+    touch "$stamp"
+    # Its releases are tagged without a v (1.1.2)
+    latest=$(curl -fsS -m 15 https://api.github.com/repos/mhdzumair/MediaFlow-Proxy-Light/releases/latest 2>/dev/null \
+        | grep -oP '"tag_name":\s*"v?\K[0-9]+\.[0-9]+\.[0-9]+(?=")' | head -n 1) || true
+    [[ -n "$latest" ]] || return 0
+    running=$(docker inspect -f '{{.Config.Image}}' mediaflow-proxy-light 2>/dev/null | grep -oP ':\K[0-9]+\.[0-9]+\.[0-9]+$') || true
+    [[ -n "$running" ]] || running=$(grep -oP "^MF_VERSION=['\"]?\K[0-9]+\.[0-9]+\.[0-9]+" "$MEDIAFLOW_STATE_DIR/config" 2>/dev/null) || true
+    [[ -n "$running" ]] || return 0
+    [[ "$running" == "$latest" ]] && return 0
+    [[ "$(printf '%s\n%s\n' "$running" "$latest" | sort -V | tail -n 1)" == "$latest" ]] || return 0
+    [[ "$(cat "$STATE_DIR/mediaflow-notified" 2>/dev/null)" == "$latest" ]] && return 0
+    echo "$latest" > "$STATE_DIR/mediaflow-notified"
+    how="Update with: sudo bash setup-mediaflow.sh, option 11."
+    [[ -n "$(panel_domain)" ]] && how="Use Open panel, then Update on MediaFlow's card (it offers a backup first)."
+    if send_ntfy "MediaFlow Proxy $latest is out; this server runs $running. $how" \
+        "MediaFlow update" 3 package overview; then
+        log_event update "MediaFlow Proxy $latest is out (this server runs $running). Alert sent."
+    else
+        log_event update "MediaFlow Proxy $latest is out (this server runs $running). The alert couldn't be sent (ntfy.sh unreachable)."
     fi
     return 0
 }
@@ -797,6 +893,8 @@ do_run_check() {
     check_cert || true
     check_updates || true
     check_metadata_updates || true
+    check_manager_updates || true
+    check_mediaflow_updates || true
     check_scripts || true
     check_backup || true
     check_security || true
@@ -1041,6 +1139,8 @@ extras_line() {
     fi
     local line="new releases $u; restarts $r; script updates $sc; backups made $b; security updates waiting $se; weekly check-in $w"
     aiometadata_configured && line+="; AIOMetadata releases $(option_on metadata && echo on || echo off)"
+    aiomanager_configured && line+="; AIOManager releases $(option_on manager && echo on || echo off)"
+    mediaflow_configured && line+="; MediaFlow releases $(option_on mediaflow && echo on || echo off)"
     echo "$line"
 }
 
@@ -1088,6 +1188,7 @@ do_status() {
     vpn_mode_on && watches+=", VPN tunnel, AIOStreams through the VPN"
     mediaflow_configured && watches+=", MediaFlow Proxy"
     aiometadata_configured && watches+=", AIOMetadata"
+    aiomanager_configured && watches+=", AIOManager"
     echo "Watches:       $watches"
     if [[ -f "$LASTCHECK_FILE" ]]; then
         last=$(cat "$LASTCHECK_FILE")
@@ -1137,8 +1238,14 @@ do_extras() {
         echo "7) Set the check-in's day and time (server time: $(server_timezone))"
         # Only once AIOMetadata is installed; a new number, so the others never move
         aiometadata_configured && echo "8) New AIOMetadata release: $(option_on metadata && echo on || echo off)  (at most one alert a day; releases can come twice a day)"
+        aiomanager_configured && echo "9) New AIOManager release: $(option_on manager && echo on || echo off)  (one alert per release)"
+        mediaflow_configured && echo "10) New MediaFlow Proxy release: $(option_on mediaflow && echo on || echo off)  (one alert per release)"
         echo "0) Back"
-        read -rp "Choose [0-$(aiometadata_configured && echo 8 || echo 7)]: " c || return 0
+        local top=7
+        aiometadata_configured && top=8
+        aiomanager_configured && top=9
+        mediaflow_configured && top=10
+        read -rp "Choose [0-$top]: " c || return 0
         case "$c" in
             1) option_on updates && set_option updates off || set_option updates on ;;
             2) reboots_on && set_option reboots off || set_option reboots on ;;
@@ -1149,6 +1256,20 @@ do_extras() {
             8)
                 if aiometadata_configured; then
                     option_on metadata && set_option metadata off || set_option metadata on
+                else
+                    echo "Not a valid option."
+                fi
+                ;;
+            9)
+                if aiomanager_configured; then
+                    option_on manager && set_option manager off || set_option manager on
+                else
+                    echo "Not a valid option."
+                fi
+                ;;
+            10)
+                if mediaflow_configured; then
+                    option_on mediaflow && set_option mediaflow off || set_option mediaflow on
                 else
                     echo "Not a valid option."
                 fi
@@ -1299,13 +1420,13 @@ if [[ "${1:-}" == "set-topic" ]]; then
     exit $?
 fi
 
-# set-option <updates|reboots|scripts|backups|security|weekly|metadata> <on|off>, or set-option weekly_day <1-7> /
+# set-option <updates|reboots|scripts|backups|security|weekly|metadata|manager|mediaflow> <on|off>, or set-option weekly_day <1-7> /
 # weekly_time <HH:MM>: the optional alerts, without questions
 if [[ "${1:-}" == "set-option" ]]; then
-    [[ ( "${2:-}" =~ ^(updates|reboots|scripts|backups|security|weekly|metadata)$ && "${3:-}" =~ ^(on|off)$ ) || ( "${2:-}" == weekly_day && "${3:-}" =~ ^[1-7]$ )
+    [[ ( "${2:-}" =~ ^(updates|reboots|scripts|backups|security|weekly|metadata|manager|mediaflow)$ && "${3:-}" =~ ^(on|off)$ ) || ( "${2:-}" == weekly_day && "${3:-}" =~ ^[1-7]$ )
        || ( "${2:-}" == weekly_hour && "${3:-}" =~ ^([01]?[0-9]|2[0-3])$ )
        || ( "${2:-}" == weekly_time && "${3:-}" =~ ^([01]?[0-9]|2[0-3]):[0-5][0-9]$ ) ]] \
-        || error "Usage: set-option updates|reboots|scripts|backups|security|weekly|metadata on|off, set-option weekly_day 1-7 (Mon-Sun), set-option weekly_time HH:MM"
+        || error "Usage: set-option updates|reboots|scripts|backups|security|weekly|metadata|manager|mediaflow on|off, set-option weekly_day 1-7 (Mon-Sun), set-option weekly_time HH:MM"
     [[ -f "$CONFIG_FILE" ]] || error "Not configured yet. Set the watchdog up first."
     set_option "$2" "$3"
     exit 0
