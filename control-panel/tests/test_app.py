@@ -774,3 +774,16 @@ def test_no_class_names_an_ad_blocker_hides():
     for f in [*web.glob("js/*.js"), *web.glob("css/*.css"), web / "index.html"]:
         found = re.findall(r"(?<![\w-])(?:ad|ads|advert|sponsor)[-_][\w-]+", f.read_text(encoding="utf-8"))
         assert not found, (f.name, found[:5])
+
+
+def test_light_colours_match_whether_followed_or_picked():
+    """Light is written twice in app.css: once for a device set to light, once for Light picked
+    on the Edit menu. The two must give the same colours."""
+    import re
+    from pathlib import Path
+    css = (Path(__file__).resolve().parents[1] / "web" / "css" / "app.css").read_text(encoding="utf-8")
+    followed = re.search(r':root:not\(\[data-theme="dark"\]\) \{(.*?)\}', css, re.S).group(1)
+    picked = re.search(r':root\[data-theme="light"\] \{(.*?)\}', css, re.S).group(1)
+    strip = lambda s: re.sub(r"/\*.*?\*/", "", s, flags=re.S)
+    values = lambda s: sorted(re.findall(r"([\w-]+)\s*:\s*([^;]+);", strip(s)))
+    assert values(followed) == values(picked)

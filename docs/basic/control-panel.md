@@ -55,7 +55,7 @@ The pages are icons down the left; point at one to see its name. On a phone they
 
 - The buttons do the same as the matching options in the setup scripts, so you can mix the panel and SSH freely.
 - Cards and pages for add-ons (AIOMetadata, AIOManager, MediaFlow, the VPN, Phone alerts...) only appear once you've set them up with their scripts.
-- **Edit** on the Overview and **Edit menu** (the pencil) rearrange or hide cards and pages. The layout is saved on the server, so every device shows the same.
+- **Edit** on the Overview and **Edit menu** (the pencil) rearrange or hide cards and pages. The layout is saved on the server, so every device shows the same. Edit menu also has **Colours**: System (follows your device), Light or Dark, saved in that browser only.
 - **Activity** keeps what every button printed, if you want to check how an update or backup went.
 
 ## Worth knowing

@@ -94,6 +94,8 @@ Each line is split the way AIOStreams' own log viewer shows it: time, a dot for 
 
 **Edit** beside the Overview's headline and **Edit menu** at the rail's foot open the same drawer, on the right for the Overview's cards and on the left for the rail's pages. Each list is one layout for the install, saved on the server (`ui-state/overview-layout.json` and `rail-layout.json`), so a phone and a desktop match. Overview always stays first on the rail, and Edit menu, GitHub and Sign out stay at its foot. A card or page that isn't on this server (the VPN before it's set up, Phone alerts before the watchdog, an add-on not installed) keeps its place in the saved order but isn't listed, so nothing reads as missing; it shows up where it was once it's set up. **Reset to default** puts back the standard order. The rail's goes by use: Logs, Activity, Network, Backup & Restore, Maintenance, Add-ons, then each add-on's own page under it (VPN, Phone alerts), Scripts and Terminal.
 
+**Colours**, at the top of Edit menu's drawer, sets System, Light or Dark. System follows the device's setting; Light or Dark overrides it in that browser only (saved in its local storage as `aios.theme`, not on the server), so a phone and a desktop can differ. A small script, `js/theme.js`, applies it before the page draws, so there's no flash of the other colours. The login page and the terminal follow it too.
+
 ## Network page
 
 ![The Network page: traffic over the last 24 hours, the last 7 days and each service](../images/control-panel/network.png)

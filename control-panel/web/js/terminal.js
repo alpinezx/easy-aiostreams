@@ -137,6 +137,15 @@ function gate(message, info) {
 // A tap on it focuses the terminal, so the keyboard still comes up.
 const TOUCH = window.matchMedia("(pointer: coarse)").matches;
 
+// The terminal's colours come from the page's, and follow it when the colours change
+function termColours() {
+  const css = getComputedStyle(document.documentElement);
+  return { background: css.getPropertyValue("--sunk").trim() || "#111", foreground: css.getPropertyValue("--text").trim() || "#eee" };
+}
+const recolour = () => { if (term) term.options.theme = termColours(); };
+document.addEventListener("aios-theme", recolour);
+window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", recolour);
+
 function nativeScroll(box) {
   if (!TOUCH || !term) return;
   box.classList.add("touch");
@@ -345,7 +354,7 @@ function open(ticket, idle) {
   const css = getComputedStyle(document.documentElement);
   term = new window.Terminal({
     fontFamily: css.getPropertyValue("--mono") || "monospace", fontSize: 13, cursorBlink: true, scrollback: 5000,
-    theme: { background: css.getPropertyValue("--sunk").trim() || "#111", foreground: css.getPropertyValue("--text").trim() || "#eee" },
+    theme: termColours(),
   });
   fit = new window.FitAddon.FitAddon();
   term.loadAddon(fit);
