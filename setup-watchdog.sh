@@ -61,6 +61,8 @@ MEDIAFLOW_STATE_DIR="$INSTALL_DIR/mediaflow-state"
 MEDIAFLOW_STOPPED_MARKER="$MEDIAFLOW_STATE_DIR/stopped-on-purpose"
 AIOMETADATA_STATE_DIR="$INSTALL_DIR/aiometadata-state"
 AIOMETADATA_STOPPED_MARKER="$AIOMETADATA_STATE_DIR/stopped-on-purpose"
+AIOMANAGER_STATE_DIR="$INSTALL_DIR/aiomanager-state"
+AIOMANAGER_STOPPED_MARKER="$AIOMANAGER_STATE_DIR/stopped-on-purpose"
 
 vpn_mode_on() {
     [[ "$(cat "$VPN_ACTIVE_MARKER" 2>/dev/null)" == "vpn" ]]
@@ -72,6 +74,10 @@ mediaflow_configured() {
 
 aiometadata_configured() {
     [[ -f "$AIOMETADATA_STATE_DIR/config" ]]
+}
+
+aiomanager_configured() {
+    [[ -f "$AIOMANAGER_STATE_DIR/config" ]]
 }
 
 check_gluetun_tunnel() {
@@ -179,9 +185,34 @@ check_aiometadata() {
     return 0
 }
 
+# AIOManager too: /api/health, what its own health check asks, which also
+# fails when its database isn't healthy.
+check_aiomanager() {
+    if [[ -f "$AIOMANAGER_STOPPED_MARKER" ]]; then
+        if [[ "$(docker inspect -f '{{.State.Running}}' aiomanager 2>/dev/null)" == "true" ]]; then
+            rm -f "$AIOMANAGER_STOPPED_MARKER"
+        else
+            return 0
+        fi
+    fi
+    if [[ "$(docker inspect -f '{{.State.Running}}' caddy 2>/dev/null)" != "true" ]]; then
+        FAIL_REASON="caddy is NOT running, so the main site and AIOManager are both unreachable. Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"
+        return 1
+    fi
+    if [[ "$(docker inspect -f '{{.State.Running}}' aiomanager 2>/dev/null)" != "true" ]]; then
+        FAIL_REASON="AIOManager is NOT running. Fix: sudo bash setup-aiomanager.sh, option 2 (Start)"
+        return 1
+    fi
+    if ! docker exec caddy wget -q -O /dev/null -T 5 http://aiomanager:1610/api/health >/dev/null 2>&1; then
+        FAIL_REASON="AIOManager is running but not answering its health check. Check: docker logs aiomanager"
+        return 1
+    fi
+    return 0
+}
+
 # Sets FAIL_REASON on failure, for the alert text. The site is checked in
-# every mode; the VPN checks only in VPN mode, MediaFlow and AIOMetadata only
-# if they're set up.
+# every mode; the VPN checks only in VPN mode, the add-ons only if they're
+# set up.
 run_checks() {
     FAIL_REASON=""
     if vpn_mode_on && ! check_gluetun_tunnel; then
@@ -219,6 +250,9 @@ run_checks() {
     fi
     if aiometadata_configured; then
         check_aiometadata || return 1
+    fi
+    if aiomanager_configured; then
+        check_aiomanager || return 1
     fi
     return 0
 }
@@ -1088,6 +1122,7 @@ do_status() {
     vpn_mode_on && watches+=", VPN tunnel, AIOStreams through the VPN"
     mediaflow_configured && watches+=", MediaFlow Proxy"
     aiometadata_configured && watches+=", AIOMetadata"
+    aiomanager_configured && watches+=", AIOManager"
     echo "Watches:       $watches"
     if [[ -f "$LASTCHECK_FILE" ]]; then
         last=$(cat "$LASTCHECK_FILE")
