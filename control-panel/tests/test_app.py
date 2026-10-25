@@ -678,9 +678,6 @@ def test_aiomanager_signups_switch(client):
     r = client.post("/api/actions/aiomanager.signups_close", json={"params": {}})
     assert r.status_code == 200 and wait_job(client, r.json()["id"])["code"] == 0
     assert client.get("/api/status").json()["aiomanager"]["signups"] == "closed"
-    # It's left out of the request flow: a stream never passes through it
-    svc = {s["key"]: s for s in client.get("/api/status").json()["services"]}
-    assert svc["aiomanager"]["flow"] is False and svc["aiometadata"]["flow"] is True
 
 
 def test_maintenance_leaves_phased_updates_out():

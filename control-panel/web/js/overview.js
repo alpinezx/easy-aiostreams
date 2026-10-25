@@ -379,7 +379,7 @@ function mgrCard(st, avail) {
         title: "Sign-ups are closed, so nobody else can make one. Open them briefly on the Add-ons page." }) : null;
   const title = h("div", { class: "fold-title" },
     h("h2", {}, foldTitle("aiomanager", "AIOManager")),
-    m.domain ? cardPages(m.domain, [["Open", "/"]]) : null);
+    m.domain ? cardPages(m.domain, [["Dashboard", "/"]]) : null);
   if (isFolded("aiomanager")) {
     return h("section", { class: "panel ver-card folded", "aria-label": "AIOManager version" },
       h("div", { class: "ver-head" }, title, foldSum([[running], [latest]]), open ? corner : null, updBtn));
@@ -441,10 +441,8 @@ function node(s) {
 // Folded until someone opens it (see folding above)
 function path(st) {
   const folded = isFolded("flow");
-  // Add-ons a stream never passes through (AIOManager) stay out of it
-  const inFlow = st.services.filter((s) => s.flow !== false);
-  const main = inFlow.filter((s) => !s.addon);
-  const addons = inFlow.filter((s) => s.addon);
+  const main = st.services.filter((s) => !s.addon);
+  const addons = st.services.filter((s) => s.addon);
   const restart = st.installed && st.actions.find((a) => a.id === "stack.restart");
   const key = st.services.map((s) => `${s.key}:${stateOf(s)}`).join(",") + st.docker_ok + !!st.busy + !!(restart && restart.available) + folded;
   const restartBtn = () => restart && restart.available ? h("button", { class: "btn small", type: "button", text: "Restart stack", disabled: !!st.busy,
@@ -455,7 +453,7 @@ function path(st) {
     el.append(head);
     if (folded) {
       // One line: a dot per service, coloured like the boxes, and Restart stack beside them
-      head.append(h("ul", { class: "path-sum" }, ...inFlow.map((s) => {
+      head.append(h("ul", { class: "path-sum" }, ...st.services.map((s) => {
         const sx = stateOf(s);
         return h("li", { dataset: { s: sx }, title: `${s.name}: ${STATE_WORD[sx] || sx}` }, h("i", { "aria-hidden": "true" }), s.name);
       })), restartBtn());

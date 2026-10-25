@@ -304,7 +304,7 @@ class DemoBackend:
         services = []
         for key, cname, name, role, addon, image in defs:
             run = self.running[cname]
-            s = {"key": key, "container": cname, "name": name, "role": role, "addon": addon, "flow": key != "aiomanager",
+            s = {"key": key, "container": cname, "name": name, "role": role, "addon": addon,
                  "present": True, "state": "running" if run else "stopped", "health": "healthy" if run else None,
                  "restarts": 0, "image": image,
                  "on_purpose": (not run) and key == "aiostreams" and self.stopped_on_purpose}
