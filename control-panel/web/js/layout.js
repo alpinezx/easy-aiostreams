@@ -115,7 +115,7 @@ function setTheme(t) {
 function themeRow() {
   const box = $("#lay-theme");
   clear(box);
-  box.hidden = mode !== MODES.rail;
+  box.hidden = mode !== MODES.overview;
   if (box.hidden) return;
   const now = themeNow();
   box.append(
