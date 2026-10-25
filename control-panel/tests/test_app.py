@@ -687,7 +687,7 @@ def test_mediaflow_status_and_update(tmp_path):
     from app import stack
     (tmp_path / "mediaflow-state").mkdir()
     conf = tmp_path / "mediaflow-state" / "config"
-    conf.write_text("DOMAIN='mf.example.com'\nMEDIAFLOW_API_PASSWORD='s3cret-pass-word'\nMEDIAFLOW_PROXY_URL=''\nMF_VERSION='1.1.1'\n")
+    conf.write_text("DOMAIN='mf.example.com'\nMEDIAFLOW_API_PASSWORD='demo-api-password'\nMEDIAFLOW_PROXY_URL=''\nMF_VERSION='1.1.1'\n")
     me = SimpleNamespace(p=lambda rel: tmp_path / rel, _ADDON_CONF=stack.Backend._ADDON_CONF)
     me._addon_conf = lambda a: stack.Backend._addon_conf(me, a)
     read = lambda c: stack.Backend._mediaflow(me, c)
@@ -697,7 +697,7 @@ def test_mediaflow_status_and_update(tmp_path):
     # set up before pinning: still on "latest", so no version to compare
     latest = SimpleNamespace(attrs={"Config": {"Image": "ghcr.io/mhdzumair/mediaflow-proxy-light:latest"}})
     assert read(latest) == {"domain": "mf.example.com", "version": None}
-    assert "s3cret" not in str(read(None))
+    assert "demo-api-password" not in str(read(None))
     a = actions.resolve("mediaflow.update", {"backup": True})
     assert a.script == "setup-mediaflow.sh" and a.args == ("update-mediaflow", "--backup")
     # an older script on a server doesn't know the command, so the button waits for a newer one
