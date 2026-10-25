@@ -200,6 +200,18 @@ def build_manager_update(backup: bool) -> Action:
                   confirm="Update AIOManager to its newest release? Its site is offline for a minute or so.")
 
 
+def build_mediaflow_update(backup: bool) -> Action:
+    """MediaFlow Proxy Light to its newest release, as the others: update-mediaflow puts
+    the previous release back by itself if the new one doesn't answer. On a setup from
+    before pinning it pins to the newest."""
+    if not isinstance(backup, bool):
+        raise BadAction("backup must be true or false")
+    return Action("mediaflow.update", "Update", "Updating", "Update finished", "setup-mediaflow.sh",
+                  args=("update-mediaflow",) + (("--backup",) if backup else ()), timeout=600,
+                  needs=("setup-mediaflow.sh", "mediaflow-state/docker-compose.yml"), script_has="update-mediaflow",
+                  confirm="Update MediaFlow Proxy to its newest release? Streams through it pause for a few seconds.")
+
+
 def build_restore(path: str) -> Action:
     """A same-server rollback to the backup at path, which the caller has
     matched against the backups actually on the server. --same-server runs
@@ -307,6 +319,8 @@ def resolve(action_id: str, params: dict | None = None) -> Action:
         return build_meta_update(params.get("backup", True))
     if action_id == "aiomanager.update":
         return build_manager_update(params.get("backup", True))
+    if action_id == "mediaflow.update":
+        return build_mediaflow_update(params.get("backup", True))
     if action_id == "vpn.use":
         return build_use_address(params.get("ip"))
     if action_id == "vpn.uninstall":
@@ -324,7 +338,7 @@ def resolve(action_id: str, params: dict | None = None) -> Action:
 
 
 def catalog() -> list[Action]:
-    return list(_STATIC.values()) + [build_update(True, None), build_meta_update(True), build_manager_update(True), build_use_address("192.0.2.1"), build_use_config("192.0.2.1"),
+    return list(_STATIC.values()) + [build_update(True, None), build_meta_update(True), build_manager_update(True), build_mediaflow_update(True), build_use_address("192.0.2.1"), build_use_config("192.0.2.1"),
                                      build_delete_config("/"), build_use_file("/", "192.0.2.1"), build_vpn_uninstall(False, False),
                                      build_set_topic("aios-example-topic")] + [build_addon_uninstall(a, False) for a in ADDON_UNINSTALL]
 

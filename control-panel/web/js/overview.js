@@ -220,7 +220,8 @@ function hero(st) {
   const key = [st.overall, st.headline, st.domain, st.channel, st.version, st.build_tag, st.vpn, !!st.busy, aio && aio.state,
     allCerts(st).map((c) => `${c.host}:${c.ok}:${c.days_left}:${c.days_total}`).join(","), st.installed, st.docker_ok, relLoading, rel && rel.checked_at, rel && rel.error, isFolded("aiostreams"),
     JSON.stringify(st.aiometadata || null), isFolded("aiometadata"),
-    JSON.stringify(st.aiomanager || null), isFolded("aiomanager"), mgrRelLoading, mgrRel && mgrRel.checked_at].join("|");
+    JSON.stringify(st.aiomanager || null), isFolded("aiomanager"), mgrRel.loading, mgrRel.list && mgrRel.list.checked_at,
+    JSON.stringify(st.mediaflow || null), isFolded("mediaflow"), mfRel.loading, mfRel.list && mfRel.list.checked_at].join("|");
   rebuild("#hero", key, (el) => {
     // The headline, and after it the "Script updates" pill while a setup script here differs
     // from GitHub (it drops below the headline when they don't fit on one line).
@@ -246,6 +247,10 @@ function hero(st) {
     const mgr = $("#mgr");
     clear(mgr);
     if (st.aiomanager) mgr.append(mgrCard(st, avail));
+    // And MediaFlow's
+    const mf = $("#mf");
+    clear(mf);
+    if (st.mediaflow) mf.append(mfCard(st, avail));
 
     if (!st.installed) {
       el.append(h("p", { class: "empty", text: "AIOStreams isn't installed on this server yet. Run setup-aiostreams.sh over SSH first." }));
@@ -257,6 +262,8 @@ function hero(st) {
         h("button", { class: "btn small", type: "button", text: "View output", onclick: () => openJob(st.busy) }))));
     }
   });
+  // MediaFlow's speed changes with every status, so it's set here, not part of the card's key
+  mfNow(st);
 }
 
 // Edit: which cards the Overview shows, and their order, in a drawer
@@ -332,44 +339,77 @@ function metaCard(st, avail) {
             title: "What changed in each AIOMetadata release", onclick: () => openReleases(list, running) }) : null))));
 }
 
-// AIOManager's releases, the same way. They're months apart.
-let mgrRel = null, mgrRelLoading = false;
-async function loadMgrReleases(force) {
-  if (mgrRelLoading) return;
-  mgrRelLoading = true;
-  if (lastSt) { keys["#hero"] = null; hero(lastSt); }
-  try { mgrRel = await api(`/api/aiomanager-releases${force ? "?force=1" : ""}`); }
-  catch (e) { mgrRel = { channel: "aiomanager", releases: [], error: e.message }; }
-  mgrRel.name = "AIOManager";
-  mgrRel.page = "https://github.com/sonicx161/aiomanager/releases";
-  mgrRelLoading = false;
-  if (lastSt) { keys["#hero"] = null; hero(lastSt); }
-  if (force && lastSt && lastSt.aiomanager) {
-    const running = `v${lastSt.aiomanager.version}`;
-    const top = mgrRel.releases.length ? behind(mgrRel, running).newer[0] : null;
-    if (!mgrRel.releases.length) toast(`Couldn't check for updates. ${mgrRel.error || ""}`.trim(), true);
-    else toast(top ? `AIOManager ${top.tag} is available.` : `AIOManager ${running} is the latest release.`);
+// An add-on's releases from GitHub, kept 3 hours like AIOStreams'; Check now asks again.
+// AIOManager's and MediaFlow's cards each keep one. key is its entry in the status.
+function addonReleases(key, name, page) {
+  const r = { key, name, page, list: null, loading: false };
+  r.load = async (force) => {
+    if (r.loading) return;
+    r.loading = true;
+    if (lastSt) { keys["#hero"] = null; hero(lastSt); }
+    try { r.list = await api(`/api/${key}-releases${force ? "?force=1" : ""}`); }
+    catch (e) { r.list = { channel: key, releases: [], error: e.message }; }
+    r.list.name = name;
+    r.list.page = page;
+    r.loading = false;
+    if (lastSt) { keys["#hero"] = null; hero(lastSt); }
+    const m = force && lastSt && lastSt[key];
+    if (!m) return;
+    if (!r.list.releases.length) { toast(`Couldn't check for updates. ${r.list.error || ""}`.trim(), true); return; }
+    const top = m.version ? behind(r.list, `v${m.version}`).newer[0] : r.list.releases[0];
+    toast(top ? `${name} ${top.tag} is available.` : `${name} v${m.version} is the latest release.`);
+  };
+  return r;
+}
+const mgrRel = addonReleases("aiomanager", "AIOManager", "https://github.com/sonicx161/aiomanager/releases");
+const mfRel = addonReleases("mediaflow", "MediaFlow Proxy", "https://github.com/mhdzumair/MediaFlow-Proxy-Light/releases");
+
+// An add-on's version card, laid out like AIOMetadata's: its version, the newest
+// release, Update, Check now and All releases. A newer release is a plain line, not a
+// to-do. o: { id, name, rel, version (null while unpinned), pages, corner, foldCorner }
+function addonVerCard(st, avail, o) {
+  const running = o.version ? `v${o.version}` : null;
+  if (!o.rel.list) o.rel.load(false);
+  const rel = o.rel.list;
+  const list = rel && rel.releases.length ? rel : null;
+  // Unpinned (a MediaFlow set up before pinning): its newest is what Update would pin it to
+  const top = list ? (running ? behind(list, running).newer[0] : list.releases[0]) : null;
+  const mine = list && running && list.releases.find((r) => r.tag === running);
+  const latest = !rel ? h("span", { class: "dim", text: "Checking…" })
+    : !list ? h("span", { class: "warn", title: rel.error || "", text: "Couldn't check" })
+    : h("span", { class: top ? "quiet" : "ok", text: top ? `${top.tag} available` : "Up to date" });
+  const upd = avail[`${o.id}.update`];
+  const updBtn = upd && upd.available ? h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
+    title: `Update ${o.name} to its newest release, with a backup first`, onclick: () => runAction(upd) }) : null;
+  const title = h("div", { class: "fold-title" },
+    h("h2", {}, foldTitle(o.id, o.name)), o.pages || null);
+  const shown = running || "Latest image";
+  if (isFolded(o.id)) {
+    return h("section", { class: "panel ver-card folded", "aria-label": `${o.name} version` },
+      h("div", { class: "ver-head" }, title, foldSum([[shown], [latest]]), o.foldCorner || null, updBtn));
   }
+  const col = (value, sub) => h("div", {}, h("div", { class: "ver-value" }, value), h("div", { class: "ver-sub", text: sub || "" }));
+  return h("section", { class: "panel ver-card", "aria-label": `${o.name} version` },
+    h("div", { class: "ver-head" }, title, o.corner || null),
+    h("div", { class: "ver-grid" },
+      col(shown, mine && mine.published ? `Released ${ago(Date.parse(mine.published) / 1000)}`
+        : running ? "" : "Pinned to a release at its next Update or Start"),
+      h("div", { class: "ver-right" },
+        col(latest, top && top.published ? `Released ${ago(Date.parse(top.published) / 1000)}` : list ? `Checked ${ago(rel.checked_at)}` : ""),
+        h("div", { class: "ver-btns" }, updBtn,
+          h("button", { class: "btn small", type: "button", text: o.rel.loading ? "Checking…" : "Check now", disabled: o.rel.loading,
+            title: `Ask GitHub for the latest ${o.name} release now`, onclick: () => o.rel.load(true) }),
+          list ? h("button", { class: "btn small", type: "button", text: "All releases",
+            title: `What changed in each ${o.name} release`, onclick: () => openReleases(list, running) }) : null))));
 }
 
 // When sign-ups close, in the viewer's own time
 const untilTime = (t) => new Date(t * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-// AIOManager's card, laid out like AIOMetadata's. Its corner says how many logins there
-// are, or, amber, that sign-ups are open (switched on the Add-ons page).
+// AIOManager's card. Its corner says how many logins there are, or, amber, that
+// sign-ups are open (switched on the Add-ons page).
 function mgrCard(st, avail) {
   const m = st.aiomanager;
-  const running = `v${m.version}`;
-  if (!mgrRel) loadMgrReleases(false);
-  const list = mgrRel && mgrRel.releases.length ? mgrRel : null;
-  const top = list ? behind(list, running).newer[0] : null;
-  const mine = list && list.releases.find((r) => r.tag === running);
-  const latest = !mgrRel ? h("span", { class: "dim", text: "Checking…" })
-    : !list ? h("span", { class: "warn", title: mgrRel.error || "", text: "Couldn't check" })
-    : h("span", { class: top ? "quiet" : "ok", text: top ? `${top.tag} available` : "Up to date" });
-  const upd = avail["aiomanager.update"];
-  const updBtn = upd && upd.available ? h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
-    title: "Update AIOManager to its newest release, with a backup first", onclick: () => runAction(upd) }) : null;
   const open = m.signups === "open";
   const corner = open
     // Short, so it fits beside the title on a phone; when they close is in its tooltip and on the Add-ons page
@@ -377,25 +417,25 @@ function mgrCard(st, avail) {
         title: `Anyone with the address can make a login${m.signups_until ? ` until ${untilTime(m.signups_until)}` : ""}. Close them on the Add-ons page.` })
     : m.logins != null ? h("span", { class: "chip", text: `${m.logins} ${m.logins === 1 ? "login" : "logins"}`,
         title: "Sign-ups are closed, so nobody else can make one. Open them briefly on the Add-ons page." }) : null;
-  const title = h("div", { class: "fold-title" },
-    h("h2", {}, foldTitle("aiomanager", "AIOManager")),
-    m.domain ? cardPages(m.domain, [["Dashboard", "/"]]) : null);
-  if (isFolded("aiomanager")) {
-    return h("section", { class: "panel ver-card folded", "aria-label": "AIOManager version" },
-      h("div", { class: "ver-head" }, title, foldSum([[running], [latest]]), open ? corner : null, updBtn));
-  }
-  const col = (value, sub) => h("div", {}, h("div", { class: "ver-value" }, value), h("div", { class: "ver-sub", text: sub || "" }));
-  return h("section", { class: "panel ver-card", "aria-label": "AIOManager version" },
-    h("div", { class: "ver-head" }, title, corner),
-    h("div", { class: "ver-grid" },
-      col(running, mine && mine.published ? `Released ${ago(Date.parse(mine.published) / 1000)}` : ""),
-      h("div", { class: "ver-right" },
-        col(latest, top && top.published ? `Released ${ago(Date.parse(top.published) / 1000)}` : list ? `Checked ${ago(mgrRel.checked_at)}` : ""),
-        h("div", { class: "ver-btns" }, updBtn,
-          h("button", { class: "btn small", type: "button", text: mgrRelLoading ? "Checking…" : "Check now", disabled: mgrRelLoading,
-            title: "Ask GitHub for the latest AIOManager release now", onclick: () => loadMgrReleases(true) }),
-          list ? h("button", { class: "btn small", type: "button", text: "All releases",
-            title: "What changed in each AIOManager release", onclick: () => openReleases(list, running) }) : null))));
+  return addonVerCard(st, avail, { id: "aiomanager", name: "AIOManager", rel: mgrRel, version: m.version,
+    pages: m.domain ? cardPages(m.domain, [["Dashboard", "/"]]) : null, corner, foldCorner: open ? corner : null });
+}
+
+// MediaFlow's card. It has no pages of its own to open; its corner shows what's
+// passing through it right now, kept up to date without redrawing the card.
+function mfCard(st, avail) {
+  const m = st.mediaflow;
+  return addonVerCard(st, avail, { id: "mediaflow", name: "MediaFlow Proxy", rel: mfRel, version: m.version,
+    corner: h("span", { class: "chip", id: "mf-now", hidden: true, title: "Passing through MediaFlow right now" }) });
+}
+
+function mfNow(st) {
+  const el = $("#mf-now");
+  if (!el) return;
+  const s = st.services.find((x) => x.key === "mediaflow");
+  const on = s && s.state === "running" && s.rx != null;
+  el.hidden = !on;
+  if (on) el.textContent = `↓ ${fmtRate(s.rx)} ↑ ${fmtRate(s.tx)}`;
 }
 
 function versionCard(st, avail) {

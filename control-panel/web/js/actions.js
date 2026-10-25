@@ -100,13 +100,16 @@ export async function runAction(act, params) {
     if (!res) return;
     if (res.channel && res.channel === channelNow) res.channel = null;
     params = res;
-  } else if (act.id === "aiometadata.update" || act.id === "aiomanager.update") {
-    const meta = act.id === "aiometadata.update";
+  } else if (["aiometadata.update", "aiomanager.update", "mediaflow.update"].includes(act.id)) {
+    const [name, effect] = {
+      "aiometadata.update": ["AIOMetadata", "its catalogs stop loading for a minute or so"],
+      "aiomanager.update": ["AIOManager", "its site is offline for a minute or so"],
+      "mediaflow.update": ["MediaFlow Proxy", "streams through it pause for a few seconds"],
+    }[act.id];
     const backup = h("input", { type: "checkbox", id: "meta-backup", checked: true });
     const res = await ask({
-      title: meta ? "Update AIOMetadata" : "Update AIOManager",
-      body: (meta ? "Gets its newest release and restarts it, so its catalogs stop loading for a minute or so. "
-        : "Gets its newest release and restarts it, so its site is offline for a minute or so. ")
+      title: `Update ${name}`,
+      body: `Gets its newest release and restarts it, so ${effect}. `
         + "If the new release doesn't start, the previous one is put back by itself.",
       confirmLabel: "Update",
       options: { el: h("div", { class: "opts" }, h("label", { class: "check" }, backup, h("span", { text: "Back up first" }))),

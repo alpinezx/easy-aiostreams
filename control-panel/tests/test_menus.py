@@ -78,6 +78,13 @@ def test_aiomanager_has_the_commands_the_panel_runs():
     assert m["10"].startswith("Sign-ups")
 
 
+def test_mediaflow_update_is_a_new_number_after_exit():
+    """Older panels type 3 then 10 into MediaFlow's menu, so Update came in at 11."""
+    m = menu("setup-mediaflow.sh")
+    assert (m["3"], m["10"]) == ("Stop", "Exit") and m["11"].startswith("Update")
+    assert '"${1:-}" == "update-mediaflow"' in (ROOT / "setup-mediaflow.sh").read_text(encoding="utf-8")
+
+
 def test_the_add_ons_uninstall_is_a_named_command():
     """The Add-ons page's Uninstall runs each script's "uninstall"; the menus keep their numbers."""
     meta = (ROOT / "setup-aiometadata.sh").read_text(encoding="utf-8")
