@@ -6,7 +6,7 @@ import { pill as scriptsPill } from "./scripts.js";
 import { scheduleText } from "./activity.js";
 import { applyLayout, openLayout } from "./layout.js";
 import { countryName } from "./vpn.js";
-import { loadTraffic, trafficData, trafficStale, summaryLine, feedNet, nowRate, today, fmtRate } from "./traffic.js";
+import { loadTraffic, trafficData, trafficStale, summaryLine, feedNet, nowRate, today, fmtRate, fmtPair } from "./traffic.js";
 
 // ---------------- update check ----------------
 let rel = null, relLoading = false, relFor = null, lastSt = null;
@@ -422,11 +422,13 @@ function mgrCard(st, avail) {
 }
 
 // MediaFlow's card. It has no pages of its own to open; its corner shows what's
-// passing through it right now, kept up to date without redrawing the card.
+// passing through it right now, quietly like the VPN card's traffic line (and like
+// it, a link to the Network page), kept up to date without redrawing the card.
 function mfCard(st, avail) {
   const m = st.mediaflow;
   return addonVerCard(st, avail, { id: "mediaflow", name: "MediaFlow Proxy", rel: mfRel, version: m.version,
-    corner: h("span", { class: "chip", id: "mf-now", hidden: true, title: "Passing through MediaFlow right now" }) });
+    corner: h("a", { class: "ver-now dim", id: "mf-now", href: "#net", hidden: true,
+      title: "Passing through MediaFlow right now. Its graph is on the Network page, under By service." }) });
 }
 
 function mfNow(st) {
@@ -435,7 +437,7 @@ function mfNow(st) {
   const s = st.services.find((x) => x.key === "mediaflow");
   const on = s && s.state === "running" && s.rx != null;
   el.hidden = !on;
-  if (on) el.textContent = `↓ ${fmtRate(s.rx)} ↑ ${fmtRate(s.tx)}`;
+  if (on) el.textContent = `Now ${fmtPair([s.rx, s.tx])}`;
 }
 
 function versionCard(st, avail) {

@@ -218,6 +218,9 @@ button.chip:hover { text-decoration: underline; }
    it and the title don't fit side by side (a phone), it drops below the title */
 .ver-head { flex-wrap: wrap; }
 .ver-head > .chip { flex: none; white-space: nowrap; }
+/* MediaFlow's live speed, quiet like the VPN card's traffic line */
+.ver-head > .ver-now { flex: none; white-space: nowrap; font-size: .88rem; text-decoration: none; }
+.ver-head > .ver-now:hover { color: var(--text); text-decoration: underline; }
 /* Opens AIOStreams: the title is the link, padded so it's an easy tap on a phone */
 /* The version running on the left, the latest centred on the card's middle, the buttons on
    the right: equal side columns keep the middle centred whatever the buttons' width, so it
