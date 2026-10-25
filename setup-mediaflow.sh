@@ -7,32 +7,6 @@ warn()  { printf '\033[1;33m!! \033[0m %s\n' "$1"; }
 alert() { printf '\033[1;33m!! %s !!\033[0m\n' "$1"; }
 error() { printf '\033[1;31mXX \033[0m %s\n' "$1"; exit 1; }
 
-# Image cleanup after updates. Remembers each image's ID before a pull,
-# then removes just the old copies that pull replaced. Only ever touches
-# this stack's own images, and Docker refuses to delete one a container
-# still uses, so anything not recreated keeps its old image (no harm).
-snapshot_image_ids() {
-    local ref
-    for ref in "$@"; do
-        printf '%s %s\n' "$ref" "$(docker image inspect -f '{{.Id}}' "$ref" 2>/dev/null || echo none)"
-    done
-}
-
-cleanup_replaced_images() {
-    local ref old new freed=0
-    while read -r ref old; do
-        [[ -z "$ref" || -z "$old" || "$old" == "none" ]] && continue
-        new=$(docker image inspect -f '{{.Id}}' "$ref" 2>/dev/null || echo none)
-        if [[ "$new" != "$old" ]] && docker image rm "$old" >/dev/null 2>&1; then
-            freed=$((freed + 1))
-        fi
-    done <<< "$1"
-    if (( freed > 0 )); then
-        echo "Removed $freed old image(s) replaced by this update, to free disk space."
-    fi
-    return 0
-}
-
 compose_image_refs() {
     grep -oP '^\s*image:\s*\K\S+' "$1" 2>/dev/null || true
 }
@@ -67,6 +41,10 @@ CADDY_SNIPPET="$CADDY_DROPIN_DIR/50-mediaflow.caddy"
 
 CONTAINER_NAME="mediaflow-proxy-light"
 INTERNAL_PORT="8888"
+IMAGE_REPO="ghcr.io/mhdzumair/mediaflow-proxy-light"
+# Its releases are tagged 1.1.2, without a v; its images the same.
+RELEASES_API="https://api.github.com/repos/mhdzumair/MediaFlow-Proxy-Light/releases/latest"
+RELEASES_PAGE="https://github.com/mhdzumair/MediaFlow-Proxy-Light/releases"
 
 # Host-side directory that gets bind-mounted into the caddy container so
 # fail2ban (which runs on the HOST, not in any container) can read Caddy's
@@ -249,13 +227,15 @@ write_env_file() {
     chmod 600 "$MEDIAFLOW_ENV_FILE"
 }
 
+# Pinned to the release in its config, so nothing changes until Update is run.
+# A config from before pinning (no MF_VERSION) gets one at its next Start.
 write_compose() {
     write_env_file
 
     cat > "$MEDIAFLOW_COMPOSE" << EOF
 services:
   mediaflow-proxy-light:
-    image: ghcr.io/mhdzumair/mediaflow-proxy-light:latest
+    image: ${IMAGE_REPO}:${MF_VERSION:-latest}
     container_name: ${CONTAINER_NAME}
     restart: unless-stopped
     environment:
@@ -487,9 +467,9 @@ print_aiostreams_settings() {
     password="$MEDIAFLOW_API_PASSWORD"
     echo ""
     echo "Paste these into AIOStreams' dashboard, Proxy settings, Proxy Service = MediaFlow Proxy:"
-    echo -e "  URL:        \033[1;36mhttp://${CONTAINER_NAME}:${INTERNAL_PORT}\033[0m  (internal, container-to-container)"
-    echo -e "  Public URL: \033[1;36mhttps://${domain}\033[0m  (what streams actually resolve to for clients)"
-    echo -e "  Password:   \033[1;36m${password}\033[0m"
+    echo -e "  URL:         \033[1;36mhttp://${CONTAINER_NAME}:${INTERNAL_PORT}\033[0m  (internal, container-to-container)"
+    echo -e "  Public URL:  \033[1;36mhttps://${domain}\033[0m  (what streams actually resolve to for clients)"
+    echo -e "  Credentials: \033[1;36m${password}\033[0m  (MediaFlow's API password)"
     echo ""
     echo "Save in the dashboard, then:"
     alert "If a stream you already had open doesn't start, just refresh the stream list in your Stremio-based client, no need to reinstall the manifest, that's usually all it takes."
@@ -501,10 +481,57 @@ print_aiostreams_settings() {
 write_config() {
     (
         umask 077
-        printf "DOMAIN='%s'\nMEDIAFLOW_API_PASSWORD='%s'\nMEDIAFLOW_PROXY_URL='%s'\n" \
-            "$1" "$2" "$3" > "$CONFIG_FILE"
+        printf "DOMAIN='%s'\nMEDIAFLOW_API_PASSWORD='%s'\nMEDIAFLOW_PROXY_URL='%s'\nMF_VERSION='%s'\n" \
+            "$1" "$2" "$3" "${4:-}" > "$CONFIG_FILE"
     )
     chmod 600 "$CONFIG_FILE"
+}
+
+valid_version() {
+    [[ "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+}
+
+# The newest release's version (e.g. 1.1.2), or nothing if GitHub can't be asked.
+latest_version() {
+    curl -fsSL --max-time 10 "$RELEASES_API" 2>/dev/null \
+        | grep -oP '"tag_name":\s*"v?\K[0-9]+\.[0-9]+\.[0-9]+(?=")' | head -n1 || true
+}
+
+# The version the container runs, from its image's tag (empty for an old "latest").
+running_version() {
+    docker inspect -f '{{.Config.Image}}' "$CONTAINER_NAME" 2>/dev/null | grep -oP ':\K[0-9]+\.[0-9]+\.[0-9]+$' || true
+}
+
+# A config without a version (made before pinning, or from an older backup)
+# gets the newest release, which is what its "latest" image was anyway. Offline,
+# it stays on "latest" until the next Start.
+ensure_pinned() {
+    [[ -n "${MF_VERSION:-}" ]] && return 0
+    local v
+    v=$(latest_version)
+    if valid_version "$v"; then
+        MF_VERSION="$v"
+        write_config "$DOMAIN" "$MEDIAFLOW_API_PASSWORD" "${MEDIAFLOW_PROXY_URL:-}" "$MF_VERSION"
+        echo "Pinned to MediaFlow Proxy Light $MF_VERSION, its newest release. Update (option 11) moves it on."
+    else
+        warn "Couldn't look up MediaFlow's newest release, so it keeps the 'latest' image for now."
+    fi
+}
+
+# The image has no shell or wget of its own, so its /health is asked through
+# Caddy, as the watchdog does. Up to a minute; a container that stops is a fail.
+mf_healthy() {
+    local i
+    for i in $(seq 1 30); do
+        container_running "$CONTAINER_NAME" || { sleep 2; container_running "$CONTAINER_NAME" || return 1; }
+        if container_running caddy; then
+            docker exec caddy wget -q -O /dev/null -T 3 "http://${CONTAINER_NAME}:${INTERNAL_PORT}/health" >/dev/null 2>&1 && return 0
+        elif (( i >= 5 )); then
+            return 0    # no Caddy to ask through: still running after 10 seconds will do
+        fi
+        sleep 2
+    done
+    return 1
 }
 
 valid_domain() {
@@ -550,6 +577,7 @@ other_domains() {
     [[ -f "$INSTALL_DIR/Caddyfile" ]] && head -n1 "$INSTALL_DIR/Caddyfile" | awk '{print $1}'
     grep -hoP "^DOMAIN='?\K[^'\s]+" "$INSTALL_DIR/webhook-relay-state/config" 2>/dev/null || true
     grep -hoP "^DOMAIN='?\K[^'\s]+" "$INSTALL_DIR/aiometadata-state/config" 2>/dev/null || true
+    grep -hoP "^DOMAIN='?\K[^'\s]+" "$INSTALL_DIR/aiomanager-state/config" 2>/dev/null || true
 }
 
 do_configure() {
@@ -618,10 +646,18 @@ do_configure() {
         warn "Refresh the stream list in your client after saving the new password in AIOStreams."
     fi
 
-    info "Outbound proxy for MediaFlow's own video traffic (optional)"
-    echo "Separate from anything in AIOStreams' Addon proxy config, that"
-    echo "setting never reaches MediaFlow's traffic. Leave blank to have"
-    echo "video go out on this VPS's own IP, as before."
+    info "Outbound proxy (optional)"
+    echo "MediaFlow fetches each video from its source (your debrid service, for"
+    echo "example) and passes it on to your app. Those fetches normally come from"
+    echo "this server's own IP. Give a proxy here and every one of them goes through"
+    echo "it instead, so the source sees the proxy's IP, not this server's."
+    echo "AIOStreams' Addon proxy setting doesn't reach MediaFlow; only this does."
+    # The VPN add-on routes AIOStreams, not MediaFlow (it isn't on gluetun's network)
+    if [[ "$(cat "$INSTALL_DIR/vpn-state/active" 2>/dev/null)" == "vpn" ]]; then
+        warn "The VPN is on, but MediaFlow isn't inside it. Without a proxy here, video"
+        warn "leaves from this server's real IP while everything else uses the VPN's."
+    fi
+    echo "Leave blank to use this server's own IP. More: docs/advanced/mediaflow-proxy.md"
     echo "Format: http://user:pass@host:port or socks5://user:pass@host:port"
     local proxy_url
     while true; do
@@ -640,7 +676,11 @@ do_configure() {
         warn "Needs to start with http://, https://, socks5:// or socks5h://, with no spaces or single quotes."
     done
 
-    write_config "$domain" "$password" "$proxy_url"
+    # Keeps the pinned release (MF_VERSION came with the config read above)
+    write_config "$domain" "$password" "$proxy_url" "${MF_VERSION:-}"
+    # shellcheck disable=SC1090
+    source "$CONFIG_FILE"
+    ensure_pinned
 
     write_compose
     write_caddy_snippet "$domain"
@@ -672,22 +712,21 @@ do_start() {
     # shellcheck disable=SC1090
     source "$CONFIG_FILE"
     # Rewrites older unquoted configs into the quoted format.
-    write_config "$DOMAIN" "$MEDIAFLOW_API_PASSWORD" "${MEDIAFLOW_PROXY_URL:-}"
+    write_config "$DOMAIN" "$MEDIAFLOW_API_PASSWORD" "${MEDIAFLOW_PROXY_URL:-}" "${MF_VERSION:-}"
+    ensure_pinned
     write_compose
     # Refreshes the site file too, so it matches whether the jail is on.
     write_caddy_snippet "$DOMAIN"
-    # Pull first, so Start doubles as Update: this stack isn't covered by
-    # setup-aiostreams.sh's Update option, and without a pull the container
-    # would be recreated from the same cached image forever. A failed pull
-    # (offline, registry hiccup) just falls back to the cached image.
-    info "Checking for a newer MediaFlow Proxy Light image"
-    local image_snapshot
-    # shellcheck disable=SC2046  # image refs never contain spaces
-    image_snapshot=$(snapshot_image_ids $(compose_image_refs "$MEDIAFLOW_COMPOSE"))
-    (cd "$STATE_DIR" && docker compose -f "$MEDIAFLOW_COMPOSE" pull) || \
-        warn "Couldn't pull a newer image, starting with the one already on this server."
-    (cd "$STATE_DIR" && docker compose -f "$MEDIAFLOW_COMPOSE" up -d --force-recreate)
-    cleanup_replaced_images "$image_snapshot"
+    # The pinned release, so Start never changes the version: Update does.
+    # Quiet: a missing image (on a new server) would print a line per layer.
+    info "Starting MediaFlow Proxy Light ${MF_VERSION:-(latest)}"
+    local was_latest=false
+    [[ "$(docker inspect -f '{{.Config.Image}}' "$CONTAINER_NAME" 2>/dev/null)" == "${IMAGE_REPO}:latest" ]] && was_latest=true
+    (cd "$STATE_DIR" && docker compose -f "$MEDIAFLOW_COMPOSE" up -d --quiet-pull --force-recreate)
+    # Its first pinned Start leaves the old "latest" image behind
+    if $was_latest && [[ -n "${MF_VERSION:-}" ]]; then
+        docker image rm "${IMAGE_REPO}:latest" >/dev/null 2>&1 || true
+    fi
     rm -f "$STOPPED_MARKER"
     restart_caddy_to_pick_up_dropin
     info "MediaFlow Proxy Light running. It can take a minute for the HTTPS cert on the new subdomain to issue."
@@ -726,6 +765,14 @@ do_status() {
         echo "Proxy:       RUNNING"
     else
         echo "Proxy:       STOPPED"
+    fi
+    [[ -f "$CONFIG_FILE" ]] || return 0
+    echo "Version:     ${MF_VERSION:-latest (pinned at its next Start)}"
+    local latest
+    latest=$(latest_version)
+    if valid_version "$latest" && [[ "$latest" != "${MF_VERSION:-}" ]]; then
+        echo ""
+        echo "Newest release: $latest (Update is option 11)"
     fi
 }
 
@@ -766,6 +813,101 @@ do_test() {
         warn "  Got HTTP ${http_status} from https://${domain}/health, expected 200."
         warn "  Check: 'docker compose logs caddy' in $INSTALL_DIR."
     fi
+}
+
+# Runs MediaFlow on the version in its config and waits for its /health.
+run_version() {
+    # shellcheck disable=SC1090
+    source "$CONFIG_FILE"
+    write_compose
+    (cd "$STATE_DIR" && docker compose -f "$MEDIAFLOW_COMPOSE" up -d --quiet-pull --force-recreate)
+    rm -f "$STOPPED_MARKER"
+    echo "Waiting for it to answer (up to a minute)..."
+    mf_healthy
+}
+
+# apply_update <version> <backup: yes|no>. Asks nothing, so the menu and the
+# update-mediaflow command share it. Returns 1 when nothing changed or the
+# update failed (and the previous version was put back).
+apply_update() {
+    local target="$1" backup="$2" previous="${MF_VERSION:-latest}"
+    if [[ "$target" == "$previous" ]] && container_running "$CONTAINER_NAME"; then
+        echo "Already on ${target}. Nothing to do."
+        return 0
+    fi
+    # Download first: a version that doesn't exist changes nothing.
+    info "Downloading MediaFlow Proxy Light ${target}"
+    docker pull -q "${IMAGE_REPO}:${target}" >/dev/null || {
+        warn "Couldn't download ${IMAGE_REPO}:${target}. Check the version exists. Nothing was changed."
+        return 1
+    }
+    if [[ "$backup" == yes ]]; then
+        local backup_script="$INSTALL_DIR/setup-backup.sh"
+        [[ -f "$backup_script" ]] || { warn "setup-backup.sh isn't in $INSTALL_DIR, so no backup was made and nothing was changed."; return 1; }
+        info "Backing up first"
+        bash "$backup_script" backup < /dev/null || { warn "The backup didn't finish, so nothing else was changed."; return 1; }
+    fi
+    info "Switching MediaFlow Proxy Light from ${previous} to ${target}"
+    write_config "$DOMAIN" "$MEDIAFLOW_API_PASSWORD" "${MEDIAFLOW_PROXY_URL:-}" "$target"
+    if run_version; then
+        echo "MediaFlow Proxy Light is on ${target} and answering."
+        # The old version's image is no longer needed
+        docker image rm "${IMAGE_REPO}:${previous}" >/dev/null 2>&1 || true
+        return 0
+    fi
+    warn "MediaFlow Proxy Light ${target} didn't answer in time. Putting ${previous} back."
+    docker logs --tail 15 "$CONTAINER_NAME" 2>&1 | sed 's/^/    /' || true
+    write_config "$DOMAIN" "$MEDIAFLOW_API_PASSWORD" "${MEDIAFLOW_PROXY_URL:-}" "$([[ "$previous" == latest ]] || echo "$previous")"
+    if run_version; then
+        warn "Back on ${previous}, answering. Nothing else changed."
+    else
+        warn "${previous} didn't come back either. Check its logs (docker logs ${CONTAINER_NAME}), or restore the backup made before this update."
+    fi
+    docker image rm "${IMAGE_REPO}:${target}" >/dev/null 2>&1 || true
+    return 1
+}
+
+# Menu option 11: the same as update-mediaflow, with questions.
+do_update() {
+    [[ -f "$CONFIG_FILE" ]] || error "Not set up yet. Run option 2 (Start) first."
+    # shellcheck disable=SC1090
+    source "$CONFIG_FILE"
+    local latest choice backup
+    latest=$(latest_version)
+    echo ""
+    echo "Installed: ${MF_VERSION:-latest (not pinned yet)}"
+    if valid_version "$latest"; then
+        echo "Newest:    ${latest}"
+    else
+        warn "Couldn't look up the newest release on GitHub."
+    fi
+    echo "Releases: $RELEASES_PAGE"
+    while true; do
+        if valid_version "$latest"; then
+            read -rp "Version to install [Enter for ${latest}, or e.g. 1.1.1, or q to cancel]: " choice
+            choice="${choice:-$latest}"
+        else
+            read -rp "Version to install (e.g. 1.1.2, or q to cancel): " choice
+        fi
+        choice="${choice#v}"
+        [[ "$choice" == "q" ]] && { echo "Cancelled."; return 0; }
+        valid_version "$choice" && break
+        warn "Type a version like 1.1.2."
+    done
+    if [[ "$choice" == "${MF_VERSION:-}" ]] && container_running "$CONTAINER_NAME"; then
+        echo "Already on ${choice}. Nothing to do."
+        return 0
+    fi
+    echo "  1) Back up first, then update"
+    echo "  2) Update without backing up"
+    echo "  3) Cancel"
+    read -rp "Select an option [1-3]: " backup
+    case "$backup" in
+        1) backup=yes ;;
+        2) backup=no ;;
+        *) echo "Cancelled."; return 0 ;;
+    esac
+    apply_update "$choice" "$backup" || true
 }
 
 do_uninstall() {
@@ -847,11 +989,35 @@ if [[ "${1:-}" == "start-mediaflow" ]]; then
     exit 0
 fi
 
+# update-mediaflow [--backup] [--version X.Y.Z]: the control panel's Update.
+# The newest release unless a version is given (an older one goes back to it).
+if [[ "${1:-}" == "update-mediaflow" ]]; then
+    [[ -f "$CONFIG_FILE" ]] || error "No MediaFlow config found at $CONFIG_FILE, nothing to update."
+    # shellcheck disable=SC1090
+    source "$CONFIG_FILE"
+    shift
+    u_backup=no u_version=""
+    while (( $# )); do
+        case "$1" in
+            --backup) u_backup=yes ;;
+            --version) shift; u_version="${1:-}"; u_version="${u_version#v}"
+                valid_version "$u_version" || error "--version needs a version like 1.1.2." ;;
+            *) error "Unknown option '$1'. Use: update-mediaflow [--backup] [--version X.Y.Z]" ;;
+        esac
+        shift
+    done
+    if [[ -z "$u_version" ]]; then
+        u_version=$(latest_version)
+        valid_version "$u_version" || error "Couldn't look up the newest release on GitHub. Nothing was changed."
+    fi
+    if apply_update "$u_version" "$u_backup" < /dev/null; then exit 0; else exit 1; fi
+fi
+
 while true; do
     echo ""
     echo "=== MediaFlow Proxy Light control ==="
     echo "1) Status"
-    echo "2) Start (also pulls the latest image)"
+    echo "2) Start"
     echo "3) Stop"
     echo "4) Reconfigure (change subdomain/password)"
     echo "5) Test (checks the proxy itself is alive)"
@@ -860,7 +1026,9 @@ while true; do
     echo "8) Remove fail2ban protection"
     echo "9) Uninstall"
     echo "10) Exit"
-    read -rp "Choose an option [1-10]: " CHOICE
+    # A new number after Exit: older control panels type 3 then 10, so none of the others move
+    echo "11) Update (or go back to an older version)"
+    read -rp "Choose an option [1-11]: " CHOICE
     case "$CHOICE" in
         1) do_status ;;
         2) do_start ;;
@@ -874,6 +1042,7 @@ while true; do
         8) do_uninstall_fail2ban ;;
         9) do_uninstall ;;
         10) exit 0 ;;
+        11) do_update ;;
         *) warn "Not a valid option." ;;
     esac
 done

@@ -83,6 +83,22 @@ _STATIC: dict[str, Action] = {a.id: a for a in [
            needs=("setup-aiometadata.sh", "aiometadata-state/docker-compose.yml"),
            confirm="Stop AIOMetadata? Catalogs and metadata from it stop loading in Stremio and Nuvio."),
 
+    Action("aiomanager.start", "Start", "Starting", "Start finished", "setup-aiomanager.sh",
+           args=("start-aiomanager",), timeout=300,
+           needs=("setup-aiomanager.sh", "aiomanager-state/docker-compose.yml")),
+    Action("aiomanager.stop", "Stop", "Stopping", "Stop finished", "setup-aiomanager.sh",
+           args=("stop-aiomanager",), timeout=120,
+           needs=("setup-aiomanager.sh", "aiomanager-state/docker-compose.yml"),
+           confirm="Stop AIOManager? Its site goes offline and its autopilot rules stop running. Your apps keep their addons."),
+    # Sign-ups: open for 30 minutes (the script's timer closes them), or closed now.
+    # Either recreates the container, a few seconds.
+    Action("aiomanager.signups_open", "Open sign-ups", "Opening sign-ups", "Sign-ups open", "setup-aiomanager.sh",
+           args=("signups", "open", "30"), timeout=180,
+           needs=("setup-aiomanager.sh", "aiomanager-state/docker-compose.yml")),
+    Action("aiomanager.signups_close", "Close sign-ups", "Closing sign-ups", "Sign-ups closed", "setup-aiomanager.sh",
+           args=("signups", "close"), timeout=180,
+           needs=("setup-aiomanager.sh", "aiomanager-state/docker-compose.yml")),
+
     # The VPN's own checks run in the script: the tunnel is confirmed before
     # AIOStreams starts, the boot hook follows the mode, and a failed switch
     # stops with the stack as it was. "off" keeps AIOStreams live throughout.
@@ -173,6 +189,29 @@ def build_meta_update(backup: bool) -> Action:
                   confirm="Update AIOMetadata to its newest release? Its catalogs stop loading for a minute or so.")
 
 
+def build_manager_update(backup: bool) -> Action:
+    """AIOManager to its newest release, as AIOMetadata's: update-aiomanager puts the
+    previous release back by itself if the new one doesn't start."""
+    if not isinstance(backup, bool):
+        raise BadAction("backup must be true or false")
+    return Action("aiomanager.update", "Update", "Updating", "Update finished", "setup-aiomanager.sh",
+                  args=("update-aiomanager",) + (("--backup",) if backup else ()), timeout=1200,
+                  needs=("setup-aiomanager.sh", "aiomanager-state/docker-compose.yml"),
+                  confirm="Update AIOManager to its newest release? Its site is offline for a minute or so.")
+
+
+def build_mediaflow_update(backup: bool) -> Action:
+    """MediaFlow Proxy Light to its newest release, as the others: update-mediaflow puts
+    the previous release back by itself if the new one doesn't answer. On a setup from
+    before pinning it pins to the newest."""
+    if not isinstance(backup, bool):
+        raise BadAction("backup must be true or false")
+    return Action("mediaflow.update", "Update", "Updating", "Update finished", "setup-mediaflow.sh",
+                  args=("update-mediaflow",) + (("--backup",) if backup else ()), timeout=600,
+                  needs=("setup-mediaflow.sh", "mediaflow-state/docker-compose.yml"), script_has="update-mediaflow",
+                  confirm="Update MediaFlow Proxy to its newest release? Streams through it pause for a few seconds.")
+
+
 def build_restore(path: str) -> Action:
     """A same-server rollback to the backup at path, which the caller has
     matched against the backups actually on the server. --same-server runs
@@ -239,6 +278,7 @@ def build_vpn_uninstall(remove_image: bool, delete_confs: bool) -> Action:
 # wants "uninstall" typed, like the VPN's.
 ADDON_UNINSTALL = {
     "aiometadata": ("AIOMetadata", "setup-aiometadata.sh", "aiometadata-state/config", True),
+    "aiomanager": ("AIOManager", "setup-aiomanager.sh", "aiomanager-state/config", True),
     "mediaflow": ("MediaFlow Proxy", "setup-mediaflow.sh", "mediaflow-state/config", True),
 }
 
@@ -268,7 +308,7 @@ def build_set_topic(topic) -> Action:
 
 # Each add-on script's state folder: while it's there, the add-on is set up and its script stays
 ADDON_STATE = {"vpn": "vpn-state", "mediaflow": "mediaflow-state", "watchdog": "watchdog-state",
-               "aiometadata": "aiometadata-state"}
+               "aiometadata": "aiometadata-state", "aiomanager": "aiomanager-state"}
 
 
 def resolve(action_id: str, params: dict | None = None) -> Action:
@@ -277,6 +317,10 @@ def resolve(action_id: str, params: dict | None = None) -> Action:
         return build_update(params.get("backup", True), params.get("channel"))
     if action_id == "aiometadata.update":
         return build_meta_update(params.get("backup", True))
+    if action_id == "aiomanager.update":
+        return build_manager_update(params.get("backup", True))
+    if action_id == "mediaflow.update":
+        return build_mediaflow_update(params.get("backup", True))
     if action_id == "vpn.use":
         return build_use_address(params.get("ip"))
     if action_id == "vpn.uninstall":
@@ -294,7 +338,7 @@ def resolve(action_id: str, params: dict | None = None) -> Action:
 
 
 def catalog() -> list[Action]:
-    return list(_STATIC.values()) + [build_update(True, None), build_meta_update(True), build_use_address("192.0.2.1"), build_use_config("192.0.2.1"),
+    return list(_STATIC.values()) + [build_update(True, None), build_meta_update(True), build_manager_update(True), build_mediaflow_update(True), build_use_address("192.0.2.1"), build_use_config("192.0.2.1"),
                                      build_delete_config("/"), build_use_file("/", "192.0.2.1"), build_vpn_uninstall(False, False),
                                      build_set_topic("aios-example-topic")] + [build_addon_uninstall(a, False) for a in ADDON_UNINSTALL]
 
@@ -306,6 +350,7 @@ def catalog() -> list[Action]:
 SCRIPTS = [
     ("aiostreams", "AIOStreams menu", "setup-aiostreams.sh"),
     ("aiometadata", "AIOMetadata", "setup-aiometadata.sh"),
+    ("aiomanager", "AIOManager", "setup-aiomanager.sh"),
     ("watchdog", "Phone alerts", "setup-watchdog.sh"),
     ("vpn", "VPN (Gluetun)", "setup-vpn-gluetun.sh"),
     ("mediaflow", "MediaFlow Proxy", "setup-mediaflow.sh"),

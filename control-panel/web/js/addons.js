@@ -32,9 +32,13 @@ const secret = (addon, name) => api(`/api/addons/${addon}/secret/${name}`).then(
 // A link shows its host and path, not https://
 const short = (url) => url.replace(/^https?:\/\//, "");
 
-// One tile. r: { label, note, link } | { label, note, secret: [addon, name], hidden } | { label, note, text, tone }
+// One tile. r: { label, note, link } | { label, note, copy } (an address only this server can open)
+// | { label, note, secret: [addon, name], hidden } | { label, note, text, tone }
+// | { label, note, text, tone, toggle: { on, title, change, working } }
 function tile(r) {
-  const value = h("span", { class: "ao-val" + (r.link || r.secret ? " mono" : "") + (r.tone ? " " + r.tone : "") });
+  const value = h("span", { class: "ao-val" + (r.link || r.copy || r.secret ? " mono" : "") + (r.tone ? " " + r.tone : "") });
+  // While a switch's change is being made: a spinner beside the value, and the switch held where it was put
+  const spin = r.toggle && r.toggle.working ? h("span", { class: "spin", "aria-hidden": "true" }) : null;
   const btns = h("span", { class: "ao-btns" });
   if (r.link) {
     value.textContent = short(r.link);
@@ -42,6 +46,10 @@ function tile(r) {
     const open = h("a", { class: "ao-ic", href: r.link, target: "_blank", rel: "noopener noreferrer", "aria-label": `Open ${r.label}`, title: `Open ${r.label}` });
     open.innerHTML = ICON.open;
     btns.append(iconBtn("copy", `Copy ${r.label}`, () => copy(r.link, r.label)), open);
+  } else if (r.copy) {
+    value.textContent = r.copy;
+    value.title = r.copy;
+    btns.append(iconBtn("copy", `Copy ${r.label}`, () => copy(r.copy, r.label)));
   } else if (r.secret) {
     const hidden = r.hidden || "••••••••••";
     let shown = false;
@@ -63,9 +71,14 @@ function tile(r) {
   } else {
     value.textContent = r.text;
   }
+  if (r.toggle) {
+    const input = h("input", { type: "checkbox", checked: r.toggle.on, disabled: !!(st && st.busy) || !!r.toggle.working, "aria-label": r.toggle.title });
+    input.addEventListener("change", () => r.toggle.change(input));
+    btns.append(h("label", { class: "sw", title: r.toggle.title }, input, h("i", { "aria-hidden": "true" })));
+  }
   return h("div", { class: "ao-row" },
     h("div", { class: "ver-label", text: r.label }),
-    h("div", { class: "ao-line" }, value, btns.childNodes.length ? btns : null),
+    h("div", { class: "ao-line" }, spin, value, btns.childNodes.length ? btns : null),
     h("div", { class: "ver-sub ao-note", text: r.note || "", title: r.note || null }));
 }
 
@@ -80,7 +93,31 @@ function certTile(host) {
 
 // ---- the cards ----
 
-const NAMES = { aiometadata: "AIOMetadata", mediaflow: "MediaFlow Proxy", webhook: "Webhook relay" };
+const NAMES = { aiometadata: "AIOMetadata", aiomanager: "AIOManager", mediaflow: "MediaFlow Proxy", webhook: "Webhook relay" };
+
+// AIOManager's sign-ups switch: open runs the script's "signups open 30" (it closes them
+// itself after that), off closes them now. Either recreates its container, a few seconds,
+// so the switch says so meanwhile rather than flick back while the status catches up.
+const untilTime = (t) => new Date(t * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+let signupsWant = null;    // "open" | "closed" while a change is being made
+let signupsSince = 0;
+async function setSignups(input) {
+  const open = input.checked;
+  signupsWant = open ? "open" : "closed";
+  signupsSince = Date.now();
+  render();
+  try {
+    const job = await api(`/api/actions/aiomanager.signups_${open ? "open" : "close"}`, { method: "POST", body: JSON.stringify({ params: {} }) });
+    window.dispatchEvent(new CustomEvent("job-started"));
+    const done = await waitJob(job.id);
+    if (done.code !== 0) { signupsWant = null; toast(`Couldn't ${open ? "open" : "close"} sign-ups. Activity has the output.`, true); }
+    else toast(open ? "Sign-ups are open for 30 minutes, then close by themselves." : "Sign-ups are closed.");
+  } catch (e) {
+    signupsWant = null;
+    toast(e.message, true);
+  }
+  render();
+}
 
 function dockerCard(a) {
   const s = svc(a.id);
@@ -95,10 +132,28 @@ function dockerCard(a) {
       { label: "Dashboard", link: `https://${a.domain}/dashboard` },
       { label: "Admin key", secret: ["aiometadata", "admin_key"], note: "Opens the Dashboard" },
       { label: "Version", text: ver || "Unknown", note: "Updates are on the Overview" });
+  } else if (a.id === "aiomanager") {
+    const m = (st && st.aiomanager) || {};
+    const open = m.signups === "open";
+    // A change being made ends once the status shows it (or after a minute, whatever it shows)
+    if (signupsWant && (m.signups === signupsWant || Date.now() - signupsSince > 60000)) signupsWant = null;
+    const signups = signupsWant
+      ? { label: "Sign-ups", text: signupsWant === "open" ? "Opening…" : "Closing…", note: "AIOManager restarts with it, a few seconds",
+          toggle: { on: signupsWant === "open", title: "Working on it", working: true, change: setSignups } }
+      : { label: "Sign-ups", text: open ? (m.signups_until ? `Open until ${untilTime(m.signups_until)}` : "Open") : "Closed",
+          tone: open ? "warn" : "", note: open ? "Anyone with the address can make a login" : "Open for 30 minutes to make a login",
+          toggle: { on: open, title: open ? "Close sign-ups now" : "Open sign-ups for 30 minutes", change: setSignups } };
+    rows.push({ label: "Address", link: `https://${a.domain}` }, signups,
+      { label: "Logins", text: m.logins != null ? String(m.logins) : "Unknown", note: "Each one a UUID and password" },
+      { label: "Version", text: m.version || a.version || "Unknown", note: "Updates are on the Overview" });
   } else if (a.id === "mediaflow") {
-    rows.push({ label: "Address", link: `https://${a.domain}` },
-      { label: "API password", secret: ["mediaflow", "api_password"], note: "Goes in AIOStreams" },
-      { label: "Outbound proxy", text: a.proxy || "None", note: a.proxy ? "Video goes out through it" : "Video uses this server's IP" });
+    // Named as AIOStreams' Proxy settings name them, where all three go (Proxy Service: MediaFlow Proxy)
+    rows.push({ label: "URL", copy: a.url || "http://mediaflow-proxy-light:8888", note: "AIOStreams' URL: its address inside this server" },
+      { label: "Public URL", link: `https://${a.domain}`, note: "AIOStreams' Public URL: what your apps connect to" },
+      { label: "API password", secret: ["mediaflow", "api_password"], note: "AIOStreams' Credentials" },
+      { label: "Version", text: (st && st.mediaflow && st.mediaflow.version) || "Latest image",
+        note: st && st.mediaflow && st.mediaflow.version ? "Updates are on the Overview" : "Pinned to a release at its next Update" },
+      { label: "Outbound proxy", text: a.proxy || "None", note: a.proxy ? "Video is fetched through it" : "Video is fetched from this server's IP" });
   } else if (a.id === "webhook") {
     rows.push({ label: "Address", text: a.domain, note: "Gets no updates" });
   }
@@ -166,6 +221,8 @@ const waitJob = async (id) => {
 const UNINSTALL = {
   aiometadata: { title: "AIOMetadata", action: "aiometadata.uninstall", image: "Remove the AIOMetadata and Redis images too",
     body: "Its containers, its cache, its site and its saved settings are removed, including every configuration and account in its database. AIOStreams and the other add-ons stay. Remove it from your apps and AIOStreams afterwards." },
+  aiomanager: { title: "AIOManager", action: "aiomanager.uninstall", image: "Remove the AIOManager image too",
+    body: "Its container, its site and its saved settings are removed, including every login and everything synced to it. AIOStreams and the other add-ons stay. Addons it installed in your apps stay where they are." },
   mediaflow: { title: "MediaFlow Proxy", action: "mediaflow.uninstall", image: "Remove the MediaFlow image too",
     body: "Its container, its site, its saved settings (the API password too) and its fail2ban jail, if it has one, are removed. AIOStreams and the other add-ons stay. Switch AIOStreams' proxy setting off MediaFlow afterwards." },
   // A restore leaves the retired relay out, so a backup can't bring it back
@@ -199,18 +256,22 @@ async function uninstall(id) {
       read: () => ({ backup: !u.noBackup && backup.checked, remove_image: !!u.image && image.checked, delete_confs: files.length > 0 && confs.checked, confirm: gate.value.trim() }) } });
   if (!res) return;
   try {
+    let before = null;
     if (res.backup) {
       const b = await api("/api/actions/stack.backup", { method: "POST", body: JSON.stringify({ params: {} }) });
       openJob(b.id);
       window.dispatchEvent(new CustomEvent("job-started"));
       const done = await waitJob(b.id);
       if (done.code !== 0) { toast(`The backup failed, so ${u.title} wasn't uninstalled.`, true); return; }
+      // The uninstall's output replaces the backup's in the drawer; its first line keeps a way back
+      const made = (done.lines || []).map((l) => (/Backup written\b.*?(aiostreams-backup-[\w.-]+?\.tar\.gz)/.exec(l.t || "") || [])[1]).find(Boolean);
+      before = { text: made ? `Backed up first: ${made}.` : "Backed up first.", id: b.id };
     }
     const params = { confirm: res.confirm };
     if (u.image) params.remove_image = res.remove_image;
     if (id === "vpn") params.delete_confs = res.delete_confs;
     const job = await api(`/api/actions/${u.action}`, { method: "POST", body: JSON.stringify({ params }) });
-    openJob(job.id);
+    openJob(job.id, false, before);
     window.dispatchEvent(new CustomEvent("job-started"));
   } catch (e) {
     toast(e.message, true);
@@ -261,6 +322,6 @@ export function setStatus(status) {
   st = status;
   const busy = !!status.busy;
   if (wasBusy && !busy) load();
-  else if (busy !== wasBusy) render();
+  else if (busy !== wasBusy || signupsWant) render();
   wasBusy = busy;
 }

@@ -52,15 +52,17 @@ It is still root-equivalent on your server, because it has to run the scripts an
 | Button | Script and input |
 | --- | --- |
 | Start, Stop (AIOStreams' row), Restart stack | `setup-aiostreams.sh start`, `stop`, `restart` (menu options 3, 2, 4 without their questions) |
-| Restart (per service) | restarts just that container through Docker; AIOStreams, MediaFlow and AIOMetadata only |
+| Restart (per service) | restarts just that container through Docker; AIOStreams, MediaFlow, AIOMetadata and AIOManager only |
 | Update | `setup-aiostreams.sh update`, with `--backup` and `--channel latest\|nightly` from the dialog (menu option 5 without its questions) |
 | Back up now | `setup-aiostreams.sh backup` |
 | Scheduled backups: Set, Off | `setup-backup.sh schedule daily HH:MM`, `weekly <1-7> HH:MM`, `off`, which writes `backup-schedule` and the systemd timer |
-| MediaFlow | `setup-mediaflow.sh start-mediaflow`, `stop-mediaflow` |
+| MediaFlow: Start, Stop, Update | `setup-mediaflow.sh start-mediaflow`, `stop-mediaflow`, `update-mediaflow` (with `--backup` from the dialog; offered once the script on the server knows the command) |
 | AIOMetadata: Start, Stop, Update | `setup-aiometadata.sh start-aiometadata`, `stop-aiometadata`, `update-aiometadata` (with `--backup` from the dialog) |
+| AIOManager: Start, Stop, Update | `setup-aiomanager.sh start-aiomanager`, `stop-aiomanager`, `update-aiomanager` (with `--backup` from the dialog) |
+| AIOManager: Sign-ups switch | `setup-aiomanager.sh signups open 30` (closes by itself after 30 minutes), `signups close` |
 | Phone alerts: Start, Stop, Send test alert | `setup-watchdog.sh install-timer`, `stop` (with menu option 3 typed too, for older copies of the script), `test` |
 | Add-ons: Uninstall (Phone alerts) | `setup-watchdog.sh uninstall` (menu option 9 without its question; the panel asks first) |
-| Add-ons: Uninstall (AIOMetadata, MediaFlow) | `setup-aiostreams.sh backup` first if ticked, then the add-on's `uninstall`, with `remove-image` if ticked |
+| Add-ons: Uninstall (AIOMetadata, AIOManager, MediaFlow) | `setup-aiostreams.sh backup` first if ticked, then the add-on's `uninstall`, with `remove-image` if ticked |
 | Add-ons: Uninstall (the retired webhook relay) | `setup-aiostreams.sh remove-webhook-relay`, offered once the script has it; no backup, since a restore leaves the relay out, and its common Python image is left for Free up space |
 | Phone alerts: Change topic | `setup-watchdog.sh set-topic`, with the topic on stdin (never on a command line or in Activity), then a test alert to it |
 | Phone alerts: the switches, the check-in's day and time, Reset, Clear history | written straight to `watchdog-state/options`, `tally` and `events` (the script's `set-option` does the same over SSH) |
@@ -100,13 +102,15 @@ Once a minute, whether or not the panel is open, it reads two sets of byte count
 
 **Whole server** and **VPN tunnel** (only once the VPN is set up) switch the Traffic card between the two. The graph is minute by minute over 1 hour, 5-minute averages over 24 hours and hourly averages over 7 days. **Clear history** empties the one shown and starts it again from now. **By service** is each container's speed from Docker's own counters, worked out from the panel's last two looks at them. AIOStreams on the VPN shares gluetun's network and has no counters of its own, so it's shown once, under the tunnel.
 
-The Overview's **This server** shows the server's speed now and today's totals as its **Network** value, and the VPN's card shows the tunnel's; both link here. On desktop, This server is two rows of four values, with the certificates in a section of their own below, folded to the soonest one unless one needs a look.
+The Overview's **This server** shows the server's speed now and today's totals as its **Network** value, the VPN's card shows the tunnel's, and MediaFlow's card shows what's passing through MediaFlow now; all three link here. On desktop, This server is two rows of four values, with the certificates in a section of their own below, folded to the soonest one unless one needs a look.
 
 ## VPN page
 
 ![The VPN page, with the configs on this server](../images/control-panel/vpn.png)
 
 The VPN also gets a card on the Overview once it's set up, listed in Edit's drawer: whether the tunnel is connected, where traffic leaves, the server, and with the VPN on, its speed now and today's totals, with **Turn VPN off** (or on) and **Check now**. Turning it on with no config saved goes through this page, which asks for one.
+
+AIOMetadata, AIOManager and MediaFlow each get a version card on the Overview once installed, like AIOStreams': the release they run, the newest, **Update** (with **Back up first**, and the previous release put back by itself if the new one doesn't start), **Check now** and **All releases**. AIOMetadata's and AIOManager's have links to their own pages beside the title; AIOManager's corner shows its logins, or **Sign-ups open** in amber, and MediaFlow's shows what's passing through it now. See each add-on's guide for the details.
 
 It appears on the rail once `setup-vpn-gluetun.sh` has set the VPN up, on or off. It shows whether the tunnel is connected and, asked from inside the VPN container (`ipinfo.io`, falling back to plain IP lookups), where traffic leaves: the exit IP, city, country and network. It also shows the endpoint name and server address, read from `vpn-state`; the panel reads only those lines, never the keys. **DNS** makes a lookup inside gluetun and reads its open connections from `/proc/net/tcp`: DNS-over-TLS (port 853) to 1.1.1.1/1.0.0.1 or 9.9.9.9/149.112.112.112 shows as encrypted with Cloudflare or Quad9 named; plain DNS on port 53 shows amber; nothing seen shows nothing. It's the script's own "DNS: encrypted" check. A check is reused for a minute; **Check now** asks again. **Turn VPN off** keeps AIOStreams live through the switch and **Turn VPN on** waits for the tunnel before starting it; both are the script doing the work, with its own checks. **Change server** appears when the config's endpoint is a name: the script looks it up again, pings each address from the server and lists them fastest first; the address picked is the only thing sent back, and the panel accepts only an IPv4 address. **Update VPN** pulls the newest `qmcgaw/gluetun:v3` and restarts the stack only if the image changed and the VPN is on.
 
@@ -120,9 +124,9 @@ Uninstalling the VPN is on the [Add-ons page](#add-ons-page). The script's `unin
 
 ![The Add-ons page: a card for each add-on, with its links, hidden passwords and keys, and Uninstall](../images/control-panel/addons.png)
 
-It appears on the rail once any optional add-on is installed: AIOMetadata, MediaFlow Proxy, the VPN or phone alerts (and the retired webhook relay, with only its address and Uninstall). Each gets a card with what its script's Status and Show options print, its subdomain's certificate and its memory use; the VPN's and Phone alerts' cards are short, since their own pages hold their settings. Links show their host and path, with Copy and open buttons. Secrets (AIOMetadata's addon password and admin key, MediaFlow's API password) aren't in the page: the panel reads each from the add-on's saved settings only when its eye or Copy is pressed, one at a time, sent with `Cache-Control: no-store`, and the page doesn't keep it. A MediaFlow outbound proxy shows without its login. The watchdog's topic stays masked here too.
+It appears on the rail once any optional add-on is installed: AIOMetadata, AIOManager, MediaFlow Proxy, the VPN or phone alerts (and the retired webhook relay, with only its address and Uninstall). Each gets a card with what its script's Status and Show options print, its subdomain's certificate and its memory use; the VPN's and Phone alerts' cards are short, since their own pages hold their settings. Links show their host and path, with Copy and open buttons. Secrets (AIOMetadata's addon password and admin key, MediaFlow's API password) aren't in the page: the panel reads each from the add-on's saved settings only when its eye or Copy is pressed, one at a time, sent with `Cache-Control: no-store`, and the page doesn't keep it. A MediaFlow outbound proxy shows without its login. The watchdog's topic stays masked here too. MediaFlow's card lists the three things AIOStreams' Proxy settings ask for, under the same names: **URL** (its address inside the server, Copy only), **Public URL** and **API password** (the **Credentials** field). AIOManager's card has the **sign-ups switch**: on opens them for 30 minutes (they close by themselves), off closes them now; while AIOManager restarts with the change, it shows **Opening…** or **Closing…** with a spinner.
 
-**Uninstall** on each card asks for `uninstall` to be typed. **Back up first** runs a normal backup and stops if it fails (a backup holds the add-on's settings, so a restore brings it back). Tick boxes cover the script's own questions: removing the images, and the VPN's `.conf` files. Each script's question-free `uninstall` does exactly what its menu's Uninstall does. The card goes once the add-on has.
+**Uninstall** on each card asks for `uninstall` to be typed. **Back up first** runs a normal backup and stops if it fails (a backup holds the add-on's settings, so a restore brings it back). Tick boxes cover the script's own questions: removing the images, and the VPN's `.conf` files. Each script's question-free `uninstall` does exactly what its menu's Uninstall does; with **Back up first**, its output starts with the backup made and a link to the backup's own output. The card goes once the add-on has.
 
 ## Phone alerts page
 

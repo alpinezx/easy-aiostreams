@@ -107,11 +107,18 @@ SERVICES = [
     ("mediaflow", "mediaflow-proxy-light", "MediaFlow Proxy", "Faster video proxy", "mediaflow-state/docker-compose.yml"),
     ("webhook", "aios-webhook-relay", "Webhook relay", "Webhooks to phone alerts", "webhook-relay-state/docker-compose.yml"),
     ("aiometadata", "aiometadata", "AIOMetadata", "Catalogs and metadata", "aiometadata-state/docker-compose.yml"),
+    ("aiomanager", "aiomanager", "AIOManager", "Manages Stremio accounts", "aiomanager-state/docker-compose.yml"),
 ]
-ADDONS = {"mediaflow", "webhook", "aiometadata"}
+ADDONS = {"mediaflow", "webhook", "aiometadata", "aiomanager"}
 # Services the panel may restart on their own. Caddy has the stack-wide Restart,
 # and bouncing the VPN tunnel can strand the containers routed through it.
-RESTARTABLE = {"aiostreams", "mediaflow", "aiometadata"}
+RESTARTABLE = {"aiostreams", "mediaflow", "aiometadata", "aiomanager"}
+# AIOManager's logins, counted inside its container (its image has Node, not a shell).
+# Rows without a password are its own bookkeeping. Read-only.
+_LOGIN_COUNT_JS = ("const D=require('better-sqlite3');"
+                   "const db=new D('/app/data/aio.db',{readonly:true,fileMustExist:true});"
+                   "console.log(db.prepare(\"SELECT COUNT(*) AS n FROM kv_store WHERE password IS NOT NULL AND password <> ''\").get().n);"
+                   "db.close()")
 
 
 TIME_RE = re.compile(r"^([01]?\d|2[0-3]):[0-5]\d$")
@@ -287,7 +294,7 @@ class Backend:
         return val
 
     # Which add-on owns a caddy.d snippet, by its file name
-    _SITE_LABELS = (("mediaflow", "MediaFlow"), ("aiometadata", "AIOMetadata"),
+    _SITE_LABELS = (("mediaflow", "MediaFlow"), ("aiometadata", "AIOMetadata"), ("aiomanager", "AIOManager"),
                     ("webhook", "Webhook relay"), ("ui", "Control panel"))
 
     def _caddy_sites(self, main_domain: str | None) -> list[tuple[str, str]]:
@@ -553,6 +560,7 @@ class Backend:
             "aiostreams": self.p("aiostreams-stopped-on-purpose").exists(),
             "mediaflow": self.p("mediaflow-state/stopped-on-purpose").exists(),
             "aiometadata": self.p("aiometadata-state/stopped-on-purpose").exists(),
+            "aiomanager": self.p("aiomanager-state/stopped-on-purpose").exists(),
         }
 
         services = []
@@ -617,8 +625,61 @@ class Backend:
             "certs": self._certs(domain),
             "backup": self.backup_summary() if installed else None,
             "aiometadata": self._aiometadata(by_name.get("aiometadata")),
+            "aiomanager": self._aiomanager(by_name.get("aiomanager")),
+            "mediaflow": self._mediaflow(by_name.get("mediaflow-proxy-light")),
             "actions": self.available_actions(),
         }
+
+    def _mediaflow(self, container) -> dict | None:
+        """MediaFlow's domain and the release it runs, once it's set up. version is None
+        while it still runs "latest" (set up before pinning; its next Start pins it).
+        The API password in the same file is never read here."""
+        c = self._addon_conf("mediaflow")
+        domain, version = c.get("DOMAIN"), c.get("MF_VERSION") or None
+        if container is not None:
+            m = re.search(r":(\d+\.\d+\.\d+)$", container.attrs.get("Config", {}).get("Image") or "")
+            version = m.group(1) if m else None
+        if not domain:
+            return None
+        if version and not re.fullmatch(r"\d+\.\d+\.\d+", version):
+            version = None
+        return {"domain": domain, "version": version}
+
+    def _aiomanager(self, container) -> dict | None:
+        """AIOManager's domain, release, sign-ups and logins, once it's installed. Its
+        settings file holds no secrets (server_secret.key is in its data folder, never read)."""
+        c = self._addon_conf("aiomanager")
+        domain, version = c.get("DOMAIN"), c.get("AIOMAN_VERSION")
+        running = False
+        if container is not None:
+            m = re.search(r":(\d+\.\d+\.\d+)$", container.attrs.get("Config", {}).get("Image") or "")
+            if m:
+                version = m.group(1)
+            running = bool(container.attrs.get("State", {}).get("Running"))
+        if not domain or not version or not re.fullmatch(r"\d+\.\d+\.\d+", version):
+            return None
+        until = c.get("SIGNUPS_UNTIL") or ""
+        return {"domain": domain, "version": version,
+                "signups": "open" if c.get("SIGNUPS") == "open" else "closed",
+                "signups_until": int(until) if until.isdigit() else None,
+                "logins": self._login_count(container) if running else None}
+
+    def _login_count(self, container) -> int | None:
+        """How many logins AIOManager holds, asked of its own container once a minute at most."""
+        now = time.time()
+        at, n = getattr(self, "_logins_cache", (0.0, None))
+        if now - at < 60:
+            return n
+        n = None
+        try:
+            r = container.exec_run(["/nodejs/bin/node", "-e", _LOGIN_COUNT_JS], workdir="/app/server")
+            out = (r.output or b"").decode(errors="replace").strip()
+            if r.exit_code == 0 and out.isdigit():
+                n = int(out)
+        except Exception:
+            pass
+        self._logins_cache = (now, n)
+        return n
 
     def _aiometadata(self, container) -> dict | None:
         """AIOMetadata's domain and the release it runs, once it's installed. Only those two
@@ -641,7 +702,8 @@ class Backend:
         return {"domain": domain, "version": version}
 
     # The Add-ons page. Each add-on's saved settings, as its script writes them (KEY='value').
-    _ADDON_CONF = {"aiometadata": "aiometadata-state/config", "mediaflow": "mediaflow-state/config",
+    _ADDON_CONF = {"aiometadata": "aiometadata-state/config", "aiomanager": "aiomanager-state/config",
+                   "mediaflow": "mediaflow-state/config",
                    "webhook": "webhook-relay-state/config"}
     # The secrets the page can show, each read only when asked for, one at a time
     _ADDON_SECRETS = {
@@ -667,11 +729,17 @@ class Backend:
         c = self._addon_conf("aiometadata")
         if c.get("DOMAIN"):
             out.append({"id": "aiometadata", "domain": c["DOMAIN"], "version": c.get("AIOM_VERSION") or None})
+        c = self._addon_conf("aiomanager")
+        if c.get("DOMAIN"):
+            # Sign-ups and logins come from the status, which the page already has
+            out.append({"id": "aiomanager", "domain": c["DOMAIN"], "version": c.get("AIOMAN_VERSION") or None})
         c = self._addon_conf("mediaflow")
         if c.get("DOMAIN"):
             # An outbound proxy's address without its login, as the script's Status prints it
             m = re.match(r"^([a-z0-9]+://)(?:[^@/]*@)?([^/?#]+)", c.get("MEDIAFLOW_PROXY_URL") or "", re.I)
-            out.append({"id": "mediaflow", "domain": c["DOMAIN"], "proxy": m.group(1) + m.group(2) if m else None})
+            # url: what AIOStreams' URL field takes, MediaFlow's address between the containers
+            out.append({"id": "mediaflow", "domain": c["DOMAIN"], "url": "http://mediaflow-proxy-light:8888",
+                        "proxy": m.group(1) + m.group(2) if m else None})
         # The retired webhook relay: only its address, for a card whose one job is Uninstall
         c = self._addon_conf("webhook")
         if c.get("DOMAIN"):
@@ -1126,6 +1194,8 @@ class Backend:
             watches.append("MediaFlow Proxy")
         if (self.p("aiometadata-state") / "config").exists():
             watches.append("AIOMetadata")
+        if (self.p("aiomanager-state") / "config").exists():
+            watches.append("AIOManager")
         return {
             "configured": True,
             "running": self._systemd_active("aiostreams-watchdog.timer"),
@@ -1145,6 +1215,8 @@ class Backend:
             "channel": {"latest": "stable", "nightly": "nightly"}.get(img.group(1)) if img else None,
             # its release switch only shows once it's installed
             "aiometadata": (self.p("aiometadata-state") / "config").exists(),
+            "aiomanager": (self.p("aiomanager-state") / "config").exists(),
+            "mediaflow": (self.p("mediaflow-state") / "config").exists(),
         }
 
     def _host_timezone(self) -> str | None:
@@ -1167,6 +1239,7 @@ class Backend:
                 "scripts": kv.get("scripts") == "on", "backups": kv.get("backups") == "on",
                 "security": kv.get("security") == "on",
                 "weekly": kv.get("weekly") == "on", "metadata": kv.get("metadata") == "on",
+                "manager": kv.get("manager") == "on", "mediaflow": kv.get("mediaflow") == "on",
                 "weekly_day": int(day) if day in {str(i) for i in range(1, 8)} else 7,
                 "weekly_time": weekly_time(kv)}
 
@@ -1175,7 +1248,7 @@ class Backend:
         and the check-in's day and hour. Kept in watchdog-state/options, which
         the script reads; written on the host, since the install folder is
         read-only here."""
-        if name in ("updates", "reboots", "scripts", "backups", "security", "weekly", "metadata") and isinstance(value, bool):
+        if name in ("updates", "reboots", "scripts", "backups", "security", "weekly", "metadata", "manager", "mediaflow") and isinstance(value, bool):
             text = "on" if value else "off"
         elif name == "weekly_day" and isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 7:
             text = str(value)

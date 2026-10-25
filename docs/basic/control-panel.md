@@ -54,7 +54,7 @@ The pages are icons down the left; point at one to see its name. On a phone they
 <img src="../images/control-panel/overview-phone.png" alt="The Overview tab on a phone" width="300"> <img src="../images/control-panel/menu-phone.png" alt="The menu on a phone" width="300">
 
 - The buttons do the same as the matching options in the setup scripts, so you can mix the panel and SSH freely.
-- Cards and pages for add-ons (AIOMetadata, the VPN, Phone alerts...) only appear once you've set them up with their scripts.
+- Cards and pages for add-ons (AIOMetadata, AIOManager, MediaFlow, the VPN, Phone alerts...) only appear once you've set them up with their scripts.
 - **Edit** on the Overview and **Edit menu** (the pencil) rearrange or hide cards and pages. The layout is saved on the server, so every device shows the same.
 - **Activity** keeps what every button printed, if you want to check how an update or backup went.
 
