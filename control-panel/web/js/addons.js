@@ -150,7 +150,7 @@ function dockerCard(a) {
     // Named as AIOStreams' Proxy settings name them, where all three go (Proxy Service: MediaFlow Proxy)
     rows.push({ label: "URL", copy: a.url || "http://mediaflow-proxy-light:8888", note: "AIOStreams' URL: its address inside this server" },
       { label: "Public URL", link: `https://${a.domain}`, note: "AIOStreams' Public URL: what your apps connect to" },
-      { label: "API password", secret: ["mediaflow", "api_password"], note: "AIOStreams' Password" },
+      { label: "API password", secret: ["mediaflow", "api_password"], note: "AIOStreams' Credentials" },
       { label: "Version", text: (st && st.mediaflow && st.mediaflow.version) || "Latest image",
         note: st && st.mediaflow && st.mediaflow.version ? "Updates are on the Overview" : "Pinned to a release at its next Update" },
       { label: "Outbound proxy", text: a.proxy || "None", note: a.proxy ? "Video is fetched through it" : "Video is fetched from this server's IP" });

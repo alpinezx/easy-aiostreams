@@ -61,7 +61,8 @@ same way.
   this contains your ntfy topic name
 - `backup-schedule`, if [scheduled backups](#scheduled-backups) are on
 - AIOMetadata's `aiometadata-state/` (settings, database, a note of whether it was running), without the lookup files it downloads again by itself; Redis is only a cache and isn't included. See the [AIOMetadata guide](./aiometadata.md#backups)
-- Every install script (`setup-aiostreams.sh`, `setup-backup.sh`, `setup-vpn-gluetun.sh`, `setup-watchdog.sh`, `setup-mediaflow.sh`, `setup-aiometadata.sh`): any `.sh` file in `/opt/aiostreams` is included automatically, which is why all install commands download there first
+- AIOManager's `aiomanager-state/` (settings, database with every login, `server_secret.key`, a note of whether it was running). See the [AIOManager guide](./aiomanager.md#backups)
+- Every install script (`setup-aiostreams.sh`, `setup-backup.sh`, `setup-vpn-gluetun.sh`, `setup-watchdog.sh`, `setup-mediaflow.sh`, `setup-aiometadata.sh`, `setup-aiomanager.sh`): any `.sh` file in `/opt/aiostreams` is included automatically, which is why all install commands download there first
 
 **Not included:** Caddy's HTTPS certificates. They're in Docker volumes, and Caddy re-issues them automatically once DNS resolves on the new server. No point bundling them.
 
@@ -80,9 +81,10 @@ sudo bash /opt/aiostreams/setup-aiostreams.sh backup
 ```
 
 While the tarball is written (a few seconds), AIOStreams is paused so its
-database is copied in one piece rather than caught mid-write. It's frozen,
-not stopped: nothing restarts, and it carries on as soon as the copy is done.
-If AIOStreams was stopped on purpose, it's left stopped.
+database is copied in one piece rather than caught mid-write, and so are
+AIOMetadata and AIOManager if they're running. They're frozen, not stopped:
+nothing restarts, and they carry on as soon as the copy is done. If one was
+stopped on purpose, it's left stopped.
 
 Either way, this writes a timestamped tarball, e.g.
 `aiostreams-backup-YYYYMMDD-HHMMSS.tar.gz`, and prints the `scp` command
@@ -202,8 +204,9 @@ current one aside, right next to it (e.g.
 `/opt/aiostreams.pre-restore-YYYYMMDD-HHMMSS`) rather than deleting it
 outright, so you can recover if you picked the wrong tarball.
 
-Its add-ons go first: AIOMetadata, MediaFlow, the webhook relay, the watchdog
-timer, the VPN boot hook, MediaFlow's fail2ban jail and the control panel are stopped
+Its add-ons go first: AIOMetadata, AIOManager (and its sign-ups timer), MediaFlow,
+the webhook relay, the watchdog timer, the VPN boot hook, MediaFlow's fail2ban jail
+and the control panel are stopped
 and removed before the folder moves, and the restore warns you which ones it
 found. Their settings stay in the set-aside copy. Then the **backup's** own
 add-ons come back (see [Add-ons on restore](#add-ons-on-restore)), so you
@@ -340,7 +343,7 @@ A backup records which add-ons were **installed** (their settings are in it)
 and which were **running** when it was made. The restore uses both:
 
 - **Every installed add-on gets its subdomain checked**, running or not:
-  AIOMetadata, MediaFlow Proxy and the control panel. One that's
+  AIOMetadata, AIOManager, MediaFlow Proxy and the control panel. One that's
   switched off today still needs DNS pointing here the day you switch it on.
 - If a subdomain points here, nothing to do. If it points somewhere else
   (usually the old server) or doesn't resolve, the restore says so with both
@@ -361,6 +364,9 @@ and which were **running** when it was made. The restore uses both:
   It also lists what needs updating elsewhere:
   - AIOMetadata on a new subdomain: its configurations live at the new
     address, so install them in your apps (or AIOStreams) again.
+  - AIOManager on a new subdomain: sign in there with your UUID and
+    password (and use **Pull from Cloud** in its Settings if your accounts
+    don't appear). Its sign-ups come back closed, whatever the backup had.
   - MediaFlow on a new subdomain: set its **Public URL** in the AIOStreams
     dashboard to the new address.
   - The control panel's unlock link, to open once in each browser.
@@ -377,6 +383,10 @@ them on again.
 The webhook relay was retired in October 2026, so it never comes back from a
 backup: the restore drops its settings and Caddy site, and the summary says
 so. Older backups that have it restore fine otherwise.
+
+MediaFlow from a backup made before its releases were pinned (October 2026)
+runs "latest". When the restore starts it, it's pinned to the newest
+release, which is what "latest" was anyway.
 
 ---
 

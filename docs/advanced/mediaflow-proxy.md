@@ -187,9 +187,29 @@ Remove the jail entirely with menu option 8. It only touches its own filter/jail
 
 ---
 
+## Updates and going back
+
+MediaFlow Proxy Light runs a pinned release (`ghcr.io/mhdzumair/mediaflow-proxy-light:1.1.2`, say), kept in `mediaflow-state/config` as `MF_VERSION`, so nothing changes until you update. Start runs the pinned release and never a newer one. A setup from before pinning (October 2026), or a restore of an older backup, runs `latest` until its next Start, which pins it to the newest release: what `latest` was anyway.
+
+Three ways to update, all the same underneath:
+
+- The control panel: **Update** on MediaFlow's Overview card, with **Back up first** ticked.
+- The menu: **11) Update**, which also lets you pick an older version. It's 11, after Exit, so the older menu numbers the control panel types never move.
+- A command, which asks nothing:
+
+```bash
+sudo bash /opt/aiostreams/setup-mediaflow.sh update-mediaflow [--backup] [--version X.Y.Z]
+```
+
+It downloads the release first (a version that doesn't exist changes nothing), restarts MediaFlow and waits up to a minute for it to answer `/health`. The image has no shell of its own, so it's asked through the Caddy container, as the watchdog does. If it doesn't answer, it shows the last log lines, puts the previous release back and removes the one that failed. MediaFlow keeps no data of its own, so going back to an older release is safe.
+
+With the [control panel](./control-panel.md), MediaFlow's Overview card shows the release it runs, the newest one, **Update**, **Check now** and **All releases**, and in its corner what's passing through it right now (it links to the Network page). With the [watchdog](./watchdog.md), you can switch on an alert for new releases (option 10 in its Extra alerts, or the Phone alerts page): one per release, checked every 6 hours.
+
+---
+
 ## Everyday use / menu reference
 
-Run `sudo bash /opt/aiostreams/setup-mediaflow.sh` any time for the menu: Status, Start, Stop, Reconfigure, Test, Show AIOStreams dashboard settings, Add/Remove fail2ban protection, Uninstall.
+Run `sudo bash /opt/aiostreams/setup-mediaflow.sh` any time for the menu: Status (including the release it runs and whether a newer one is out), Start, Stop, Reconfigure, Test, Show AIOStreams dashboard settings, Add/Remove fail2ban protection, Uninstall, and **11) Update**.
 
 **Test** (option 5) checks two things in sequence: first that the container itself responds (via a throwaway `curlimages/curl` container on the same Docker network, since MediaFlow Proxy Light's image has no shell utilities of its own to exec into), then that the real public path works end to end (DNS, TLS, and Caddy, the same route your actual streaming client uses). If the first passes but the second fails, the problem is in DNS/cert/Caddy, not MediaFlow itself.
 
