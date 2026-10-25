@@ -214,6 +214,8 @@ button.chip:hover { text-decoration: underline; }
 .ver-card { padding: 16px 20px 18px; }
 .ver-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .ver-head h2 { margin: 0; font-size: .98rem; font-weight: 650; }
+/* the corner chip (Stable, "1 login", "Sign-ups open") keeps its one line; the title and links give way */
+.ver-head > .chip { flex: none; white-space: nowrap; }
 /* Opens AIOStreams: the title is the link, padded so it's an easy tap on a phone */
 /* The version running on the left, the latest centred on the card's middle, the buttons on
    the right: equal side columns keep the middle centred whatever the buttons' width, so it
