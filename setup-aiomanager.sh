@@ -268,7 +268,7 @@ check_subdomain_dns() {
 
 # ---- Sign-ups -----------------------------------------------------------
 # Open only while someone makes a login: the first one at setup, more
-# later from Sign-ups (option 11) or the control panel. Each opening closes
+# later from Sign-ups (option 10) or the control panel. Each opening closes
 # by itself after a while, through a one-off systemd timer.
 
 cancel_signups_timer() {
@@ -299,7 +299,7 @@ signups_open() {
             /bin/bash "$SCRIPT_PATH" signups close >/dev/null 2>&1; then
         echo "Sign-ups are open until $(date -d "@$until" '+%H:%M') (server time), then close by themselves."
     else
-        warn "Sign-ups are open, but couldn't set them to close by themselves. Close them with option 11 when you're done."
+        warn "Sign-ups are open, but couldn't set them to close by themselves. Close them with option 10 when you're done."
     fi
 }
 
@@ -318,7 +318,7 @@ signups_line() {
     elif [[ -n "$SIGNUPS_UNTIL" ]] && (( SIGNUPS_UNTIL > $(date +%s) )); then
         echo "OPEN until $(date -d "@$SIGNUPS_UNTIL" '+%H:%M') (server time)"
     else
-        echo "OPEN (meant to have closed by now: close them with option 11)"
+        echo "OPEN (meant to have closed by now: close them with option 10)"
     fi
 }
 
@@ -360,13 +360,13 @@ first_login() {
     echo "somewhere safe. There's no password reset."
     echo ""
     if [[ ! -t 0 ]]; then
-        echo "Sign-ups close by themselves in an hour, or with option 11."
+        echo "Sign-ups close by themselves in an hour, or with option 10."
         return 0
     fi
     local answer n
     while true; do
         read -rp "Press Enter once you're signed in, to close sign-ups (or type 'later' to leave them open for now): " answer || return 0
-        [[ "$answer" == later ]] && { echo "Left open. They close by themselves in an hour, or with option 11."; return 0; }
+        [[ "$answer" == later ]] && { echo "Left open. They close by themselves in an hour, or with option 10."; return 0; }
         n=$(login_count)
         if [[ "$n" == 0 ]]; then
             warn "No login has been made yet. Finish creating it first, or type 'later'."
@@ -384,7 +384,7 @@ print_details() {
     echo "  Sign-ups:  $(signups_line)"
     echo ""
     echo "Sign in with the UUID and password you made there. To make another login"
-    echo "(for a family member, say), open sign-ups with option 11 first."
+    echo "(for a family member, say), open sign-ups with option 10 first."
 }
 
 do_configure() {
@@ -474,7 +474,7 @@ do_start() {
         cancel_signups_timer
         write_config "$DOMAIN" "$AIOMAN_VERSION" closed ""
         load_config
-        echo "Sign-ups were open, so they're closed now. Option 11 opens them again."
+        echo "Sign-ups were open, so they're closed now. Option 10 opens them again."
     fi
     mkdir -p "$CADDY_DROPIN_DIR"
     ensure_shared_network
@@ -523,7 +523,8 @@ do_status() {
         health=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$CONTAINER_NAME" 2>/dev/null || true)
         echo "AIOManager:  RUNNING${health:+ ($health)}"
         running=$(running_version)
-        [[ -n "$running" && "$running" != "$AIOMAN_VERSION" ]] && echo "             reports version $running"
+        # Build releases report themselves as "1.8.5 (Build 2)"; only the version counts here
+        [[ -n "$running" && "${running%% (*}" != "$AIOMAN_VERSION" ]] && echo "             reports version $running"
         n=$(login_count)
         [[ -n "$n" ]] && echo "Logins:      $n"
         echo ""
@@ -788,8 +789,8 @@ while true; do
     echo "7) Update (or go back to an older version)"
     echo "8) Uninstall"
     echo "9) Show recent logs"
-    echo "10) Exit"
-    echo "11) Sign-ups (open briefly to make another login, or close)"
+    echo "10) Sign-ups (open briefly to make another login, or close)"
+    echo "11) Exit"
     read -rp "Choose an option [1-11]: " CHOICE
     case "$CHOICE" in
         1) do_status ;;
@@ -801,8 +802,8 @@ while true; do
         7) do_update ;;
         8) do_uninstall ;;
         9) do_logs ;;
-        10) exit 0 ;;
-        11) do_signups ;;
+        10) do_signups ;;
+        11) exit 0 ;;
         *) warn "Not a valid option." ;;
     esac
 done

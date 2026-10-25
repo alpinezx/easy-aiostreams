@@ -74,7 +74,8 @@ def test_aiomanager_has_the_commands_the_panel_runs():
     assert actions.resolve("aiomanager.stop").args == ("stop-aiomanager",)
     assert actions.resolve("aiomanager.start").args == ("start-aiomanager",)
     m = menu("setup-aiomanager.sh")
-    assert (m["2"], m["3"], m["8"], m["10"]) == ("Start", "Stop", "Uninstall", "Exit")
+    assert (m["2"], m["3"], m["8"], m["11"]) == ("Start", "Stop", "Uninstall", "Exit")
+    assert m["10"].startswith("Sign-ups")
 
 
 def test_the_add_ons_uninstall_is_a_named_command():
