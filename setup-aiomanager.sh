@@ -121,7 +121,8 @@ services:
       - ${DATA_DIR}:/app/data
     healthcheck:
       test: ["CMD", "${NODE}", "server/healthcheck.js"]
-      interval: 1m
+      # Short, so a check missed while a backup has it paused clears soon.
+      interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
