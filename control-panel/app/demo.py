@@ -114,7 +114,7 @@ class DemoBackend:
         self.removed_scripts: set[str] = set()
         self.wd_running = True
         self.wd_configured = True
-        self.wd_options = {"updates": False, "reboots": False, "scripts": False, "backups": False, "security": False, "weekly": False, "metadata": False, "manager": False, "weekly_day": 7, "weekly_time": "10:00"}
+        self.wd_options = {"updates": False, "reboots": False, "scripts": False, "backups": False, "security": False, "weekly": False, "metadata": False, "manager": False, "mediaflow": False, "weekly_day": 7, "weekly_time": "10:00"}
         self.schedule = {"every": "daily", "day": 7, "time": "04:00"}
         self.wd_topic = "aios-7f3k29xq81"
         now = time.time()
@@ -140,6 +140,7 @@ class DemoBackend:
         self.channel = os.environ.get("UI_DEMO_CHANNEL", "latest")   # latest | nightly
         self._made: list[dict] = []    # backups "made" by demo actions, newest first
         self.signups_until = 0.0       # AIOManager's sign-ups, closed until a demo action opens them
+        self.mf_version = "1.1.1"      # MediaFlow's pinned release, one behind until a demo Update
         self.running = {"caddy": True, "gluetun": True, "aiostreams": True, "mediaflow-proxy-light": True, "aiometadata": True, "aiomanager": True}
         if scenario == "down":
             self.running["aiostreams"] = False
@@ -213,7 +214,7 @@ class DemoBackend:
 
     def set_watchdog_option(self, name: str, value) -> None:
         from .stack import TIME_RE
-        ok = (name in ("updates", "reboots", "scripts", "backups", "security", "weekly", "metadata", "manager") and isinstance(value, bool)) or \
+        ok = (name in ("updates", "reboots", "scripts", "backups", "security", "weekly", "metadata", "manager", "mediaflow") and isinstance(value, bool)) or \
             (name == "weekly_day" and type(value) is int and 1 <= value <= 7) or \
             (name == "weekly_time" and isinstance(value, str) and bool(TIME_RE.match(value.strip())))
         if not ok:
@@ -247,7 +248,7 @@ class DemoBackend:
                 "topic": mask_topic(self.wd_topic), "events": self.wd_events, "tally": self.wd_tally,
                 "watches": watches, "every_min": 2, "threshold": 2,
                 "options": dict(self.wd_options), "channel": "nightly" if self.channel == "nightly" else "stable",
-                "aiometadata": True, "aiomanager": True,
+                "aiometadata": True, "aiomanager": True, "mediaflow": True,
                 "timezone": os.environ.get("UI_DEMO_TZ", "Europe/London")}
 
     def update_script(self, script_id: str) -> dict:
@@ -296,7 +297,7 @@ class DemoBackend:
         defs = [("caddy", "caddy", "Caddy", "HTTPS front door", False, "caddy:2"),
                 ("gluetun", "gluetun", "VPN tunnel", "gluetun, WireGuard", False, "qmcgaw/gluetun:v3"),
                 ("aiostreams", "aiostreams", "AIOStreams", "Addon aggregator", False, "viren070/aiostreams:latest"),
-                ("mediaflow", "mediaflow-proxy-light", "MediaFlow Proxy", "Faster video proxy", True, "ghcr.io/mhdzumair/mediaflow-proxy-light:latest"),
+                ("mediaflow", "mediaflow-proxy-light", "MediaFlow Proxy", "Faster video proxy", True, f"ghcr.io/mhdzumair/mediaflow-proxy-light:{self.mf_version}"),
                 ("aiometadata", "aiometadata", "AIOMetadata", "Catalogs and metadata", True, "ghcr.io/cedya77/aiometadata:3.6.1"),
                 ("aiomanager", "aiomanager", "AIOManager", "Manages Stremio accounts", True, "ghcr.io/sonicx161/aiomanager:2.0.0")]
         if self.vpn != "on":
@@ -355,6 +356,8 @@ class DemoBackend:
             "aiomanager": {"domain": "manager.example.com", "version": "2.0.0", "logins": 3,
                            "signups": "open" if self.signups_until > time.time() else "closed",
                            "signups_until": int(self.signups_until) if self.signups_until > time.time() else None},
+            # MediaFlow pinned to a release, one behind
+            "mediaflow": {"domain": "mediaflow.example.com", "version": self.mf_version},
             "actions": [{"id": a.id, "label": a.label, "confirm": a.confirm, "available": True} for a in catalog()],
         }
 
@@ -473,6 +476,12 @@ class DemoBackend:
                       "Updating AIOMetadata from 3.6.1 to 3.6.2", " Image ghcr.io/cedya77/aiometadata:3.6.2  Pulled",
                       "Waiting for it to report healthy...", "AIOMetadata 3.6.2 is running and healthy.", "Removed the old 3.6.1 image."]:
                 say(l, 0.5)
+        elif action.id == "mediaflow.update":
+            for l in (["==> Backing up first", "Backup written: /root/aiostreams-backup-20261025-101500.tar.gz"] if "--backup" in action.args else []) + [
+                      f"==> Switching MediaFlow Proxy Light from {self.mf_version} to 1.1.2", " Container mediaflow-proxy-light  Recreated",
+                      "Waiting for it to answer (up to a minute)...", "MediaFlow Proxy Light is on 1.1.2 and answering."]:
+                say(l, 0.5)
+            self.mf_version = "1.1.2"
         elif action.id == "aiomanager.signups_open":
             say("Recreating aiomanager with sign-ups open...", 0.8)
             self.signups_until = time.time() + 30 * 60

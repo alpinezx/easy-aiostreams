@@ -214,7 +214,9 @@ button.chip:hover { text-decoration: underline; }
 .ver-card { padding: 16px 20px 18px; }
 .ver-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .ver-head h2 { margin: 0; font-size: .98rem; font-weight: 650; }
-/* the corner chip (Stable, "1 login", "Sign-ups open") keeps its one line; the title and links give way */
+/* the corner chip (Stable, "1 login", "Sign-ups open", MediaFlow's speed) keeps its one line; when
+   it and the title don't fit side by side (a phone), it drops below the title */
+.ver-head { flex-wrap: wrap; }
 .ver-head > .chip { flex: none; white-space: nowrap; }
 /* Opens AIOStreams: the title is the link, padded so it's an easy tap on a phone */
 /* The version running on the left, the latest centred on the card's middle, the buttons on
@@ -962,7 +964,7 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 
 /* The Overview: the headline, then the cards in the order Edit saved (layout.js sets
    --o-<card> and data-hide). By default: the request flow it illustrates, the version
-   card, the add-ons' cards (AIOMetadata, AIOManager, Phone alerts, VPN), then This server and the services. */
+   card, the add-ons' cards (AIOMetadata, AIOManager, MediaFlow, Phone alerts, VPN), then This server and the services. */
 #view-overview:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr); }
 #view-overview .cols, #view-overview .side { display: contents; }
 #view-overview .hero { order: 0; }
@@ -970,12 +972,14 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 #view-overview .ver-slot { order: var(--o-aiostreams, 2); margin: 0 0 30px; }
 #view-overview .meta-slot { order: var(--o-aiometadata, 3); }
 #view-overview .mgr-slot { order: var(--o-aiomanager, 4); }
-#view-overview .panel.wd { order: var(--o-alerts, 5); margin: 0 0 30px; }
-#view-overview .panel.vpnc { order: var(--o-vpn, 6); margin: 0 0 30px; }
-#view-overview .panel.host { order: var(--o-server, 7); margin: 0 0 30px; }
-#view-overview .cols > div { order: var(--o-services, 8); margin: 0 0 30px; }
-#view-overview[data-hide~="flow"] .path, #view-overview[data-hide~="aiostreams"] .ver-slot:not(.meta-slot):not(.mgr-slot),
+#view-overview .mf-slot { order: var(--o-mediaflow, 5); }
+#view-overview .panel.wd { order: var(--o-alerts, 6); margin: 0 0 30px; }
+#view-overview .panel.vpnc { order: var(--o-vpn, 7); margin: 0 0 30px; }
+#view-overview .panel.host { order: var(--o-server, 8); margin: 0 0 30px; }
+#view-overview .cols > div { order: var(--o-services, 9); margin: 0 0 30px; }
+#view-overview[data-hide~="flow"] .path, #view-overview[data-hide~="aiostreams"] .ver-slot:not(.meta-slot):not(.mgr-slot):not(.mf-slot),
 #view-overview[data-hide~="aiometadata"] .meta-slot, #view-overview[data-hide~="aiomanager"] .mgr-slot,
+#view-overview[data-hide~="mediaflow"] .mf-slot,
 #view-overview[data-hide~="server"] .panel.host, #view-overview[data-hide~="alerts"] .panel.wd,
 #view-overview[data-hide~="vpn"] .panel.vpnc,
 #view-overview[data-hide~="services"] .cols > div { display: none; }

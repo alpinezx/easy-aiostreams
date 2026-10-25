@@ -488,7 +488,7 @@ def test_phone_alerts_history_can_be_cleared(client):
 def test_phone_alerts_switches(client):
     assert client.post("/api/watchdog/options", json={"name": "weekly", "on": True}).status_code == 401
     login(client)
-    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": False, "scripts": False, "backups": False, "security": False, "weekly": False, "metadata": False, "manager": False, "weekly_day": 7, "weekly_time": "10:00"}
+    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": False, "scripts": False, "backups": False, "security": False, "weekly": False, "metadata": False, "manager": False, "mediaflow": False, "weekly_day": 7, "weekly_time": "10:00"}
     for bad in ({"name": "nope", "on": True}, {"name": "weekly", "on": "yes"}, {}, {"name": "weekly_day", "value": 8},
                 {"name": "weekly_time", "value": "24:00"}, {"name": "weekly_time", "value": "9"}, {"name": "weekly_time", "value": 9},
                 {"name": "weekly_day", "value": True}, {"name": "weekly_hour", "value": 9}, {"name": "reboots", "on": "off"}):
@@ -502,7 +502,8 @@ def test_phone_alerts_switches(client):
     assert client.post("/api/watchdog/options", json={"name": "security", "on": True}).json() == {"security": True}
     assert client.post("/api/watchdog/options", json={"name": "metadata", "on": True}).json() == {"metadata": True}
     assert client.post("/api/watchdog/options", json={"name": "manager", "on": True}).json() == {"manager": True}
-    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": True, "scripts": True, "backups": True, "security": True, "weekly": True, "metadata": True, "manager": True, "weekly_day": 1, "weekly_time": "07:05"}
+    assert client.post("/api/watchdog/options", json={"name": "mediaflow", "on": True}).json() == {"mediaflow": True}
+    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": True, "scripts": True, "backups": True, "security": True, "weekly": True, "metadata": True, "manager": True, "mediaflow": True, "weekly_day": 1, "weekly_time": "07:05"}
     assert client.post("/api/watchdog/tally/clear").json() == {"cleared": True}
     assert client.get("/api/watchdog").json()["tally"] == []
 
@@ -562,12 +563,12 @@ def test_backup_schedule(client):
 def test_overview_layout(client):
     login(client)
     ids = lambda r: [(c["id"], c["show"]) for c in r.json()["cards"]]
-    default = [("flow", True), ("aiostreams", True), ("aiometadata", True), ("aiomanager", True), ("alerts", True), ("vpn", True), ("server", True), ("services", True)]
+    default = [("flow", True), ("aiostreams", True), ("aiometadata", True), ("aiomanager", True), ("mediaflow", True), ("alerts", True), ("vpn", True), ("server", True), ("services", True)]
     assert ids(client.get("/api/overview-layout")) == default
     # unknown and repeated cards are dropped; ones left out go back to their default place
     r = client.put("/api/overview-layout", json={"cards": [{"id": "services", "show": True}, {"id": "nope"},
                                                          {"id": "alerts", "show": False}, {"id": "services", "show": False}]})
-    assert ids(r) == [("flow", True), ("aiostreams", True), ("aiometadata", True), ("aiomanager", True), ("services", True), ("alerts", False), ("vpn", True), ("server", True)]
+    assert ids(r) == [("flow", True), ("aiostreams", True), ("aiometadata", True), ("aiomanager", True), ("mediaflow", True), ("services", True), ("alerts", False), ("vpn", True), ("server", True)]
     # layout.js lists the cards in the same default order
     import re
     from pathlib import Path
@@ -679,6 +680,30 @@ def test_aiomanager_signups_switch(client):
     r = client.post("/api/actions/aiomanager.signups_close", json={"params": {}})
     assert r.status_code == 200 and wait_job(client, r.json()["id"])["code"] == 0
     assert client.get("/api/status").json()["aiomanager"]["signups"] == "closed"
+
+
+def test_mediaflow_status_and_update(tmp_path):
+    from types import SimpleNamespace
+    from app import stack
+    (tmp_path / "mediaflow-state").mkdir()
+    conf = tmp_path / "mediaflow-state" / "config"
+    conf.write_text("DOMAIN='mf.example.com'\nMEDIAFLOW_API_PASSWORD='s3cret-pass-word'\nMEDIAFLOW_PROXY_URL=''\nMF_VERSION='1.1.1'\n")
+    me = SimpleNamespace(p=lambda rel: tmp_path / rel, _ADDON_CONF=stack.Backend._ADDON_CONF)
+    me._addon_conf = lambda a: stack.Backend._addon_conf(me, a)
+    read = lambda c: stack.Backend._mediaflow(me, c)
+    assert read(None) == {"domain": "mf.example.com", "version": "1.1.1"}
+    running = SimpleNamespace(attrs={"Config": {"Image": "ghcr.io/mhdzumair/mediaflow-proxy-light:1.1.2"}})
+    assert read(running) == {"domain": "mf.example.com", "version": "1.1.2"}
+    # set up before pinning: still on "latest", so no version to compare
+    latest = SimpleNamespace(attrs={"Config": {"Image": "ghcr.io/mhdzumair/mediaflow-proxy-light:latest"}})
+    assert read(latest) == {"domain": "mf.example.com", "version": None}
+    assert "s3cret" not in str(read(None))
+    a = actions.resolve("mediaflow.update", {"backup": True})
+    assert a.script == "setup-mediaflow.sh" and a.args == ("update-mediaflow", "--backup")
+    # an older script on a server doesn't know the command, so the button waits for a newer one
+    assert a.script_has == "update-mediaflow"
+    with pytest.raises(actions.BadAction):
+        actions.resolve("mediaflow.update", {"backup": "yes"})
 
 
 def test_maintenance_leaves_phased_updates_out():

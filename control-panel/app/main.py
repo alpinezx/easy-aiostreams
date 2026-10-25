@@ -233,6 +233,13 @@ async def aiomanager_releases(force: bool = False, user: str = Depends(current_u
     return await asyncio.to_thread(releases.get, force, "aiomanager")
 
 
+@app.get("/api/mediaflow-releases")
+async def mediaflow_releases(force: bool = False, user: str = Depends(current_user)):
+    if config.DEMO:
+        return releases.demo("mediaflow")
+    return await asyncio.to_thread(releases.get, force, "mediaflow")
+
+
 @app.get("/api/aiostreams-releases")
 async def aiostreams_releases(force: bool = False, channel: str = "stable", user: str = Depends(current_user)):
     if channel not in releases.CHANNELS:
@@ -514,7 +521,7 @@ async def backups(user: str = Depends(current_user)):
 # always first, so not among them). One layout each for the install, kept with the panel's
 # state (so phone and desktop match, and a restore brings it back).
 # The default order: the request flow, AIOStreams, the add-ons' cards, then This server and the services
-OVERVIEW_CARDS = ["flow", "aiostreams", "aiometadata", "aiomanager", "alerts", "vpn", "server", "services"]
+OVERVIEW_CARDS = ["flow", "aiostreams", "aiometadata", "aiomanager", "mediaflow", "alerts", "vpn", "server", "services"]
 # The rail's default: everyday pages, upkeep, Add-ons with each add-on's own page under it, then tools
 RAIL_PAGES = ["logs", "activity", "net", "backups", "maint", "addons", "vpn", "alerts", "scripts", "terminal"]
 LAYOUTS = {"overview": (OVERVIEW_CARDS, "overview-layout.json"), "rail": (RAIL_PAGES, "rail-layout.json")}

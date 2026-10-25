@@ -626,8 +626,24 @@ class Backend:
             "backup": self.backup_summary() if installed else None,
             "aiometadata": self._aiometadata(by_name.get("aiometadata")),
             "aiomanager": self._aiomanager(by_name.get("aiomanager")),
+            "mediaflow": self._mediaflow(by_name.get("mediaflow-proxy-light")),
             "actions": self.available_actions(),
         }
+
+    def _mediaflow(self, container) -> dict | None:
+        """MediaFlow's domain and the release it runs, once it's set up. version is None
+        while it still runs "latest" (set up before pinning; its next Start pins it).
+        The API password in the same file is never read here."""
+        c = self._addon_conf("mediaflow")
+        domain, version = c.get("DOMAIN"), c.get("MF_VERSION") or None
+        if container is not None:
+            m = re.search(r":(\d+\.\d+\.\d+)$", container.attrs.get("Config", {}).get("Image") or "")
+            version = m.group(1) if m else None
+        if not domain:
+            return None
+        if version and not re.fullmatch(r"\d+\.\d+\.\d+", version):
+            version = None
+        return {"domain": domain, "version": version}
 
     def _aiomanager(self, container) -> dict | None:
         """AIOManager's domain, release, sign-ups and logins, once it's installed. Its
@@ -1200,6 +1216,7 @@ class Backend:
             # its release switch only shows once it's installed
             "aiometadata": (self.p("aiometadata-state") / "config").exists(),
             "aiomanager": (self.p("aiomanager-state") / "config").exists(),
+            "mediaflow": (self.p("mediaflow-state") / "config").exists(),
         }
 
     def _host_timezone(self) -> str | None:
@@ -1222,7 +1239,7 @@ class Backend:
                 "scripts": kv.get("scripts") == "on", "backups": kv.get("backups") == "on",
                 "security": kv.get("security") == "on",
                 "weekly": kv.get("weekly") == "on", "metadata": kv.get("metadata") == "on",
-                "manager": kv.get("manager") == "on",
+                "manager": kv.get("manager") == "on", "mediaflow": kv.get("mediaflow") == "on",
                 "weekly_day": int(day) if day in {str(i) for i in range(1, 8)} else 7,
                 "weekly_time": weekly_time(kv)}
 
@@ -1231,7 +1248,7 @@ class Backend:
         and the check-in's day and hour. Kept in watchdog-state/options, which
         the script reads; written on the host, since the install folder is
         read-only here."""
-        if name in ("updates", "reboots", "scripts", "backups", "security", "weekly", "metadata", "manager") and isinstance(value, bool):
+        if name in ("updates", "reboots", "scripts", "backups", "security", "weekly", "metadata", "manager", "mediaflow") and isinstance(value, bool):
             text = "on" if value else "off"
         elif name == "weekly_day" and isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 7:
             text = str(value)
