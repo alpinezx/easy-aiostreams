@@ -646,10 +646,18 @@ do_configure() {
         warn "Refresh the stream list in your client after saving the new password in AIOStreams."
     fi
 
-    info "Outbound proxy for MediaFlow's own video traffic (optional)"
-    echo "Separate from anything in AIOStreams' Addon proxy config, that"
-    echo "setting never reaches MediaFlow's traffic. Leave blank to have"
-    echo "video go out on this VPS's own IP, as before."
+    info "Outbound proxy (optional)"
+    echo "MediaFlow fetches each video from its source (your debrid service, for"
+    echo "example) and passes it on to your app. Those fetches normally come from"
+    echo "this server's own IP. Give a proxy here and every one of them goes through"
+    echo "it instead, so the source sees the proxy's IP, not this server's."
+    echo "AIOStreams' Addon proxy setting doesn't reach MediaFlow; only this does."
+    # The VPN add-on routes AIOStreams, not MediaFlow (it isn't on gluetun's network)
+    if [[ "$(cat "$INSTALL_DIR/vpn-state/active" 2>/dev/null)" == "vpn" ]]; then
+        warn "The VPN is on, but MediaFlow isn't inside it. Without a proxy here, video"
+        warn "leaves from this server's real IP while everything else uses the VPN's."
+    fi
+    echo "Leave blank to use this server's own IP. More: docs/advanced/mediaflow-proxy.md"
     echo "Format: http://user:pass@host:port or socks5://user:pass@host:port"
     local proxy_url
     while true; do
