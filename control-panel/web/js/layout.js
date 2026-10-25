@@ -7,6 +7,7 @@ const CARDS = {
   flow: ["Request flow", "Visitors through Caddy to AIOStreams, and the add-ons"],
   aiostreams: ["AIOStreams", "Its version and updates"],
   aiometadata: ["AIOMetadata", "Its version, updates and pages"],
+  aiomanager: ["AIOManager", "Its version, updates and sign-ups"],
   alerts: ["Phone alerts", "The watchdog, its last check and 14 days"],
   vpn: ["VPN", "Whether it's connected, where traffic leaves and the server"],
   server: ["This server", "Uptime, certificate, memory, disk and backups"],
@@ -27,6 +28,7 @@ const PAGES = {
 
 let hasAlerts = false;    // the Phone alerts card only exists once the watchdog is set up
 let hasMeta = false;      // and AIOMetadata's once it's installed
+let hasMgr = false;       // and AIOManager's
 let hasVpn = false;       // and the VPN's once it's set up (on or off)
 
 // A rail page is listed while its tab is there: main.js hides the ones a server hasn't set up
@@ -36,7 +38,7 @@ const MODES = {
   overview: {
     items: CARDS, url: "/api/overview-layout", title: "Edit the Overview",
     hint: "Show or hide each card, and drag ≡ to move it.",
-    listed: (id) => !((id === "alerts" && !hasAlerts) || (id === "aiometadata" && !hasMeta) || (id === "vpn" && !hasVpn)),
+    listed: (id) => !((id === "alerts" && !hasAlerts) || (id === "aiometadata" && !hasMeta) || (id === "aiomanager" && !hasMgr) || (id === "vpn" && !hasVpn)),
     // Order and visibility are CSS on the view, so the cards' own repaints don't touch them.
     // Each card takes a full row of its own.
     apply(cards) {
@@ -75,6 +77,7 @@ for (const m of Object.values(MODES)) {
 export function applyLayout(st) {
   hasAlerts = !!(st.watchdog && st.watchdog.configured);
   hasMeta = !!st.aiometadata;
+  hasMgr = !!st.aiomanager;
   hasVpn = st.vpn === "on" || st.vpn === "off";
   MODES.overview.apply(MODES.overview.cards);
 }

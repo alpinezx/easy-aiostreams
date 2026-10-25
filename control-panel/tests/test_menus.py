@@ -64,6 +64,19 @@ def test_the_panel_runs_named_commands_the_scripts_know():
     assert actions.resolve("aiometadata.start").args == ("start-aiometadata",)
 
 
+def test_aiomanager_has_the_commands_the_panel_runs():
+    """A new script: the panel only runs its named commands, never menu numbers."""
+    mgr = (ROOT / "setup-aiomanager.sh").read_text(encoding="utf-8")
+    for cmd in ("start-aiomanager", "stop-aiomanager", "update-aiomanager", "signups", "uninstall"):
+        assert re.search(rf"^\s*{cmd}\)", mgr, re.M), cmd
+    for sub in ("open", "close"):
+        assert re.search(rf"^\s*{sub}\)", mgr, re.M), sub
+    assert actions.resolve("aiomanager.stop").args == ("stop-aiomanager",)
+    assert actions.resolve("aiomanager.start").args == ("start-aiomanager",)
+    m = menu("setup-aiomanager.sh")
+    assert (m["2"], m["3"], m["8"], m["10"]) == ("Start", "Stop", "Uninstall", "Exit")
+
+
 def test_the_add_ons_uninstall_is_a_named_command():
     """The Add-ons page's Uninstall runs each script's "uninstall"; the menus keep their numbers."""
     meta = (ROOT / "setup-aiometadata.sh").read_text(encoding="utf-8")

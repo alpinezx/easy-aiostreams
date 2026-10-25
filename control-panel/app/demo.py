@@ -139,7 +139,8 @@ class DemoBackend:
             {"kind": "file", "path": "/home/ubuntu/SE-Stockholm.conf", "endpoint": "se.wg.example-vpn.net", "in_use": False}]
         self.channel = os.environ.get("UI_DEMO_CHANNEL", "latest")   # latest | nightly
         self._made: list[dict] = []    # backups "made" by demo actions, newest first
-        self.running = {"caddy": True, "gluetun": True, "aiostreams": True, "mediaflow-proxy-light": True, "aiometadata": True}
+        self.signups_until = 0.0       # AIOManager's sign-ups, closed until a demo action opens them
+        self.running = {"caddy": True, "gluetun": True, "aiostreams": True, "mediaflow-proxy-light": True, "aiometadata": True, "aiomanager": True}
         if scenario == "down":
             self.running["aiostreams"] = False
         self.stopped_on_purpose = scenario == "paused"
@@ -201,6 +202,7 @@ class DemoBackend:
 
     def addons_info(self) -> list[dict]:
         return [{"id": "aiometadata", "domain": "meta.example.com", "version": "3.6.1"},
+                {"id": "aiomanager", "domain": "manager.example.com", "version": "2.0.0"},
                 {"id": "mediaflow", "domain": "mediaflow.example.com", "proxy": None}]
 
     def addon_secret(self, addon: str, name: str) -> str | None:
@@ -237,7 +239,7 @@ class DemoBackend:
         from .stack import mask_topic
         if not self.wd_configured:
             return {"configured": False}
-        watches = ["https://streams.example.com", "Disk space", "HTTPS certificates (5 sites)"] + (["VPN tunnel", "AIOStreams through the VPN"] if self.vpn == "on" else []) + ["MediaFlow Proxy", "AIOMetadata"]
+        watches = ["https://streams.example.com", "Disk space", "HTTPS certificates (5 sites)"] + (["VPN tunnel", "AIOStreams through the VPN"] if self.vpn == "on" else []) + ["MediaFlow Proxy", "AIOMetadata", "AIOManager"]
         return {"configured": True, "running": self.wd_running, "alert_state": "up", "fails": 0,
                 "warnings": [w for w in os.environ.get("UI_DEMO_WD_WARN", "").split(",") if w],
                 "last_check": time.strftime("%d %b %Y, %H:%M:%S UTC", time.gmtime(time.time() - 40)) + " OK" if self.wd_running
@@ -295,27 +297,28 @@ class DemoBackend:
                 ("gluetun", "gluetun", "VPN tunnel", "gluetun, WireGuard", False, "qmcgaw/gluetun:v3"),
                 ("aiostreams", "aiostreams", "AIOStreams", "Addon aggregator", False, "viren070/aiostreams:latest"),
                 ("mediaflow", "mediaflow-proxy-light", "MediaFlow Proxy", "Faster video proxy", True, "ghcr.io/mhdzumair/mediaflow-proxy-light:latest"),
-                ("aiometadata", "aiometadata", "AIOMetadata", "Catalogs and metadata", True, "ghcr.io/cedya77/aiometadata:3.6.1")]
+                ("aiometadata", "aiometadata", "AIOMetadata", "Catalogs and metadata", True, "ghcr.io/cedya77/aiometadata:3.6.1"),
+                ("aiomanager", "aiomanager", "AIOManager", "Manages Stremio accounts", True, "ghcr.io/sonicx161/aiomanager:2.0.0")]
         if self.vpn != "on":
             defs = [x for x in defs if x[0] != "gluetun"]
         services = []
         for key, cname, name, role, addon, image in defs:
             run = self.running[cname]
-            s = {"key": key, "container": cname, "name": name, "role": role, "addon": addon,
+            s = {"key": key, "container": cname, "name": name, "role": role, "addon": addon, "flow": key != "aiomanager",
                  "present": True, "state": "running" if run else "stopped", "health": "healthy" if run else None,
                  "restarts": 0, "image": image,
                  "on_purpose": (not run) and key == "aiostreams" and self.stopped_on_purpose}
             if run:
                 s.update(started_at=self.started[cname].isoformat().replace("+00:00", "Z"),
                          cpu=round(random.uniform(0.2, 9.0) if key == "aiostreams" else random.uniform(0.0, 1.5), 1),
-                         mem=int({"caddy": 31, "gluetun": 44, "aiostreams": 318, "mediaflow": 22, "aiometadata": 452}[key] * MB * random.uniform(0.97, 1.03)))
+                         mem=int({"caddy": 31, "gluetun": 44, "aiostreams": 318, "mediaflow": 22, "aiometadata": 452, "aiomanager": 182}[key] * MB * random.uniform(0.97, 1.03)))
                 # Network speeds: a stream comes in through the VPN (or straight to AIOStreams
                 # without one), over to Caddy and out to the viewer; AIOStreams on the VPN's
                 # network has no counters of its own
                 r = demo_rate(time.time()) * random.uniform(0.9, 1.1)
                 net = {"caddy": (r + 9000, r * 0.98 + 6000), "gluetun": (r * 1.04, r * 0.98 + 2000),
                        "aiostreams": None if self.vpn == "on" else (r * 1.02, r * 0.98),
-                       "mediaflow": (4000, 3000), "aiometadata": (30000, 12000)}[key]
+                       "mediaflow": (4000, 3000), "aiometadata": (30000, 12000), "aiomanager": (1500, 2500)}[key]
                 if net:
                     s.update(rx=net[0], tx=net[1])
             services.append(s)
@@ -331,7 +334,7 @@ class DemoBackend:
             "build_tag": time.strftime("%Y.%m.%d.%H%M-nightly", time.gmtime(time.time() - 30 * 3600)) if self.channel == "nightly" else "v2.35.9",
             "vpn": self.vpn, "install_dir": "/opt/aiostreams", "user_copy": self.user_copy(),
             "scripts": [{"id": i, "label": l, "file": f,
-                         "present": i in ("aiostreams", "vpn", "mediaflow", "watchdog", "aiometadata") and i not in self.removed_scripts,
+                         "present": i in ("aiostreams", "vpn", "mediaflow", "watchdog", "aiometadata", "aiomanager") and i not in self.removed_scripts,
                          "in_use": (i != "vpn" or self.vpn != "none") and (i != "watchdog" or self.wd_configured)} for i, l, f in SCRIPTS], "overall": overall, "headline": headline, "services": services,
             "watchdog": {"configured": self.wd_configured, "running": self.wd_running, "alert_state": "up",
                          "last_check": time.strftime("%d %b %Y, %H:%M:%S UTC", time.gmtime(time.time() - 40)) + (" OK" if self.wd_running else "")},
@@ -341,12 +344,17 @@ class DemoBackend:
             "certs": [{"host": "streams.example.com", "label": "AIOStreams", "days_left": 61, "ok": True, "days_total": 90},
                       {"host": "meta.example.com", "label": "AIOMetadata", "ok": True, "days_total": 90,
                        "days_left": 12 if os.environ.get("UI_DEMO_CERT_WARN") else 84},
+                      {"host": "manager.example.com", "label": "AIOManager", "days_left": 79, "ok": True, "days_total": 90},
                       {"host": "mediaflow.example.com", "label": "MediaFlow", "days_left": 58, "ok": True, "days_total": 90},
                       {"host": "cp.example.com", "label": "Control panel", "days_left": 73, "ok": True, "days_total": 90}],
             "backup": {"newest": max(b["mtime"] for b in self.backups()) if self.backups() else None,
                        **self.schedule, "last": self._last_run()},
             # AIOMetadata's card, only once it's installed; its newer releases come from GitHub
             "aiometadata": {"domain": "meta.example.com", "version": "3.6.1"},
+            # AIOManager's: sign-ups closed unless a demo action opened them
+            "aiomanager": {"domain": "manager.example.com", "version": "2.0.0", "logins": 3,
+                           "signups": "open" if self.signups_until > time.time() else "closed",
+                           "signups_until": int(self.signups_until) if self.signups_until > time.time() else None},
             "actions": [{"id": a.id, "label": a.label, "confirm": a.confirm, "available": True} for a in catalog()],
         }
 
@@ -465,6 +473,14 @@ class DemoBackend:
                       "Updating AIOMetadata from 3.6.1 to 3.6.2", " Image ghcr.io/cedya77/aiometadata:3.6.2  Pulled",
                       "Waiting for it to report healthy...", "AIOMetadata 3.6.2 is running and healthy.", "Removed the old 3.6.1 image."]:
                 say(l, 0.5)
+        elif action.id == "aiomanager.signups_open":
+            say("Recreating aiomanager with sign-ups open...", 0.8)
+            self.signups_until = time.time() + 30 * 60
+            say(f"Sign-ups are open until {time.strftime('%H:%M', time.localtime(self.signups_until))} (server time), then close by themselves.")
+        elif action.id == "aiomanager.signups_close":
+            say("Recreating aiomanager with sign-ups closed...", 0.8)
+            self.signups_until = 0.0
+            say("Sign-ups are closed. Existing logins keep working.")
         elif action.id == "stack.stop":
             say("Stopping AIOStreams..."); self.running["aiostreams"] = False; self.stopped_on_purpose = True
             say("Stopped. Caddy is still up (visitors get a 502).")

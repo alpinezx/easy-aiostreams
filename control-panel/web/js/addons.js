@@ -33,6 +33,7 @@ const secret = (addon, name) => api(`/api/addons/${addon}/secret/${name}`).then(
 const short = (url) => url.replace(/^https?:\/\//, "");
 
 // One tile. r: { label, note, link } | { label, note, secret: [addon, name], hidden } | { label, note, text, tone }
+// | { label, note, text, tone, toggle: { on, title, change } }
 function tile(r) {
   const value = h("span", { class: "ao-val" + (r.link || r.secret ? " mono" : "") + (r.tone ? " " + r.tone : "") });
   const btns = h("span", { class: "ao-btns" });
@@ -63,6 +64,11 @@ function tile(r) {
   } else {
     value.textContent = r.text;
   }
+  if (r.toggle) {
+    const input = h("input", { type: "checkbox", checked: r.toggle.on, disabled: !!(st && st.busy), "aria-label": r.toggle.title });
+    input.addEventListener("change", () => r.toggle.change(input));
+    btns.append(h("label", { class: "sw", title: r.toggle.title }, input, h("i", { "aria-hidden": "true" })));
+  }
   return h("div", { class: "ao-row" },
     h("div", { class: "ver-label", text: r.label }),
     h("div", { class: "ao-line" }, value, btns.childNodes.length ? btns : null),
@@ -80,7 +86,25 @@ function certTile(host) {
 
 // ---- the cards ----
 
-const NAMES = { aiometadata: "AIOMetadata", mediaflow: "MediaFlow Proxy", webhook: "Webhook relay" };
+const NAMES = { aiometadata: "AIOMetadata", aiomanager: "AIOManager", mediaflow: "MediaFlow Proxy", webhook: "Webhook relay" };
+
+// AIOManager's sign-ups switch: open runs the script's "signups open 30" (it closes them
+// itself after that), off closes them now. Either recreates its container, a few seconds.
+const untilTime = (t) => new Date(t * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+async function setSignups(input) {
+  const open = input.checked;
+  input.disabled = true;
+  try {
+    const job = await api(`/api/actions/aiomanager.signups_${open ? "open" : "close"}`, { method: "POST", body: JSON.stringify({ params: {} }) });
+    window.dispatchEvent(new CustomEvent("job-started"));
+    const done = await waitJob(job.id);
+    if (done.code !== 0) { toast(`Couldn't ${open ? "open" : "close"} sign-ups. Activity has the output.`, true); input.checked = !open; }
+    else toast(open ? "Sign-ups are open for 30 minutes, then close by themselves." : "Sign-ups are closed.");
+  } catch (e) {
+    input.checked = !open;
+    toast(e.message, true);
+  } finally { input.disabled = false; }
+}
 
 function dockerCard(a) {
   const s = svc(a.id);
@@ -95,6 +119,15 @@ function dockerCard(a) {
       { label: "Dashboard", link: `https://${a.domain}/dashboard` },
       { label: "Admin key", secret: ["aiometadata", "admin_key"], note: "Opens the Dashboard" },
       { label: "Version", text: ver || "Unknown", note: "Updates are on the Overview" });
+  } else if (a.id === "aiomanager") {
+    const m = (st && st.aiomanager) || {};
+    const open = m.signups === "open";
+    rows.push({ label: "Address", link: `https://${a.domain}` },
+      { label: "Sign-ups", text: open ? (m.signups_until ? `Open until ${untilTime(m.signups_until)}` : "Open") : "Closed",
+        tone: open ? "warn" : "", note: open ? "Anyone with the address can make a login" : "Open for 30 minutes to make a login",
+        toggle: { on: open, title: open ? "Close sign-ups now" : "Open sign-ups for 30 minutes", change: setSignups } },
+      { label: "Logins", text: m.logins != null ? String(m.logins) : "Unknown", note: "Each one a UUID and password" },
+      { label: "Version", text: m.version || a.version || "Unknown", note: "Updates are on the Overview" });
   } else if (a.id === "mediaflow") {
     rows.push({ label: "Address", link: `https://${a.domain}` },
       { label: "API password", secret: ["mediaflow", "api_password"], note: "Goes in AIOStreams" },
@@ -166,6 +199,8 @@ const waitJob = async (id) => {
 const UNINSTALL = {
   aiometadata: { title: "AIOMetadata", action: "aiometadata.uninstall", image: "Remove the AIOMetadata and Redis images too",
     body: "Its containers, its cache, its site and its saved settings are removed, including every configuration and account in its database. AIOStreams and the other add-ons stay. Remove it from your apps and AIOStreams afterwards." },
+  aiomanager: { title: "AIOManager", action: "aiomanager.uninstall", image: "Remove the AIOManager image too",
+    body: "Its container, its site and its saved settings are removed, including every login and everything synced to it. AIOStreams and the other add-ons stay. Addons it installed in your apps stay where they are." },
   mediaflow: { title: "MediaFlow Proxy", action: "mediaflow.uninstall", image: "Remove the MediaFlow image too",
     body: "Its container, its site, its saved settings (the API password too) and its fail2ban jail, if it has one, are removed. AIOStreams and the other add-ons stay. Switch AIOStreams' proxy setting off MediaFlow afterwards." },
   // A restore leaves the retired relay out, so a backup can't bring it back

@@ -60,7 +60,7 @@ def net_now() -> dict:
 app =FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 lockout = auth.Lockout()
 COOKIE = "ui_session"
-LOGGABLE = {"caddy", "gluetun", "aiostreams", "mediaflow-proxy-light", "aiometadata"}
+LOGGABLE = {"caddy", "gluetun", "aiostreams", "mediaflow-proxy-light", "aiometadata", "aiomanager"}
 
 
 # ---- security headers + CSRF ------------------------------------------
@@ -224,6 +224,13 @@ async def aiometadata_releases(force: bool = False, user: str = Depends(current_
     if config.DEMO:
         return releases.demo("aiometadata")
     return await asyncio.to_thread(releases.get, force, "aiometadata")
+
+
+@app.get("/api/aiomanager-releases")
+async def aiomanager_releases(force: bool = False, user: str = Depends(current_user)):
+    if config.DEMO:
+        return releases.demo("aiomanager")
+    return await asyncio.to_thread(releases.get, force, "aiomanager")
 
 
 @app.get("/api/aiostreams-releases")
@@ -507,7 +514,7 @@ async def backups(user: str = Depends(current_user)):
 # always first, so not among them). One layout each for the install, kept with the panel's
 # state (so phone and desktop match, and a restore brings it back).
 # The default order: the request flow, AIOStreams, the add-ons' cards, then This server and the services
-OVERVIEW_CARDS = ["flow", "aiostreams", "aiometadata", "alerts", "vpn", "server", "services"]
+OVERVIEW_CARDS = ["flow", "aiostreams", "aiometadata", "aiomanager", "alerts", "vpn", "server", "services"]
 # The rail's default: everyday pages, upkeep, Add-ons with each add-on's own page under it, then tools
 RAIL_PAGES = ["logs", "activity", "net", "backups", "maint", "addons", "vpn", "alerts", "scripts", "terminal"]
 LAYOUTS = {"overview": (OVERVIEW_CARDS, "overview-layout.json"), "rail": (RAIL_PAGES, "rail-layout.json")}
@@ -906,7 +913,7 @@ async def run_action(action_id: str, request: Request, user: str = Depends(curre
         except BadAction as e:
             raise HTTPException(400, str(e))
         return jobs.summary(jobs.start(action, params, None))
-    if action_id in ("vpn.uninstall", "aiometadata.uninstall", "mediaflow.uninstall", "webhook.uninstall") \
+    if action_id in ("vpn.uninstall", "aiometadata.uninstall", "aiomanager.uninstall", "mediaflow.uninstall", "webhook.uninstall") \
             and str((params or {}).get("confirm", "")).strip().lower() != "uninstall":
         raise HTTPException(400, "Type uninstall to confirm.")
     if action_id == "stack.restore":
@@ -1181,7 +1188,7 @@ async def server_reboot(request: Request, user: str = Depends(current_user)):
 
 @app.post("/api/services/{key}/restart")
 async def service_restart(key: str, request: Request, user: str = Depends(current_user)):
-    """Restart a single container (AIOStreams, MediaFlow, AIOMetadata)."""
+    """Restart a single container (AIOStreams, MediaFlow, AIOMetadata, AIOManager)."""
     if key not in RESTARTABLE:
         raise HTTPException(404, "That service can't be restarted on its own.")
     if jobs.current_id():
