@@ -110,8 +110,6 @@ SERVICES = [
     ("aiomanager", "aiomanager", "AIOManager", "Manages Stremio accounts", "aiomanager-state/docker-compose.yml"),
 ]
 ADDONS = {"mediaflow", "webhook", "aiometadata", "aiomanager"}
-# Add-ons a stream never passes through, left out of the request flow
-NOT_IN_FLOW = {"aiomanager"}
 # Services the panel may restart on their own. Caddy has the stack-wide Restart,
 # and bouncing the VPN tunnel can strand the containers routed through it.
 RESTARTABLE = {"aiostreams", "mediaflow", "aiometadata", "aiomanager"}
@@ -573,7 +571,7 @@ class Backend:
                 continue
             c = by_name.get(cname)
             svc = {"key": key, "container": cname, "name": title, "role": role,
-                   "addon": key in ADDONS, "flow": key not in NOT_IN_FLOW, "present": c is not None}
+                   "addon": key in ADDONS, "present": c is not None}
             if c is not None:
                 st = c.attrs.get("State", {})
                 health = (st.get("Health") or {}).get("Status")
