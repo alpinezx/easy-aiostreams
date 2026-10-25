@@ -180,7 +180,9 @@ function finish(job, code) {
   foot.children[1].style.marginLeft = "auto";
 }
 
-export async function openJob(id, reconnecting) {
+// before: { text, id } for a job that ran first and led to this one (Back up first, before an
+// uninstall). Its line opens this drawer, with a link to its output, so it isn't lost.
+export async function openJob(id, reconnecting, before) {
   if (es) { es.close(); es = null; }
   if (!reconnecting) lastFocus = document.activeElement;
   openId = id;
@@ -200,10 +202,14 @@ export async function openJob(id, reconnecting) {
     }
     $("#drawer-sub").textContent = "The panel is restarting with Docker. The job carries on on the server; this reconnects by itself.";
     foot.append(h("span", { class: "spin", "aria-hidden": "true" }), h("span", { class: "dim", text: "Reconnecting" }));
-    setTimeout(() => openJob(id, true), 3000);
+    setTimeout(() => openJob(id, true, before), 3000);
     return;
   }
   const term = $("#drawer-term"); clear(term);
+  if (before) {
+    term.append(h("div", { class: "ln job-before" }, `${before.text} `,
+      h("a", { href: "#", text: "View its output", onclick: (e) => { e.preventDefault(); openJob(before.id); } })));
+  }
   $("#drawer").hidden = false; $("#scrim").hidden = false;
   $("#drawer-x").focus();
   const foot = $("#drawer-foot"); clear(foot);
@@ -224,7 +230,7 @@ export async function openJob(id, reconnecting) {
     addLine(term, m.k, m.t);
   };
   es.onerror = () => { /* EventSource reconnects by itself; stream resumes from the start, so avoid duplicates */
-    if (es) { es.close(); es = null; openJob(id, true); }
+    if (es) { es.close(); es = null; openJob(id, true, before); }
   };
 }
 

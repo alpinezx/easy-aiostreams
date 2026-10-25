@@ -623,6 +623,8 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .ln time { flex: none; color: var(--faint); }
 .ln.error { color: var(--bad); } .ln.warn { color: var(--warn); }
 .ln.info { color: var(--accent); } .ln.out { color: var(--text); }
+/* the job that ran first (Back up first), with a link to its output */
+.ln.job-before { display: block; color: var(--dim); padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid var(--line); }
 .term-empty { padding: 24px 16px; color: var(--faint); font-family: var(--font); font-size: .95rem; }
 .conn { color: var(--faint); display: inline-flex; gap: 6px; align-items: center; }
 .conn::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }

@@ -247,18 +247,22 @@ async function uninstall(id) {
       read: () => ({ backup: !u.noBackup && backup.checked, remove_image: !!u.image && image.checked, delete_confs: files.length > 0 && confs.checked, confirm: gate.value.trim() }) } });
   if (!res) return;
   try {
+    let before = null;
     if (res.backup) {
       const b = await api("/api/actions/stack.backup", { method: "POST", body: JSON.stringify({ params: {} }) });
       openJob(b.id);
       window.dispatchEvent(new CustomEvent("job-started"));
       const done = await waitJob(b.id);
       if (done.code !== 0) { toast(`The backup failed, so ${u.title} wasn't uninstalled.`, true); return; }
+      // The uninstall's output replaces the backup's in the drawer; its first line keeps a way back
+      const made = (done.lines || []).map((l) => (/Backup written\b.*?(aiostreams-backup-[\w.-]+?\.tar\.gz)/.exec(l.t || "") || [])[1]).find(Boolean);
+      before = { text: made ? `Backed up first: ${made}.` : "Backed up first.", id: b.id };
     }
     const params = { confirm: res.confirm };
     if (u.image) params.remove_image = res.remove_image;
     if (id === "vpn") params.delete_confs = res.delete_confs;
     const job = await api(`/api/actions/${u.action}`, { method: "POST", body: JSON.stringify({ params }) });
-    openJob(job.id);
+    openJob(job.id, false, before);
     window.dispatchEvent(new CustomEvent("job-started"));
   } catch (e) {
     toast(e.message, true);
