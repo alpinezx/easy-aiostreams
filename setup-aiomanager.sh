@@ -354,8 +354,9 @@ do_signups() {
 first_login() {
     signups_open 60
     echo ""
-    echo -e "Open \033[1;36mhttps://${DOMAIN}\033[0m and create your login. AIOManager gives you a"
-    echo "UUID: save it with your password somewhere safe. There's no password reset."
+    echo -e "Open \033[1;36mhttps://${DOMAIN}\033[0m and create your login. Then copy your UUID"
+    echo "from Settings, General, Sync Identity, and save it with your password"
+    echo "somewhere safe. There's no password reset."
     echo ""
     if [[ ! -t 0 ]]; then
         echo "Sign-ups close by themselves in an hour, or with option 11."
@@ -466,6 +467,14 @@ do_start() {
     fi
     load_config
     close_overdue_signups
+    # A restore or the panel's Start: sign-ups open in a backup would have
+    # no timer here to close them, so they start closed.
+    if [[ "$quiet" == "true" && "$SIGNUPS" == open ]]; then
+        cancel_signups_timer
+        write_config "$DOMAIN" "$AIOMAN_VERSION" closed ""
+        load_config
+        echo "Sign-ups were open, so they're closed now. Option 11 opens them again."
+    fi
     mkdir -p "$CADDY_DROPIN_DIR"
     ensure_shared_network
     write_compose

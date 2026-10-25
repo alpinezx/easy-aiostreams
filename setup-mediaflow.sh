@@ -550,6 +550,7 @@ other_domains() {
     [[ -f "$INSTALL_DIR/Caddyfile" ]] && head -n1 "$INSTALL_DIR/Caddyfile" | awk '{print $1}'
     grep -hoP "^DOMAIN='?\K[^'\s]+" "$INSTALL_DIR/webhook-relay-state/config" 2>/dev/null || true
     grep -hoP "^DOMAIN='?\K[^'\s]+" "$INSTALL_DIR/aiometadata-state/config" 2>/dev/null || true
+    grep -hoP "^DOMAIN='?\K[^'\s]+" "$INSTALL_DIR/aiomanager-state/config" 2>/dev/null || true
 }
 
 do_configure() {
