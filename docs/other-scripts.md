@@ -2,6 +2,10 @@
 
 Optional add-ons on top of the main install. Each is its own standalone script, run whenever you want.
 
+### Control Panel (beta)
+
+- **Rather manage your server from a web page than over SSH?** A private dashboard on its own subdomain: see what's running, start, stop, update and back up with a button, read the logs, and optionally open a terminal from your phone. Locked behind a secret unlock link plus its own login. Run with `control-panel/setup-ui.sh`. → [Basic](./basic/control-panel.md) · [Advanced](./advanced/control-panel.md)
+
 ### AIOMetadata
 
 - **Want your own catalogs and metadata, not a shared public instance?** Runs a private [AIOMetadata](https://github.com/cedya77/aiometadata) on its own subdomain: catalogs, posters, ratings and episode lists from TMDB, TVDB, MDBList and more, for Stremio-based clients, Nuvio and AIOStreams. An addon password keeps it yours, your API keys stay on the server, and releases are pinned, with updates (and a way back) from the menu or the control panel. Included in backups. Run with `setup-aiometadata.sh`. → [Basic](./basic/aiometadata.md) · [Advanced](./advanced/aiometadata.md)
@@ -9,10 +13,6 @@ Optional add-ons on top of the main install. Each is its own standalone script, 
 ### AIOManager
 
 - **Managing addons across several Stremio accounts?** Runs a private [AIOManager](https://github.com/sonicx161/aiomanager) on its own subdomain: every account's addons in one place, snapshots, autopilot failover rules, watch history, and syncing to Nuvio. Sign-ups stay closed once your login is made (open them for 30 minutes to add someone), releases are pinned, with updates (and a way back) from the menu or the control panel, and it's included in backups. Run with `setup-aiomanager.sh`. → [Basic](./basic/aiomanager.md) · [Advanced](./advanced/aiomanager.md)
-
-### Control Panel (beta)
-
-- **Rather manage your server from a web page than over SSH?** A private dashboard on its own subdomain: see what's running, start, stop, update and back up with a button, read the logs, and optionally open a terminal from your phone. Locked behind a secret unlock link plus its own login. Run with `control-panel/setup-ui.sh`. → [Basic](./basic/control-panel.md) · [Advanced](./advanced/control-panel.md)
 
 ### VPN Setup
 
