@@ -98,6 +98,13 @@ def parse_backup_info(text: str) -> dict | None:
 SET_ASIDE_NAME = re.compile(r"aiostreams\.pre-restore-(\d{8}-\d{6})")
 HOMES_DIR = "/home"      # where other users keep their convenience copy (tests point this elsewhere)
 HOST_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+# Prints y when a restart would finish installing updates: Ubuntu's flag file, or (Debian has
+# none) a kernel installed since the last boot, by its file's change time. setup-aiostreams.sh's
+# reboot_needed checks the same.
+REBOOT_CHECK = ('if [ -e /var/run/reboot-required ]; then echo y; exit; fi; '
+                'b=$(awk \'/^btime /{print $2}\' /proc/stat); '
+                'for f in /boot/vmlinuz-*; do '
+                'if [ -e "$f" ] && [ "$(stat -c %Z "$f")" -gt "${b:-0}" ]; then echo y; exit; fi; done')
 
 # name, container, display name, what it does, path (relative to install dir) that proves it's set up
 SERVICES = [
@@ -921,7 +928,7 @@ class Backend:
         stamp = self._on_host("sh", "-c", "stat -c %Y /var/lib/apt/periodic/update-success-stamp 2>/dev/null "
                                        "|| stat -c %Y /var/lib/apt/lists 2>/dev/null").strip()
         return {"available": True, "count": len(lines), "security": sum("-security" in l for l in lines), "phased": phased,
-                "reboot": bool(self._on_host("sh", "-c", "test -e /var/run/reboot-required && echo y").strip()),
+                "reboot": bool(self._on_host("sh", "-c", REBOOT_CHECK).strip()),
                 "checked_at": int(stamp) if stamp.isdigit() else None}
 
     def _maint_logs(self) -> dict:
