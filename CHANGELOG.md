@@ -2,11 +2,10 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
-## Unreleased
+## 26 October 2026
 
 - **Restart needed now works on Debian.** Maintenance's Restart tile and the script's "A restart is needed" line only checked a file Ubuntu writes, so on Debian they always said not needed. Both now also notice a kernel installed since the last boot. (Panel 1.42.1, [#94](https://github.com/alpinezx/easy-aiostreams/pull/94))
-
-## 26 October 2026
+- **Changelog:** this file, starting from [#72](https://github.com/alpinezx/easy-aiostreams/pull/72). ([#94](https://github.com/alpinezx/easy-aiostreams/pull/94))
 
 - **README:** the prerequisites now ask for at least 2 GB of RAM, with 3 to 4 GB or a swap file suggested for the full set of add-ons. ([#93](https://github.com/alpinezx/easy-aiostreams/pull/93))
 
