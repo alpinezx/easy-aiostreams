@@ -82,6 +82,7 @@ write_env_file() {
         umask 077
         {
             printf "PORT='%s'\n" "$INTERNAL_PORT"
+            # shellcheck disable=SC2153  # DOMAIN comes from load_config
             printf "HOST_NAME='https://%s'\n" "$DOMAIN"
             printf "NODE_ENV='production'\n"
             printf "LOG_LEVEL='info'\n"
@@ -198,8 +199,8 @@ running_version() {
 
 # Waits for the image's own health check (it allows 40s to start).
 wait_healthy() {
-    local i state
-    for i in $(seq 1 45); do
+    local state
+    for _ in $(seq 1 45); do
         state=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$CONTAINER_NAME" 2>/dev/null || echo missing)
         case "$state" in
             healthy) return 0 ;;
