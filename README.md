@@ -38,6 +38,7 @@ A one-command installer for a self-hosted [AIOStreams](https://github.com/Viren0
 ## Prerequisites
 
 - A fresh VPS with root access, running Ubuntu 24.04+ or Debian 13 (should also work on Debian 12, untested)
+- At least 2 GB of RAM. 1 GB is too tight once Docker, AIOStreams and the control panel are running. If you plan to run the full set of add-ons, 3 to 4 GB is more comfortable, or add a swap file for some headroom.
 - Ports 80 and 443 opened in your provider's firewall if it's enabled. Oracle cloud users, do this first > [Firewall Ports](./docs/basic/firewall-ports.md#2-check-your-providers-own-firewall-separate-from-the-server).
 - A subdomain you control, with an **A record already pointed at your server's IP** before running the script
 
