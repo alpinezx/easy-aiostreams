@@ -163,7 +163,7 @@ If you suspect it's not your setup at all, check [Stremio Status](https://status
 
 Want a [web control panel](./docs/basic/control-panel.md) (beta) to manage everything from your browser or phone, your own private [AIOMetadata](./docs/basic/aiometadata.md) for catalogs and metadata, your own [AIOManager](./docs/basic/aiomanager.md) to manage several Stremio accounts' addons, a system-wide VPN layer, phone alerts when your server needs you, or a lighter alternative proxy if scrubbing/seeking spikes your VPS's CPU? Those live in their own standalone scripts, see [Other Scripts](./docs/other-scripts.md)
 
-For bugs in the script itself: [open an issue](https://github.com/alpinezx/easy-aiostreams/issues). For setup questions not covered here or in the linked guides, check out these Reddit threads: [r/StremioAddons](https://www.reddit.com/r/StremioAddons/comments/1vo6a5q/self_hosted_aiostreams_easy_install_script/), [r/nuvioaddons](https://www.reddit.com/r/nuvioaddons/comments/1vsud3b/self_hosted_aiostreams_easy_install_script_nuvio/)
+For bugs in the script itself: [open an issue](https://github.com/alpinezx/easy-aiostreams/issues). For setup questions not covered here or in the linked guides, check out these Reddit threads: [r/StremioAddons](https://www.reddit.com/r/StremioAddons/comments/1xf5nv6/self_hosted_aiostreams_easy_install_script_update/), [r/nuvioaddons](https://www.reddit.com/r/nuvioaddons/comments/1vsud3b/self_hosted_aiostreams_easy_install_script_nuvio/)
 
 ## License
 
