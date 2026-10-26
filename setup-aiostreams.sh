@@ -701,14 +701,30 @@ upgradable_count() {
     apt list --upgradable 2>/dev/null | grep -cF '[upgradable' || true
 }
 
-# Ubuntu's package updates, as "apt upgrade" over SSH would, keeping any config
+# Whether a restart is needed to finish installing updates. Ubuntu writes
+# /var/run/reboot-required; Debian doesn't, so a kernel installed since the
+# last boot counts too (its file's change time is when it was installed, even
+# when an update keeps the same version name). The control panel's Restart
+# tile checks the same two things.
+reboot_needed() {
+    [[ -e /var/run/reboot-required ]] && return 0
+    local boot f
+    boot=$(awk '/^btime /{print $2}' /proc/stat 2>/dev/null)
+    [[ "$boot" =~ ^[0-9]+$ ]] || return 1
+    for f in /boot/vmlinuz-*; do
+        [[ -e "$f" ]] && (( $(stat -c %Z "$f" 2>/dev/null || echo 0) > boot )) && return 0
+    done
+    return 1
+}
+
+# The system's package updates, as "apt upgrade" over SSH would, keeping any config
 # file you've changed. If Docker itself was upgraded it restarts every
 # container, so the stack is brought back afterwards (the control panel runs
 # this outside its own container for the same reason).
 do_system_updates() {
     command -v apt-get >/dev/null 2>&1 || error "This server doesn't use apt, so this can't update it."
     export DEBIAN_FRONTEND=noninteractive
-    info "Refreshing Ubuntu's package lists"
+    info "Refreshing the package lists"
     apt-get -q -o DPkg::Lock::Timeout=300 update || error "Couldn't refresh the package lists. Nothing was installed."
     info "Installing updates"
     apt-get -y -q -o DPkg::Lock::Timeout=300 -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold \
@@ -716,7 +732,7 @@ do_system_updates() {
     info "Making sure everything is running"
     ensure_stack_running || warn "AIOStreams didn't come back by itself. Use Start on the Overview, or option 3 here."
     echo ""
-    if [[ -f /var/run/reboot-required ]]; then
+    if reboot_needed; then
         warn "Done. A restart is needed to finish (a new kernel or system library): use Reboot server when it suits."
     else
         echo "Done. No restart needed."
@@ -925,7 +941,7 @@ show_status() {
             echo "  Updates:   none waiting$( (( ph > 0 )) && echo " ($ph rolling out gradually, phased: Ubuntu offers them to this server in a few days)")"
         fi
     fi
-    if [[ -f /var/run/reboot-required ]]; then echo -e "  \033[1;33mA restart is needed to finish installing updates.\033[0m"; fi
+    if reboot_needed; then echo -e "  \033[1;33mA restart is needed to finish installing updates.\033[0m"; fi
     return 0
 }
 
@@ -955,7 +971,7 @@ maint_summary() {
             echo "  Updates waiting:         none$( (( ph > 0 )) && echo " ($ph rolling out gradually, phased)")"
         fi
     fi
-    [[ -f /var/run/reboot-required ]] && echo "  A restart is needed to finish installing updates (sudo reboot, when it suits)."
+    reboot_needed && echo "  A restart is needed to finish installing updates (sudo reboot, when it suits)."
     if [[ -s /etc/docker/daemon.json ]] && grep -q '"max-size"' /etc/docker/daemon.json; then
         echo "  Container log limits:    set"
     else
@@ -972,7 +988,7 @@ maintenance_menu() {
         maint_summary
         echo ""
         echo "  1) Free up space (old images, build leftovers, system logs beyond 100 MB)"
-        echo "  2) Install updates (Ubuntu's, as apt upgrade would)"
+        echo "  2) Install updates (the system's, as apt upgrade would)"
         echo "  3) Set container log limits (10 MB each; every container restarts once)"
         echo "  0) Back"
         read -rp "Choose [0-3]: " c || return 0

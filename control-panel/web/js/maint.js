@@ -48,7 +48,7 @@ function updates(m) {
       u.phased ? `Ubuntu rolls some updates out gradually, a few servers at a time. ${u.phased} ${u.phased === 1 ? "isn't" : "aren't"} offered to this server yet, `
         + "so Install updates leaves them until its turn, usually within days." : null),
     stat("Restart", u.reboot ? "Needed" : "Not needed", u.reboot ? "Reboot server, on the Overview" : "", u.reboot ? "warn" : ""),
-    stat("Checked", u.checked_at ? ago(u.checked_at) : "Unknown", "Ubuntu's package lists"),
+    stat("Checked", u.checked_at ? ago(u.checked_at) : "Unknown", "The package lists"),
   ], "AIOStreams' own updates are on the Overview.", button("maint.updates", u.count > 0));
 }
 
