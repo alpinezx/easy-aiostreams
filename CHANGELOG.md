@@ -2,11 +2,10 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
-## Unreleased
-
-- **Docs:** the README's Reddit links point to the new update posts on r/StremioAddons and r/nuvioaddons.
-
 ## 26 October 2026
+
+- **Contributing guide:** `CONTRIBUTING.md` explains how pull requests get in (target `dev`, tested on a real server) and the project's habits. The issue form's setup questions link now points to the new Reddit post. ([#96](https://github.com/alpinezx/easy-aiostreams/pull/96))
+- **Docs:** the README's Reddit links point to the new update posts on r/StremioAddons and r/nuvioaddons. ([#95](https://github.com/alpinezx/easy-aiostreams/pull/95))
 
 - **Restart needed now works on Debian.** Maintenance's Restart tile and the script's "A restart is needed" line only checked a file Ubuntu writes, so on Debian they always said not needed. Both now also notice a kernel installed since the last boot. (Panel 1.42.1, [#94](https://github.com/alpinezx/easy-aiostreams/pull/94))
 - **Changelog:** this file, starting from [#72](https://github.com/alpinezx/easy-aiostreams/pull/72). ([#94](https://github.com/alpinezx/easy-aiostreams/pull/94))
