@@ -636,6 +636,7 @@ restore_start_stack() {
 ensure_stack_running() {
     cd "$INSTALL_DIR" || return 1
     if [[ -f "$STOPPED_MARKER" ]]; then
+        # shellcheck disable=SC2046  # empty when the VPN is off
         docker compose up -d --no-deps caddy $(vpn_mode_active && echo gluetun) || true
         return 0
     fi
@@ -861,7 +862,7 @@ status_version() {
 }
 
 show_status() {
-    local domain end days c label st up load cpus mem total used pct sched every time day line list n s ph age newest
+    local domain end days c label st up load cpus total used pct sched every time day line list n s ph age newest
     cd "$INSTALL_DIR"
     domain=$(head -n1 "$CADDYFILE" 2>/dev/null | awk '{print $1}')
     echo "=== AIOStreams ==="
@@ -1176,7 +1177,7 @@ case "${1:-}" in
         ;;
     stop|start|restart|update)
         [[ -f "$COMPOSE_FILE" ]] || error "No AIOStreams install found at $INSTALL_DIR."
-        require_cmd docker && docker compose version >/dev/null 2>&1 || error "Docker/Compose isn't available."
+        { require_cmd docker && docker compose version >/dev/null 2>&1; } || error "Docker/Compose isn't available."
         UNATTENDED=true
         case "$1" in
             stop) do_stop_aio ;;

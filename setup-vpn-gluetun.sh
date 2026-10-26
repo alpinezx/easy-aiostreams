@@ -573,8 +573,8 @@ apply_mode() {
 
         info "Verifying gluetun and caddy are actually running"
         local core_expected=(caddy gluetun)
-        local attempt not_running svc state
-        for attempt in 1 2 3 4 5; do
+        local not_running svc state
+        for _ in 1 2 3 4 5; do
             not_running=()
             for svc in "${core_expected[@]}"; do
                 state=$(docker inspect -f '{{.State.Running}}' "$svc" 2>/dev/null || echo "false")
@@ -633,7 +633,7 @@ this."
                 info "Tunnel confirmed, starting AIOStreams"
                 docker compose up -d aiostreams
                 rm -f "$INSTALL_DIR/aiostreams-stopped-on-purpose"
-                for attempt in 1 2 3 4 5; do
+                for _ in 1 2 3 4 5; do
                     state=$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo "false")
                     [[ "$state" == "true" ]] && break
                     sleep 2
@@ -666,8 +666,8 @@ this."
         [[ "$skip_aiostreams" == "true" ]] || expected+=(aiostreams)
 
         info "Verifying containers are actually running"
-        local attempt not_running svc state
-        for attempt in 1 2 3 4 5; do
+        local not_running svc state
+        for _ in 1 2 3 4 5; do
             not_running=()
             for svc in "${expected[@]}"; do
                 state=$(docker inspect -f '{{.State.Running}}' "$svc" 2>/dev/null || echo "false")
@@ -909,11 +909,11 @@ EP_QUIET=""
 EP_ROWS=()
 EP_IN_USE=""
 endpoint_candidates() {
-    local host="$1" url out ip ms round
+    local host="$1" url out ip ms
     [[ "$host" =~ ^[A-Za-z0-9.-]+$ ]] || error "Endpoint '$host' isn't an IPv4 address or a host name. Check the .conf file's Endpoint line."
     [[ -n "$EP_QUIET" ]] || info "Looking up $host"
     local ips=()
-    for round in 1 2 3; do
+    for _ in 1 2 3; do
         for url in \
             "https://cloudflare-dns.com/dns-query?name=$host&type=A" \
             "https://dns.google/resolve?name=$host&type=A" \
@@ -986,7 +986,7 @@ resolve_endpoint() {
     done
     read -rp "Choose a number [1-${#rows[@]}], or press Enter for 1: " pick
     [[ -z "$pick" ]] && pick=1
-    [[ "$pick" =~ ^[0-9]+$ ]] && (( pick >= 1 && pick <= ${#rows[@]} )) || error "Not one of the numbers listed."
+    { [[ "$pick" =~ ^[0-9]+$ ]] && (( pick >= 1 && pick <= ${#rows[@]} )); } || error "Not one of the numbers listed."
     WG_ENDPOINT_IP=${rows[$((pick - 1))]#* }
     echo "$host" > "$ENDPOINT_HOST_FILE"
     chmod 600 "$ENDPOINT_HOST_FILE"
@@ -1016,8 +1016,8 @@ paste_config() {
     fi
     body=$(tr -d '\r' <<<"$body" | sed 's/^[[:space:]]*//')
     echo "Read $(grep -c . <<<"$body" || true) lines."
-    grep -qi '^\[Interface\]' <<<"$body" && grep -qi '^\[Peer\]' <<<"$body" && \
-        grep -qi '^PrivateKey' <<<"$body" && grep -qi '^Endpoint' <<<"$body" || \
+    { grep -qi '^\[Interface\]' <<<"$body" && grep -qi '^\[Peer\]' <<<"$body" && \
+        grep -qi '^PrivateKey' <<<"$body" && grep -qi '^Endpoint' <<<"$body"; } || \
         error "That doesn't look like a WireGuard config (it needs [Interface], [Peer], PrivateKey and Endpoint). Nothing was saved."
     [[ -f "$PASTED_CONF" ]] && mv -f "$PASTED_CONF" "$PASTED_CONF.prev"
     ( umask 077; printf '%s\n' "$body" > "$PASTED_CONF" )
@@ -1501,8 +1501,8 @@ if [[ "${1:-}" =~ ^(update|addresses|use-address|use-config|revert-config|forget
             valid_ipv4 "$ip" || error "Give an IPv4 address, like 203.0.113.16."
             [[ -f "$UPLOAD_CONF" ]] || error "There's no new config waiting. Paste it on the control panel's VPN page first."
             body=$(tr -d '\r' < "$UPLOAD_CONF" | sed 's/^[[:space:]]*//')
-            grep -qi '^\[Interface\]' <<<"$body" && grep -qi '^\[Peer\]' <<<"$body" && \
-                grep -qi '^PrivateKey' <<<"$body" && grep -qi '^Endpoint' <<<"$body" || \
+            { grep -qi '^\[Interface\]' <<<"$body" && grep -qi '^\[Peer\]' <<<"$body" && \
+                grep -qi '^PrivateKey' <<<"$body" && grep -qi '^Endpoint' <<<"$body"; } || \
                 error "The new config doesn't look like a WireGuard config. Nothing changed."
             try_read_existing_values "$COMPOSE_FILE" || read_existing_values "$DIRECT_COMPOSE"
 

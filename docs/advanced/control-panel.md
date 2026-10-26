@@ -37,13 +37,17 @@ After that the same command opens the menu. **4) Update** downloads the newest `
 ## How it's locked down
 
 - **Caddy gate.** Without the unlock cookie, every URL on the subdomain returns a bare 404. The login page isn't even discoverable. Opening `/unlock/<token>` once sets the cookie, and every visit sets it again. Menu option 5 makes a new token, which also signs out every browser.
+- **Only Caddy reaches it.** The container publishes no ports. It takes the visitor's address and HTTPS from Caddy's forwarded headers only when they come from Caddy's own container, so nothing else on the Docker network can pose as a visitor (`app/proxy.py`).
 - **Login.** Password hashed with scrypt, 7-day signed session cookie (HttpOnly, Secure). 5 wrong passwords locks that address out for 15 minutes.
 - **SameSite=Lax** on both cookies, so a link opened from another app (tapping a phone alert) gets in. Browsers still never send them with another site's POSTs, and everything that changes something in the panel is a POST. A rebuild brings Caddy's site file up to date, reloading Caddy only if it changed.
 - **No free-form commands.** The browser can only ask for actions from a fixed list (`app/actions.py`). It can't type a command, and logs are limited to the stack's own containers.
 - **No secrets shown.** `SECRET_KEY` and logins are never sent to the browser. Backups can be listed, created and deleted (delete removes every copy, after a confirm; a locked backup can't be deleted until you unlock it), but not downloaded: copy them off with `scp`.
 - **Web terminal (off by default).** Behind a second key, separate from the login and the unlock link. See below.
+- **In the browser.** Every request that changes something needs the panel's own header and a same-site origin. A strict Content-Security-Policy allows only the panel's own scripts. Anything that comes from outside (container names, log lines, release notes from GitHub) is put on the page as plain text, never as HTML.
 
 It is still root-equivalent on your server, because it has to run the scripts and talk to Docker (the container is privileged and shares the host's process namespace, so it can run scripts on the host through `nsenter`). Treat the unlock link and the password like SSH credentials.
+
+Found a security problem? Please report it privately from the repository's **Security** tab (Report a vulnerability), not in a public issue.
 
 ## What each button runs
 

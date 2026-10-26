@@ -93,6 +93,7 @@ write_env_file() {
             # address it passes on is the real one. Without this every
             # visitor shares one rate limit.
             printf "TRUST_PROXY='true'\n"
+            # shellcheck disable=SC2153  # DOMAIN comes from load_config
             printf "CORS_ORIGINS='https://%s'\n" "$DOMAIN"
             # Logins already made keep working; new ones are refused.
             printf "REGISTRATIONS_CLOSED='%s'\n" "$closed"
@@ -205,8 +206,8 @@ db.close()" 2>/dev/null || true
 
 # Waits for the health check in its compose file.
 wait_healthy() {
-    local i state
-    for i in $(seq 1 45); do
+    local state
+    for _ in $(seq 1 45); do
         state=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$CONTAINER_NAME" 2>/dev/null || echo missing)
         case "$state" in
             healthy) return 0 ;;
@@ -772,7 +773,7 @@ case "${1:-}" in
         case "${2:-status}" in
             open)
                 s_min="${3:-$SIGNUPS_MINUTES_DEFAULT}"
-                [[ "$s_min" =~ ^[0-9]+$ ]] && (( s_min >= 1 && s_min <= 1440 )) || error "Minutes must be a number from 1 to 1440."
+                { [[ "$s_min" =~ ^[0-9]+$ ]] && (( s_min >= 1 && s_min <= 1440 )); } || error "Minutes must be a number from 1 to 1440."
                 signups_open "$s_min" < /dev/null ;;
             close) signups_close < /dev/null ;;
             status) echo "Sign-ups: $(signups_line)" ;;

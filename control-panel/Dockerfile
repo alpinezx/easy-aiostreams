@@ -14,4 +14,5 @@ COPY VERSION .
 ENV PYTHONUNBUFFERED=1
 EXPOSE 8080
 # No port is published to the host; only Caddy reaches this over the shared Docker network.
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers", "--forwarded-allow-ips=*", "--no-server-header"]
+# Forwarded headers are read by app/proxy.py, from Caddy only, so uvicorn's own handling is off.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080", "--no-proxy-headers", "--no-server-header"]

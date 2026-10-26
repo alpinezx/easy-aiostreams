@@ -386,7 +386,7 @@ check_cert() {
         [[ -e "$f" ]] || continue
         [[ " ${sites[*]} " == *" ${f##*/} "* ]] || rm -f "$f"
     done
-    echo "$( (( any )) && echo bad || echo ok)" > "$STATE_DIR/cert-state"
+    if (( any )); then echo bad; else echo ok; fi > "$STATE_DIR/cert-state"
     return 0
 }
 
@@ -625,7 +625,7 @@ check_scripts() {
     touch "$sent"
     n=${#names[@]}
     if (( n == 1 )); then msg="${names[0]} differs from GitHub's copy"
-    else msg="$n scripts differ from GitHub's copies: $(IFS=,; echo "${names[*]}" | sed 's/,/, /g')"
+    else msg="$n scripts differ from GitHub's copies: $(IFS=,; j="${names[*]}"; echo "${j//,/, }")"
     fi
     [[ "$branch" == main ]] || msg+=" ($branch branch)"
     msg+="."
@@ -743,8 +743,9 @@ check_security() {
     echo "$now" > "$sent"
     how="Install them with: sudo bash $INSTALL_DIR/setup-aiostreams.sh system-updates"
     [[ -n "$(panel_domain)" ]] && how="Install them on the panel's Maintenance page (Open panel)."
-    local what="$count security update$( (( count == 1 )) || echo s) $( (( count == 1 )) && echo has || echo have) waited $days days"
-    what+=" ($(IFS=,; echo "${names[*]}" | sed 's/,/, /g')$( (( count > 3 )) && echo ", ..."))."
+    local what
+    what="$count security update$( (( count == 1 )) || echo s) $( (( count == 1 )) && echo has || echo have) waited $days days"
+    what+=" ($(IFS=,; j="${names[*]}"; echo "${j//,/, }")$( (( count > 3 )) && echo ", ..."))."
     if send_ntfy "$what Ubuntu usually installs these by itself, so something may have stopped it. $how" \
         "Security updates waiting" 4 lock maint; then
         log_event security "$what Alert sent."
@@ -813,7 +814,7 @@ check_weekly() {
         passed=$((passed + p)); failed=$((failed + f))
     done < <(cat "$TALLY_FILE" 2>/dev/null)
     while IFS='|' read -r at kind _; do
-        [[ "$at" =~ ^[0-9]+$ ]] && (( now - at < 7 * 86400 )) || continue
+        { [[ "$at" =~ ^[0-9]+$ ]] && (( now - at < 7 * 86400 )); } || continue
         [[ "$kind" == alert ]] && alerts=$((alerts + 1))
         [[ "$kind" == reboot ]] && reboots=$((reboots + 1))
     done < <(cat "$EVENTS_FILE" 2>/dev/null)
@@ -926,7 +927,7 @@ do_shutdown() {
 # minutes, so starting the unit by hand (Start, a restore) sends nothing.
 do_boot() {
     mkdir -p "$STATE_DIR"
-    local now up boot_at last shut when down="" sent=0 attempt boot_id
+    local now up boot_at last shut when down="" sent=0 boot_id
     now=$(date +%s)
     up=$(cut -d. -f1 /proc/uptime)
     boot_at=$(( now - up ))
@@ -951,7 +952,7 @@ do_boot() {
         return 0
     fi
     # A few tries: the network can take a moment after boot
-    for attempt in 1 2 3 4 5 6; do
+    for _ in 1 2 3 4 5 6; do
         if send_ntfy "The server restarted at $when$down." "Server restarted" 3 arrows_counterclockwise; then sent=1; break; fi
         sleep 10
     done
@@ -1247,29 +1248,29 @@ do_extras() {
         mediaflow_configured && top=10
         read -rp "Choose [0-$top]: " c || return 0
         case "$c" in
-            1) option_on updates && set_option updates off || set_option updates on ;;
-            2) reboots_on && set_option reboots off || set_option reboots on ;;
-            3) option_on scripts && set_option scripts off || set_option scripts on ;;
-            4) option_on backups && set_option backups off || set_option backups on ;;
-            5) option_on security && set_option security off || set_option security on ;;
-            6) option_on weekly && set_option weekly off || set_option weekly on ;;
+            1) if option_on updates; then set_option updates off; else set_option updates on; fi ;;
+            2) if reboots_on; then set_option reboots off; else set_option reboots on; fi ;;
+            3) if option_on scripts; then set_option scripts off; else set_option scripts on; fi ;;
+            4) if option_on backups; then set_option backups off; else set_option backups on; fi ;;
+            5) if option_on security; then set_option security off; else set_option security on; fi ;;
+            6) if option_on weekly; then set_option weekly off; else set_option weekly on; fi ;;
             8)
                 if aiometadata_configured; then
-                    option_on metadata && set_option metadata off || set_option metadata on
+                    if option_on metadata; then set_option metadata off; else set_option metadata on; fi
                 else
                     echo "Not a valid option."
                 fi
                 ;;
             9)
                 if aiomanager_configured; then
-                    option_on manager && set_option manager off || set_option manager on
+                    if option_on manager; then set_option manager off; else set_option manager on; fi
                 else
                     echo "Not a valid option."
                 fi
                 ;;
             10)
                 if mediaflow_configured; then
-                    option_on mediaflow && set_option mediaflow off || set_option mediaflow on
+                    if option_on mediaflow; then set_option mediaflow off; else set_option mediaflow on; fi
                 else
                     echo "Not a valid option."
                 fi
