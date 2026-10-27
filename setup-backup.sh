@@ -570,7 +570,8 @@ do_scheduled() {
     fi
     size=$(du -h "$BACKUP_WRITTEN" | cut -f1)
     prune_scheduled
-    local msg="$(basename "$BACKUP_WRITTEN"), ${size}B."
+    local msg
+    msg="$(basename "$BACKUP_WRITTEN"), ${size}B."
     if (( PRUNED == 1 )); then msg+=" Removed the oldest scheduled one."; fi
     if (( PRUNED > 1 )); then msg+=" Removed the $PRUNED oldest scheduled ones."; fi
     last_run ok "$msg"
@@ -1213,6 +1214,7 @@ do_restore() {
         shopt -u nullglob
         if [[ ${#candidates[@]} -gt 0 ]]; then
             # newest first; awk de-dupes since these dirs often overlap
+            # shellcheck disable=SC2012  # sorting backup files by time; their names are ours
             mapfile -t candidates < <(ls -1t -- "${candidates[@]}" 2>/dev/null | awk '!seen[$0]++')
         fi
 
