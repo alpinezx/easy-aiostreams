@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 27 October 2026
 
+- **Phone alerts:** a site check that lands while Caddy is restarting tries again after 5 seconds, so a restart no longer leaves a failed check (often logged as a bad certificate) in the history. ([#100](https://github.com/alpinezx/easy-aiostreams/pull/100))
 - **Phone alerts on Debian:** the security-updates alert checks whether the server installs updates by itself and says so, rather than assuming Ubuntu; the panel, menu and docs no longer say Ubuntu. (Panel 1.43.2, [#99](https://github.com/alpinezx/easy-aiostreams/pull/99))
 - **Fixed:** a new add-on's certificate no longer shows "Can't check" for 5 minutes after install; a failed check is retried after 1. (Panel 1.43.2, [#99](https://github.com/alpinezx/easy-aiostreams/pull/99))
 - **Fixed:** MediaFlow's Uninstall leaves no Caddy log mount behind, and a watchdog check during it no longer logs MediaFlow as down. ([#99](https://github.com/alpinezx/easy-aiostreams/pull/99))
