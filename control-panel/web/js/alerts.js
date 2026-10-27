@@ -74,8 +74,8 @@ function cell(label, ...value) {
 }
 
 // One square per day for the last 14: green all passed, amber some failed, faint no checks
-// nowOk: the latest check passed, so today's failures are behind it. Today's square stays
-// amber (it's the day's record), and its wording says they were earlier.
+// nowOk: the latest check passed, so today's failures are behind it. Today's square then
+// shows both (green, with an amber band at its foot) and its wording says they were earlier.
 export function days(tally, nowOk = false) {
   const by = Object.fromEntries((tally || []).map((t) => [t.day, t]));
   const strip = h("div", { class: "wd-days", role: "list", "aria-label": "Checks per day, last 14 days" });
@@ -84,7 +84,7 @@ export function days(tally, nowOk = false) {
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     const t = by[key];
     const label = d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" });
-    const s = !t || t.passed + t.failed === 0 ? "none" : t.failed ? "warn" : "ok";
+    const s = !t || t.passed + t.failed === 0 ? "none" : t.failed ? (back === 0 && nowOk ? "recovered" : "warn") : "ok";
     const n = t ? t.passed + t.failed : 0;
     const earlier = back === 0 && nowOk ? " earlier, all passing now" : "";
     const tip = !t ? `${label}: no checks` : `${label}: ${n} check${n === 1 ? "" : "s"}${t.failed ? `, ${t.failed} failed${earlier}` : n === 1 ? ", passed" : ", all passed"}`;
