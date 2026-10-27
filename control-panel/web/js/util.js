@@ -44,11 +44,12 @@ export function fmtDur(sec) {
   return `${sec}s`;
 }
 
+// Sizes in KB, MB and GB of 1000, as AIOStreams' dashboard writes them, so the two agree
 export function fmtBytes(n) {
   if (n == null) return "";
   const u = ["B", "KB", "MB", "GB", "TB"];
   let i = 0;
-  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  while (n >= 1000 && i < u.length - 1) { n /= 1000; i++; }
   return `${n >= 100 || i === 0 ? Math.round(n) : n.toFixed(1)} ${u[i]}`;
 }
 

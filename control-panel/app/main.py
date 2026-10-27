@@ -16,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import auth, config, panelupdate, releases, scriptsync, serverip, terminal
 from .actions import SCRIPTS, BadAction, build_delete_config, build_restore, build_use_file, resolve
+from .proxy import CaddyProxyHeaders
 from .stack import BACKUP_NAME, RESTARTABLE, backup_path
 
 if config.DEMO:
@@ -82,6 +83,10 @@ async def guard(request: Request, call_next):
     resp.headers["X-Frame-Options"] = "DENY"
     resp.headers["Cache-Control"] = "no-store" if request.url.path.startswith("/api") else resp.headers.get("Cache-Control", "no-cache")
     return resp
+
+
+# Added last, so it runs first: the visitor's address and https, but only when Caddy sends them
+app.add_middleware(CaddyProxyHeaders)
 
 
 def client_ip(request: Request) -> str:

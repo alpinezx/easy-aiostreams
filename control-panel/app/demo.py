@@ -339,7 +339,7 @@ class DemoBackend:
                          "in_use": (i != "vpn" or self.vpn != "none") and (i != "watchdog" or self.wd_configured)} for i, l, f in SCRIPTS], "overall": overall, "headline": headline, "services": services,
             "watchdog": {"configured": self.wd_configured, "running": self.wd_running, "alert_state": "up",
                          "last_check": time.strftime("%d %b %Y, %H:%M:%S UTC", time.gmtime(time.time() - 40)) + (" OK" if self.wd_running else "")},
-            "host": {"cpus": 2, "load": [0.21, 0.34, 0.29], "mem_total": 4 * GB, "mem_used": int(1.6 * GB),
+            "host": {"cpus": 2, "cpu_pct": 6.4, "load": [0.21, 0.34, 0.29], "mem_total": 4 * GB, "mem_used": int(1.6 * GB),
                      "uptime": 41 * 86400 + 3 * 3600, "disk_total": 80 * GB, "disk_used": 23 * GB},
             "cert": {"host": "streams.example.com", "days_left": 61, "ok": True, "days_total": 90},
             "certs": [{"host": "streams.example.com", "label": "AIOStreams", "days_left": 61, "ok": True, "days_total": 90},

@@ -98,6 +98,12 @@ def parse_backup_info(text: str) -> dict | None:
 SET_ASIDE_NAME = re.compile(r"aiostreams\.pre-restore-(\d{8}-\d{6})")
 HOMES_DIR = "/home"      # where other users keep their convenience copy (tests point this elsewhere)
 HOST_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+def _proc_stat_cpu() -> str:
+    """The "cpu" line of /proc/stat: time all the cores have spent on each kind of work."""
+    with open("/proc/stat") as f:
+        return f.readline()
+
+
 # Prints y when a restart would finish installing updates: Ubuntu's flag file, or (Debian has
 # none) a kernel installed since the last boot, by its file's change time. setup-aiostreams.sh's
 # reboot_needed checks the same.
@@ -787,8 +793,31 @@ class Backend:
             return "degraded", f"{soft[0]['name']} is starting"
         return "ok", "Everything is up"
 
+    def _cpu_pct(self) -> float | None:
+        """How busy all the CPUs were since the last look, worked out as AIOStreams' own
+        dashboard does, so the two agree. The first look, or one after a long gap,
+        measures a quarter of a second instead."""
+        def read() -> tuple[float, int, int]:
+            f = [int(x) for x in _proc_stat_cpu().split()[1:9]]
+            return time.monotonic(), sum(f), f[3] + f[4]      # all time, then idle + iowait
+        now = read()
+        prev = getattr(self, "_cpu_prev", None)
+        if prev is None or now[0] - prev[0] > 60:
+            time.sleep(0.25)
+            prev, now = now, read()
+        total, idle = now[1] - prev[1], now[2] - prev[2]
+        if total <= 0:                  # two looks within one tick: keep the last figure
+            return getattr(self, "_cpu_last", None)
+        self._cpu_prev = now
+        self._cpu_last = round(100 * (total - idle) / total, 1)
+        return self._cpu_last
+
     def _host(self) -> dict:
         out: dict = {"cpus": os.cpu_count()}
+        try:
+            out["cpu_pct"] = self._cpu_pct()
+        except Exception:
+            pass
         try:
             out["load"] = [float(x) for x in open("/proc/loadavg").read().split()[:3]]
             mi = {l.split(":")[0]: int(l.split()[1]) * 1024 for l in open("/proc/meminfo")}

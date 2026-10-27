@@ -294,6 +294,7 @@ get_domain() {
     [[ -f "$CONFIG_FILE" ]] || return 0
     # shellcheck disable=SC1090
     source "$CONFIG_FILE"
+    # shellcheck disable=SC2153  # DOMAIN comes from the config just sourced
     echo "$DOMAIN"
 }
 
@@ -622,6 +623,7 @@ do_configure() {
 
     local existing_password=""
     local existing_proxy_url=""
+    # shellcheck source=/dev/null
     [[ -f "$CONFIG_FILE" ]] && { source "$CONFIG_FILE"; existing_password="${MEDIAFLOW_API_PASSWORD:-}"; existing_proxy_url="${MEDIAFLOW_PROXY_URL:-}"; }
 
     info "API password"
