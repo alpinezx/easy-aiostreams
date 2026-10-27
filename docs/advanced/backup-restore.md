@@ -45,7 +45,10 @@ other way round. Scheduled backups never remove a kept one. The menu's
 **4) List backups, and keep one for good** does both by number.
 
 A restore puts the newest copies of both scripts you have into the restored
-folder, so restoring an older backup never leaves you on older scripts. Backups
+folder, so restoring an older backup never leaves you on older scripts. The
+control panel works the same way on a same-server restore: when the server's
+panel is newer than the backup's, its files stay, and only its settings and
+login come from the backup. Backups
 made before `setup-backup.sh` existed (but after the move to `/opt`) restore the
 same way.
 

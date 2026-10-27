@@ -4,6 +4,10 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 27 October 2026
 
+- **Phone alerts says when a problem is over:** once checks pass again, today's square turns green with an amber band and the line reads "failed earlier. All passing now". Between a failed check and the next one, if everything is back up, the Result says "Looks fine now" instead of "Failed". (Panel 1.43.1, [#98](https://github.com/alpinezx/easy-aiostreams/pull/98))
+- **Fixed:** a same-server restore of an older backup no longer puts back an older control panel; the server's newer panel stays, with its settings from the backup. ([#98](https://github.com/alpinezx/easy-aiostreams/pull/98))
+- **Fixed:** the VPN script's `on` command restarts a tunnel that has stopped, instead of saying the VPN is already on. ([#98](https://github.com/alpinezx/easy-aiostreams/pull/98))
+- **Docs:** every control panel screenshot retaken at panel 1.43.1. ([#98](https://github.com/alpinezx/easy-aiostreams/pull/98))
 - **CPU and memory match AIOStreams' dashboard:** This server shows CPU as a percentage, with the load average under it, and every size in the panel counts in thousands, so the two pages agree. (Panel 1.43.0, [#97](https://github.com/alpinezx/easy-aiostreams/pull/97))
 - **Security hardening:** the panel takes the visitor's address only from Caddy, so another container can't get round the login lockout. Every setup script now passes ShellCheck, and the control panel guide's "How it's locked down" covers more. (Panel 1.42.2, [#97](https://github.com/alpinezx/easy-aiostreams/pull/97))
 - **Debian:** the README says how to add `dig`, which a fresh Debian doesn't have. A full install, restore and reboot was tested on Debian 13. ([#97](https://github.com/alpinezx/easy-aiostreams/pull/97))
