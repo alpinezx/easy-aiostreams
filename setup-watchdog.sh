@@ -113,11 +113,19 @@ site_domain() {
 # hiccup elsewhere or a cloud that can't reach its own public IP doesn't
 # count as the site being down. Any answer below 500 means it's up (AIOStreams
 # answers / with a page or a redirect).
+# A connection that fails outright is tried once more after 5 seconds: a
+# check landing in the moment Caddy restarts fails mid-handshake, which would
+# otherwise be logged as a bad certificate. A timeout has waited long enough.
 check_site() {
     local domain code rc=0
     domain=$(site_domain)
     [[ -n "$domain" ]] || return 0
     code=$(curl -s -o /dev/null -w '%{http_code}' -m 15 --resolve "$domain:443:127.0.0.1" "https://$domain/") || rc=$?
+    if [[ $rc -ne 0 && $rc -ne 28 ]]; then
+        sleep 5
+        rc=0
+        code=$(curl -s -o /dev/null -w '%{http_code}' -m 15 --resolve "$domain:443:127.0.0.1" "https://$domain/") || rc=$?
+    fi
     case "$rc" in
         0) ;;
         7) FAIL_REASON="nothing is answering on port 443, so Caddy looks down and https://$domain is unreachable. Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"; return 1 ;;
