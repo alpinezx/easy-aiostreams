@@ -1252,14 +1252,21 @@ fi
 # "on" / "off": switch modes without the menu, for the control panel. "off"
 # keeps AIOStreams live through the switch (the menu's "Continue anyway"); the
 # panel shows that warning before running it. Neither does anything when the
-# VPN is already that way, and neither sets the VPN up for the first time.
+# VPN is already that way (though "on" restarts a tunnel that has stopped), and
+# neither sets the VPN up for the first time.
 if [[ "${1:-}" == "on" || "${1:-}" == "off" ]]; then
     [[ -f "$ACTIVE_MARKER" ]] || error "The VPN isn't set up on this server yet. Run this script without arguments first."
     want="vpn"
     [[ "$1" == "off" ]] && want="direct"
+    running() { [[ "$(docker inspect -f '{{.State.Running}}' "$1" 2>/dev/null || echo false)" == "true" ]]; }
     if [[ "$(cat "$ACTIVE_MARKER" 2>/dev/null || true)" == "$want" ]]; then
-        echo "The VPN is already $1. Nothing to do."
-        exit 0
+        # VPN mode with the tunnel (or AIOStreams) stopped isn't "on": bring it back
+        # up, as the menu's Turn VPN ON does. A deliberately stopped AIOStreams stays so.
+        if [[ "$1" == "off" ]] || { running gluetun && { running aiostreams || aio_stays_stopped; }; }; then
+            echo "The VPN is already $1. Nothing to do."
+            exit 0
+        fi
+        echo "The VPN is set to on, but the tunnel isn't running. Starting it again."
     fi
     want_aio=true
     if aio_stays_stopped; then want_aio=false; fi
