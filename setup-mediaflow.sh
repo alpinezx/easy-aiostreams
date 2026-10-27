@@ -928,8 +928,12 @@ do_uninstall() {
 remove_mediaflow() {
     local images="${1:-no}" image=""
     [[ -f "$MEDIAFLOW_COMPOSE" ]] && image=$(compose_image_refs "$MEDIAFLOW_COMPOSE" | head -n1)
-    [[ -f "$MEDIAFLOW_COMPOSE" ]] && (cd "$STATE_DIR" && docker compose -f "$MEDIAFLOW_COMPOSE" down 2>/dev/null || true)
+    # The jail first (it reads the config), then the config, then the
+    # container: the watchdog stops watching MediaFlow once its config is
+    # gone, so a check landing mid-uninstall doesn't count it as down.
     [[ -f "$FAIL2BAN_JAIL_FILE" ]] && do_uninstall_fail2ban
+    rm -f "$CONFIG_FILE"
+    [[ -f "$MEDIAFLOW_COMPOSE" ]] && (cd "$STATE_DIR" && docker compose -f "$MEDIAFLOW_COMPOSE" down 2>/dev/null || true)
     # Full uninstall also purges the access log that jail was reading, plus
     # its host directory. do_uninstall_fail2ban (option 8, remove protection
     # only) leaves these alone on purpose, since removing just the jail
@@ -938,6 +942,12 @@ remove_mediaflow() {
     if [[ -d "$CADDY_LOG_HOST_DIR" ]]; then
         info "Cleaning up fail2ban's log directory"
         rm -rf "$CADDY_LOG_HOST_DIR"
+    fi
+    # And Caddy's mount of that directory in the main compose file, or the
+    # next time Caddy is recreated Docker makes an empty one again.
+    if [[ -f "$COMPOSE_FILE" ]] && grep -q -- "- ./$CADDY_LOG_MOUNT_MARKER:$CADDY_LOG_HOST_DIR_CONTAINER_PATH" "$COMPOSE_FILE"; then
+        sed -i "\#- \./$CADDY_LOG_MOUNT_MARKER:$CADDY_LOG_HOST_DIR_CONTAINER_PATH\$#d" "$COMPOSE_FILE"
+        chmod 600 "$COMPOSE_FILE"
     fi
     rm -f "$CADDY_SNIPPET" "${CADDY_SNIPPET}.rejected"
     restart_caddy_to_pick_up_dropin
