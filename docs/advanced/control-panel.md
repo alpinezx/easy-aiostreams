@@ -108,7 +108,9 @@ Once a minute, whether or not the panel is open, it reads two sets of byte count
 
 **Whole server** and **VPN tunnel** (only once the VPN is set up) switch the Traffic card between the two. The graph is minute by minute over 1 hour, 5-minute averages over 24 hours and hourly averages over 7 days. **Clear history** empties the one shown and starts it again from now. **By service** is each container's speed from Docker's own counters, worked out from the panel's last two looks at them. AIOStreams on the VPN shares gluetun's network and has no counters of its own, so it's shown once, under the tunnel.
 
-The Overview's **This server** shows the server's speed now and today's totals as its **Network** value, the VPN's card shows the tunnel's, and MediaFlow's card shows what's passing through MediaFlow now; all three link here. On desktop, This server is two rows of four values, with the certificates in a section of their own below, folded to the soonest one unless one needs a look.
+The Overview's **This server** shows the server's speed now and today's totals as its **Network** value, the VPN's card shows the tunnel's, and MediaFlow's card shows what's passing through MediaFlow now; all three link here.
+
+Its figures are worked out the way AIOStreams' own dashboard does them, so the two pages agree: **CPU** is how busy all the cores were over the last few seconds, with Linux's load average under it, and every size and speed in the panel counts KB, MB and GB in thousands. On desktop, This server is two rows of four values, with the certificates in a section of their own below, folded to the soonest one unless one needs a look.
 
 ## VPN page
 

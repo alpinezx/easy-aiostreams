@@ -675,13 +675,13 @@ function hostSum(st) {
   const pct = (u, t) => Math.round((u / t) * 100);
   const bk = st.backup;
   const bad = bk && bk.every !== "off" && bk.last && (bk.last.status === "failed" || bk.last.status === "skipped");
-  const load = hs.load ? (hs.load[0] / (hs.cpus || 1)) * 100 : 0;
+  const cpu = hs.cpu_pct != null ? hs.cpu_pct : hs.load ? (hs.load[0] / (hs.cpus || 1)) * 100 : 0;
   const wc = worstCert(st);
   return foldSum([
     [hs.uptime != null ? `Up ${fmtDur(hs.uptime)}` : ""],
     [wc && !wc.ok ? "Certificate: couldn't check" : wc && certTone(wc) ? `Certificate: ${wc.days_left} days left` : "",
       wc && !wc.ok ? "warn" : wc && certTone(wc)],
-    [load >= 75 ? `Load ${hs.load[0].toFixed(2)}` : "", tone(load, 75, 90)],
+    [cpu >= 75 ? (hs.cpu_pct != null ? `CPU ${Math.round(cpu)}%` : `Load ${hs.load[0].toFixed(2)}`) : "", tone(cpu, 75, 90)],
     [hs.mem_total ? `Memory ${pct(hs.mem_used, hs.mem_total)}%` : "", hs.mem_total && tone(pct(hs.mem_used, hs.mem_total), 80, 90)],
     [hs.disk_total ? `Disk ${pct(hs.disk_used, hs.disk_total)}%` : "", hs.disk_total && tone(pct(hs.disk_used, hs.disk_total), 80, 90)],
     [bk ? (bad ? `Last scheduled backup ${bk.last.status === "skipped" ? "skipped" : "failed"}` : bk.newest ? `Backup ${ago(bk.newest)}` : "No backup yet") : "",
@@ -747,9 +747,13 @@ function side(st) {
     if (n) net.children[1].append(h("span", { class: "nowrap", text: `↓ ${fmtRate(n[0])}` }), h("span", { class: "nowrap", text: `↑ ${fmtRate(n[1])}` }));
     grid.append(net);
   }
-  if (hs.load) {
+  // CPU busy as a percentage, as AIOStreams' dashboard shows it, with Linux's load average under it
+  const cpus = `${hs.cpus} CPU${hs.cpus > 1 ? "s" : ""}`;
+  if (hs.cpu_pct != null) {
+    grid.append(stat("CPU", `${Math.round(hs.cpu_pct)}%`, hs.load ? `Load ${hs.load[0].toFixed(2)} on ${cpus}` : `on ${cpus}`, tone(hs.cpu_pct, 75, 90)));
+  } else if (hs.load) {
     const pct = (hs.load[0] / (hs.cpus || 1)) * 100;
-    grid.append(stat("Load", hs.load[0].toFixed(2), `on ${hs.cpus} CPU${hs.cpus > 1 ? "s" : ""}`, tone(pct, 75, 90)));
+    grid.append(stat("Load", hs.load[0].toFixed(2), `on ${cpus}`, tone(pct, 75, 90)));
   }
   for (const [label, used, total, warn] of [["Memory", hs.mem_used, hs.mem_total, 80], ["Disk", hs.disk_used, hs.disk_total, 80]]) {
     if (!total) continue;
