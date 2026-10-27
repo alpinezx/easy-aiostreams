@@ -1380,6 +1380,21 @@ do_restore() {
         if [[ ! -d "$INSTALL_DIR/ui-state" ]]; then mkdir -p "$INSTALL_DIR/ui-state"; chmod 700 "$INSTALL_DIR/ui-state"; fi
         cp -p -- "$aside/ui-state/backup-meta.json" "$BACKUP_META"
     fi
+    # The control panel's files are code, not settings. When this server has a
+    # newer panel than the backup, keep its files, or the next rebuild would
+    # quietly go back to the backup's older version (and not offer an update,
+    # since the running one already matches GitHub). Its settings and login, in
+    # ui-state, still come from the backup.
+    if [[ -n "$aside" && -f "$aside/control-panel/VERSION" && -f "$INSTALL_DIR/control-panel/VERSION" ]]; then
+        local panel_here panel_backup
+        panel_here=$(tr -d '[:space:]' < "$aside/control-panel/VERSION")
+        panel_backup=$(tr -d '[:space:]' < "$INSTALL_DIR/control-panel/VERSION")
+        if [[ "$panel_here" != "$panel_backup" && "$(printf '%s\n%s\n' "$panel_here" "$panel_backup" | sort -V | tail -n 1)" == "$panel_here" ]]; then
+            rm -rf -- "$INSTALL_DIR/control-panel"
+            cp -a -- "$aside/control-panel" "$INSTALL_DIR/control-panel"
+            echo "Kept this server's control panel $panel_here (the backup has $panel_backup). Its settings come from the backup."
+        fi
+    fi
     chmod 600 "$COMPOSE_FILE" 2>/dev/null || true
     grep -q 'SECRET_KEY=' "$COMPOSE_FILE" || \
         error "Restored compose file has no SECRET_KEY. The archive may be damaged. Nothing has been started."
