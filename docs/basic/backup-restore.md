@@ -115,6 +115,7 @@ Moving AIOStreams to a different VPS: a provider switch, a resize that needs a r
 ```bash
 dig +short yourdomain.com
 ```
+(No `dig` on a fresh Debian server? `sudo apt install -y bind9-dnsutils` adds it.)
 Keep going with steps 3–4 below while you wait: no need to sit and watch it.
 
 ---

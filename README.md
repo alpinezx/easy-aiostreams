@@ -77,7 +77,7 @@ dig +short yourdomain.xyz
 curl -4 ifconfig.me
 ```
 
-Don't run the installer until these two lines match.
+Don't run the installer until these two lines match. On Debian, `dig` isn't installed by default: add it first with `sudo apt install -y bind9-dnsutils`.
 
 <details>
 <summary><b>What a match and a mismatch look like</b></summary>
