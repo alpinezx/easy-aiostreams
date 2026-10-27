@@ -2,6 +2,12 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 27 October 2026
+
+- **CPU and memory match AIOStreams' dashboard:** This server shows CPU as a percentage, with the load average under it, and every size in the panel counts in thousands, so the two pages agree. (Panel 1.43.0, [#97](https://github.com/alpinezx/easy-aiostreams/pull/97))
+- **Security hardening:** the panel takes the visitor's address only from Caddy, so another container can't get round the login lockout. Every setup script now passes ShellCheck, and the control panel guide's "How it's locked down" covers more. (Panel 1.42.2, [#97](https://github.com/alpinezx/easy-aiostreams/pull/97))
+- **Debian:** the README says how to add `dig`, which a fresh Debian doesn't have. A full install, restore and reboot was tested on Debian 13. ([#97](https://github.com/alpinezx/easy-aiostreams/pull/97))
+
 ## 26 October 2026
 
 - **Contributing guide:** `CONTRIBUTING.md` explains how pull requests get in (target `dev`, tested on a real server) and the project's habits. The issue form's setup questions link now points to the new Reddit post. ([#96](https://github.com/alpinezx/easy-aiostreams/pull/96))
