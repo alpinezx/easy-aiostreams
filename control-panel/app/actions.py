@@ -121,7 +121,7 @@ _STATIC: dict[str, Action] = {a.id: a for a in [
                    "the newest 100 MB. Nothing running, none of your settings and none of your backups are touched."),
     Action("maint.updates", "Install updates", "Installing updates", "Updates installed", AIO,
            args=("system-updates",), timeout=1800, needs=(AIO,), detached=True,
-           confirm="Installs Ubuntu's waiting updates, as apt upgrade would over SSH, keeping any config files "
+           confirm="Installs the system's waiting updates, as apt upgrade would over SSH, keeping any config files "
                    "you've changed. If Docker itself is updated, every container restarts for a few seconds, "
                    "this page included; the install carries on by itself."),
     Action("maint.logs", "Set limits", "Setting log limits", "Log limits set", AIO,
