@@ -461,6 +461,8 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .wd-day { width: 18px; height: 26px; border-radius: 4px; background: var(--line-soft); }
 .wd-day[data-s="ok"] { background: var(--ok); opacity: .75; }
 .wd-day[data-s="warn"] { background: var(--warn); }
+/* Today, failed earlier but passing now: green, with the earlier failures as an amber band at the foot */
+.wd-day[data-s="recovered"] { background: linear-gradient(to top, var(--warn) 0 34%, color-mix(in srgb, var(--ok) 75%, transparent) 34%); }
 .wd-today { font-size: .88rem; }
 /* This server and Phone alerts on the Overview: labelled values like the version card */
 /* substantial buttons (reboot, restart, start/stop) at the card's bottom right */

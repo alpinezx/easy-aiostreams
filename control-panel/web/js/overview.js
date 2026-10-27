@@ -784,19 +784,24 @@ function side(st) {
   if (!w.configured) return;
   const wdFolded = isFolded("alerts");
   const chk = parseCheck(w.last_check);
-  const failed = /^FAIL/.test(chk.result);
+  const nowOk = w.running && chk.result === "OK";
+  // The last check failed but everything's back up by the panel's own look: say so, rather than
+  // a failure that only clears when the next check runs (up to 2 minutes later)
+  const settling = /^FAIL/.test(chk.result) && w.running && st.overall === "ok";
+  const failed = /^FAIL/.test(chk.result) && !settling;
   const wd = h("section", { class: "panel wd" + (wdFolded ? " folded" : "") }, h("div", { class: "card-head" },
     h("h3", {}, foldTitle("alerts", "Phone alerts")),
     wdFolded ? foldSum([[w.running ? "Running" : "Stopped", w.running ? "ok" : "warn"],
-      [w.running ? (failed ? "Last check failed" : chk.result === "OK" ? "All passed" : "") : "", failed ? "warn" : "ok"],
+      [w.running ? (settling ? "Looks fine now" : failed ? "Last check failed" : nowOk ? "All passed" : "") : "", failed ? "warn" : settling ? "" : "ok"],
       [w.running && chk.at ? `Checked ${ago(chk.at)}` : ""]]) : null,
     h("a", { href: "#alerts", class: "dim card-link", text: "Details" })));
   if (wdFolded) { el.append(wd); return; }
   wd.append(h("div", { class: "stat-grid" },
     stat("Watchdog", w.running ? "Running" : "Stopped", w.running ? "Checks every 2 min" : "No checks running", w.running ? "ok" : "warn"),
     stat("Last check", chk.at ? ago(chk.at) : "None yet", chk.at ? new Date(chk.at * 1000).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""),
-    stat("Result", !w.running ? "Stopped" : failed ? "Failed" : chk.result === "OK" ? "All passed" : "—",
-      failed ? chk.result.replace(/^FAIL:\s*/, "").slice(0, 70) : "", failed ? "warn" : w.running && chk.result === "OK" ? "ok" : "")));
+    stat("Result", !w.running ? "Stopped" : settling ? "Looks fine now" : failed ? "Failed" : nowOk ? "All passed" : "—",
+      settling ? "The last check failed. The next one should confirm it's passing."
+        : failed ? chk.result.replace(/^FAIL:\s*/, "").slice(0, 70) : "", failed ? "warn" : nowOk ? "ok" : "")));
   loadWdDays();
   const btns = h("div", { class: "card-foot" });
   const id = w.running ? "watchdog.stop" : "watchdog.start";
@@ -807,8 +812,8 @@ function side(st) {
   // The buttons share the 14-day strip's row, at its right, rather than a row of their own
   if (wdDays && wdDays.length) {
     wd.append(h("div", { class: "wd-mini" },
-      h("div", { class: "wd-mini-main" }, h("div", { class: "vpn-label", text: "Last 14 days" }), days(wdDays),
-        h("div", { class: "dim wd-today", text: todayLine(wdDays) })), btns));
+      h("div", { class: "wd-mini-main" }, h("div", { class: "vpn-label", text: "Last 14 days" }), days(wdDays, nowOk || settling),
+        h("div", { class: "dim wd-today", text: todayLine(wdDays, nowOk || settling) })), btns));
   } else wd.append(btns);
   el.append(wd);
 }
