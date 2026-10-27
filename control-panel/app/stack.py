@@ -302,7 +302,9 @@ class Backend:
             ttl = 1800
         except Exception as e:
             val = {"host": host, "ok": False, "error": type(e).__name__}
-            ttl = 300
+            # Tried again after a minute: a newly added site usually fails only until
+            # Caddy has its certificate, a minute or so after the add-on starts
+            ttl = 60
         self._cert_cache[host] = (now + ttl, val)
         return val
 

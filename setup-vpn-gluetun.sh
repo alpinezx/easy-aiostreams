@@ -193,7 +193,7 @@ networks:
 EOF
     cat > "$DIRECT_CADDYFILE" << EOF
 ${DOMAIN} {
-    reverse_proxy aiostreams:3000
+	reverse_proxy aiostreams:3000
 }
 
 # Extra sites drop in here as their own files, so rewrites of THIS file
@@ -299,7 +299,7 @@ networks:
 EOF
     cat > "$VPN_CADDYFILE" << EOF
 ${DOMAIN} {
-    reverse_proxy gluetun:3000
+	reverse_proxy gluetun:3000
 }
 
 # Extra sites drop in here as their own files, so rewrites of THIS file
@@ -549,11 +549,13 @@ apply_mode() {
     if [[ "$mode" == "direct" ]]; then
         cp "$DIRECT_COMPOSE" "$COMPOSE_FILE"
         cp "$DIRECT_CADDYFILE" "$CADDYFILE"
+        sed -i 's/^    /\t/' "$CADDYFILE"   # older saved copies used spaces; Caddy wants tabs
         remove_vpn_boot_hook
     else
         refresh_vpn_snapshot
         cp "$VPN_COMPOSE" "$COMPOSE_FILE"
         cp "$VPN_CADDYFILE" "$CADDYFILE"
+        sed -i 's/^    /\t/' "$CADDYFILE"   # older saved copies used spaces; Caddy wants tabs
         install_vpn_boot_hook
     fi
     chmod 600 "$COMPOSE_FILE"

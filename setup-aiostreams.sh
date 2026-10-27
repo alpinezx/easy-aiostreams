@@ -198,6 +198,19 @@ ensure_caddy_dropin_dir() {
         printf '# Drop-in Caddy site configs live here.\n# Managed by setup-aiostreams.sh, safe to leave otherwise empty.\n' \
             > "$CADDY_DROPIN_DIR/00-placeholder.caddy"
     fi
+    tidy_caddyfile
+}
+
+# Caddy wants a tab at the start of an indented line, and otherwise logs
+# "Caddyfile input is not formatted" every time it loads the file. Older
+# installs (and the VPN script's saved copies) were written with four
+# spaces; this turns those into tabs and touches nothing else.
+tidy_caddyfile() {
+    local f
+    for f in "$CADDYFILE" "$INSTALL_DIR/vpn-state/Caddyfile.direct" "$INSTALL_DIR/vpn-state/Caddyfile.vpn"; do
+        if [[ -f "$f" ]] && grep -q '^    ' "$f"; then sed -i 's/^    /\t/' "$f"; fi
+    done
+    return 0
 }
 
 # Removes the add-ons that live outside the main compose stack. "restore"
@@ -635,6 +648,7 @@ restore_start_stack() {
 # restart: "no", so nothing else would. Stopped on purpose stays stopped.
 ensure_stack_running() {
     cd "$INSTALL_DIR" || return 1
+    tidy_caddyfile
     if [[ -f "$STOPPED_MARKER" ]]; then
         # shellcheck disable=SC2046  # empty when the VPN is off
         docker compose up -d --no-deps caddy $(vpn_mode_active && echo gluetun) || true
@@ -1032,6 +1046,7 @@ do_stop_aio() {
 do_start_aio() {
     echo ""
     cd "$INSTALL_DIR"
+    tidy_caddyfile
     warn_if_vpn_layer_off "Starting AIOStreams" || return 1
     if vpn_mode_active; then
         echo "VPN mode detected, bringing the tunnel up before starting AIOStreams..."
@@ -1052,6 +1067,7 @@ do_start_aio() {
 do_restart_stack() {
     echo ""
     cd "$INSTALL_DIR"
+    tidy_caddyfile
     if vpn_mode_active; then
         echo "VPN mode detected (gluetun present), recreating gluetun+caddy first, then"
         echo "gating aiostreams behind a confirmed tunnel, so it never re-attaches to a"
@@ -1757,7 +1773,7 @@ fi
 info "Writing Caddyfile (HTTPS reverse proxy; access control is handled by AIOStreams' own login)"
 cat > Caddyfile << EOF
 ${DOMAIN} {
-    reverse_proxy aiostreams:3000
+	reverse_proxy aiostreams:3000
 }
 
 # Extra sites drop in here as their own files, so rewrites of THIS file
