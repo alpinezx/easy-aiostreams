@@ -4,6 +4,10 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 27 October 2026
 
+- **Phone alerts on Debian:** the security-updates alert checks whether the server installs updates by itself and says so, rather than assuming Ubuntu; the panel, menu and docs no longer say Ubuntu. (Panel 1.43.2, [#99](https://github.com/alpinezx/easy-aiostreams/pull/99))
+- **Fixed:** a new add-on's certificate no longer shows "Can't check" for 5 minutes after install; a failed check is retried after 1. (Panel 1.43.2, [#99](https://github.com/alpinezx/easy-aiostreams/pull/99))
+- **Fixed:** MediaFlow's Uninstall leaves no Caddy log mount behind, and a watchdog check during it no longer logs MediaFlow as down. ([#99](https://github.com/alpinezx/easy-aiostreams/pull/99))
+- **Fixed:** Caddy no longer logs "Caddyfile input is not formatted": the Caddyfile is written with tabs, and existing ones are tidied on the next start or restart. ([#99](https://github.com/alpinezx/easy-aiostreams/pull/99))
 - **Phone alerts says when a problem is over:** once checks pass again, today's square turns green with an amber band and the line reads "failed earlier. All passing now". Between a failed check and the next one, if everything is back up, the Result says "Looks fine now" instead of "Failed". (Panel 1.43.1, [#98](https://github.com/alpinezx/easy-aiostreams/pull/98))
 - **Fixed:** a same-server restore of an older backup no longer puts back an older control panel; the server's newer panel stays, with its settings from the backup. ([#98](https://github.com/alpinezx/easy-aiostreams/pull/98))
 - **Fixed:** the VPN script's `on` command restarts a tunnel that has stopped, instead of saying the VPN is already on. ([#98](https://github.com/alpinezx/easy-aiostreams/pull/98))
