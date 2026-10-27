@@ -704,10 +704,17 @@ upgradable() {
     return 0
 }
 
-# Optional, off until switched on. Ubuntu installs security updates by
-# itself every day (unattended-upgrades), so they shouldn't wait. One that
-# has waited SEC_WAIT_DAYS means that has stopped, a package is held back, or
-# something needs a hand. Looked at every 6 hours; each update's first sight
+# Whether this server installs updates by itself: unattended-upgrades in
+# place and switched on, as Ubuntu has by default. A plain Debian doesn't.
+auto_updates_on() {
+    dpkg -s unattended-upgrades >/dev/null 2>&1 && \
+        [[ "$(apt-config dump 2>/dev/null | grep -oP '^APT::Periodic::Unattended-Upgrade "\K[^"]+')" == 1 ]]
+}
+
+# Optional, off until switched on. With automatic updates (Ubuntu's default),
+# security updates install themselves every day, so they shouldn't wait. One
+# that has waited SEC_WAIT_DAYS means that has stopped, a package is held
+# back, or something needs a hand. Without them, it's the reminder to install. Looked at every 6 hours; each update's first sight
 # is kept in security-seen ("package version epoch"). One alert, then a
 # reminder each week while any still wait; once none wait, the next time
 # starts afresh.
@@ -746,7 +753,9 @@ check_security() {
     local what
     what="$count security update$( (( count == 1 )) || echo s) $( (( count == 1 )) && echo has || echo have) waited $days days"
     what+=" ($(IFS=,; j="${names[*]}"; echo "${j//,/, }")$( (( count > 3 )) && echo ", ..."))."
-    if send_ntfy "$what Ubuntu usually installs these by itself, so something may have stopped it. $how" \
+    local why="This server doesn't install security updates by itself."
+    auto_updates_on && why="This server installs these by itself, so something may have stopped it."
+    if send_ntfy "$what $why $how" \
         "Security updates waiting" 4 lock maint; then
         log_event security "$what Alert sent."
     else
@@ -1234,7 +1243,7 @@ do_extras() {
         echo "2) Server restarted: $(reboots_on && echo on || echo off)  (with how long it was down)"
         echo "3) Script updates: $(option_on scripts && echo on || echo off)  (scripts can change several times a week, so this can be chatty; at most one alert a day)"
         echo "4) Scheduled backup made: $(option_on backups && echo on || echo off)  (a failed or skipped one always alerts)"
-        echo "5) Security updates waiting: $(option_on security && echo on || echo off)  (after $SEC_WAIT_DAYS days; Ubuntu usually installs them by itself)"
+        echo "5) Security updates waiting: $(option_on security && echo on || echo off)  (after $SEC_WAIT_DAYS days; automatic updates usually install them first)"
         echo "6) Weekly check-in: $(option_on weekly && echo "on, ${DAY_NAMES[$(( $(weekly_day) - 1 ))]}s from $(weekly_time)" || echo off)"
         echo "7) Set the check-in's day and time (server time: $(server_timezone))"
         # Only once AIOMetadata is installed; a new number, so the others never move

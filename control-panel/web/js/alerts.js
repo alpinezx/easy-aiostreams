@@ -224,7 +224,7 @@ function extras(w) {
     row("scripts", "When a script here differs from GitHub's copy", "Scripts can change several times a week, "
       + "so this can be chatty. At most one alert a day."),
     row("backups", "When a scheduled backup is made", "A failed or skipped one always alerts, with this on or off."),
-    row("security", "When security updates are waiting", "Ubuntu installs these by itself, so this alerts only if they've waited 3 days, "
+    row("security", "When security updates are waiting", "Automatic updates (Ubuntu's default) install these by themselves, so this alerts only if they've waited 3 days, "
       + "with a reminder each week while they still wait."),
     row("weekly", "Weekly check-in", "The week's checks, alerts, disk space, newest backup and updates waiting. "
       + "If it stops arriving, the watchdog itself needs a look.", false, when), when);
