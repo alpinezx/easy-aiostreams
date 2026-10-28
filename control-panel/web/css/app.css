@@ -68,16 +68,17 @@
   --bad-soft: rgba(196, 47, 47, .09); --warn-soft: rgba(154, 98, 0, .1); --ok-soft: rgba(18, 128, 90, .1);
 }
 /* Slate: a softer dark, slate greys in Nord's spirit, only when picked. It comes after the light
-   block above so it wins on a device set to light. */
+   block above so it wins on a device set to light. The page is darker than the cards so they lift
+   off it, and the quieter text is solid grey: see-through white over blue-grey looked hazy. */
 :root[data-theme="slate"] {
   color-scheme: dark;
-  --bg: #262b35; --raised: #2e3440; --sunk: #323947;
-  --line: rgba(216, 222, 233, .13); --line-soft: rgba(216, 222, 233, .08);
-  --text: #e5e9f0; --dim: rgba(229, 233, 240, .7); --faint: rgba(229, 233, 240, .47); --hover: rgba(216, 222, 233, .07);
-  --accent: #88c0d0; --accent-soft: rgba(136, 192, 208, .14);
-  --primary: #5e81ac; --primary-hover: #6d90bb; --primary-ink: #ffffff;
-  --ok: #a3be8c; --warn: #ebcb8b; --bad: #e07a83;
-  --bad-soft: rgba(224, 122, 131, .14); --warn-soft: rgba(235, 203, 139, .14); --ok-soft: rgba(163, 190, 140, .14);
+  --bg: #1c2028; --raised: #272c36; --sunk: #2b313c;
+  --line: #3a414e; --line-soft: #323844;
+  --text: #eceff4; --dim: #aab2bf; --faint: #7f8898; --hover: rgba(236, 239, 244, .06);
+  --accent: #8fc6d6; --accent-soft: rgba(143, 198, 214, .14);
+  --primary: #5779a8; --primary-hover: #6587b6; --primary-ink: #ffffff;
+  --ok: #9fcb7f; --warn: #f0c86e; --bad: #ec7a84;
+  --bad-soft: rgba(236, 122, 132, .14); --warn-soft: rgba(240, 200, 110, .14); --ok-soft: rgba(159, 203, 127, .14);
   --up-line: #b48ead;
 }
 
