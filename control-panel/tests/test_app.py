@@ -787,3 +787,18 @@ def test_light_colours_match_whether_followed_or_picked():
     strip = lambda s: re.sub(r"/\*.*?\*/", "", s, flags=re.S)
     values = lambda s: sorted(re.findall(r"([\w-]+)\s*:\s*([^;]+);", strip(s)))
     assert values(followed) == values(picked)
+
+
+def test_every_colours_button_is_applied_and_styled():
+    """Each Colours button but System needs theme.js to apply it before the page paints and, Dark
+    being :root's own colours, a block of its own in app.css, or picking it would flash or do nothing."""
+    import re
+    from pathlib import Path
+    web = Path(__file__).resolve().parents[1] / "web"
+    themes = re.findall(r'\["(\w+)", "\w+"\]', re.search(r"const THEMES = \[(.*?)\];", (web / "js" / "layout.js").read_text(encoding="utf-8")).group(1))
+    early = (web / "js" / "theme.js").read_text(encoding="utf-8")
+    css = (web / "css" / "app.css").read_text(encoding="utf-8")
+    assert themes[0] == "system" and "slate" in themes
+    for t in themes[1:]:
+        assert f'"{t}"' in early, t
+        assert t == "dark" or f':root[data-theme="{t}"] {{' in css, t

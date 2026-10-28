@@ -793,7 +793,7 @@ class Backend:
             return "paused", f"{stopped[0]['name']} is stopped"
         if soft:
             return "degraded", f"{soft[0]['name']} is starting"
-        return "ok", "Everything is up"
+        return "ok", "All running"
 
     def _cpu_pct(self) -> float | None:
         """How busy all the CPUs were since the last look, worked out as AIOStreams' own

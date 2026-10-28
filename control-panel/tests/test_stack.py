@@ -42,7 +42,7 @@ def make_backend(tmp_path, monkeypatch, containers, compose=None, extra_files=()
 def test_all_up(tmp_path, monkeypatch):
     b = make_backend(tmp_path, monkeypatch, [container("caddy"), container("aiostreams", health="healthy")])
     st = b.status()
-    assert st["overall"] == "ok" and st["headline"] == "Everything is up"
+    assert st["overall"] == "ok" and st["headline"] == "All running"
     assert st["domain"] == "streams.example.com" and st["channel"] == "nightly"
     assert [s["key"] for s in st["services"]] == ["caddy", "aiostreams"]
 

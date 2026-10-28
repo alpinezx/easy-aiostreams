@@ -2,6 +2,11 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 28 October 2026
+
+- **Slate colours:** a softer, slate-grey dark joins System, Light and Dark in the Overview's Edit drawer, saved per browser. (Panel 1.44.0, [#101](https://github.com/alpinezx/easy-aiostreams/pull/101))
+- **A quieter Overview:** the headline is a size smaller and reads "All running", and Request flow's title matches the other cards'. Docs screenshots retaken. (Panel 1.43.3, [#101](https://github.com/alpinezx/easy-aiostreams/pull/101))
+
 ## 27 October 2026
 
 - **Phone alerts:** a site check that lands while Caddy is restarting tries again after 5 seconds, so a restart no longer leaves a failed check (often logged as a bad certificate) in the history. ([#100](https://github.com/alpinezx/easy-aiostreams/pull/100))
