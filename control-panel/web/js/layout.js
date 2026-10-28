@@ -97,13 +97,13 @@ function save(m) {
 
 const isOpen = () => !$("#lay-drawer").hidden;
 
-// Colours: System follows the device; Light or Dark overrides it in this browser only (theme.js
+// Colours: System follows the device; Light, Dark or Slate (a softer dark) overrides it in this browser only (theme.js
 // applies it before the page paints). Kept out of the server's layouts on purpose, so a phone and
 // a desktop can differ.
-const THEMES = [["system", "System"], ["light", "Light"], ["dark", "Dark"]];
+const THEMES = [["system", "System"], ["light", "Light"], ["dark", "Dark"], ["slate", "Slate"]];
 function themeNow() {
   const t = document.documentElement.dataset.theme;
-  return t === "light" || t === "dark" ? t : "system";
+  return THEMES.some(([id]) => id !== "system" && id === t) ? t : "system";
 }
 function setTheme(t) {
   if (t === "system") delete document.documentElement.dataset.theme;
