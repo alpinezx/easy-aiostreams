@@ -260,9 +260,9 @@ button.chip:hover { text-decoration: underline; }
 }
 
 /* ---------- signal path ---------- */
-.path { margin: 4px 0 30px; padding: 18px 22px 16px; background: var(--sunk); border: 1px solid var(--line-soft); border-radius: var(--radius); }
+.path { margin: 4px 0 30px; padding: 18px 16px 16px; background: var(--sunk); border: 1px solid var(--line-soft); border-radius: var(--radius); }
 .path-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 14px; }
-.path-title { margin: 0; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--faint); }
+.path-title { margin: 0; font-size: .98rem; font-weight: 650; }   /* as every other card's title */
 /* The title folds the card down to one line: a dot per service and Restart stack */
 .path-toggle { display: inline-flex; align-items: center; gap: 6px; margin: -6px -8px; padding: 6px 8px; border: 0; border-radius: 6px;
   background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
@@ -1122,7 +1122,7 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
    it, uptimes left to Services. A tall chain of boxes used to fill a screen and a half. */
 @media (max-width: 720px) {
   #view-overview .ver-slot, #view-overview .panel.host, #view-overview .panel.wd, #view-overview .panel.vpnc, #view-overview .cols > div { margin-bottom: 22px; }
-  .path { margin: 0 0 22px; padding: 16px 14px 14px; }
+  .path { margin: 0 0 22px; padding: 16px 16px 14px; }
   .path-head { margin: 0 0 12px; }
   .chain { flex-direction: row; align-items: center; }
   .path-start { padding: 0 2px 0 0; font-size: 0; gap: 0; }          /* the circle stays, the word goes */
