@@ -35,6 +35,15 @@ A one-command installer for a self-hosted [AIOStreams](https://github.com/Viren0
 
 <sub>The control panel's demo mode, with every add-on running. Your own panel shows only what you've installed.</sub>
 
+<details>
+<summary>The same page in Light and Slate</summary>
+
+![The control panel's Overview in the Light colours](./docs/images/control-panel/readme-overview-light.png)
+
+![The control panel's Overview in the Slate colours, a softer dark](./docs/images/control-panel/readme-overview-slate.png)
+
+</details>
+
 ## Prerequisites
 
 - A fresh VPS with root access, running Ubuntu 24.04+ or Debian 13 (should also work on Debian 12, untested)
