@@ -36,6 +36,7 @@
   --bad-soft: rgba(248, 113, 113, .12);
   --warn-soft: rgba(245, 158, 11, .12);
   --ok-soft: rgba(16, 185, 129, .12);
+  --up-line: var(--dim);   /* the traffic graph's Up line, beside Down in --accent */
   --radius: 12px;
   --font: "Inter", ui-sans-serif, system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
@@ -65,6 +66,20 @@
   --primary: #4f43b8; --primary-hover: #4034a3; --primary-ink: #ffffff;
   --ok: #047857; --warn: #9a6200; --bad: #c42f2f;
   --bad-soft: rgba(196, 47, 47, .09); --warn-soft: rgba(154, 98, 0, .1); --ok-soft: rgba(18, 128, 90, .1);
+}
+/* Slate: a softer dark, slate greys in Nord's spirit, only when picked. It comes after the light
+   block above so it wins on a device set to light. The page is darker than the cards so they lift
+   off it, and the quieter text is solid grey: see-through white over blue-grey looked hazy. */
+:root[data-theme="slate"] {
+  color-scheme: dark;
+  --bg: #1c2028; --raised: #272c36; --sunk: #2b313c;
+  --line: #3a414e; --line-soft: #323844;
+  --text: #eceff4; --dim: #aab2bf; --faint: #7f8898; --hover: rgba(236, 239, 244, .06);
+  --accent: #8fc6d6; --accent-soft: rgba(143, 198, 214, .14);
+  --primary: #5779a8; --primary-hover: #6587b6; --primary-ink: #ffffff;
+  --ok: #9fcb7f; --warn: #f0c86e; --bad: #ec7a84;
+  --bad-soft: rgba(236, 122, 132, .14); --warn-soft: rgba(240, 200, 110, .14); --ok-soft: rgba(159, 203, 127, .14);
+  --up-line: #b48ead;
 }
 
 * { box-sizing: border-box; }
@@ -204,7 +219,7 @@ main { max-width: 1680px; margin: 0 auto; padding: 28px var(--gutter) 96px; }
 .lamp[data-s="degraded"], .lamp[data-s="paused"] { background: var(--warn); box-shadow: 0 0 0 4px var(--warn-soft); }
 .lamp[data-s="down"] { background: var(--bad); box-shadow: 0 0 0 4px var(--bad-soft); }
 h1.headline {
-  margin: 0; font-size: 1.875rem; line-height: 1.2;
+  margin: 0; font-size: 1.5rem; line-height: 1.2;   /* smaller than a page title: it's a status line */
   font-weight: 700; letter-spacing: -.02em;
 }
 .hero-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; color: var(--dim); }
@@ -260,9 +275,9 @@ button.chip:hover { text-decoration: underline; }
 }
 
 /* ---------- signal path ---------- */
-.path { margin: 4px 0 30px; padding: 18px 22px 16px; background: var(--sunk); border: 1px solid var(--line-soft); border-radius: var(--radius); }
+.path { margin: 4px 0 30px; padding: 18px 16px 16px; background: var(--sunk); border: 1px solid var(--line-soft); border-radius: var(--radius); }
 .path-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 14px; }
-.path-title { margin: 0; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--faint); }
+.path-title { margin: 0; font-size: .98rem; font-weight: 650; }   /* as every other card's title */
 /* The title folds the card down to one line: a dot per service and Restart stack */
 .path-toggle { display: inline-flex; align-items: center; gap: 6px; margin: -6px -8px; padding: 6px 8px; border: 0; border-radius: 6px;
   background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
@@ -406,7 +421,7 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .tr-grid { stroke: var(--line-soft); stroke-dasharray: 4 4; }
 .tr-area { fill: var(--accent); opacity: .16; }
 .tr-down { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linejoin: round; }
-.tr-up { fill: none; stroke: var(--dim); stroke-width: 1.3; stroke-linejoin: round; }
+.tr-up { fill: none; stroke: var(--up-line); stroke-width: 1.3; stroke-linejoin: round; }
 .tr-ymax, .tr-ymid { position: absolute; left: 0; font-size: .74rem; color: var(--faint); pointer-events: none; }
 .tr-ymax { top: -2px; } .tr-ymid { top: calc(50% - 16px); }
 .tr-ticks { display: flex; justify-content: space-between; margin-top: 6px; font-size: .76rem; color: var(--faint); }
@@ -417,7 +432,7 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .tr-cursor[hidden], .tr-tip[hidden] { display: none; }
 .tr-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin-top: 10px; font-size: .84rem; }
 .tr-key::before { content: ""; display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
-.tr-key.down::before { background: var(--accent); } .tr-key.up::before { background: var(--dim); }
+.tr-key.down::before { background: var(--accent); } .tr-key.up::before { background: var(--up-line); }
 .tr-step { margin-left: auto; }
 .tr-days { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
 .tr-day { display: grid; grid-template-columns: 110px minmax(0, 1fr) 190px; align-items: center; gap: 14px; padding: 5px 0; font-size: .9rem; }
@@ -1122,7 +1137,7 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
    it, uptimes left to Services. A tall chain of boxes used to fill a screen and a half. */
 @media (max-width: 720px) {
   #view-overview .ver-slot, #view-overview .panel.host, #view-overview .panel.wd, #view-overview .panel.vpnc, #view-overview .cols > div { margin-bottom: 22px; }
-  .path { margin: 0 0 22px; padding: 16px 14px 14px; }
+  .path { margin: 0 0 22px; padding: 16px 16px 14px; }
   .path-head { margin: 0 0 12px; }
   .chain { flex-direction: row; align-items: center; }
   .path-start { padding: 0 2px 0 0; font-size: 0; gap: 0; }          /* the circle stays, the word goes */
