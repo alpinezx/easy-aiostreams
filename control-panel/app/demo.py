@@ -329,7 +329,7 @@ class DemoBackend:
         elif self.stopped_on_purpose:
             overall, headline = "paused", "AIOStreams is stopped"
         else:
-            overall, headline = "ok", "Everything is up"
+            overall, headline = "ok", "All running"
         return {
             "installed": True, "docker_ok": True, "domain": "streams.example.com", "channel": self.channel, "version": "2.35.9",
             "build_tag": time.strftime("%Y.%m.%d.%H%M-nightly", time.gmtime(time.time() - 30 * 3600)) if self.channel == "nightly" else "v2.35.9",
