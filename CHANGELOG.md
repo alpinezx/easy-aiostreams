@@ -2,6 +2,10 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 29 October 2026
+
+- **README:** the control panel's Overview in Light and Slate too, in a fold-out under the main screenshot. ([#102](https://github.com/alpinezx/easy-aiostreams/pull/102))
+
 ## 28 October 2026
 
 - **Slate colours:** a softer, slate-grey dark joins System, Light and Dark in the Overview's Edit drawer, saved per browser. (Panel 1.44.0, [#101](https://github.com/alpinezx/easy-aiostreams/pull/101))
