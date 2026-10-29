@@ -1112,7 +1112,7 @@ if [[ -f "$COMPOSE_FILE" ]]; then
     echo "  8) Restore from backup (replaces this install. See docs/basic/backup-restore.md)"
     echo "  9) Uninstall (clean removal)"
     echo " 10) Exit"
-    echo " 11) Maintenance (free up space, system updates, log limits, scheduled restart)"
+    echo " 11) Maintenance (free up space, system updates, log limits, scheduled reboot)"
     echo ""
     # Exit stays 10 and Maintenance is 11: the control panel types 10 to leave the menu
     read -rp "Select an option [1-11]: " MENU_CHOICE

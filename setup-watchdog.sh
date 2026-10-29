@@ -32,7 +32,7 @@ TALLY_FILE="$STATE_DIR/tally"       # checks per day: "YYYY-MM-DD passed failed"
 ALIVE_FILE="$STATE_DIR/last-alive"  # when the last check ran
 SHUTDOWN_FILE="$STATE_DIR/shutdown-at"  # written as the server shuts down cleanly
 BOOT_ID_FILE="$STATE_DIR/boot-reported" # the kernel's boot ID once that boot is reported
-PLANNED_FILE="$STATE_DIR/planned-restart" # setup-maintenance.sh's scheduled restart, just before it restarts
+PLANNED_FILE="$STATE_DIR/planned-restart" # setup-maintenance.sh's scheduled reboot, just before it restarts
 OPTIONS_FILE="$STATE_DIR/options"   # extra alerts: "updates=on", "reboots=on", "scripts=on", "backups=on", "security=on", "weekly=on",
                                     # "metadata=on" (AIOMetadata releases), "manager=on" and "mediaflow=on" (theirs), and the
                                     # check-in's "weekly_day=7" (1 Mon .. 7 Sun), "weekly_time=10:15"
@@ -961,9 +961,9 @@ do_boot() {
     (( last < boot_at )) || last=0   # a check from this boot says nothing about the last one
     [[ "$shut" =~ ^[0-9]+$ ]] || shut=0
     when=$(date -d "@$boot_at" '+%H:%M')
-    # The scheduled restart, planned in the 15 minutes before: said so, and a quiet alert
+    # The scheduled reboot, planned in the 15 minutes before: said so, and a quiet alert
     [[ "$planned" =~ ^[0-9]+$ ]] || planned=0
-    if (( planned > 0 && planned <= boot_at && boot_at - planned < 900 )); then why=" for its scheduled restart"; prio=2; fi
+    if (( planned > 0 && planned <= boot_at && boot_at - planned < 900 )); then why=" for its scheduled reboot"; prio=2; fi
     if (( shut > 0 && shut <= boot_at && shut >= last )); then
         down=" after a clean shutdown. It was down for $(rough_duration $(( boot_at - shut )))"
     elif (( last > 0 && last < boot_at )); then

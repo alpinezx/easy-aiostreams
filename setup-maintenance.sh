@@ -6,7 +6,7 @@
 #   sudo bash /opt/aiostreams/setup-maintenance.sh free-space        old images, build leftovers, logs
 #   sudo bash /opt/aiostreams/setup-maintenance.sh system-updates    install the system's updates
 #   sudo bash /opt/aiostreams/setup-maintenance.sh log-limits        cap each container's log at 10 MB
-#   sudo bash /opt/aiostreams/setup-maintenance.sh restart-schedule  the scheduled restart, and to set it:
+#   sudo bash /opt/aiostreams/setup-maintenance.sh restart-schedule  the scheduled reboot, and to set it:
 #   ... restart-schedule off | needed|always daily HH:MM | needed|always weekly <1-7> HH:MM
 #       (needed: only when an update is waiting for a restart; 1 Monday .. 7 Sunday)
 #
@@ -259,7 +259,7 @@ maintenance_menu() {
         echo "  1) Free up space (old images, build leftovers, system logs beyond 100 MB)"
         echo "  2) Install updates (the system's, as apt upgrade would)"
         echo "  3) Set container log limits (10 MB each; every container restarts once)"
-        echo "  4) Scheduled restart (now: $(restart_text))"
+        echo "  4) Scheduled server reboot (now: $(restart_text))"
         echo "  0) Back"
         read -rp "Choose [0-4]: " c || return 0
         case "$c" in
@@ -279,7 +279,7 @@ maintenance_menu() {
     done
 }
 
-# ---- Scheduled restart: menu option 4, "restart-schedule" and what its timer
+# ---- Scheduled server reboot: menu option 4, "restart-schedule" and what its timer
 # runs, "scheduled-restart". restart-schedule says when (absent: off):
 # mode=needed restarts only when an update is waiting for one (reboot_needed),
 # mode=always every time. restart-last-run says how the last one went
@@ -332,7 +332,7 @@ restart_apply() {
         if [[ "$every" == weekly ]]; then cal="${RESTART_SD_DAYS[$((day - 1))]} $cal"; fi
         cat > "$RESTART_SERVICE_FILE" <<EOF
 [Unit]
-Description=Easy AIOStreams scheduled restart
+Description=Easy AIOStreams scheduled reboot
 
 [Service]
 Type=oneshot
@@ -341,7 +341,7 @@ TimeoutStartSec=$(( (RESTART_WAIT_MIN + 5) * 60 ))
 EOF
         cat > "$RESTART_TIMER_FILE" <<EOF
 [Unit]
-Description=Easy AIOStreams scheduled restart ($(restart_text))
+Description=Easy AIOStreams scheduled reboot ($(restart_text))
 
 [Timer]
 OnCalendar=$cal
@@ -385,7 +385,7 @@ restart_set() {
         rm -f "$RESTART_SCHEDULE_FILE"
     else
         {
-            echo "# Scheduled restart: set with setup-maintenance.sh restart-schedule, or the control panel"
+            echo "# Scheduled server reboot: set with setup-maintenance.sh restart-schedule, or the control panel"
             echo "mode=$mode"
             echo "every=$every"
             if [[ -n "$day" ]]; then echo "day=$day"; fi
@@ -395,9 +395,9 @@ restart_set() {
     fi
     restart_apply || error "Couldn't start the timer. See: systemctl status $RESTART_UNIT.timer"
     if [[ "$mode" == off ]]; then
-        echo "Scheduled restart: off."
+        echo "Scheduled server reboot: off."
     else
-        echo "Scheduled restart: $(restart_text), server time ($(restart_tz))."
+        echo "Scheduled server reboot: $(restart_text), server time ($(restart_tz))."
     fi
 }
 
@@ -408,7 +408,7 @@ toolkit_reboot_line() {
 
 restart_status() {
     local at status text line
-    echo "Scheduled restart: $(restart_text)$( [[ -f "$RESTART_SCHEDULE_FILE" ]] && echo ", server time ($(restart_tz))")"
+    echo "Scheduled server reboot: $(restart_text)$( [[ -f "$RESTART_SCHEDULE_FILE" ]] && echo ", server time ($(restart_tz))")"
     if [[ -f "$RESTART_LAST_FILE" ]] && IFS='|' read -r at status text < "$RESTART_LAST_FILE" && [[ "$at" =~ ^[0-9]+$ ]]; then
         echo "Last time: $(date -d "@$at" '+%a %d %b, %H:%M'), $status. $text"
     fi
@@ -471,7 +471,7 @@ restart_busy() {
 
 # What the timer runs. Every way it ends leaves a line in restart-last-run.
 do_scheduled_restart() {
-    [[ -f "$RESTART_SCHEDULE_FILE" ]] || { echo "Scheduled restart is off. Nothing to do."; return 0; }
+    [[ -f "$RESTART_SCHEDULE_FILE" ]] || { echo "Scheduled server reboot is off. Nothing to do."; return 0; }
     local mode up busy waited=0
     mode=$(restart_get mode)
     up=$(cut -d. -f1 /proc/uptime)

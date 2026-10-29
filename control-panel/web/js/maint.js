@@ -63,7 +63,7 @@ function logs(m) {
   ], l.limited ? "" : "Setting it restarts every container once: a few seconds of downtime.", l.limited ? null : button("maint.logs", true));
 }
 
-// Scheduled restart: setup-maintenance.sh's timer restarts the server at a set time, only when an
+// Scheduled server reboot: setup-maintenance.sh's timer restarts the server at a set time, only when an
 // update needs it or every time. With it, the clock that time goes by, and its time zone.
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 let rs = null;
@@ -71,9 +71,9 @@ let rs = null;
 function restart(r) {
   const on = r.mode !== "off";
   const when = r.every === "daily" ? `Daily ${r.time}` : `${DAYS[r.day - 1]} ${r.time}`;
-  const next = !on ? stat("Next restart", "Off", "Restarts are up to you")
-    : !r.timer ? stat("Next restart", "Not running", "Press Set to start it again", "warn")
-    : stat("Next restart", when, r.mode === "always" ? "Every time" : r.needed ? "An update needs one" : "Only if an update needs one");
+  const next = !on ? stat("Next reboot", "Off", "Reboots are up to you")
+    : !r.timer ? stat("Next reboot", "Not running", "Press Set to start it again", "warn")
+    : stat("Next reboot", when, r.mode === "always" ? "Every time" : r.needed ? "An update needs one" : "Only if an update needs one");
   const l = r.last;
   const last = stat("Last", l ? ago(l.at) : "Not yet",
     !l ? "" : l.status === "restarted" ? "Restarted" : /^Not needed/.test(l.text) ? "Skipped: not needed" : "Skipped", "", l ? l.text : null);
@@ -97,8 +97,8 @@ function restart(r) {
     setBtn.disabled = mode.disabled = true;
     try {
       const n = await api("/api/restart-schedule", { method: "PUT", body: JSON.stringify(body) });
-      toast(n.mode === "off" ? "Scheduled restart: off."
-        : `Scheduled restart: ${n.mode === "always" ? "always" : "when needed"}, ${n.every === "daily" ? `daily at ${n.time}` : `${DAYS[n.day - 1]}s at ${n.time}`}.`);
+      toast(n.mode === "off" ? "Scheduled server reboot: off."
+        : `Scheduled server reboot: ${n.mode === "always" ? "always" : "when needed"}, ${n.every === "daily" ? `daily at ${n.time}` : `${DAYS[n.day - 1]}s at ${n.time}`}.`);
       rs = n;
     } catch (e) { toast(e.message || "Couldn't save it.", true); }
     render(true);
@@ -122,7 +122,7 @@ function restart(r) {
       render(true);
     } }) : null;
   return h("section", { class: "panel maint-card" },
-    h("div", { class: "card-head" }, h("h3", { text: "Scheduled restart" })),
+    h("div", { class: "card-head" }, h("h3", { text: "Scheduled server reboot" })),
     h("div", { class: "stat-grid" }, ...cards),
     h("div", { class: "wd-when-row restart-row" }, mode, every, onLbl, day, atLbl, time),
     h("div", { class: "card-foot" }, h("div", { class: "maint-foot" }, note, ntp, setBtn)));
@@ -138,11 +138,31 @@ function clockStat(r) {
   const change = h("button", { class: "linkish", type: "button", text: "Change" });
   sub.append(`${r.timezone || "Time zone unknown"} · `, change);
   change.addEventListener("click", () => {
-    // The box opens at once; its suggestions follow as the server's list arrives
-    const list = h("datalist", { id: "tz-list" });
-    api("/api/server/timezones").then((zones) => list.append(...zones.map((z) => h("option", { value: z })))).catch(() => {});
-    const box = h("input", { class: "input tz-box", type: "text", list: "tz-list", autocomplete: "off", spellcheck: "false",
-      placeholder: "Europe/London", "aria-label": "Time zone, for example Europe/London" });
+    // Our own list of suggestions rather than the browser's, so it looks like the panel: up to 8 zones
+    // matching what's typed, a city's start first ("paris", "new york"). The box opens at once and the
+    // server's zones follow.
+    let zones = [], shown = [], pick = -1;
+    api("/api/server/timezones").then((z) => { zones = z; }).catch(() => {});
+    const box = h("input", { class: "input tz-box", type: "text", autocomplete: "off", spellcheck: "false", role: "combobox",
+      "aria-autocomplete": "list", "aria-expanded": "false", placeholder: "Europe/London", "aria-label": "Time zone, for example Europe/London" });
+    const list = h("ul", { class: "tz-sugg", role: "listbox", hidden: true });
+    const draw = () => {
+      clear(list);
+      shown.forEach((z, i) => list.append(h("li", { role: "option", class: i === pick ? "on" : "", "aria-selected": String(i === pick), text: z.replace(/_/g, " "),
+        onmousedown: (e) => { e.preventDefault(); box.value = z; close(); done(); } })));
+      list.hidden = !shown.length;
+      box.setAttribute("aria-expanded", String(!list.hidden));
+    };
+    const close = () => { shown = []; pick = -1; draw(); };
+    box.addEventListener("input", () => {
+      const q = box.value.trim().toLowerCase().replace(/ /g, "_");
+      const rank = (z) => { const l = z.toLowerCase(), city = l.slice(l.lastIndexOf("/") + 1);
+        return city.startsWith(q) ? 0 : l.startsWith(q) ? 1 : l.includes(q) ? 2 : 3; };
+      shown = q ? zones.map((z) => [rank(z), z]).filter(([r]) => r < 3).sort((a, b) => a[0] - b[0] || a[1].localeCompare(b[1]))
+        .slice(0, 8).map(([, z]) => z) : [];
+      pick = -1; draw();
+    });
+    box.addEventListener("blur", close);
     const go = h("button", { class: "btn small", type: "button", text: "Set" });
     const done = async () => {
       const tz = box.value.trim();
@@ -150,14 +170,25 @@ function clockStat(r) {
       go.disabled = true;
       try {
         const n = await api("/api/server/timezone", { method: "PUT", body: JSON.stringify({ timezone: tz }) });
-        toast(`Time zone: ${n.timezone}. Scheduled backups and restarts now go by it.`);
+        toast(`Time zone: ${n.timezone}. Scheduled backups and reboots now go by it.`);
         rs = await api("/api/restart-schedule");
       } catch (e) { toast(e.message || "Couldn't set it.", true); go.disabled = false; return; }
       render(true);
     };
-    box.addEventListener("keydown", (e) => { if (e.key === "Enter") done(); if (e.key === "Escape") render(true); });
+    box.addEventListener("keydown", (e) => {
+      if ((e.key === "ArrowDown" || e.key === "ArrowUp") && shown.length) {
+        e.preventDefault();
+        pick = (pick + (e.key === "ArrowDown" ? 1 : shown.length - 1)) % shown.length;
+        draw();
+      } else if (e.key === "Enter") {
+        if (pick >= 0) box.value = shown[pick];
+        close(); done();
+      } else if (e.key === "Escape") {
+        if (shown.length) close(); else render(true);
+      }
+    });
     go.addEventListener("click", done);
-    clear(sub); sub.classList.add("tz-edit"); sub.append(box, list, go);
+    clear(sub); sub.classList.add("tz-edit"); sub.append(h("span", { class: "tz-wrap" }, box, list), go);
     box.focus();
   });
   return s;
