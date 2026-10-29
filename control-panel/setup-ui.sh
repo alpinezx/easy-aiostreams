@@ -233,7 +233,7 @@ do_install() {
     write_compose
 
     info "Building the panel image (a minute or two the first time)"
-    (cd "$STATE_DIR" && docker compose -f "$UI_COMPOSE" build) || error "Build failed. Scroll up for the reason."
+    build_image || error "Build failed. Scroll up for the reason."
 
     info "Setting up your login"
     set_credentials
@@ -382,12 +382,21 @@ refresh_caddy_snippet() {
     return 0
 }
 
+# Builds the panel's image with the newest python:3.13-slim, so the Debian and
+# Python under it get their security fixes with every update. Without Docker Hub
+# it builds on the base image already here rather than failing.
+build_image() {
+    (cd "$STATE_DIR" && docker compose -f "$UI_COMPOSE" build --pull) && return 0
+    warn "Couldn't fetch a newer base image, so building with the one already here."
+    (cd "$STATE_DIR" && docker compose -f "$UI_COMPOSE" build)
+}
+
 do_rebuild() {
     refuse_in_terminal && return
     info "Rebuilding from $PANEL_DIR"
     require_panel_dir
     write_compose
-    (cd "$STATE_DIR" && docker compose -f "$UI_COMPOSE" build && docker compose -f "$UI_COMPOSE" up -d --force-recreate)
+    build_image && (cd "$STATE_DIR" && docker compose -f "$UI_COMPOSE" up -d --force-recreate)
     wait_until_up || warn "The panel didn't answer within 30s. Check: docker logs $CONTAINER_NAME"
     refresh_caddy_snippet
     echo "Rebuilt. Your login and unlock link are unchanged."
