@@ -1,5 +1,5 @@
 import { $, h, clear, api, ago, toast, fmtBytes } from "./util.js";
-import { runAction } from "./actions.js";
+import { runAction, rebootServer } from "./actions.js";
 
 // Maintenance: upkeep that's easy to forget. Each card says what it found, coloured
 // only when something needs a look, with its one button at the bottom right. The
@@ -13,11 +13,11 @@ function stat(label, value, sub, tone, why) {
     h("div", { class: "ver-sub", text: sub || "", title: why || null }));
 }
 
-function card(title, grid, note, btn) {
+function card(title, grid, note, ...btns) {
   return h("section", { class: "panel maint-card" },
     h("div", { class: "card-head" }, h("h3", { text: title })),
     h("div", { class: "stat-grid" }, ...grid),
-    h("div", { class: "card-foot" }, h("div", { class: "maint-foot" }, h("span", { class: "dim", text: note || "" }), btn)));
+    h("div", { class: "card-foot" }, h("div", { class: "maint-foot" }, h("span", { class: "dim", text: note || "" }), ...btns)));
 }
 
 function button(id, enabled) {
@@ -47,9 +47,11 @@ function updates(m) {
         : u.phased ? `${u.phased} more phasing in` : ""), u.security ? "warn" : u.count ? "" : "ok",
       u.phased ? `Ubuntu rolls some updates out gradually, a few servers at a time. ${u.phased} ${u.phased === 1 ? "isn't" : "aren't"} offered to this server yet, `
         + "so Install updates leaves them until its turn, usually within days." : null),
-    stat("Restart", u.reboot ? "Needed" : "Not needed", u.reboot ? "Reboot server, on the Overview" : "", u.reboot ? "warn" : ""),
+    stat("Restart", u.reboot ? "Needed" : "Not needed", u.reboot ? "To finish installing updates" : "", u.reboot ? "warn" : ""),
     stat("Checked", u.checked_at ? ago(u.checked_at) : "Unknown", "The package lists"),
-  ], "AIOStreams' own updates are on the Overview.", button("maint.updates", u.count > 0));
+  ], "AIOStreams' own updates are on the Overview.", button("maint.updates", u.count > 0),
+  u.reboot ? h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer,
+    disabled: !!(status && status.busy) || !!(last && last.last && last.last.running) }) : null);
 }
 
 function logs(m) {

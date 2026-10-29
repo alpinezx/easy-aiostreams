@@ -162,7 +162,7 @@ A restore moves your current install aside to `/opt/aiostreams.pre-restore-<date
 
 A restore run over SSH rebuilds the panel from the backup (if it was running when the backup was made), after checking its subdomain like the add-ons'. Run from the panel's own Terminal tab, the panel stays up so the restore isn't cut off; press **Restart panel** (Backup & Restore or Terminal tab) afterwards so it picks up the restored folder.
 
-**Reboot server** (Overview, under "This server") restarts the whole machine. You have to type `reboot` to confirm, and it refuses while an action is running. Everything uses `restart: unless-stopped`, so the stack and the panel come back by themselves.
+**Reboot server** (Overview, under "This server") restarts the whole machine. When installed updates need a restart, Maintenance's System updates card and the drawer that Install updates opens offer it too. You have to type `reboot` to confirm, and it refuses while an action is running. Everything uses `restart: unless-stopped`, so the stack and the panel come back by themselves.
 
 ## Web terminal
 

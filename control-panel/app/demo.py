@@ -113,6 +113,7 @@ class DemoBackend:
         self.has_config = True
         self.removed_scripts: set[str] = set()
         self.wd_running = True
+        self.reboot_pending = False   # Install updates "installs a kernel"; a reboot clears it
         self.wd_configured = True
         self.wd_options = {"updates": False, "reboots": False, "scripts": False, "backups": False, "security": False, "weekly": False, "metadata": False, "manager": False, "mediaflow": False, "weekly_day": 7, "weekly_time": "10:00"}
         self.schedule = {"every": "daily", "day": 7, "time": "04:00"}
@@ -232,7 +233,7 @@ class DemoBackend:
 
     def maintenance_info(self, force: bool = False) -> dict:
         return {"space": {"images": 149_000_000, "image_count": 2, "build": 503_100_000, "journal": 184_000_000},
-                "updates": {"available": True, "count": 8, "security": 2, "phased": 3, "reboot": False, "checked_at": time.time() - 3 * 3600},
+                "updates": {"available": True, "count": 8, "security": 2, "phased": 3, "reboot": self.reboot_pending, "checked_at": time.time() - 3 * 3600},
                 "logs": {"limited": False, "pending": False, "size": 488_000},
                 "checked_at": time.time(), "last": None}
 
@@ -450,8 +451,12 @@ class DemoBackend:
         self.restarted_service = key      # demo mode never touches anything
         return next(x[2] for x in SERVICES if x[0] == key)
 
+    def reboot_needed(self) -> bool:
+        return self.reboot_pending
+
     def reboot_host(self) -> None:
         self.rebooted = True      # demo mode never touches anything
+        self.reboot_pending = False
 
     def clear_logs(self, container: str) -> str:
         self._cleared_logs.add(container)
@@ -482,6 +487,12 @@ class DemoBackend:
                       "Waiting for it to answer (up to a minute)...", "MediaFlow Proxy Light is on 1.1.2 and answering."]:
                 say(l, 0.5)
             self.mf_version = "1.1.2"
+        elif action.id == "maint.updates":
+            for l in ["==> Refreshing the package lists", "==> Installing updates", "Setting up linux-image-6.8.0-88-generic ...",
+                      "==> Making sure everything is running", "Updates installed.",
+                      "  A restart is needed to finish installing updates (sudo reboot, when it suits)."]:
+                say(l, 0.5)
+            self.reboot_pending = True
         elif action.id == "aiomanager.signups_open":
             say("Recreating aiomanager with sign-ups open...", 0.8)
             self.signups_until = time.time() + 30 * 60
