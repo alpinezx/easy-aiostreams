@@ -548,6 +548,8 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .wd-mini .card-foot { padding-top: 0; }
 /* a button in a stat grid's last row, at its right */
 .stat-grid .grid-btn { grid-column: -2 / -1; justify-self: end; align-self: end; display: flex; gap: 8px; }
+/* This server's Reboot: a line of its own, after the values and any opened certificates */
+.stat-grid > .grid-btn.own-row { grid-column: 1 / -1; order: 3; margin-top: -4px; }
 .wd-mini .vpn-label { margin: 0; }
 .wd-today-wrap { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; justify-content: flex-end; }
 .wd-when-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 0 14px; font-size: .88rem; }

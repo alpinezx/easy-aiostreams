@@ -657,6 +657,7 @@ class Backend:
             "cert": self._cert(domain) if domain and not domain.startswith("localhost") else None,
             "certs": self._certs(domain),
             "backup": self.backup_summary() if installed else None,
+            "reboot": self.reboot_summary() if installed else None,
             "aiometadata": self._aiometadata(by_name.get("aiometadata")),
             "aiomanager": self._aiomanager(by_name.get("aiomanager")),
             "mediaflow": self._mediaflow(by_name.get("mediaflow-proxy-light")),
@@ -1153,6 +1154,7 @@ class Backend:
         if r.returncode != 0:
             why = [ANSI.sub("", l).replace("XX", "", 1).strip() for l in (r.stdout + r.stderr).splitlines() if "XX" in l]
             raise ValueError(why[-1] if why else "Couldn't set it.")
+        self._rsum = (0.0, None)
         return self.restart_schedule()
 
     def clock(self) -> dict:
@@ -1216,6 +1218,30 @@ class Backend:
         hit = {"newest": items[0]["mtime"] if items else None, "every": sched["every"], "day": sched["day"],
                "time": sched["time"], "last": sched["last"]}
         self._bsum = (now, hit)
+        return hit
+
+    # For the Overview's Next reboot: the schedule, and whether an update waits for a reboot.
+    # None with a setup-aiostreams.sh from before scheduled reboots. Kept for a minute too.
+    _rsum: tuple[float, dict | None] = (0.0, None)
+
+    def reboot_summary(self) -> dict | None:
+        now = time.time()
+        at, hit = self._rsum
+        if now - at < 60:
+            return hit
+        hit = None
+        try:
+            if "restart-schedule" in _read(self.p("setup-aiostreams.sh")):
+                kv = dict(l.split("=", 1) for l in _read(self.p("restart-schedule")).splitlines()
+                          if "=" in l and not l.startswith("#"))
+                t = kv.get("time", "").strip()
+                hit = {"mode": kv.get("mode") if kv.get("mode") in ("needed", "always") else "off",
+                       "every": kv.get("every") if kv.get("every") in ("daily", "weekly") else "weekly",
+                       "day": int(kv["day"]) if kv.get("day", "") in {str(i) for i in range(1, 8)} else 7,
+                       "time": t if TIME_RE.match(t) else "04:30", "needed": self.reboot_needed()}
+        except Exception:
+            hit = None
+        self._rsum = (now, hit)
         return hit
 
     def backup_build(self, b: dict) -> dict | None:

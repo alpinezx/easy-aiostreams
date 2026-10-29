@@ -353,6 +353,7 @@ class DemoBackend:
                       {"host": "cp.example.com", "label": "Control panel", "days_left": 73, "ok": True, "days_total": 90}],
             "backup": {"newest": max(b["mtime"] for b in self.backups()) if self.backups() else None,
                        **self.schedule, "last": self._last_run()},
+            "reboot": {**self.restart, "needed": self.reboot_pending},
             # AIOMetadata's card, only once it's installed; its newer releases come from GitHub
             "aiometadata": {"domain": "meta.example.com", "version": "3.6.1"},
             # AIOManager's: sign-ups closed unless a demo action opened them
