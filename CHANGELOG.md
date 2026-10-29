@@ -2,6 +2,10 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 29 October 2026
+
+- **Reboot server after updates:** when installed updates need a restart, the Install updates drawer and Maintenance's System updates card offer Reboot server, so there's no trip back to the Overview. Restart needed on Maintenance is always checked fresh. (Panel 1.45.0, [#103](https://github.com/alpinezx/easy-aiostreams/pull/103))
+
 ## 28 October 2026
 
 - **README:** the control panel's Overview in Light and Slate too, in a fold-out under the main screenshot. ([#102](https://github.com/alpinezx/easy-aiostreams/pull/102))
