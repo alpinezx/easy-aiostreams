@@ -4,6 +4,10 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 29 October 2026
 
+- **Scheduled server reboot:** a new card on Maintenance reboots the server at a set time, daily or weekly, either only when an update needs it (a new kernel, say) or every time. It never reboots during a backup or an update, a missed time isn't made up, and Phone alerts says it was planned. The card also shows whether the clock is in sync and changes the time zone. Off until you pick one. Backup format 7. (Panel 1.46.0, [#104](https://github.com/alpinezx/easy-aiostreams/pull/104))
+- **Maintenance has its own script,** `setup-maintenance.sh`, as backup and restore have `setup-backup.sh`. Option 11 and every command work as before, and the script is fetched when it's missing. ([#104](https://github.com/alpinezx/easy-aiostreams/pull/104))
+- **Fixed:** shell scripts keep Unix line endings in a Windows checkout, so one copied to a server straight from a PC runs. ([#104](https://github.com/alpinezx/easy-aiostreams/pull/104))
+
 - **Reboot server after updates:** when installed updates need a restart, the Install updates drawer and Maintenance's System updates card offer Reboot server, so there's no trip back to the Overview. Restart needed on Maintenance is always checked fresh. (Panel 1.45.0, [#103](https://github.com/alpinezx/easy-aiostreams/pull/103))
 
 ## 28 October 2026
