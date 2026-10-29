@@ -112,7 +112,7 @@ Once a minute, whether or not the panel is open, it reads two sets of byte count
 
 The Overview's **This server** shows the server's speed now and today's totals as its **Network** value, the VPN's card shows the tunnel's, and MediaFlow's card shows what's passing through MediaFlow now; all three link here.
 
-Its figures are worked out the way AIOStreams' own dashboard does them, so the two pages agree: **CPU** is how busy all the cores were over the last few seconds, with Linux's load average under it, and every size and speed in the panel counts KB, MB and GB in thousands. On desktop, This server is two rows of four values, with the certificates in a section of their own below, folded to the soonest one unless one needs a look.
+Its figures are worked out the way AIOStreams' own dashboard does them, so the two pages agree: **CPU** is how busy all the cores were over the last few seconds, with Linux's load average under it, and every size and speed in the panel counts KB, MB and GB in thousands. On desktop, This server is two rows of four values, ending with Last backup, **Next reboot** (the [scheduled server reboot](#maintenance-page), its label a link to Maintenance) and HTTPS certificates, then **Reboot server** on a line of its own. The certificates open in a section of their own below the values, folded to the soonest one unless one needs a look. On phones the values are one per line, the certificates last so their list opens straight under them.
 
 ## VPN page
 

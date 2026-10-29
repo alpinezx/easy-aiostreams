@@ -760,8 +760,6 @@ function side(st) {
     const pct = (used / total) * 100;
     grid.append(stat(label, `${fmtBytes(used)} of ${fmtBytes(total)}`, `${Math.round(pct)}% used, ${fmtBytes(total - used)} free`, tone(pct, warn, 90)));
   }
-  // On the bottom row, right above the section its chevron opens
-  const certList = certTiles(grid, st);
   // The newest backup, any kind, and the schedule; amber when the last scheduled one failed or was skipped
   const bk = st.backup;
   if (bk) {
@@ -769,8 +767,22 @@ function side(st) {
     grid.append(stat("Last backup", bk.newest ? ago(bk.newest) : "None yet",
       bad ? `The last scheduled one ${bk.last.status === "skipped" ? "was skipped" : "failed"}` : scheduleText(bk), bad ? "warn" : ""));
   }
-  // Reboot sits in the last row's spare room, at its right, rather than a row of its own
-  grid.append(h("div", { class: "grid-btn" },
+  // Maintenance's scheduled server reboot; its label opens Maintenance. Off is plain, never a to-do
+  const rb = st.reboot;
+  if (rb) {
+    const on = rb.mode !== "off";
+    const next = stat("Next reboot", on ? (rb.every === "daily" ? `Daily ${rb.time}` : `${["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][rb.day - 1]} ${rb.time}`) : "Off",
+      !on ? "Set on Maintenance" : rb.mode === "always" ? "Every time" : rb.needed ? "An update needs one" : "Only if an update needs one");
+    const go = chev();
+    go.classList.add("go-chev");
+    next.firstChild.textContent = "";
+    next.firstChild.append(h("a", { class: "stat-link", href: "#maint", title: "Scheduled server reboot, on the Maintenance page" }, "Next reboot", go));
+    grid.append(next);
+  }
+  // Last among the values, right above the section its chevron opens
+  const certList = certTiles(grid, st);
+  // Reboot on a line of its own at the bottom right, after the opened certificates too
+  grid.append(h("div", { class: "grid-btn own-row" },
     h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer })));
   // The opened certificates go in the grid too, so on phones CSS can put them (and their
   // tile) after the other values, with Reboot last

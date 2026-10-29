@@ -751,6 +751,19 @@ def test_scheduled_restart_reads_the_schedule_and_its_last_run(tmp_path):
     assert (r["mode"], r["timer"], r["next"], r["available"]) == ("off", False, None, False)
 
 
+def test_the_overview_carries_the_reboot_schedule(tmp_path):
+    """This server's Next reboot: the schedule and whether an update waits, or None with an older script."""
+    from types import SimpleNamespace
+    from app import stack
+    (tmp_path / "restart-schedule").write_text("mode=always\nevery=daily\ntime=05:30\n")
+    (tmp_path / "setup-aiostreams.sh").write_text("    free-space|system-updates|log-limits|restart-schedule|scheduled-restart)\n")
+    ns = SimpleNamespace(p=lambda n: tmp_path / n, reboot_needed=lambda: True, _rsum=(0.0, None))
+    assert stack.Backend.reboot_summary(ns) == {"mode": "always", "every": "daily", "day": 7, "time": "05:30", "needed": True}
+    ns._rsum = (0.0, None)
+    (tmp_path / "setup-aiostreams.sh").write_text("    free-space) do_free_space; exit 0 ;;\n")
+    assert stack.Backend.reboot_summary(ns) is None
+
+
 def test_the_toolkits_cron_reboot_in_words():
     from app.stack import cron_words
     assert cron_words("30 5 * * 0 /sbin/shutdown -r now  # aio-toolkit: scheduled-reboot") == "Sundays at 05:30"
@@ -760,7 +773,7 @@ def test_the_toolkits_cron_reboot_in_words():
 
 def test_scheduled_restart_and_time_zone_endpoints(client):
     login(client)
-    assert client.get("/api/restart-schedule").json()["mode"] == "off"
+    assert client.get("/api/restart-schedule").json()["mode"] == "needed"
     r = client.put("/api/restart-schedule", json={"mode": "needed", "every": "weekly", "day": 7, "time": "04:30"})
     assert r.status_code == 200 and (r.json()["mode"], r.json()["day"]) == ("needed", 7)
     assert client.put("/api/restart-schedule", json={"mode": "sometimes"}).status_code == 400
