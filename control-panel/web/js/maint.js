@@ -111,8 +111,11 @@ function restart(r) {
   });
   show();
 
+  // With no time sync service at all (some Debian images) there's nothing to switch on, so say how to add one
+  const noSync = r.clock.known && !r.clock.synced && !r.clock.can_ntp;
   const note = r.toolkit
     ? h("span", { class: "warn", text: `linux-aio-toolkit also restarts this server, ${r.toolkit}. Remove one so they don't both run.` })
+    : noSync ? h("span", { class: "warn", text: "The clock isn't kept in sync: this server has no time sync service. Over SSH: sudo apt install systemd-timesyncd" })
     : h("span", { class: "dim", text: on ? "Never during a backup or an update. Phone alerts says it was planned." : "" });
   const ntp = r.clock.known && !r.clock.ntp && r.clock.can_ntp
     ? h("button", { class: "btn small", type: "button", text: "Turn on time sync", onclick: async (e) => {
