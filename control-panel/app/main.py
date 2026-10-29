@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from . import auth, config, panelupdate, releases, scriptsync, serverip, terminal
 from .actions import SCRIPTS, BadAction, build_delete_config, build_restore, build_use_file, resolve
 from .proxy import CaddyProxyHeaders
-from .stack import BACKUP_NAME, RESTARTABLE, backup_path
+from .stack import BACKUP_NAME, RESTARTABLE, WITH_MAIN, backup_path
 
 if config.DEMO:
     from .demo import DemoBackend
@@ -217,8 +217,8 @@ async def panel_update(request: Request, user: str = Depends(current_user)):
 @app.get("/api/scripts/compare")
 async def scripts_compare(force: bool = False, user: str = Depends(current_user)):
     """Which of the stack's scripts on this server differ from GitHub's main.
-    setup-backup.sh is included: the AIOStreams menu row updates it too."""
-    files = [f for _, _, f in SCRIPTS] + ["setup-backup.sh"]
+    setup-backup.sh and setup-maintenance.sh are included: the AIOStreams menu row updates them too."""
+    files = [f for _, _, f in SCRIPTS] + list(WITH_MAIN)
     if config.DEMO:
         return scriptsync.demo(files)
     return await asyncio.to_thread(scriptsync.compare, config.INSTALL_DIR, files, force)
