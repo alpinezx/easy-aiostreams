@@ -114,7 +114,7 @@ class DemoBackend:
         self.removed_scripts: set[str] = set()
         self.wd_running = True
         self.reboot_pending = False   # Install updates "installs a kernel"; a reboot clears it
-        self.restart = {"mode": "off", "every": "weekly", "day": 7, "time": "04:30"}
+        self.restart = {"mode": "needed", "every": "weekly", "day": 7, "time": "04:30"}   # as the docs show it
         self.tz = "Europe/London"
         self.wd_configured = True
         self.wd_options = {"updates": False, "reboots": False, "scripts": False, "backups": False, "security": False, "weekly": False, "metadata": False, "manager": False, "mediaflow": False, "weekly_day": 7, "weekly_time": "10:00"}
