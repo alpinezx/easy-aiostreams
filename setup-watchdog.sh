@@ -32,6 +32,7 @@ TALLY_FILE="$STATE_DIR/tally"       # checks per day: "YYYY-MM-DD passed failed"
 ALIVE_FILE="$STATE_DIR/last-alive"  # when the last check ran
 SHUTDOWN_FILE="$STATE_DIR/shutdown-at"  # written as the server shuts down cleanly
 BOOT_ID_FILE="$STATE_DIR/boot-reported" # the kernel's boot ID once that boot is reported
+PLANNED_FILE="$STATE_DIR/planned-restart" # setup-maintenance.sh's scheduled reboot, just before it restarts
 OPTIONS_FILE="$STATE_DIR/options"   # extra alerts: "updates=on", "reboots=on", "scripts=on", "backups=on", "security=on", "weekly=on",
                                     # "metadata=on" (AIOMetadata releases), "manager=on" and "mediaflow=on" (theirs), and the
                                     # check-in's "weekly_day=7" (1 Mon .. 7 Sun), "weekly_time=10:15"
@@ -944,12 +945,13 @@ do_shutdown() {
 # minutes, so starting the unit by hand (Start, a restore) sends nothing.
 do_boot() {
     mkdir -p "$STATE_DIR"
-    local now up boot_at last shut when down="" sent=0 boot_id
+    local now up boot_at last shut when down="" sent=0 boot_id planned why="" prio=3
     now=$(date +%s)
     up=$(cut -d. -f1 /proc/uptime)
     boot_at=$(( now - up ))
     shut=$(cat "$SHUTDOWN_FILE" 2>/dev/null || echo 0)
-    rm -f "$SHUTDOWN_FILE"
+    planned=$(cat "$PLANNED_FILE" 2>/dev/null || echo 0)
+    rm -f "$SHUTDOWN_FILE" "$PLANNED_FILE"
     boot_id=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null || echo unknown)
     [[ "$(cat "$BOOT_ID_FILE" 2>/dev/null)" == "$boot_id" ]] && return 0
     echo "$boot_id" > "$BOOT_ID_FILE"
@@ -959,24 +961,27 @@ do_boot() {
     (( last < boot_at )) || last=0   # a check from this boot says nothing about the last one
     [[ "$shut" =~ ^[0-9]+$ ]] || shut=0
     when=$(date -d "@$boot_at" '+%H:%M')
+    # The scheduled reboot, planned in the 15 minutes before: said so, and a quiet alert
+    [[ "$planned" =~ ^[0-9]+$ ]] || planned=0
+    if (( planned > 0 && planned <= boot_at && boot_at - planned < 900 )); then why=" for its scheduled reboot"; prio=2; fi
     if (( shut > 0 && shut <= boot_at && shut >= last )); then
         down=" after a clean shutdown. It was down for $(rough_duration $(( boot_at - shut )))"
     elif (( last > 0 && last < boot_at )); then
         down=" without a clean shutdown (a crash or power cut?). It was last seen at $(date -d "@$last" '+%H:%M')"
     fi
     if ! reboots_on; then
-        log_event reboot "Server restarted at $when$down. No alert: restart alerts are off."
+        log_event reboot "Server restarted at $when$why$down. No alert: restart alerts are off."
         return 0
     fi
     # A few tries: the network can take a moment after boot
     for _ in 1 2 3 4 5 6; do
-        if send_ntfy "The server restarted at $when$down." "Server restarted" 3 arrows_counterclockwise; then sent=1; break; fi
+        if send_ntfy "The server restarted at $when$why$down." "Server restarted" "$prio" arrows_counterclockwise; then sent=1; break; fi
         sleep 10
     done
     if (( sent )); then
-        log_event reboot "Server restarted at $when$down. Alert sent."
+        log_event reboot "Server restarted at $when$why$down. Alert sent."
     else
-        log_event reboot "Server restarted at $when$down. The alert couldn't be sent (ntfy.sh unreachable)."
+        log_event reboot "Server restarted at $when$why$down. The alert couldn't be sent (ntfy.sh unreachable)."
     fi
     return 0
 }

@@ -16,9 +16,10 @@ const FALLBACK = [
   { id: "vpn", label: "VPN (Gluetun)", file: "setup-vpn-gluetun.sh", present: false },
   { id: "mediaflow", label: "MediaFlow Proxy", file: "setup-mediaflow.sh", present: false },
 ];
-// The AIOStreams menu runs backup and restore through setup-backup.sh and only
-// downloads it when it's missing, so its Update refreshes both.
-const UPDATE_WITH = { aiostreams: ["setup-backup.sh"] };
+// The AIOStreams menu runs backup and restore through setup-backup.sh, and
+// Maintenance through setup-maintenance.sh, and only downloads them when
+// they're missing, so its Update refreshes all three.
+const UPDATE_WITH = { aiostreams: ["setup-backup.sh", "setup-maintenance.sh"] };
 
 let cmp = null, cmpLoading = false, cmpAsked = false, last = null;
 

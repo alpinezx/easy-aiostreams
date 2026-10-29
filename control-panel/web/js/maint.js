@@ -1,4 +1,4 @@
-import { $, h, clear, api, ago, toast, fmtBytes } from "./util.js";
+import { $, h, clear, api, ago, toast, fmtBytes, timePicker } from "./util.js";
 import { runAction, rebootServer } from "./actions.js";
 
 // Maintenance: upkeep that's easy to forget. Each card says what it found, coloured
@@ -63,6 +63,137 @@ function logs(m) {
   ], l.limited ? "" : "Setting it restarts every container once: a few seconds of downtime.", l.limited ? null : button("maint.logs", true));
 }
 
+// Scheduled server reboot: setup-maintenance.sh's timer restarts the server at a set time, only when an
+// update needs it or every time. With it, the clock that time goes by, and its time zone.
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+let rs = null;
+
+function restart(r) {
+  const on = r.mode !== "off";
+  const when = r.every === "daily" ? `Daily ${r.time}` : `${DAYS[r.day - 1]} ${r.time}`;
+  const next = !on ? stat("Next reboot", "Off", "Reboots are up to you")
+    : !r.timer ? stat("Next reboot", "Not running", "Press Set to start it again", "warn")
+    : stat("Next reboot", when, r.mode === "always" ? "Every time" : r.needed ? "An update needs one" : "Only if an update needs one");
+  const l = r.last;
+  const last = stat("Last", l ? ago(l.at) : "Not yet",
+    !l ? "" : l.status === "restarted" ? "Restarted" : /^Not needed/.test(l.text) ? "Skipped: not needed" : "Skipped", "", l ? l.text : null);
+  const cards = [next, last, clockStat(r)];
+
+  const mode = h("select", { class: "input", "aria-label": "When" },
+    ...[["off", "Off"], ["needed", "When needed"], ["always", "Always"]].map(([v, t]) => h("option", { value: v, text: t })));
+  const every = h("select", { class: "input", "aria-label": "How often" },
+    ...[["daily", "Daily"], ["weekly", "Weekly"]].map(([v, t]) => h("option", { value: v, text: t })));
+  const day = h("select", { class: "input", "aria-label": "Day" }, ...DAYS.map((d, i) => h("option", { value: String(i + 1), text: d })));
+  const time = timePicker(r.time);
+  const onLbl = h("span", { class: "dim", text: "on" }), atLbl = h("span", { class: "dim", text: "at" });
+  mode.value = r.mode; every.value = r.every; day.value = String(r.day);
+  const setBtn = h("button", { class: "btn small", type: "button", text: "Set" });
+  const show = () => {
+    const o = mode.value !== "off";
+    for (const el of [every, atLbl, time, setBtn]) el.hidden = !o;
+    onLbl.hidden = day.hidden = !o || every.value !== "weekly";
+  };
+  const save = async (body) => {
+    setBtn.disabled = mode.disabled = true;
+    try {
+      const n = await api("/api/restart-schedule", { method: "PUT", body: JSON.stringify(body) });
+      toast(n.mode === "off" ? "Scheduled server reboot: off."
+        : `Scheduled server reboot: ${n.mode === "always" ? "always" : "when needed"}, ${n.every === "daily" ? `daily at ${n.time}` : `${DAYS[n.day - 1]}s at ${n.time}`}.`);
+      rs = n;
+    } catch (e) { toast(e.message || "Couldn't save it.", true); }
+    render(true);
+  };
+  mode.addEventListener("change", () => { show(); if (mode.value === "off" && r.mode !== "off") save({ mode: "off" }); });
+  every.addEventListener("change", show);
+  setBtn.addEventListener("click", () => {
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time.value)) { toast("Type a 24-hour time, for example 04:30.", true); return; }
+    save({ mode: mode.value, every: every.value, day: Number(day.value), time: time.value });
+  });
+  show();
+
+  const note = r.toolkit
+    ? h("span", { class: "warn", text: `linux-aio-toolkit also restarts this server, ${r.toolkit}. Remove one so they don't both run.` })
+    : h("span", { class: "dim", text: on ? "Never during a backup or an update. Phone alerts says it was planned." : "" });
+  const ntp = r.clock.known && !r.clock.ntp && r.clock.can_ntp
+    ? h("button", { class: "btn small", type: "button", text: "Turn on time sync", onclick: async (e) => {
+      e.target.disabled = true;
+      try { await api("/api/server/ntp", { method: "POST", body: "{}" }); toast("Time sync: on."); rs = await api("/api/restart-schedule"); }
+      catch (err) { toast(err.message || "Couldn't switch it on.", true); }
+      render(true);
+    } }) : null;
+  return h("section", { class: "panel maint-card" },
+    h("div", { class: "card-head" }, h("h3", { text: "Scheduled server reboot" })),
+    h("div", { class: "stat-grid" }, ...cards),
+    h("div", { class: "wd-when-row restart-row" }, mode, every, onLbl, day, atLbl, time),
+    h("div", { class: "card-foot" }, h("div", { class: "maint-foot" }, note, ntp, setBtn)));
+}
+
+// The clock: synced or not, and the time zone under it, which Change sets
+function clockStat(r) {
+  const c = r.clock;
+  const s = stat("Clock", !c.known ? "Can't tell" : c.synced ? "Synced" : "Not synced", "",
+    !c.known ? "" : c.synced ? "ok" : "warn",
+    c.known && !c.synced ? (c.ntp ? "Time sync is on but hasn't reached a time server yet." : "Time sync is off, so the clock can drift.") : null);
+  const sub = s.querySelector(".ver-sub");
+  const change = h("button", { class: "linkish", type: "button", text: "Change" });
+  sub.append(`${r.timezone || "Time zone unknown"} · `, change);
+  change.addEventListener("click", () => {
+    // Our own list of suggestions rather than the browser's, so it looks like the panel: up to 8 zones
+    // matching what's typed, a city's start first ("paris", "new york"). The box opens at once and the
+    // server's zones follow.
+    let zones = [], shown = [], pick = -1;
+    api("/api/server/timezones").then((z) => { zones = z; }).catch(() => {});
+    const box = h("input", { class: "input tz-box", type: "text", autocomplete: "off", spellcheck: "false", role: "combobox",
+      "aria-autocomplete": "list", "aria-expanded": "false", placeholder: "Europe/London", "aria-label": "Time zone, for example Europe/London" });
+    const list = h("ul", { class: "tz-sugg", role: "listbox", hidden: true });
+    const draw = () => {
+      clear(list);
+      shown.forEach((z, i) => list.append(h("li", { role: "option", class: i === pick ? "on" : "", "aria-selected": String(i === pick), text: z.replace(/_/g, " "),
+        onmousedown: (e) => { e.preventDefault(); box.value = z; close(); done(); } })));
+      list.hidden = !shown.length;
+      box.setAttribute("aria-expanded", String(!list.hidden));
+    };
+    const close = () => { shown = []; pick = -1; draw(); };
+    box.addEventListener("input", () => {
+      const q = box.value.trim().toLowerCase().replace(/ /g, "_");
+      const rank = (z) => { const l = z.toLowerCase(), city = l.slice(l.lastIndexOf("/") + 1);
+        return city.startsWith(q) ? 0 : l.startsWith(q) ? 1 : l.includes(q) ? 2 : 3; };
+      shown = q ? zones.map((z) => [rank(z), z]).filter(([r]) => r < 3).sort((a, b) => a[0] - b[0] || a[1].localeCompare(b[1]))
+        .slice(0, 8).map(([, z]) => z) : [];
+      pick = -1; draw();
+    });
+    box.addEventListener("blur", close);
+    const go = h("button", { class: "btn small", type: "button", text: "Set" });
+    const done = async () => {
+      const tz = box.value.trim();
+      if (!tz) return;
+      go.disabled = true;
+      try {
+        const n = await api("/api/server/timezone", { method: "PUT", body: JSON.stringify({ timezone: tz }) });
+        toast(`Time zone: ${n.timezone}. Scheduled backups and reboots now go by it.`);
+        rs = await api("/api/restart-schedule");
+      } catch (e) { toast(e.message || "Couldn't set it.", true); go.disabled = false; return; }
+      render(true);
+    };
+    box.addEventListener("keydown", (e) => {
+      if ((e.key === "ArrowDown" || e.key === "ArrowUp") && shown.length) {
+        e.preventDefault();
+        pick = (pick + (e.key === "ArrowDown" ? 1 : shown.length - 1)) % shown.length;
+        draw();
+      } else if (e.key === "Enter") {
+        if (pick >= 0) box.value = shown[pick];
+        close(); done();
+      } else if (e.key === "Escape") {
+        if (shown.length) close(); else render(true);
+      }
+    });
+    go.addEventListener("click", done);
+    clear(sub); sub.classList.add("tz-edit"); sub.append(h("span", { class: "tz-wrap" }, box, list), go);
+    box.focus();
+  });
+  return s;
+}
+
 // How the last job ended: it may have outlived a panel restart (Docker restarts it)
 function lastRun(m) {
   const j = m.last;
@@ -79,18 +210,23 @@ async function load(force) {
   loading = true;
   const root = $("#maint-root");
   if (!last) { clear(root); root.append(h("p", { class: "dim", text: "Looking around the server…" })); }
-  try { last = await api(`/api/maintenance${force ? "?force=1" : ""}`); }
+  try {
+    [last, rs] = await Promise.all([api(`/api/maintenance${force ? "?force=1" : ""}`),
+      api("/api/restart-schedule").catch(() => null)]);
+  }
   catch (e) { if (!last) { clear(root); root.append(h("p", { class: "empty", text: e.message || "Couldn't load it." })); } return; }
   finally { loading = false; }
   render();
 }
 
-function render() {
+function render(force) {
   if (!last) return;
   const root = $("#maint-root");
+  // A time zone being typed survives the page's own refreshes
+  if (root.querySelector(".tz-edit") && !force) return;
   const open = !!(root.querySelector(".maint-last") || {}).open;   // keep the output open across refreshes
   clear(root);
-  root.append(h("div", { class: "maint-grid" }, space(last), updates(last), logs(last)));
+  root.append(h("div", { class: "maint-grid" }, space(last), updates(last), logs(last), rs && rs.available ? restart(rs) : null));
   const run = lastRun(last);
   if (run) root.append(run);
   if (open && root.querySelector(".maint-last")) root.querySelector(".maint-last").open = true;
