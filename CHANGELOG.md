@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 29 October 2026
 
+- **Keeping the panel's parts current:** Dependabot opens one pull request a month against `dev` when the control panel's Python packages or its base image have something newer, and every panel update now builds on the newest Python 3.13 base image, so its Debian and Python get their security fixes. (Panel 1.46.3, [#108](https://github.com/alpinezx/easy-aiostreams/pull/108))
 - **Fixed:** Maintenance's Scheduled server reboot option over SSH (option 11, then 4) went back to the main menu before showing its choices, on any server without linux-aio-toolkit's own reboot. ([#107](https://github.com/alpinezx/easy-aiostreams/pull/107))
 - **Debian:** scheduled server reboots tested on Debian 13. On a server with no time sync service at all, as some Debian images ship, the Scheduled server reboot card now says how to add one. (Panel 1.46.2, [#106](https://github.com/alpinezx/easy-aiostreams/pull/106))
 - **Next reboot on the Overview:** This server shows the scheduled server reboot beside Last backup, linking to Maintenance. HTTPS certificates come last on desktop as on phones, and Reboot server has a line of its own. Docs screenshots retaken. (Panel 1.46.1, [#105](https://github.com/alpinezx/easy-aiostreams/pull/105))
