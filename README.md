@@ -149,7 +149,7 @@ Run it again any time with `sudo bash /opt/aiostreams/setup-aiostreams.sh` and i
  8) Restore from backup (also runs on a fresh server: sudo bash setup-aiostreams.sh restore <file>)
  9) Uninstall (clean removal)
 10) Exit
-11) Maintenance (free up space, system updates, container log limits)
+11) Maintenance (free up space, system updates, log limits, scheduled restart)
 ```
 
 ## Backup & Restore (Migrating to a new server, optional)
