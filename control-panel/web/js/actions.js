@@ -181,6 +181,20 @@ function finish(job, code) {
       onclick: () => window.dispatchEvent(new CustomEvent("restart-panel")) }) : null,
     h("button", { class: "btn small", style: null, type: "button", text: "Close", onclick: closeDrawer })].filter(Boolean));
   foot.children[1].style.marginLeft = "auto";
+  // Updates that need a restart (a new kernel, say) can be finished from here
+  if (ok && job.action === "maint.updates") offerReboot(job.id);
+}
+
+async function offerReboot(id) {
+  let r;
+  try { r = await api("/api/server/reboot-needed"); } catch (_) { return; }
+  if (!r.needed || openId !== id) return;
+  $("#drawer-sub").textContent = "Finished without errors. A restart is needed to finish installing them.";
+  const foot = $("#drawer-foot");
+  const btn = h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer });
+  btn.style.marginLeft = "auto";
+  foot.children[1].style.marginLeft = "";
+  foot.insertBefore(btn, foot.children[1]);
 }
 
 // before: { text, id } for a job that ran first and led to this one (Back up first, before an

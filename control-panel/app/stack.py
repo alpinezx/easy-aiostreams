@@ -959,7 +959,7 @@ class Backend:
         stamp = self._on_host("sh", "-c", "stat -c %Y /var/lib/apt/periodic/update-success-stamp 2>/dev/null "
                                        "|| stat -c %Y /var/lib/apt/lists 2>/dev/null").strip()
         return {"available": True, "count": len(lines), "security": sum("-security" in l for l in lines), "phased": phased,
-                "reboot": bool(self._on_host("sh", "-c", REBOOT_CHECK).strip()),
+                "reboot": self.reboot_needed(),
                 "checked_at": int(stamp) if stamp.isdigit() else None}
 
     def _maint_logs(self) -> dict:
@@ -1477,6 +1477,10 @@ class Backend:
             raise RuntimeError(f"{title} isn't running. Use Start instead.")
         c.restart(timeout=15)
         return title
+
+    def reboot_needed(self) -> bool:
+        """Whether an installed update is waiting for a restart (REBOOT_CHECK)."""
+        return bool(self._on_host("sh", "-c", REBOOT_CHECK).strip())
 
     def reboot_host(self) -> None:
         """Reboot the whole server through the host's own systemd. Everything

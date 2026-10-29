@@ -720,7 +720,9 @@ def test_maintenance_leaves_phased_updates_out():
     def host(answers):
         def on_host(*args, timeout=20):
             return answers.get(args[0], "")
-        return SimpleNamespace(_on_host=on_host)
+        ns = SimpleNamespace(_on_host=on_host)
+        ns.reboot_needed = lambda: stack.Backend.reboot_needed(ns)
+        return ns
     u = stack.Backend._maint_updates(host({"apt": listing, "apt-get": sim, "sh": ""}))
     assert (u["count"], u["security"], u["phased"]) == (1, 1, 2)
     # if the simulation can't run, every waiting update still shows
