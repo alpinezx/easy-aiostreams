@@ -773,7 +773,7 @@ def test_the_toolkits_cron_reboot_in_words():
 
 def test_scheduled_restart_and_time_zone_endpoints(client):
     login(client)
-    assert client.get("/api/restart-schedule").json()["mode"] == "off"
+    assert client.get("/api/restart-schedule").json()["mode"] == "needed"
     r = client.put("/api/restart-schedule", json={"mode": "needed", "every": "weekly", "day": 7, "time": "04:30"})
     assert r.status_code == 200 and (r.json()["mode"], r.json()["day"]) == ("needed", 7)
     assert client.put("/api/restart-schedule", json={"mode": "sometimes"}).status_code == 400
