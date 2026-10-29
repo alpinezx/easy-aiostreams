@@ -1,0 +1,24 @@
+# Once a month, a pull request to dev for anything newer the control panel uses:
+# its Python packages (control-panel/requirements.txt) and its base image
+# (control-panel/Dockerfile). Each is tested on a server before it goes to main,
+# like any other change. Security alerts come straight away, separately.
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/control-panel"
+    target-branch: "dev"
+    schedule:
+      interval: "monthly"
+    groups:
+      panel-packages:
+        patterns: ["*"]
+    commit-message:
+      prefix: "Panel packages"
+
+  - package-ecosystem: "docker"
+    directory: "/control-panel"
+    target-branch: "dev"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "Panel base image"
