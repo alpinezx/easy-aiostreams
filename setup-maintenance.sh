@@ -403,7 +403,8 @@ restart_set() {
 
 # linux-aio-toolkit's own scheduled reboot, a line in root's crontab: both would run
 toolkit_reboot_line() {
-    crontab -l -u root 2>/dev/null | grep -F '# aio-toolkit: scheduled-reboot' | head -n 1
+    # || true: finding none is the usual case, and under pipefail it would end the script
+    crontab -l -u root 2>/dev/null | grep -F '# aio-toolkit: scheduled-reboot' | head -n 1 || true
 }
 
 restart_status() {
@@ -461,10 +462,10 @@ restart_last() {
 # backup, an update, a restore, a panel job) or apt. Empty when nothing is.
 restart_busy() {
     local p
-    p=$(pgrep -af 'setup-[a-z-]+\.sh' 2>/dev/null | grep -v -e "^$$ " -e 'scheduled-restart' | grep -oP 'setup-[a-z-]+\.sh' | head -n 1)
+    p=$(pgrep -af 'setup-[a-z-]+\.sh' 2>/dev/null | grep -v -e "^$$ " -e 'scheduled-restart' | grep -oP 'setup-[a-z-]+\.sh' | head -n 1 || true)
     if [[ -n "$p" ]]; then echo "$p"; return 0; fi
     # unattended-upgrade itself, not the -shutdown helper Ubuntu keeps running all day
-    p=$( { pgrep -x 'apt|apt-get|dpkg'; pgrep -f 'bin/unattended-upgrade( |$)'; } 2>/dev/null | head -n 1)
+    p=$( { pgrep -x 'apt|apt-get|dpkg'; pgrep -f 'bin/unattended-upgrade( |$)'; } 2>/dev/null | head -n 1 || true)
     if [[ -n "$p" ]]; then echo "apt"; return 0; fi
     return 0
 }
