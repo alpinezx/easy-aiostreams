@@ -491,6 +491,10 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .maint-card { display: flex; flex-direction: column; }
 .maint-foot { display: flex; align-items: center; justify-content: flex-end; gap: 14px; width: 100%; flex-wrap: wrap; }
 .maint-foot .dim { margin-right: auto; font-size: .84rem; }
+.maint-foot .warn { margin-right: auto; font-size: .84rem; color: var(--warn); }
+.restart-row { margin-top: 14px; padding-bottom: 4px; }
+.tz-edit { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.tz-edit .tz-box { width: 13em; padding: 4px 8px; font-size: .84rem; }
 .maint-last { margin-top: 16px; }
 .maint-last summary { cursor: pointer; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .maint-last pre { margin: 12px 0 0; max-height: 320px; overflow: auto; padding: 10px 12px; background: var(--sunk); border-radius: 8px; font-family: var(--mono); font-size: .78rem; white-space: pre-wrap; overflow-wrap: anywhere; }

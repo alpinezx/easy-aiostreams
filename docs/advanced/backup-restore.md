@@ -63,6 +63,7 @@ same way.
 - `watchdog-state/`, if you ever set up [Watchdog Alerts](./watchdog.md) . 
   this contains your ntfy topic name
 - `backup-schedule`, if [scheduled backups](#scheduled-backups) are on
+- `restart-schedule`, if Maintenance's scheduled restart is on
 - AIOMetadata's `aiometadata-state/` (settings, database, a note of whether it was running), without the lookup files it downloads again by itself; Redis is only a cache and isn't included. See the [AIOMetadata guide](./aiometadata.md#backups)
 - AIOManager's `aiomanager-state/` (settings, database with every login, `server_secret.key`, a note of whether it was running). See the [AIOManager guide](./aiomanager.md#backups)
 - Every install script (`setup-aiostreams.sh`, `setup-backup.sh`, `setup-maintenance.sh`, `setup-vpn-gluetun.sh`, `setup-watchdog.sh`, `setup-mediaflow.sh`, `setup-aiometadata.sh`, `setup-aiomanager.sh`): any `.sh` file in `/opt/aiostreams` is included automatically, which is why all install commands download there first
@@ -382,6 +383,12 @@ Scheduled backups follow the backup: on with its schedule if it had one,
 off if not. Backups from before scheduled backups existed can't say, so if
 this server had them on, the summary says they're off now and how to turn
 them on again.
+
+The scheduled restart works the same way, from `restart-schedule` (backup
+format 7 on). Its timer is outside `/opt/aiostreams`, so the restore makes
+it again; with an older backup it's off, and the summary says so if this
+server had it on. The time zone is the server's own setting, so it stays as
+the new server has it.
 
 The webhook relay was retired in October 2026, so it never comes back from a
 backup: the restore drops its settings and Caddy site, and the summary says

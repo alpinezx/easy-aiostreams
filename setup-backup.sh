@@ -155,7 +155,8 @@ do_backup() {
     # Tells a restore which of the markers above this backup can have.
     # Format 2 added the panel's, format 3 the webhook's reboot notification,
     # format 4 the backup schedule (backup-schedule, absent when it's off),
-    # format 5 AIOMetadata's, format 6 AIOManager's.
+    # format 5 AIOMetadata's, format 6 AIOManager's, format 7 the scheduled
+    # restart (restart-schedule, absent when it's off).
     # The AIOStreams build is only there for the control panel to show on the
     # backup; a restore doesn't act on it, so it doesn't change the format.
     # Read now, before AIOStreams is paused below. Its image is distroless,
@@ -167,7 +168,7 @@ do_backup() {
         build=""
     done
     {
-        printf '# Written by setup-backup.sh with each backup.\nformat=6\n'
+        printf '# Written by setup-backup.sh with each backup.\nformat=7\n'
         if [[ "$build" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\ (v[0-9]+\.[0-9]+\.[0-9]+|[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]{4}-nightly)$ ]]; then
             printf 'aiostreams_version=%s\naiostreams_tag=%s\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
         fi
@@ -1499,6 +1500,34 @@ do_restore() {
             summary+=("Scheduled backups: this backup is from before they existed, so they're off now. Turn them on again on the panel's Backup & Restore page, or: sudo bash $INSTALL_DIR/setup-backup.sh schedule daily 04:00")
         else
             summary+=("Scheduled backups: off when the backup was made, left off.")
+        fi
+    fi
+
+    # Scheduled restart, the same way, through setup-maintenance.sh (format 7 on;
+    # setup-aiostreams.sh fetches it when it's missing). Without either the timer
+    # is removed rather than left stopped, where it would start at the next boot.
+    local had_restart=false main="$INSTALL_DIR/setup-aiostreams.sh" maint="$INSTALL_DIR/setup-maintenance.sh"
+    [[ -f /etc/systemd/system/aiostreams-restart.timer ]] && had_restart=true
+    if grep -q 'restart_apply()' "$maint" 2>/dev/null; then
+        bash "$maint" restart-schedule apply < /dev/null >/dev/null 2>&1 || true
+    elif [[ -f "$INSTALL_DIR/restart-schedule" ]] && grep -q 'restart-schedule' "$main" 2>/dev/null; then
+        bash "$main" restart-schedule apply < /dev/null >/dev/null 2>&1 || true
+    elif $had_restart; then
+        systemctl disable --now aiostreams-restart.timer >/dev/null 2>&1 || true
+        rm -f /etc/systemd/system/aiostreams-restart.timer /etc/systemd/system/aiostreams-restart.service
+        systemctl daemon-reload
+    fi
+    if [[ -f "$INSTALL_DIR/restart-schedule" ]]; then
+        if systemctl is-active --quiet aiostreams-restart.timer 2>/dev/null; then
+            summary+=("Scheduled restart: on, as when the backup was made.")
+        else
+            summary+=("Scheduled restart was on, but the timer couldn't be started. Set it again on the panel's Maintenance page, or: sudo bash $maint restart-schedule")
+        fi
+    elif $had_restart; then
+        if (( sched_format < 7 )); then
+            summary+=("Scheduled restart: this backup is from before it existed, so it's off now. Turn it on again on the panel's Maintenance page.")
+        else
+            summary+=("Scheduled restart: off when the backup was made, left off.")
         fi
     fi
 

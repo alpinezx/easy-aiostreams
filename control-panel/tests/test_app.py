@@ -731,6 +731,58 @@ def test_maintenance_leaves_phased_updates_out():
     assert (u["count"], u["phased"]) == (3, 0)
 
 
+def test_scheduled_restart_reads_the_schedule_and_its_last_run(tmp_path):
+    """restart-schedule and restart-last-run as setup-maintenance.sh writes them."""
+    from types import SimpleNamespace
+    from app import stack
+    (tmp_path / "restart-schedule").write_text("# Scheduled restart\nmode=needed\nevery=weekly\nday=3\ntime=05:15\n")
+    (tmp_path / "restart-last-run").write_text("1790000000|skipped|Not needed: no update was waiting for one.\n")
+    (tmp_path / "setup-aiostreams.sh").write_text("    free-space|system-updates|log-limits|restart-schedule|scheduled-restart)\n")
+    ns = SimpleNamespace(p=lambda n: tmp_path / n, _systemd_active=lambda u: True, reboot_needed=lambda: False,
+                         _on_host=lambda *a, **k: "@1790100000\n", _host_timezone=lambda: "Europe/London",
+                         clock=lambda: {"synced": True}, _toolkit_reboot=lambda: None)
+    r = stack.Backend.restart_schedule(ns)
+    assert (r["mode"], r["every"], r["day"], r["time"], r["next"], r["available"]) == ("needed", "weekly", 3, "05:15", 1790100000, True)
+    assert r["last"] == {"at": 1790000000, "status": "skipped", "text": "Not needed: no update was waiting for one."}
+    # off when there's no file, and not offered with a script from before it
+    (tmp_path / "restart-schedule").unlink()
+    (tmp_path / "setup-aiostreams.sh").write_text("    free-space) do_free_space; exit 0 ;;\n")
+    r = stack.Backend.restart_schedule(ns)
+    assert (r["mode"], r["timer"], r["next"], r["available"]) == ("off", False, None, False)
+
+
+def test_the_toolkits_cron_reboot_in_words():
+    from app.stack import cron_words
+    assert cron_words("30 5 * * 0 /sbin/shutdown -r now  # aio-toolkit: scheduled-reboot") == "Sundays at 05:30"
+    assert cron_words("0 4 * * * /sbin/shutdown -r now  # aio-toolkit: scheduled-reboot") == "daily at 04:00"
+    assert cron_words("30 6 1 * * /sbin/shutdown -r now  # aio-toolkit: scheduled-reboot") == "on day 1 of each month at 06:30"
+
+
+def test_scheduled_restart_and_time_zone_endpoints(client):
+    login(client)
+    assert client.get("/api/restart-schedule").json()["mode"] == "off"
+    r = client.put("/api/restart-schedule", json={"mode": "needed", "every": "weekly", "day": 7, "time": "04:30"})
+    assert r.status_code == 200 and (r.json()["mode"], r.json()["day"]) == ("needed", 7)
+    assert client.put("/api/restart-schedule", json={"mode": "sometimes"}).status_code == 400
+    assert client.put("/api/restart-schedule", json={"mode": "off"}).json()["mode"] == "off"
+    assert "Europe/London" in client.get("/api/server/timezones").json()
+    assert client.put("/api/server/timezone", json={"timezone": "Europe/Paris"}).json() == {"timezone": "Europe/Paris"}
+    assert client.put("/api/server/timezone", json={"timezone": "Europe/Londn"}).status_code == 400
+    assert client.put("/api/server/timezone", json={"timezone": "../../etc"}).status_code == 400
+
+
+def test_set_timezone_turns_down_what_the_server_doesnt_list():
+    from types import SimpleNamespace
+    from app import stack
+    ns = SimpleNamespace(timezones=lambda: ["Europe/London", "Europe/Paris"])
+    for bad in ("Europe/Londn", "; reboot", "../x", "", None):
+        try:
+            stack.Backend.set_timezone(ns, bad)
+        except ValueError:
+            continue
+        raise AssertionError(bad)
+
+
 def test_maintenance_restart_needed_is_never_from_the_cache():
     """A kernel installed over SSH shows on the next look, not 5 minutes later."""
     import time

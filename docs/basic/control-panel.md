@@ -63,6 +63,7 @@ The pages are icons down the left; point at one to see its name. On a phone they
 - **Restore is for rolling this same server back.** The panel checks first that the backup matches this install and its domains point here. If not, it refuses and gives you the command to run over SSH instead. Moving to a new server is always done over SSH ([backup guide](./backup-restore.md)).
 - **Scheduled backups keep the newest 7 scheduled ones.** Backups you make yourself, ones made before an update, and locked ones are never removed.
 - **Install updates** and **Set limits** on the Maintenance page restart every container for a few seconds, the panel included. The job carries on, and the page reconnects by itself.
+- **Scheduled restart** on the Maintenance page restarts the server at a set time, either only when an update needs it (a new kernel, say) or every time. It's off until you pick one, never runs during a backup or an update, and Phone alerts says the restart was planned. The same card shows whether the server's clock is in sync and lets you change its time zone; scheduled backups and restarts go by it.
 
 ---
 
