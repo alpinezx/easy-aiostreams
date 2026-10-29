@@ -179,7 +179,7 @@ SHARED_NET="aios_shared"
 
 # Every script that belongs in $INSTALL_DIR. Used when a leftover
 # ~/aiostreams folder is turned into a shortcut (link_install_shortcuts).
-AIOSTREAMS_SCRIPTS=(setup-aiostreams.sh setup-backup.sh setup-vpn-gluetun.sh setup-watchdog.sh setup-webhook.sh setup-mediaflow.sh setup-aiometadata.sh setup-aiomanager.sh)
+AIOSTREAMS_SCRIPTS=(setup-aiostreams.sh setup-backup.sh setup-maintenance.sh setup-vpn-gluetun.sh setup-watchdog.sh setup-webhook.sh setup-mediaflow.sh setup-aiometadata.sh setup-aiomanager.sh)
 
 # Set by the Reconfigure menu option only, when it needs the final restart
 # (further down) to know whether to bring the stack back up through the
@@ -551,33 +551,37 @@ sync_self_into_install_dir() {
     return 0
 }
 
-# Backup and restore live in setup-backup.sh. Finds it in the install
-# folder or next to this script, and downloads it when it's in neither.
-backup_script() {
-    local candidate dest
-    for candidate in "$INSTALL_DIR/setup-backup.sh" "$(dirname "$SELF_SCRIPT_PATH")/setup-backup.sh"; do
+# Backup and restore live in setup-backup.sh, Maintenance in setup-maintenance.sh.
+# Finds one in the install folder or next to this script, and downloads it
+# when it's in neither: helper_script <file> <a function it must have> <what it's for>
+helper_script() {
+    local name="$1" marker="$2" what="$3" candidate dest
+    for candidate in "$INSTALL_DIR/$name" "$(dirname "$SELF_SCRIPT_PATH")/$name"; do
         if [[ -f "$candidate" ]]; then
             printf '%s\n' "$candidate"
             return 0
         fi
     done
     if [[ -d "$INSTALL_DIR" ]]; then
-        dest="$INSTALL_DIR/setup-backup.sh"
+        dest="$INSTALL_DIR/$name"
     else
-        dest="$(mktemp -d)/setup-backup.sh"
+        dest="$(mktemp -d)/$name"
     fi
-    echo "Downloading setup-backup.sh (backup and restore)..." >&2
-    if curl -fsSL "$RAW_BASE/setup-backup.sh" -o "$dest.part" && grep -q 'do_restore()' "$dest.part"; then
+    echo "Downloading $name ($what)..." >&2
+    if curl -fsSL "$RAW_BASE/$name" -o "$dest.part" && grep -q "$marker" "$dest.part"; then
         mv -f -- "$dest.part" "$dest"
         chmod 755 "$dest"
         printf '%s\n' "$dest"
         return 0
     fi
     rm -f -- "$dest.part"
-    warn "Couldn't download setup-backup.sh. Get it with:"
-    warn "  sudo curl -fsSL $RAW_BASE/setup-backup.sh -o $INSTALL_DIR/setup-backup.sh"
+    warn "Couldn't download $name. Get it with:"
+    warn "  sudo curl -fsSL $RAW_BASE/$name -o $INSTALL_DIR/$name"
     return 1
 }
+
+backup_script() { helper_script setup-backup.sh 'do_restore()' "backup and restore"; }
+maint_script() { helper_script setup-maintenance.sh 'do_free_space()' "maintenance"; }
 
 # Runs setup-backup.sh with the given command. AIOS_MAIN_SCRIPT tells a
 # restore which copy of this script to put back into the install folder.
@@ -639,9 +643,10 @@ restore_start_stack() {
     return 0
 }
 
-# ---- Maintenance: the control panel's Maintenance page runs these, and they
-# ask nothing, so they work the same over SSH:
-#   sudo bash setup-aiostreams.sh free-space | system-updates | log-limits
+# ---- Maintenance lives in setup-maintenance.sh (menu option 11, and the
+# free-space, system-updates, log-limits and restart-schedule commands, which
+# hand over to it). What it needs from here, the VPN-aware start, it calls
+# back for: "_ensure-running" and "_recreate-stack".
 
 # After Docker itself restarts (a system update upgraded it, or the log limits
 # were set), bring back what should be running. In VPN mode AIOStreams has
@@ -661,34 +666,22 @@ ensure_stack_running() {
     fi
 }
 
-# Old images nothing uses (each AIOStreams update leaves the previous one
-# behind, untagged, and switching channel leaves the other channel's), build
-# leftovers (every panel rebuild adds some) and system logs beyond the newest
-# 100 MB. Other tagged images, like gluetun's while the VPN is off, are kept
-# for when they're wanted again.
-do_free_space() {
-    local before after img
-    before=$(df -B1 --output=avail "$INSTALL_DIR" | tail -n 1)
-    # One summary line per step: Docker's own output lists every layer and build record
-    info "Removing old images nothing uses"
-    docker image prune -f | tail -n 1
-    for img in $(docker images viren070/aiostreams --format '{{.Repository}}:{{.Tag}}' | grep -v '<none>'); do
-        if [[ -z "$(docker ps -aq --filter "ancestor=$img")" ]] && docker rmi "$img" >/dev/null; then echo "Removed $img"; fi
-    done
-    info "Removing build leftovers"
-    docker builder prune -f | tail -n 1
-    if command -v journalctl >/dev/null 2>&1; then
-        info "Trimming the system logs to the newest 100 MB"
-        journalctl --vacuum-size=100M 2>&1 | tail -n 1
-    fi
-    after=$(df -B1 --output=avail "$INSTALL_DIR" | tail -n 1)
-    echo ""
-    if (( after > before )); then
-        echo "Done. Freed about $(( (after - before) / 1048576 )) MB."
+# Recreates the main stack so every container takes Docker's new log limits,
+# through the tunnel in VPN mode; stopped on purpose stays stopped.
+# setup-maintenance.sh's log limits call it as "_recreate-stack".
+recreate_stack() {
+    cd "$INSTALL_DIR" || return 1
+    local on_purpose=0
+    [[ -f "$STOPPED_MARKER" ]] && on_purpose=1
+    if vpn_mode_active; then
+        vpn_gated_start_aiostreams --force-recreate --remove-orphans || true
     else
-        echo "Done. There was nothing worth freeing."
+        docker compose up -d --force-recreate --remove-orphans || true
     fi
+    if (( on_purpose )); then docker compose stop aiostreams >/dev/null 2>&1 || true; touch "$STOPPED_MARKER"; fi
+    return 0
 }
+
 
 # Ubuntu's waiting updates that Install updates would install now, one
 # "package/source version arch [upgradable ...]" line each. Ubuntu phases some
@@ -732,98 +725,7 @@ reboot_needed() {
     return 1
 }
 
-# The system's package updates, as "apt upgrade" over SSH would, keeping any config
-# file you've changed. If Docker itself was upgraded it restarts every
-# container, so the stack is brought back afterwards (the control panel runs
-# this outside its own container for the same reason).
-do_system_updates() {
-    command -v apt-get >/dev/null 2>&1 || error "This server doesn't use apt, so this can't update it."
-    export DEBIAN_FRONTEND=noninteractive
-    info "Refreshing the package lists"
-    apt-get -q -o DPkg::Lock::Timeout=300 update || error "Couldn't refresh the package lists. Nothing was installed."
-    info "Installing updates"
-    apt-get -y -q -o DPkg::Lock::Timeout=300 -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold \
-        upgrade --with-new-pkgs || error "The update stopped partway. Run 'sudo apt upgrade' over SSH to see why."
-    info "Making sure everything is running"
-    ensure_stack_running || warn "AIOStreams didn't come back by itself. Use Start on the Overview, or option 3 here."
-    echo ""
-    if reboot_needed; then
-        warn "Done. A restart is needed to finish (a new kernel or system library): use Reboot server when it suits."
-    else
-        echo "Done. No restart needed."
-    fi
-}
 
-# Caps each container's log at 10 MB (3 files) through Docker's own settings
-# (/etc/docker/daemon.json), so every container gets it, add-ons and the
-# panel included. Docker has to restart to read it, and containers only take
-# it when they're recreated, so everything is recreated once. A daemon.json
-# Docker rejects is put back as it was.
-LOG_MAX_SIZE="10m"
-LOG_MAX_FILE="3"
-do_log_limits() {
-    local f=/etc/docker/daemon.json
-    if [[ -s "$f" ]] && grep -q '"max-size"' "$f"; then
-        echo "Docker already limits container logs here. Nothing to do."
-        return 0
-    fi
-    if [[ -s "$f" ]] && ! grep -qx '[[:space:]]*{[[:space:]]*}[[:space:]]*' "$f"; then
-        # Some other settings are already there: add to them rather than replace them
-        command -v python3 >/dev/null 2>&1 || error "$f already has settings, and python3 isn't here to add to them safely. Add \"log-opts\": {\"max-size\": \"$LOG_MAX_SIZE\", \"max-file\": \"$LOG_MAX_FILE\"} by hand."
-        cp -p "$f" "$f.before-log-limits"
-        python3 - "$f" "$LOG_MAX_SIZE" "$LOG_MAX_FILE" <<'PY' || { mv -f "$f.before-log-limits" "$f"; error "Couldn't read $f as JSON. Nothing was changed."; }
-import json, sys
-path, size, files = sys.argv[1:4]
-with open(path) as fh:
-    conf = json.load(fh)
-if conf.get("log-driver", "json-file") not in ("json-file", "local"):
-    sys.exit("log driver " + conf["log-driver"])
-conf.setdefault("log-opts", {}).update({"max-size": size, "max-file": files})
-with open(path, "w") as fh:
-    json.dump(conf, fh, indent=2)
-    fh.write("\n")
-PY
-    else
-        [[ -e "$f" ]] && cp -p "$f" "$f.before-log-limits"
-        mkdir -p /etc/docker
-        printf '{\n  "log-opts": { "max-size": "%s", "max-file": "%s" }\n}\n' "$LOG_MAX_SIZE" "$LOG_MAX_FILE" > "$f"
-    fi
-    if dockerd --help 2>/dev/null | grep -q -- '--validate' && ! dockerd --validate --config-file "$f" >/dev/null 2>&1; then
-        if [[ -e "$f.before-log-limits" ]]; then mv -f "$f.before-log-limits" "$f"; else rm -f "$f"; fi
-        error "Docker didn't accept the new settings, so they were taken back out. Nothing else changed."
-    fi
-    info "Restarting Docker to read the new limit (every container restarts)"
-    if ! systemctl restart docker; then
-        warn "Docker didn't restart with the new settings. Putting the old ones back."
-        if [[ -e "$f.before-log-limits" ]]; then mv -f "$f.before-log-limits" "$f"; else rm -f "$f"; fi
-        systemctl restart docker || true
-        ensure_stack_running || true
-        error "The log limits weren't set. Docker is back on its old settings."
-    fi
-    rm -f "$f.before-log-limits"
-    info "Recreating the containers so they take the limit"
-    cd "$INSTALL_DIR" || return 1
-    local on_purpose=0
-    [[ -f "$STOPPED_MARKER" ]] && on_purpose=1
-    if vpn_mode_active; then
-        vpn_gated_start_aiostreams --force-recreate --remove-orphans || true
-    else
-        docker compose up -d --force-recreate --remove-orphans || true
-    fi
-    if (( on_purpose )); then docker compose stop aiostreams >/dev/null 2>&1 || true; touch "$STOPPED_MARKER"; fi
-    local d running
-    for d in mediaflow-state webhook-relay-state aiometadata-state aiomanager-state; do
-        [[ -f "$INSTALL_DIR/$d/docker-compose.yml" ]] || continue
-        running=$(cd "$INSTALL_DIR/$d" && docker compose ps -q 2>/dev/null)
-        [[ -n "$running" ]] && (cd "$INSTALL_DIR/$d" && docker compose up -d --force-recreate) || true
-    done
-    # The panel last: recreating it ends its own view of this (it runs outside it)
-    if [[ -f "$INSTALL_DIR/ui-state/docker-compose.yml" ]]; then
-        (cd "$INSTALL_DIR/ui-state" && docker compose -f docker-compose.yml up -d --force-recreate) || true
-    fi
-    echo ""
-    echo "Done. Each container's log is now capped at $LOG_MAX_SIZE ($LOG_MAX_FILE files)."
-}
 
 # ---- Status and Maintenance for SSH: what the control panel's Overview and
 # Maintenance page show, as text. Menu options 1 and 11, and "status".
@@ -960,68 +862,7 @@ show_status() {
     return 0
 }
 
-# What Maintenance would do, before doing it
-maint_summary() {
-    local ids=() img size=0 b build journal list n s ph
-    while IFS= read -r img; do [[ -n "$img" ]] && ids+=("$img"); done < <(docker images -f dangling=true -q 2>/dev/null)
-    for img in $(docker images viren070/aiostreams --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | grep -v '<none>'); do
-        if [[ -z "$(docker ps -aq --filter "ancestor=$img")" ]]; then ids+=("$(docker images -q "$img")"); fi
-    done
-    for img in "${ids[@]}"; do
-        b=$(docker image inspect -f '{{.Size}}' "$img" 2>/dev/null || echo 0)
-        size=$(( size + ${b:-0} ))
-    done
-    build=$(docker system df --format '{{.Type}}|{{.Reclaimable}}' 2>/dev/null | awk -F'|' '$1 == "Build Cache" {print $2}')
-    journal=$(journalctl --disk-usage 2>/dev/null | grep -oP 'take up \K\S+' || true)
-    echo "  Old images nothing uses: ${#ids[@]}$( (( ${#ids[@]} )) && echo " (up to $(bytes "$size"))")"
-    echo "  Build leftovers:         ${build:-0B}"
-    [[ -n "$journal" ]] && echo "  System logs:             $journal (free up space trims them to the newest 100 MB)"
-    if list=$(upgradable_now); then
-        n=$(grep -c . <<< "$list" || true)
-        s=$(grep -c -- '-security' <<< "$list" || true)
-        ph=$(( $(upgradable_count) - n ))
-        if (( n )); then
-            echo "  Updates waiting:         $n$( (( s )) && echo " ($s for security)")$( (( ph > 0 )) && echo ", and $ph rolling out gradually (phased)")"
-        else
-            echo "  Updates waiting:         none$( (( ph > 0 )) && echo " ($ph rolling out gradually, phased)")"
-        fi
-    fi
-    reboot_needed && echo "  A restart is needed to finish installing updates (sudo reboot, when it suits)."
-    if [[ -s /etc/docker/daemon.json ]] && grep -q '"max-size"' /etc/docker/daemon.json; then
-        echo "  Container log limits:    set"
-    else
-        echo "  Container log limits:    not set (logs can grow until the disk fills)"
-    fi
-    return 0
-}
 
-maintenance_menu() {
-    local c yn
-    while true; do
-        echo ""
-        echo "=== Maintenance ==="
-        maint_summary
-        echo ""
-        echo "  1) Free up space (old images, build leftovers, system logs beyond 100 MB)"
-        echo "  2) Install updates (the system's, as apt upgrade would)"
-        echo "  3) Set container log limits (10 MB each; every container restarts once)"
-        echo "  0) Back"
-        read -rp "Choose [0-3]: " c || return 0
-        case "$c" in
-            1) do_free_space ;;
-            2)
-                read -rp "Install them now? If Docker itself is updated, every container restarts for a few seconds. [y/N]: " yn || return 0
-                if [[ "$yn" =~ ^[Yy]$ ]]; then do_system_updates; fi
-                ;;
-            3)
-                read -rp "Every container restarts once, a few seconds of downtime. Go ahead? [y/N]: " yn || return 0
-                if [[ "$yn" =~ ^[Yy]$ ]]; then do_log_limits; fi
-                ;;
-            0|"") return 0 ;;
-            *) warn "Not a valid option." ;;
-        esac
-    done
-}
 
 # ---- Stop, Start, Restart and Update: menu options 2 to 5, and the commands
 # the control panel runs, "stop", "start", "restart" and
@@ -1224,9 +1065,19 @@ case "${1:-}" in
         show_status
         exit 0
         ;;
-    free-space) do_free_space; exit 0 ;;
-    system-updates) do_system_updates; exit 0 ;;
-    log-limits) do_log_limits; exit 0 ;;
+    # Maintenance's commands: the control panel runs these (older panels too)
+    free-space|system-updates|log-limits|restart-schedule|scheduled-restart)
+        script=$(maint_script) || exit 1
+        exec bash "$script" "$@"
+        ;;
+    _ensure-running)
+        ensure_stack_running || exit 1
+        exit 0
+        ;;
+    _recreate-stack)
+        recreate_stack
+        exit 0
+        ;;
     remove-webhook-relay) remove_webhook_relay; exit 0 ;;
 esac
 
@@ -1273,7 +1124,7 @@ if [[ -f "$COMPOSE_FILE" ]]; then
             continue
             ;;
         11)
-            maintenance_menu
+            if script=$(maint_script); then bash "$script" || true; fi
             continue
             ;;
         2) do_stop_aio; continue ;;

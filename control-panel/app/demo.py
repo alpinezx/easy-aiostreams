@@ -258,7 +258,7 @@ class DemoBackend:
         found = next(((i, f) for i, _, f in SCRIPTS if i == script_id), None)
         if not found:
             raise ValueError("Unknown script.")
-        files = [found[1]] + (["setup-backup.sh"] if script_id == "aiostreams" else [])
+        files = [found[1]] + (["setup-backup.sh", "setup-maintenance.sh"] if script_id == "aiostreams" else [])
         scriptsync.DEMO_SAME.update(files)
         return {"updated": files, "note": None}
 

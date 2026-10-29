@@ -134,6 +134,10 @@ _LOGIN_COUNT_JS = ("const D=require('better-sqlite3');"
                    "db.close()")
 
 
+# The AIOStreams menu hands backup and restore, and Maintenance, to these, so the
+# Scripts tab's AIOStreams row compares and updates them with it
+WITH_MAIN = ("setup-backup.sh", "setup-maintenance.sh")
+
 TIME_RE = re.compile(r"^([01]?\d|2[0-3]):[0-5]\d$")
 
 
@@ -1328,14 +1332,15 @@ class Backend:
 
     def update_script(self, script_id: str) -> dict:
         """The Scripts tab's Update: replaces a script (and, for the AIOStreams
-        menu, setup-backup.sh) with GitHub's main copy, verified, on the host.
+        menu, setup-backup.sh and setup-maintenance.sh, fetched too when missing)
+        with GitHub's main copy, verified, on the host.
         The watchdog's timer runs a copy of its script, so that's refreshed too."""
         from . import scriptsync
         found = next(((i, f) for i, _, f in SCRIPTS if i == script_id), None)
         if not found:
             raise ValueError("Unknown script.")
-        files = [found[1]] + (["setup-backup.sh"] if script_id == "aiostreams" else [])
-        files = [f for f in files if self.p(f).exists()]
+        extra = list(WITH_MAIN) if script_id == "aiostreams" and self.p(found[1]).exists() else []
+        files = [f for f in [found[1]] if self.p(f).exists()] + extra
         if not files:
             raise ValueError("It isn't on this server. Use Get and run instead.")
         try:

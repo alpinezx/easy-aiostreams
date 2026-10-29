@@ -65,7 +65,7 @@ same way.
 - `backup-schedule`, if [scheduled backups](#scheduled-backups) are on
 - AIOMetadata's `aiometadata-state/` (settings, database, a note of whether it was running), without the lookup files it downloads again by itself; Redis is only a cache and isn't included. See the [AIOMetadata guide](./aiometadata.md#backups)
 - AIOManager's `aiomanager-state/` (settings, database with every login, `server_secret.key`, a note of whether it was running). See the [AIOManager guide](./aiomanager.md#backups)
-- Every install script (`setup-aiostreams.sh`, `setup-backup.sh`, `setup-vpn-gluetun.sh`, `setup-watchdog.sh`, `setup-mediaflow.sh`, `setup-aiometadata.sh`, `setup-aiomanager.sh`): any `.sh` file in `/opt/aiostreams` is included automatically, which is why all install commands download there first
+- Every install script (`setup-aiostreams.sh`, `setup-backup.sh`, `setup-maintenance.sh`, `setup-vpn-gluetun.sh`, `setup-watchdog.sh`, `setup-mediaflow.sh`, `setup-aiometadata.sh`, `setup-aiomanager.sh`): any `.sh` file in `/opt/aiostreams` is included automatically, which is why all install commands download there first
 
 **Not included:** Caddy's HTTPS certificates. They're in Docker volumes, and Caddy re-issues them automatically once DNS resolves on the new server. No point bundling them.
 
