@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from . import auth, config, panelupdate, releases, scriptsync, serverip, terminal
 from .actions import SCRIPTS, BadAction, build_delete_config, build_restore, build_use_file, resolve
 from .proxy import CaddyProxyHeaders
-from .stack import BACKUP_NAME, RESTARTABLE, backup_path
+from .stack import BACKUP_NAME, RESTARTABLE, WITH_MAIN, backup_path
 
 if config.DEMO:
     from .demo import DemoBackend
@@ -217,8 +217,8 @@ async def panel_update(request: Request, user: str = Depends(current_user)):
 @app.get("/api/scripts/compare")
 async def scripts_compare(force: bool = False, user: str = Depends(current_user)):
     """Which of the stack's scripts on this server differ from GitHub's main.
-    setup-backup.sh is included: the AIOStreams menu row updates it too."""
-    files = [f for _, _, f in SCRIPTS] + ["setup-backup.sh"]
+    setup-backup.sh and setup-maintenance.sh are included: the AIOStreams menu row updates them too."""
+    files = [f for _, _, f in SCRIPTS] + list(WITH_MAIN)
     if config.DEMO:
         return scriptsync.demo(files)
     return await asyncio.to_thread(scriptsync.compare, config.INSTALL_DIR, files, force)
@@ -620,6 +620,59 @@ async def set_backup_schedule(request: Request, user: str = Depends(current_user
         return await asyncio.to_thread(backend.set_backup_schedule, body.get("every"), body.get("day"), body.get("time"))
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+@app.get("/api/restart-schedule")
+async def restart_schedule(user: str = Depends(current_user)):
+    """Maintenance's Scheduled server reboot: when, how the last one went, the clock and time zone."""
+    return await asyncio.to_thread(backend.restart_schedule)
+
+
+@app.put("/api/restart-schedule")
+async def set_restart_schedule(request: Request, user: str = Depends(current_user)):
+    """{"mode": "off"} or {"mode": "needed"|"always", "every": "daily"|"weekly", "day": 1-7, "time": "HH:MM"}."""
+    body = await _json_body(request)
+    try:
+        return await asyncio.to_thread(backend.set_restart_schedule, body.get("mode"), body.get("every"),
+                                       body.get("day"), body.get("time"))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/server/timezones")
+async def server_timezones(user: str = Depends(current_user)):
+    return await asyncio.to_thread(backend.timezones)
+
+
+@app.put("/api/server/timezone")
+async def server_timezone(request: Request, user: str = Depends(current_user)):
+    """{"timezone": "Europe/London"}. Scheduled times then follow the new zone."""
+    body = await _json_body(request)
+    try:
+        tz = await asyncio.to_thread(backend.set_timezone, body.get("timezone"))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    terminal.log(f"time zone set to {tz} by {user} from {client_ip(request)}")
+    return {"timezone": tz}
+
+
+@app.post("/api/server/ntp")
+async def server_ntp(request: Request, user: str = Depends(current_user)):
+    """Switches on the server's own time sync; installs nothing."""
+    try:
+        return await asyncio.to_thread(backend.ntp_on)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+async def _json_body(request: Request) -> dict:
+    try:
+        body = await request.json()
+    except Exception:
+        body = None
+    if not isinstance(body, dict):
+        raise HTTPException(400, "Bad request")
+    return body
 
 
 @app.get("/api/set-asides")

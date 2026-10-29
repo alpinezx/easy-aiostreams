@@ -134,6 +134,10 @@ _LOGIN_COUNT_JS = ("const D=require('better-sqlite3');"
                    "db.close()")
 
 
+# The AIOStreams menu hands backup and restore, and Maintenance, to these, so the
+# Scripts tab's AIOStreams row compares and updates them with it
+WITH_MAIN = ("setup-backup.sh", "setup-maintenance.sh")
+
 TIME_RE = re.compile(r"^([01]?\d|2[0-3]):[0-5]\d$")
 
 
@@ -152,6 +156,20 @@ def mask_topic(topic: str) -> str | None:
     if not topic:
         return None
     return topic[:5] + "\u2022" * 6 + topic[-2:] if len(topic) >= 10 else "\u2022" * 8
+
+
+def cron_words(line: str) -> str:
+    """'30 5 * * 0 ...' as 'Sundays at 05:30', 'daily at 06:30' or 'on day 1 of each month at 06:30'."""
+    f = line.split()
+    if len(f) < 5 or not (f[0].isdigit() and f[1].isdigit()):
+        return "on its own schedule"
+    at = f"{int(f[1]):02d}:{int(f[0]):02d}"
+    days = ["Sundays", "Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays", "Sundays"]
+    if f[2] != "*":
+        return f"on day {f[2]} of each month at {at}"
+    if f[4] != "*":
+        return f"{days[int(f[4])]} at {at}" if f[4].isdigit() and int(f[4]) < 8 else f"weekly at {at}"
+    return f"daily at {at}"
 
 
 def _read(path) -> str:
@@ -1087,6 +1105,100 @@ class Backend:
         self._bsum = (0.0, None)
         return self.backup_schedule()
 
+    # ---- scheduled reboot, the clock and the time zone -------------------
+    # setup-maintenance.sh's restart-schedule says when (absent: off; mode needed
+    # restarts only when an update waits for one), a systemd timer runs it, and
+    # restart-last-run says how the last one went ("epoch|restarted|text", or skipped).
+    # The panel sets it through setup-aiostreams.sh, which fetches setup-maintenance.sh
+    # when it's missing.
+    def restart_schedule(self) -> dict:
+        kv = dict(l.split("=", 1) for l in _read(self.p("restart-schedule")).splitlines()
+                  if "=" in l and not l.startswith("#"))
+        mode = kv.get("mode") if kv.get("mode") in ("needed", "always") else "off"
+        every = kv.get("every") if kv.get("every") in ("daily", "weekly") else "weekly"
+        day = int(kv["day"]) if kv.get("day", "") in {str(i) for i in range(1, 8)} else 7
+        t = kv.get("time", "").strip()
+        last = None
+        parts = _read(self.p("restart-last-run")).strip().split("|", 2)
+        if len(parts) == 3 and parts[0].isdigit() and parts[1] in ("restarted", "skipped"):
+            last = {"at": int(parts[0]), "status": parts[1], "text": parts[2]}
+        timer = mode != "off" and self._systemd_active("aiostreams-restart.timer")
+        nxt = None
+        if timer:
+            out = self._on_host("systemctl", "show", "aiostreams-restart.timer", "-p", "NextElapseUSecRealtime",
+                                "--value", "--timestamp=unix").strip().lstrip("@")
+            nxt = int(out) if out.isdigit() else None
+        return {"available": "restart-schedule" in _read(self.p("setup-aiostreams.sh")),
+                "mode": mode, "every": every, "day": day, "time": t if TIME_RE.match(t) else "04:30",
+                "timer": timer, "next": nxt, "last": last, "needed": self.reboot_needed(),
+                "timezone": self._host_timezone(), "clock": self.clock(), "toolkit": self._toolkit_reboot()}
+
+    def set_restart_schedule(self, mode, every, day, t) -> dict:
+        """Off, or when needed / always, daily or weekly (1 Monday .. 7 Sunday) at a time."""
+        if mode == "off":
+            args = ["off"]
+        elif mode in ("needed", "always") and every == "daily" and isinstance(t, str) and TIME_RE.match(t.strip()):
+            args = [mode, "daily", t.strip()]
+        elif mode in ("needed", "always") and every == "weekly" and type(day) is int and 1 <= day <= 7 \
+                and isinstance(t, str) and TIME_RE.match(t.strip()):
+            args = [mode, "weekly", str(day), t.strip()]
+        else:
+            raise ValueError("Pick when needed or always, daily or weekly, and a time.")
+        if "restart-schedule" not in _read(self.p("setup-aiostreams.sh")):
+            raise ValueError("This server's setup-aiostreams.sh is from before scheduled reboots. Update it on the Scripts tab.")
+        cmd = ["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "env", "-i",
+               f"HOME={self.home}", f"PATH={HOST_PATH}", "TERM=dumb", "LANG=C.UTF-8",
+               "bash", str(config.INSTALL_DIR / "setup-aiostreams.sh"), "restart-schedule", *args]
+        r = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
+        if r.returncode != 0:
+            why = [ANSI.sub("", l).replace("XX", "", 1).strip() for l in (r.stdout + r.stderr).splitlines() if "XX" in l]
+            raise ValueError(why[-1] if why else "Couldn't set it.")
+        return self.restart_schedule()
+
+    def clock(self) -> dict:
+        """Whether the server's clock is kept right: synced, and whether time sync is on at all."""
+        kv = dict(l.split("=", 1) for l in self._on_host("timedatectl", "show").splitlines() if "=" in l)
+        return {"synced": kv.get("NTPSynchronized") == "yes", "ntp": kv.get("NTP") == "yes",
+                "can_ntp": kv.get("CanNTP", "yes") == "yes", "known": bool(kv)}
+
+    def ntp_on(self) -> dict:
+        """Switches on whichever time sync the server has. Installs and removes nothing."""
+        r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "timedatectl", "set-ntp", "true"],
+                           capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            raise ValueError("This server has no time sync service to switch on (systemd-timesyncd or chrony).")
+        return self.clock()
+
+    _zones: list[str] | None = None
+
+    def timezones(self) -> list[str]:
+        if not self._zones:
+            self._zones = [z for z in self._on_host("timedatectl", "list-timezones").split() if z]
+        return self._zones
+
+    def set_timezone(self, tz) -> str:
+        if not isinstance(tz, str) or not re.fullmatch(r"[A-Za-z0-9_+\-]+(/[A-Za-z0-9_+\-]+)*", tz.strip()):
+            raise ValueError("Pick a time zone from the list, like Europe/London.")
+        tz = tz.strip()
+        zones = self.timezones()
+        if zones and tz not in zones:
+            match = next((z for z in zones if z.lower() == tz.lower()), None)
+            if not match:
+                raise ValueError(f"{tz} isn't a time zone this server knows. Pick one from the list, like Europe/London.")
+            tz = match
+        r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "timedatectl", "set-timezone", tz],
+                           capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            raise ValueError(f"Couldn't set the time zone to {tz}.")
+        return tz
+
+    def _toolkit_reboot(self) -> str | None:
+        """linux-aio-toolkit's own scheduled reboot, a line in root's crontab, in words."""
+        line = next((l for l in self._on_host("crontab", "-l", "-u", "root").splitlines()
+                     if "# aio-toolkit: scheduled-reboot" in l), "")
+        return cron_words(line) if line else None
+
+
     # For the Overview: when the newest backup was made and the schedule. The
     # status is asked for every few seconds, so this is kept for a minute.
     _bsum: tuple[float, dict | None] = (0.0, None)
@@ -1328,14 +1440,15 @@ class Backend:
 
     def update_script(self, script_id: str) -> dict:
         """The Scripts tab's Update: replaces a script (and, for the AIOStreams
-        menu, setup-backup.sh) with GitHub's main copy, verified, on the host.
+        menu, setup-backup.sh and setup-maintenance.sh, fetched too when missing)
+        with GitHub's main copy, verified, on the host.
         The watchdog's timer runs a copy of its script, so that's refreshed too."""
         from . import scriptsync
         found = next(((i, f) for i, _, f in SCRIPTS if i == script_id), None)
         if not found:
             raise ValueError("Unknown script.")
-        files = [found[1]] + (["setup-backup.sh"] if script_id == "aiostreams" else [])
-        files = [f for f in files if self.p(f).exists()]
+        extra = list(WITH_MAIN) if script_id == "aiostreams" and self.p(found[1]).exists() else []
+        files = [f for f in [found[1]] if self.p(f).exists()] + extra
         if not files:
             raise ValueError("It isn't on this server. Use Get and run instead.")
         try:
