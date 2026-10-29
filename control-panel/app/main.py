@@ -1176,6 +1176,12 @@ async def terminal_ws(ws: WebSocket, ticket: str = "", as_: str = Query("root", 
             pass
 
 
+@app.get("/api/server/reboot-needed")
+async def server_reboot_needed(user: str = Depends(current_user)):
+    """Whether an update is waiting for a restart, for the Reboot button after Install updates."""
+    return {"needed": await asyncio.to_thread(backend.reboot_needed)}
+
+
 @app.post("/api/server/reboot")
 async def server_reboot(request: Request, user: str = Depends(current_user)):
     try:
