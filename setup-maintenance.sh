@@ -356,6 +356,7 @@ EOF
         systemctl restart "$RESTART_UNIT.timer" >/dev/null 2>&1 || return 1   # takes a changed time
     elif [[ -f "$RESTART_TIMER_FILE" || -f "$RESTART_SERVICE_FILE" ]]; then
         systemctl disable --now "$RESTART_UNIT.timer" >/dev/null 2>&1 || true
+        systemctl stop "$RESTART_UNIT.service" >/dev/null 2>&1 || true   # one waiting to restart stops too
         rm -f "$RESTART_TIMER_FILE" "$RESTART_SERVICE_FILE"
         systemctl daemon-reload
     fi
@@ -462,7 +463,8 @@ restart_busy() {
     local p
     p=$(pgrep -af 'setup-[a-z-]+\.sh' 2>/dev/null | grep -v -e "^$$ " -e 'scheduled-restart' | grep -oP 'setup-[a-z-]+\.sh' | head -n 1)
     if [[ -n "$p" ]]; then echo "$p"; return 0; fi
-    p=$(pgrep -x 'apt|apt-get|dpkg|unattended-upgr' 2>/dev/null | head -n 1)
+    # unattended-upgrade itself, not the -shutdown helper Ubuntu keeps running all day
+    p=$( { pgrep -x 'apt|apt-get|dpkg'; pgrep -f 'bin/unattended-upgrade( |$)'; } 2>/dev/null | head -n 1)
     if [[ -n "$p" ]]; then echo "apt"; return 0; fi
     return 0
 }
