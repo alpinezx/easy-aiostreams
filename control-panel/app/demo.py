@@ -471,7 +471,10 @@ class DemoBackend:
         return {"available": True, **r, "timer": r["mode"] != "off", "next": nxt, "needed": self.reboot_pending,
                 "last": {"at": time.time() - 6 * 86400, "status": "skipped", "text": "Not needed: no update was waiting for one."}
                 if r["mode"] != "off" else None,
-                "timezone": self.tz, "clock": {"synced": True, "ntp": True, "can_ntp": True, "known": True},
+                "timezone": self.tz,
+                # UI_DEMO_NOSYNC=1: a server with no time sync service, as some Debian images ship
+                "clock": {"synced": False, "ntp": False, "can_ntp": False, "known": True} if os.environ.get("UI_DEMO_NOSYNC")
+                else {"synced": True, "ntp": True, "can_ntp": True, "known": True},
                 "toolkit": os.environ.get("UI_DEMO_TOOLKIT") or None}
 
     def set_restart_schedule(self, mode, every, day, t) -> dict:
