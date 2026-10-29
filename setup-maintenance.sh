@@ -6,6 +6,9 @@
 #   sudo bash /opt/aiostreams/setup-maintenance.sh free-space        old images, build leftovers, logs
 #   sudo bash /opt/aiostreams/setup-maintenance.sh system-updates    install the system's updates
 #   sudo bash /opt/aiostreams/setup-maintenance.sh log-limits        cap each container's log at 10 MB
+#   sudo bash /opt/aiostreams/setup-maintenance.sh restart-schedule  the scheduled restart, and to set it:
+#   ... restart-schedule off | needed|always daily HH:MM | needed|always weekly <1-7> HH:MM
+#       (needed: only when an update is waiting for a restart; 1 Monday .. 7 Sunday)
 #
 # None of the commands ask anything; the control panel's Maintenance page runs
 # them. setup-aiostreams.sh's option 11 and its commands of the same names hand
@@ -32,6 +35,7 @@ if [[ -f "$_old/docker-compose.yml" && ! -L "$_old" && ! -f "$INSTALL_DIR/docker
     exit 1
 fi
 unset _old
+COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"
 
 if [[ $EUID -ne 0 ]]; then
     error "Please run this script as root (or with sudo)."
@@ -255,8 +259,9 @@ maintenance_menu() {
         echo "  1) Free up space (old images, build leftovers, system logs beyond 100 MB)"
         echo "  2) Install updates (the system's, as apt upgrade would)"
         echo "  3) Set container log limits (10 MB each; every container restarts once)"
+        echo "  4) Scheduled restart (now: $(restart_text))"
         echo "  0) Back"
-        read -rp "Choose [0-3]: " c || return 0
+        read -rp "Choose [0-4]: " c || return 0
         case "$c" in
             1) do_free_space ;;
             2)
@@ -267,17 +272,250 @@ maintenance_menu() {
                 read -rp "Every container restarts once, a few seconds of downtime. Go ahead? [y/N]: " yn || return 0
                 if [[ "$yn" =~ ^[Yy]$ ]]; then do_log_limits; fi
                 ;;
+            4) restart_menu ;;
             0|"") return 0 ;;
             *) warn "Not a valid option." ;;
         esac
     done
 }
 
+# ---- Scheduled restart: menu option 4, "restart-schedule" and what its timer
+# runs, "scheduled-restart". restart-schedule says when (absent: off):
+# mode=needed restarts only when an update is waiting for one (reboot_needed),
+# mode=always every time. restart-last-run says how the last one went
+# ("epoch|restarted|text", or skipped). A missed one isn't made up after the
+# server was off: that would restart it just after it started.
+RESTART_SCHEDULE_FILE="$INSTALL_DIR/restart-schedule"
+RESTART_LAST_FILE="$INSTALL_DIR/restart-last-run"
+RESTART_UNIT="aiostreams-restart"
+RESTART_SERVICE_FILE="/etc/systemd/system/$RESTART_UNIT.service"
+RESTART_TIMER_FILE="/etc/systemd/system/$RESTART_UNIT.timer"
+RESTART_WAIT_MIN=30     # how long it waits for a backup, an update or a restore to finish
+RESTART_DAYS=(Monday Tuesday Wednesday Thursday Friday Saturday Sunday)
+RESTART_SD_DAYS=(Mon Tue Wed Thu Fri Sat Sun)
+
+restart_get() {
+    grep -m1 -oP "^$1=\K.*" "$RESTART_SCHEDULE_FILE" 2>/dev/null || true
+}
+
+# "when needed, Sundays at 04:30", "always, daily at 04:30", or "off"
+restart_text() {
+    local mode every day time how
+    mode=$(restart_get mode); every=$(restart_get every); day=$(restart_get day); time=$(restart_get time)
+    case "$mode" in
+        needed) how="when needed" ;;
+        always) how="always" ;;
+        *) echo "off"; return 0 ;;
+    esac
+    case "$every" in
+        daily) echo "$how, daily at $time" ;;
+        weekly) echo "$how, ${RESTART_DAYS[$(( ${day:-7} - 1 ))]}s at $time" ;;
+        *) echo "off" ;;
+    esac
+}
+
+restart_tz() {
+    local tz
+    tz=$(timedatectl show -p Timezone --value 2>/dev/null) || tz=""
+    [[ -n "$tz" ]] || tz=$(readlink -f /etc/localtime 2>/dev/null | sed 's|.*/zoneinfo/||')
+    echo "${tz:-UTC}"
+}
+
+# Brings the timer in line with restart-schedule: written and started when it
+# says when, stopped and removed when it's off or missing.
+restart_apply() {
+    local mode every day time cal
+    mode=$(restart_get mode); every=$(restart_get every); day=$(restart_get day); time=$(restart_get time)
+    if [[ "$mode" =~ ^(needed|always)$ && "$every" =~ ^(daily|weekly)$ && "$time" =~ ^([01][0-9]|2[0-3]):[0-5][0-9]$ ]] \
+        && [[ "$every" == daily || "$day" =~ ^[1-7]$ ]]; then
+        cal="*-*-* $time:00"
+        if [[ "$every" == weekly ]]; then cal="${RESTART_SD_DAYS[$((day - 1))]} $cal"; fi
+        cat > "$RESTART_SERVICE_FILE" <<EOF
+[Unit]
+Description=Easy AIOStreams scheduled restart
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash $INSTALL_DIR/setup-maintenance.sh scheduled-restart
+TimeoutStartSec=$(( (RESTART_WAIT_MIN + 5) * 60 ))
+EOF
+        cat > "$RESTART_TIMER_FILE" <<EOF
+[Unit]
+Description=Easy AIOStreams scheduled restart ($(restart_text))
+
+[Timer]
+OnCalendar=$cal
+# Not made up after the server was off: it would restart just after starting
+Persistent=false
+
+[Install]
+WantedBy=timers.target
+EOF
+        systemctl daemon-reload
+        systemctl enable "$RESTART_UNIT.timer" >/dev/null 2>&1 || return 1
+        systemctl restart "$RESTART_UNIT.timer" >/dev/null 2>&1 || return 1   # takes a changed time
+    elif [[ -f "$RESTART_TIMER_FILE" || -f "$RESTART_SERVICE_FILE" ]]; then
+        systemctl disable --now "$RESTART_UNIT.timer" >/dev/null 2>&1 || true
+        rm -f "$RESTART_TIMER_FILE" "$RESTART_SERVICE_FILE"
+        systemctl daemon-reload
+    fi
+    return 0
+}
+
+# restart-schedule off | needed|always daily HH:MM | needed|always weekly <1-7> HH:MM, without questions
+restart_set() {
+    local mode="$1" every="${2:-}" day="" time=""
+    case "$mode" in
+        off) ;;
+        needed|always)
+            case "$every" in
+                daily) time="${3:-}" ;;
+                weekly) day="${3:-}"; time="${4:-}" ;;
+                *) error "Usage: restart-schedule off | needed|always daily HH:MM | needed|always weekly <1-7> HH:MM (1 Monday .. 7 Sunday)" ;;
+            esac
+            [[ "$time" =~ ^([01]?[0-9]|2[0-3]):[0-5][0-9]$ ]] || error "Use a 24-hour time, HH:MM (for example 04:30)."
+            time=$(printf '%02d:%02d' "$((10#${time%%:*}))" "$((10#${time##*:}))")
+            [[ "$every" == daily || "$day" =~ ^[1-7]$ ]] || error "Pick a day from 1 (Monday) to 7 (Sunday)."
+            ;;
+        *) error "Usage: restart-schedule off | needed|always daily HH:MM | needed|always weekly <1-7> HH:MM (1 Monday .. 7 Sunday)" ;;
+    esac
+    [[ -f "$COMPOSE_FILE" ]] || error "No installation found at $INSTALL_DIR."
+    if [[ "$mode" == off ]]; then
+        rm -f "$RESTART_SCHEDULE_FILE"
+    else
+        {
+            echo "# Scheduled restart: set with setup-maintenance.sh restart-schedule, or the control panel"
+            echo "mode=$mode"
+            echo "every=$every"
+            if [[ -n "$day" ]]; then echo "day=$day"; fi
+            echo "time=$time"
+        } > "$RESTART_SCHEDULE_FILE.tmp"
+        mv "$RESTART_SCHEDULE_FILE.tmp" "$RESTART_SCHEDULE_FILE"
+    fi
+    restart_apply || error "Couldn't start the timer. See: systemctl status $RESTART_UNIT.timer"
+    if [[ "$mode" == off ]]; then
+        echo "Scheduled restart: off."
+    else
+        echo "Scheduled restart: $(restart_text), server time ($(restart_tz))."
+    fi
+}
+
+# linux-aio-toolkit's own scheduled reboot, a line in root's crontab: both would run
+toolkit_reboot_line() {
+    crontab -l -u root 2>/dev/null | grep -F '# aio-toolkit: scheduled-reboot' | head -n 1
+}
+
+restart_status() {
+    local at status text line
+    echo "Scheduled restart: $(restart_text)$( [[ -f "$RESTART_SCHEDULE_FILE" ]] && echo ", server time ($(restart_tz))")"
+    if [[ -f "$RESTART_LAST_FILE" ]] && IFS='|' read -r at status text < "$RESTART_LAST_FILE" && [[ "$at" =~ ^[0-9]+$ ]]; then
+        echo "Last time: $(date -d "@$at" '+%a %d %b, %H:%M'), $status. $text"
+    fi
+    if [[ -f "$RESTART_SCHEDULE_FILE" ]] && ! systemctl is-active --quiet "$RESTART_UNIT.timer" 2>/dev/null; then
+        warn "The timer isn't running. Set the schedule again to start it."
+    fi
+    line=$(toolkit_reboot_line)
+    if [[ -n "$line" ]]; then
+        warn "linux-aio-toolkit also restarts this server on a schedule (root's crontab). Remove one so they don't both run."
+    fi
+    return 0
+}
+
+restart_menu() {
+    local c m d t day
+    echo ""
+    restart_status
+    echo ""
+    echo "  1) Only when an update needs a restart"
+    echo "  2) Always"
+    echo "  3) Off"
+    echo "  0) Back"
+    read -rp "Choose [0-3]: " c || return 0
+    case "$c" in
+        1) m=needed ;;
+        2) m=always ;;
+        3) restart_set off; return 0 ;;
+        *) return 0 ;;
+    esac
+    t=$(restart_get time)
+    t=${t:-04:30}
+    read -rp "1) Daily or 2) weekly? [Enter for 2]: " d || return 0
+    if [[ "${d:-2}" == 1 ]]; then
+        read -rp "Time, 24-hour HH:MM, server time ($(restart_tz)) [Enter for $t]: " d || return 0
+        restart_set "$m" daily "${d:-$t}"
+    else
+        echo "Days: 1 Monday, 2 Tuesday, 3 Wednesday, 4 Thursday, 5 Friday, 6 Saturday, 7 Sunday"
+        read -rp "Day [Enter for 7]: " d || return 0
+        day=${d:-7}
+        read -rp "Time, 24-hour HH:MM, server time ($(restart_tz)) [Enter for $t]: " d || return 0
+        restart_set "$m" weekly "$day" "${d:-$t}"
+    fi
+}
+
+restart_last() {
+    printf '%s|%s|%s\n' "$(date +%s)" "$1" "${2//$'\n'/ }" > "$RESTART_LAST_FILE"
+}
+
+# What's in the way of a restart right now: another of these scripts (a
+# backup, an update, a restore, a panel job) or apt. Empty when nothing is.
+restart_busy() {
+    local p
+    p=$(pgrep -af 'setup-[a-z-]+\.sh' 2>/dev/null | grep -v -e "^$$ " -e 'scheduled-restart' | grep -oP 'setup-[a-z-]+\.sh' | head -n 1)
+    if [[ -n "$p" ]]; then echo "$p"; return 0; fi
+    p=$(pgrep -x 'apt|apt-get|dpkg|unattended-upgr' 2>/dev/null | head -n 1)
+    if [[ -n "$p" ]]; then echo "apt"; return 0; fi
+    return 0
+}
+
+# What the timer runs. Every way it ends leaves a line in restart-last-run.
+do_scheduled_restart() {
+    [[ -f "$RESTART_SCHEDULE_FILE" ]] || { echo "Scheduled restart is off. Nothing to do."; return 0; }
+    local mode up busy waited=0
+    mode=$(restart_get mode)
+    up=$(cut -d. -f1 /proc/uptime)
+    if (( up < 600 )); then
+        restart_last skipped "The server had only just started."
+        echo "Started $(( up / 60 )) minutes ago. Skipped."
+        return 0
+    fi
+    if [[ "$mode" == needed ]] && ! reboot_needed; then
+        restart_last skipped "Not needed: no update was waiting for one."
+        echo "No restart needed. Skipped."
+        return 0
+    fi
+    busy=$(restart_busy)
+    while [[ -n "$busy" ]] && (( waited < RESTART_WAIT_MIN )); do
+        echo "Waiting for $busy to finish..."
+        sleep 60
+        waited=$((waited + 1))
+        busy=$(restart_busy)
+    done
+    if [[ -n "$busy" ]]; then
+        restart_last skipped "$busy was still running after $RESTART_WAIT_MIN minutes."
+        echo "$busy still running. Skipped."
+        return 0
+    fi
+    # Tells the watchdog's restart alert this one was planned
+    if [[ -d "$INSTALL_DIR/watchdog-state" ]]; then date +%s > "$INSTALL_DIR/watchdog-state/planned-restart"; fi
+    restart_last restarted "$( [[ "$mode" == needed ]] && echo "An update needed it." || echo "On schedule.")"
+    echo "Restarting the server."
+    systemctl reboot
+}
+
 case "${1:-}" in
     free-space) do_free_space ;;
     system-updates) do_system_updates ;;
     log-limits) do_log_limits ;;
+    restart-schedule)
+        shift
+        case "${1:-}" in
+            "") restart_status ;;
+            apply) restart_apply || error "Couldn't start the timer. See: systemctl status $RESTART_UNIT.timer" ;;
+            *) restart_set "$@" ;;
+        esac
+        ;;
+    scheduled-restart) do_scheduled_restart ;;
     "") maintenance_menu ;;
-    *) error "Unknown command '$1'. Use: free-space, system-updates or log-limits, or nothing for the menu." ;;
+    *) error "Unknown command '$1'. Use: free-space, system-updates, log-limits or restart-schedule, or nothing for the menu." ;;
 esac
 exit 0

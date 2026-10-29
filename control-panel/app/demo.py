@@ -114,6 +114,8 @@ class DemoBackend:
         self.removed_scripts: set[str] = set()
         self.wd_running = True
         self.reboot_pending = False   # Install updates "installs a kernel"; a reboot clears it
+        self.restart = {"mode": "off", "every": "weekly", "day": 7, "time": "04:30"}
+        self.tz = "Europe/London"
         self.wd_configured = True
         self.wd_options = {"updates": False, "reboots": False, "scripts": False, "backups": False, "security": False, "weekly": False, "metadata": False, "manager": False, "mediaflow": False, "weekly_day": 7, "weekly_time": "10:00"}
         self.schedule = {"every": "daily", "day": 7, "time": "04:00"}
@@ -453,6 +455,45 @@ class DemoBackend:
 
     def reboot_needed(self) -> bool:
         return self.reboot_pending
+
+    def restart_schedule(self) -> dict:
+        r = self.restart
+        nxt = None
+        if r["mode"] != "off":
+            hh, mm = map(int, r["time"].split(":"))
+            now = datetime.now()
+            for d in range(8):
+                c = (now + timedelta(days=d)).replace(hour=hh, minute=mm, second=0, microsecond=0)
+                if c > now and (r["every"] == "daily" or c.isoweekday() == r["day"]):
+                    nxt = int(c.timestamp())
+                    break
+        return {"available": True, **r, "timer": r["mode"] != "off", "next": nxt, "needed": self.reboot_pending,
+                "last": {"at": time.time() - 6 * 86400, "status": "skipped", "text": "Not needed: no update was waiting for one."}
+                if r["mode"] != "off" else None,
+                "timezone": self.tz, "clock": {"synced": True, "ntp": True, "can_ntp": True, "known": True},
+                "toolkit": os.environ.get("UI_DEMO_TOOLKIT") or None}
+
+    def set_restart_schedule(self, mode, every, day, t) -> dict:
+        if mode == "off":
+            self.restart["mode"] = "off"
+        elif mode in ("needed", "always") and every in ("daily", "weekly") and isinstance(t, str) and len(t) == 5:
+            self.restart.update(mode=mode, every=every, day=day if type(day) is int else 7, time=t)
+        else:
+            raise ValueError("Pick when needed or always, daily or weekly, and a time.")
+        return self.restart_schedule()
+
+    def ntp_on(self) -> dict:
+        return {"synced": True, "ntp": True, "can_ntp": True, "known": True}
+
+    def timezones(self) -> list[str]:
+        return ["UTC", "Europe/London", "Europe/Dublin", "Europe/Paris", "Europe/Berlin", "Europe/Amsterdam",
+                "America/New_York", "America/Chicago", "America/Los_Angeles", "Asia/Tokyo", "Australia/Sydney"]
+
+    def set_timezone(self, tz) -> str:
+        if tz not in self.timezones():
+            raise ValueError(f"{tz} isn't a time zone this server knows. Pick one from the list, like Europe/London.")
+        self.tz = tz
+        return tz
 
     def reboot_host(self) -> None:
         self.rebooted = True      # demo mode never touches anything
