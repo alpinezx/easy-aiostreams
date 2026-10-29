@@ -1503,7 +1503,7 @@ do_restore() {
         fi
     fi
 
-    # Scheduled restart, the same way, through setup-maintenance.sh (format 7 on;
+    # Scheduled server reboot, the same way, through setup-maintenance.sh (format 7 on;
     # setup-aiostreams.sh fetches it when it's missing). Without either the timer
     # is removed rather than left stopped, where it would start at the next boot.
     local had_restart=false main="$INSTALL_DIR/setup-aiostreams.sh" maint="$INSTALL_DIR/setup-maintenance.sh"
@@ -1519,15 +1519,15 @@ do_restore() {
     fi
     if [[ -f "$INSTALL_DIR/restart-schedule" ]]; then
         if systemctl is-active --quiet aiostreams-restart.timer 2>/dev/null; then
-            summary+=("Scheduled restart: on, as when the backup was made.")
+            summary+=("Scheduled server reboot: on, as when the backup was made.")
         else
-            summary+=("Scheduled restart was on, but the timer couldn't be started. Set it again on the panel's Maintenance page, or: sudo bash $maint restart-schedule")
+            summary+=("Scheduled server reboot was on, but the timer couldn't be started. Set it again on the panel's Maintenance page, or: sudo bash $maint restart-schedule")
         fi
     elif $had_restart; then
         if (( sched_format < 7 )); then
-            summary+=("Scheduled restart: this backup is from before it existed, so it's off now. Turn it on again on the panel's Maintenance page.")
+            summary+=("Scheduled server reboot: this backup is from before it existed, so it's off now. Turn it on again on the panel's Maintenance page.")
         else
-            summary+=("Scheduled restart: off when the backup was made, left off.")
+            summary+=("Scheduled server reboot: off when the backup was made, left off.")
         fi
     fi
 

@@ -624,7 +624,7 @@ async def set_backup_schedule(request: Request, user: str = Depends(current_user
 
 @app.get("/api/restart-schedule")
 async def restart_schedule(user: str = Depends(current_user)):
-    """Maintenance's Scheduled restart: when, how the last one went, the clock and time zone."""
+    """Maintenance's Scheduled server reboot: when, how the last one went, the clock and time zone."""
     return await asyncio.to_thread(backend.restart_schedule)
 
 

@@ -1105,7 +1105,7 @@ class Backend:
         self._bsum = (0.0, None)
         return self.backup_schedule()
 
-    # ---- scheduled restart, the clock and the time zone -------------------
+    # ---- scheduled reboot, the clock and the time zone -------------------
     # setup-maintenance.sh's restart-schedule says when (absent: off; mode needed
     # restarts only when an update waits for one), a systemd timer runs it, and
     # restart-last-run says how the last one went ("epoch|restarted|text", or skipped).
@@ -1145,7 +1145,7 @@ class Backend:
         else:
             raise ValueError("Pick when needed or always, daily or weekly, and a time.")
         if "restart-schedule" not in _read(self.p("setup-aiostreams.sh")):
-            raise ValueError("This server's setup-aiostreams.sh is from before scheduled restarts. Update it on the Scripts tab.")
+            raise ValueError("This server's setup-aiostreams.sh is from before scheduled reboots. Update it on the Scripts tab.")
         cmd = ["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "env", "-i",
                f"HOME={self.home}", f"PATH={HOST_PATH}", "TERM=dumb", "LANG=C.UTF-8",
                "bash", str(config.INSTALL_DIR / "setup-aiostreams.sh"), "restart-schedule", *args]
