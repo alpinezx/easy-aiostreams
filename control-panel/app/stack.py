@@ -901,11 +901,15 @@ class Backend:
 
     def maintenance_info(self, force: bool = False) -> dict:
         """The Maintenance page. The looking-up is slow-ish (apt, Docker's disk
-        usage), so it's kept for 5 minutes unless asked again."""
+        usage), so it's kept for 5 minutes unless asked again; Restart needed isn't."""
         now = time.time()
         at, hit = self._maint_cache
         if hit and not force and now - at < 300:
-            return {**hit, "last": self._maint_last()}
+            # Restart needed is one quick look, so it's always fresh (an update over SSH, say)
+            updates = hit["updates"]
+            if updates.get("available"):
+                updates = {**updates, "reboot": self.reboot_needed()}
+            return {**hit, "updates": updates, "last": self._maint_last()}
         info = {"space": self._maint_space(), "updates": self._maint_updates(), "logs": self._maint_logs(),
                 "checked_at": now}
         self._maint_cache = (now, info)
