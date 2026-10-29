@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+# Shell scripts always with Unix line endings, even in a Windows checkout,
+# so a copy sent to a server straight from a PC still runs
+*.sh text eol=lf
