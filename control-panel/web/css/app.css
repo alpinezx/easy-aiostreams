@@ -946,7 +946,6 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .bk-note-btn { background: none; border: 0; padding: 2px 0; font: inherit; font-size: .9rem; color: var(--dim); cursor: pointer; text-align: left; border-radius: 6px; }
 .bk-note-btn:hover { color: var(--text); text-decoration: underline; text-decoration-color: var(--line); }
 .bk-note-btn.empty { color: var(--faint); font-size: .84rem; }
-.build-tag { display: inline-block; white-space: nowrap; margin-left: 10px; padding: 1px 8px; border-radius: 999px; font-family: var(--font, inherit); font-size: .72rem; font-weight: 500; color: var(--dim); background: var(--hover); border: 1px solid var(--line-soft); vertical-align: 1px; }
 .lock-tag { display: inline-block; white-space: nowrap; overflow-wrap: normal; margin-left: 10px; padding: 1px 8px; border-radius: 999px; font-family: var(--font, inherit); font-size: .72rem; font-weight: 600; color: var(--accent); background: var(--accent-soft); vertical-align: 1px; }
 /* Backups and set-asides: one card each, with a small gap, rather than one joined box. */
 #backups:has(.item), #set-aside-list:has(.item) { display: grid; gap: 8px; border: 0; background: none; overflow: visible; }
@@ -1112,7 +1111,7 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   .item.bk .what { overflow-wrap: anywhere; }
   .item.bk .btns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .item.bk .btns .btn { width: 100%; min-width: 0; white-space: normal; text-align: center; }
-  .item.bk .what .lock-tag, .item.bk .what .build-tag { display: table; margin: 6px 0 2px; }
+  .item.bk .what .lock-tag { display: table; margin: 6px 0 2px; }
 }
 
 /* a note that follows a list (the restart-panel note under the backups) needs air above it */
