@@ -577,7 +577,7 @@ check_mediaflow_updates() {
     [[ "$(printf '%s\n%s\n' "$running" "$latest" | sort -V | tail -n 1)" == "$latest" ]] || return 0
     [[ "$(cat "$STATE_DIR/mediaflow-notified" 2>/dev/null)" == "$latest" ]] && return 0
     echo "$latest" > "$STATE_DIR/mediaflow-notified"
-    how="Update with: sudo bash setup-mediaflow.sh, option 11."
+    how="Update with: sudo bash setup-mediaflow.sh, option 10."
     [[ -n "$(panel_domain)" ]] && how="Use Open panel, then Update on MediaFlow's card (it offers a backup first)."
     if send_ntfy "MediaFlow Proxy $latest is out; this server runs $running. $how" \
         "MediaFlow update" 3 package overview; then
@@ -1505,7 +1505,7 @@ while true; do
     echo "3) Stop"
     echo "4) Send test alert"
     echo "5) Change topic"
-    echo "6) Extra alerts (releases, restarts, scripts, backups, security updates, weekly check-in)"
+    echo "6) Extra alerts"
     echo "7) Recent events and stats"
     echo "8) Check now"
     echo "9) Uninstall"

@@ -59,9 +59,9 @@ sudo bash /opt/aiostreams/setup-mediaflow.sh
 ```
 - **Status**: running or not, current domain/URL, and the release it runs.
 - **Start / Stop**: turn MediaFlow on or off.
-- **Update** (option 11): its newest release (or an older one), with a backup first if you like. Releases are pinned, so nothing changes until you update, and an update that doesn't start puts the previous release back by itself.
+- **Update** (option 10): its newest release (or an older one), with a backup first if you like. Releases are pinned, so nothing changes until you update, and an update that doesn't start puts the previous release back by itself.
 - **Test**: checks both that the container is alive and that the real public path (DNS + TLS + Caddy) actually works.
-- **Show AIOStreams dashboard settings to paste in**: reprints the three values from step 3, any time.
+- **Show AIOStreams dashboard settings**: reprints the three values from step 3, any time.
 - **Add fail2ban protection**: blocks bots that probe the subdomain. See the [advanced guide](../advanced/mediaflow-proxy.md#fail2ban-protection) before turning this on.
 - **Uninstall**: clean removal (container, Caddy site, fail2ban jail if added, saved state). The control panel's Add-ons page has it too.
 
