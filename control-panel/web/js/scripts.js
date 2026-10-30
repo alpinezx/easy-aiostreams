@@ -3,6 +3,7 @@
 import { $, h, api, clear, toast, ago } from "./util.js";
 import { shellAs, runInTerminal } from "./terminal.js";
 import { ask } from "./actions.js";
+import { openChangelog } from "./releases.js";
 
 const REPO = "https://github.com/alpinezx/easy-aiostreams";
 const GUIDE = `${REPO}/blob/main/docs/basic/control-panel.md`;
@@ -69,11 +70,32 @@ function panelSection() {
       v.current ? h("span", { class: "chip", text: `v${v.current}` }) : null,
       state,
       h("span", { class: "btns" },
+        h("button", { class: "btn small", type: "button", text: "What's new", title: "The changes since this panel's version, from the project's changelog",
+          onclick: showChangelog }),
         h("button", { class: "btn small", type: "button", text: verLoading ? "Checking…" : "Check now", disabled: verLoading,
           onclick: () => loadPanelVersion(true) }),
         v.newer && !v.running ? h("button", { class: "btn small primary", type: "button", text: `Update to ${v.latest}`, onclick: () => updatePanel(v) }) : null)),
     checked ? h("p", { class: "dim", text: checked }) : null,
     lastLine);
+}
+
+// What's new: the project's changelog, entries since this panel's version marked
+let logLoading = false;
+async function showChangelog(e) {
+  if (logLoading) return;
+  logLoading = true;
+  // GitHub can take up to 10s to fail; say so on the button meanwhile
+  const btn = e && e.currentTarget;
+  if (btn) { btn.disabled = true; btn.textContent = "Loading…"; }
+  try {
+    const log = await api("/api/panel/changelog");
+    if (!log.entries.length) toast(`Couldn't load the changelog. ${log.error || "It's empty."}`, true);
+    else openChangelog(log);
+  } catch (err) { toast(`Couldn't load the changelog. ${err.message}`, true); }
+  finally {
+    logLoading = false;
+    if (btn) { btn.disabled = false; btn.textContent = "What's new"; }
+  }
 }
 
 async function updatePanel(v) {
@@ -275,6 +297,8 @@ function render() {
     addons.length ? h("ul", { class: "cmds" }, ...addons.map(rowOf)) : null,
     h("div", { class: "scripts-foot" },
       h("span", { class: "dim", text: checked }),
+      cmp && !cmp.error && scripts.some((x) => x.present && differs(x))
+        ? h("button", { class: "btn small", type: "button", text: "What's new", title: "What the newer scripts change, from the project's changelog", onclick: showChangelog }) : null,
       h("button", { class: "btn small", type: "button", text: cmpLoading ? "Checking…" : "Check now", disabled: cmpLoading,
         title: "Compare the scripts here with GitHub's copies now", onclick: () => loadCompare(true) }))));
 }

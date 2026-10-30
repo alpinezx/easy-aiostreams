@@ -62,6 +62,6 @@ A quick-reference list pulled from the advanced guides' own troubleshooting sect
 14. **`sudo docker compose logs gluetun` shows a `WARN` about a TLS/DoT connection reset to `149.112.112.112:853` or `1.1.1.1:853` during startup**, something like `read tcp ...: read: connection reset by peer`. Looks alarming, isn't, same idea as item 4 above. Gluetun's configured with two independent DoT resolvers (Cloudflare and Quad9) specifically so one hiccuping doesn't matter, and this warning is just that: one of the two dropping a single query while the setup carries on. Only worth investigating if the lines right after it never reach `[dns] ready`, or if **Status**/**Turn VPN ON** never actually confirms `DNS: encrypted`, that's the one thing that can't be faked here.
     → [VPN Setup: Confirming DNS is actually encrypted](./advanced/vpn-setup.md#confirming-dns-is-actually-encrypted-not-just-the-tunnel)
 
-For bugs in the script itself: [open an issue](https://github.com/alpinezx/easy-aiostreams/issues). For setup questions not covered here or in the linked guides, check out these Reddit threads [r/streamioaddons](https://www.reddit.com/r/StremioAddons/comments/1vo6a5q/self_hosted_aiostreams_easy_install_script/) - [r/nuvioaddons](https://www.reddit.com/r/nuvioaddons/comments/1vsud3b/self_hosted_aiostreams_easy_install_script_nuvio/)
+For bugs in the script itself: [open an issue](https://github.com/alpinezx/easy-aiostreams/issues).
 
 [← Back to main README](../README.md)
