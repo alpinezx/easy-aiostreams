@@ -6,7 +6,7 @@ Thanks for wanting to help. This is a one-person project, so here's how changes 
 
 - **Open an issue first** for anything bigger than a small fix, so we can agree it fits before you spend time on it.
 - **Bugs:** use the bug report template, with the logs it asks for.
-- **Setup questions** belong in the Reddit threads linked in the README, not in issues or pull requests.
+- **Setup questions:** check the guides and the [troubleshooting doc](docs/troubleshooting.md) first. Still stuck? Open an issue.
 
 ## Pull requests
 
