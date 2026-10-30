@@ -81,12 +81,21 @@ function panelSection() {
 
 // What's new: the project's changelog, entries since this panel's version marked
 let logLoading = false;
-async function showChangelog() {
+async function showChangelog(e) {
   if (logLoading) return;
   logLoading = true;
-  try { openChangelog(await api("/api/panel/changelog")); }
-  catch (e) { toast(`Couldn't load the changelog. ${e.message}`, true); }
-  finally { logLoading = false; }
+  // GitHub can take up to 10s to fail; say so on the button meanwhile
+  const btn = e && e.currentTarget;
+  if (btn) { btn.disabled = true; btn.textContent = "Loading…"; }
+  try {
+    const log = await api("/api/panel/changelog");
+    if (!log.entries.length) toast(`Couldn't load the changelog. ${log.error || "It's empty."}`, true);
+    else openChangelog(log);
+  } catch (err) { toast(`Couldn't load the changelog. ${err.message}`, true); }
+  finally {
+    logLoading = false;
+    if (btn) { btn.disabled = false; btn.textContent = "What's new"; }
+  }
 }
 
 async function updatePanel(v) {

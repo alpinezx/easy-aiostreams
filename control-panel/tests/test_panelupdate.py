@@ -105,3 +105,22 @@ def test_changelog_marks_what_came_after_this_panel():
     assert e[1]["text"].startswith("The reboot menu") and e[2]["text"] == "A guide line."
     assert e[0]["date"] == "30 October 2026"
     assert not any(x["new"] for x in panelupdate.parse_changelog(LOG, "1.47.0")[1:])
+
+
+def test_changelog_survives_github_being_down(monkeypatch):
+    monkeypatch.setattr(panelupdate, "_log_cache", {"at": 0.0, "text": None, "error": None, "branch": None})
+    calls = []
+
+    def down(*a, **kw):
+        calls.append(1)
+        raise ConnectionError("no route")
+    monkeypatch.setattr(panelupdate.requests, "get", down)
+    r = panelupdate.changelog()
+    assert r["entries"] == [] and r["error"] == "Couldn't reach GitHub."
+    panelupdate.changelog()                      # the failure is remembered, not retried at once
+    assert len(calls) == 1
+    assert panelupdate._log_lock is not panelupdate._lock   # never holds up the version check
+    # a copy fetched before the outage keeps showing
+    panelupdate._log_cache.update(at=0.0, text=LOG)
+    r = panelupdate.changelog()
+    assert r["entries"] and r["error"] is None

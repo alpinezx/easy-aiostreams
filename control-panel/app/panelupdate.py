@@ -67,6 +67,7 @@ def latest(force: bool = False) -> dict:
 CHANGELOG_RAW = "https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/{branch}/CHANGELOG.md"
 CHANGELOG_PAGE = "https://github.com/alpinezx/easy-aiostreams/blob/{branch}/CHANGELOG.md"
 CHANGELOG_KEEP = 40
+_log_lock = threading.Lock()
 _log_cache: dict = {"at": 0.0, "text": None, "error": None, "branch": None}
 _LEAD = re.compile(r"\*\*(Fixed|Docs|README|Changelog)\b[^*]*\*\*\s*")
 _PANEL = re.compile(r"\(Panel ([^)]*)")
@@ -113,9 +114,10 @@ def parse_changelog(text: str, current: str) -> list[dict]:
 
 
 def changelog() -> dict:
-    """The update branch's CHANGELOG.md, fetched as often as the version."""
+    """The update branch's CHANGELOG.md, fetched as often as the version.
+    Its own lock, so a slow GitHub here never holds up the version check."""
     branch = config.UPDATE_BRANCH
-    with _lock:
+    with _log_lock:
         now = time.time()
         if _log_cache["branch"] != branch:
             _log_cache.update(at=0.0, text=None, error=None, branch=branch)
