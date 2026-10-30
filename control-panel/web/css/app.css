@@ -827,6 +827,19 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .rel-body pre { background: var(--hover); padding: 10px 12px; border-radius: 8px; overflow: auto; }
 .rel-body pre code { background: none; padding: 0; }
 .rel-body .rel-gh { font-size: .86rem; margin-top: 12px; }
+/* What's new: the project's changelog in the release drawer */
+.cl-list { margin: 0; padding: 4px 16px 14px; list-style: none; display: grid; gap: 10px; }
+.cl-list li { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 10px; align-items: baseline; margin: 0; }
+.cl-list li:not(.cl-fresh) { color: var(--dim); }
+.cl-kind { justify-self: start; font-size: .7rem; font-weight: 650; letter-spacing: .03em; text-transform: uppercase; padding: 1px 6px; border-radius: 5px; background: var(--hover); color: var(--dim); }
+.cl-kind.cl-new { color: var(--accent); background: var(--accent-soft); }
+.cl-kind.cl-fixed { color: var(--ok); background: var(--hover); }
+.rel > summary .chip, .rel-when { white-space: nowrap; }
+@media (max-width: 720px) {
+  .cl-list { padding: 2px 14px 12px; gap: 12px; }
+  .cl-list li { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .cl-count { display: none; }
+}
 .result { font-weight: 600; }
 .result.ok { color: var(--ok); } .result.bad { color: var(--bad); }
 .spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); animation: spin .8s linear infinite; display: inline-block; }
@@ -973,7 +986,7 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .restart-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 16px 0 0; font-size: .9rem; }
 .scripts-panel a { color: var(--accent); }
 .scripts-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
-.scripts-foot .btn { margin-left: auto; }
+.scripts-foot .btn:first-of-type { margin-left: auto; }
 .chip.small-chip { font-size: .74rem; padding: 1px 8px; white-space: nowrap; }
 /* The panel's version, under the logo in the rail */
 .ver-chip { font-size: .7rem; padding: 1px 7px; text-decoration: none; white-space: nowrap; }
