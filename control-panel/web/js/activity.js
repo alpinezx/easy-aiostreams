@@ -160,7 +160,6 @@ function backupRow(it, cmd, restore, status) {
   return h("div", { class: "item bk" + (it.locked ? " locked" : "") },
     h("span", {},
       h("div", { class: "what mono" }, it.name,
-        it.build ? h("span", { class: "build-tag", title: `AIOStreams ${it.build.version}, ${it.build.tag.endsWith("-nightly") ? "nightly build" : "stable release"} ${it.build.tag}`, text: tagLabel(it.build.tag) }) : null,
         it.name.includes("-scheduled-") ? h("span", { class: "lock-tag sched-tag", text: "Scheduled",
           title: "Made by the schedule. The newest 7 are kept and older ones removed; lock one to keep it for good." }) : null,
         it.locked ? h("span", { class: "lock-tag", text: "Locked" }) : null),
