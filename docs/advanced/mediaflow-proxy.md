@@ -194,7 +194,7 @@ MediaFlow Proxy Light runs a pinned release (`ghcr.io/mhdzumair/mediaflow-proxy-
 Three ways to update, all the same underneath:
 
 - The control panel: **Update** on MediaFlow's Overview card, with **Back up first** ticked.
-- The menu: **11) Update**, which also lets you pick an older version. It's 11, after Exit, so the older menu numbers the control panel types never move.
+- The menu: **10) Update**, which also lets you pick an older version.
 - A command, which asks nothing:
 
 ```bash
@@ -209,7 +209,7 @@ With the [control panel](./control-panel.md), MediaFlow's Overview card shows th
 
 ## Everyday use / menu reference
 
-Run `sudo bash /opt/aiostreams/setup-mediaflow.sh` any time for the menu: Status (including the release it runs and whether a newer one is out), Start, Stop, Reconfigure, Test, Show AIOStreams dashboard settings, Add/Remove fail2ban protection, Uninstall, and **11) Update**.
+Run `sudo bash /opt/aiostreams/setup-mediaflow.sh` any time for the menu: Status (including the release it runs and whether a newer one is out), Start, Stop, Reconfigure, Test, Show AIOStreams dashboard settings, Add/Remove fail2ban protection, Uninstall, and **10) Update**.
 
 **Test** (option 5) checks two things in sequence: first that the container itself responds (via a throwaway `curlimages/curl` container on the same Docker network, since MediaFlow Proxy Light's image has no shell utilities of its own to exec into), then that the real public path works end to end (DNS, TLS, and Caddy, the same route your actual streaming client uses). If the first passes but the second fails, the problem is in DNS/cert/Caddy, not MediaFlow itself.
 

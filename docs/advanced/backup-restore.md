@@ -75,7 +75,7 @@ same way.
 From the management menu (existing install detected):
 
 ```
-7) Backup (one tarball with everything needed for migration or safekeeping)
+7) Backup
 ```
 
 Or non-interactively, without going through the menu at all:
