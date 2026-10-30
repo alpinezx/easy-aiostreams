@@ -99,7 +99,7 @@ sudo bash /opt/aiostreams/control-panel/setup-ui.sh
 
 ## Updating the panel
 
-When a newer panel is out, the version under its logo turns amber, and the **Scripts** tab offers **Update**. The panel is away for about a minute and the page reloads by itself; your login, unlock link and terminal key stay the same.
+When a newer panel is out, the version under its logo turns amber, and the **Scripts** tab offers **Update**. The panel is away for about a minute and the page reloads by itself; your login, unlock link and terminal key stay the same. **What's new** beside it lists the changes since your version, from the project's changelog.
 
 ![The Scripts tab, with the panel's own version and update at the top](../images/control-panel/scripts.png)
 

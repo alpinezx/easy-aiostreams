@@ -2,6 +2,12 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 30 October 2026
+
+- **What's new:** the Scripts tab's **What's new** lists the changes since your panel's version, from this changelog, each tagged New, Fixed or Docs. It's beside the panel's Check now, and under the scripts when one differs from GitHub. If GitHub can't be reached, it says so after at most 10 seconds and the rest of the panel carries on. (Panel 1.47.0, [#111](https://github.com/alpinezx/easy-aiostreams/pull/111))
+- **Dropdowns match the panel:** every dropdown opens the panel's own list in its colours. On phones they used to open the phone's picker in the phone's theme. (Panel 1.46.5, [#111](https://github.com/alpinezx/easy-aiostreams/pull/111))
+- **Fixed:** the Overview's Services title sits inside its card, like every other card's. Docs screenshots retaken. (Panel 1.46.5, [#111](https://github.com/alpinezx/easy-aiostreams/pull/111))
+
 ## 29 October 2026
 
 - **Panel packages updated:** FastAPI 0.162 and websockets 17.3, from the first monthly dependency check. (Panel 1.46.4, [#110](https://github.com/alpinezx/easy-aiostreams/pull/110))
