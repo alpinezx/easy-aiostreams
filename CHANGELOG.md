@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 30 October 2026
 
+- **Menus: Exit is always last.** In `setup-aiostreams.sh`, Maintenance is now **10** and Exit **11**; in `setup-mediaflow.sh`, Update is **10** and Exit **11**. The menus' long lines are shorter too, with the detail in the guides. A control panel from before 19 October (older than 1.28.1) should be updated before the scripts. (Panel 1.47.1, [#112](https://github.com/alpinezx/easy-aiostreams/pull/112))
 - **What's new:** the Scripts tab's **What's new** lists the changes since your panel's version, from this changelog, each tagged New, Fixed or Docs. It's beside the panel's Check now, and under the scripts when one differs from GitHub. If GitHub can't be reached, it says so after at most 10 seconds and the rest of the panel carries on. (Panel 1.47.0, [#111](https://github.com/alpinezx/easy-aiostreams/pull/111))
 - **Dropdowns match the panel:** every dropdown opens the panel's own list in its colours. On phones they used to open the phone's picker in the phone's theme. (Panel 1.46.5, [#111](https://github.com/alpinezx/easy-aiostreams/pull/111))
 - **Fixed:** the Overview's Services title sits inside its card, like every other card's. Docs screenshots retaken. (Panel 1.46.5, [#111](https://github.com/alpinezx/easy-aiostreams/pull/111))
