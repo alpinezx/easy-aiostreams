@@ -1,7 +1,13 @@
 """The panel runs the scripts' own commands, but older scripts don't know them
 and fall through to their menus, reading the menu numbers the panel types
-after the command. Older panels type only those numbers. So the numbers are an
-interface: these tests fail if a script's menu moves an option the panel types."""
+after the command. So the numbers are an interface: these tests fail if a
+script's menu moves an option the panel types.
+
+October 2026: Exit became the last option everywhere, so setup-aiostreams.sh's
+and setup-mediaflow.sh's Exit moved from 10 to 11. The panel still types 10 to
+leave: that only reaches scripts too old to know the commands, where 10 is
+still Exit. (Panels older than 1.28.1 typed numbers alone, and need updating
+before the scripts.)"""
 import os
 import re
 from pathlib import Path
@@ -30,7 +36,9 @@ def test_aiostreams_menu_numbers_the_panel_types():
     assert main["3"].startswith("Start AIOStreams")
     assert main["4"].startswith("Restart the stack")
     assert main["5"].startswith("Update")
-    assert main["10"] == "Exit"
+    assert main["10"] == "Maintenance" and main["11"] == "Exit"
+    assert max(main, key=int) == "11"   # Exit last
+    # the typed 10 below is for older scripts only, where 10 was Exit
     assert typed("stack.stop")[0] == "2" and typed("stack.stop")[-2] == "10"
     assert typed("stack.start")[0] == "3" and typed("stack.start")[-2] == "10"
     assert typed("stack.restart")[0] == "4" and typed("stack.restart")[-2] == "10"
@@ -44,8 +52,18 @@ def test_aiostreams_menu_numbers_the_panel_types():
 def test_addon_menu_numbers_the_panel_types():
     for script, action_id in (("setup-mediaflow.sh", "mediaflow.stop"), ("setup-aiometadata.sh", "aiometadata.stop")):
         m = menu(script)
-        assert m["3"] == "Stop" and m["10"] == "Exit", script
+        assert m["3"] == "Stop", script
         assert typed(action_id)[:2] == ["3", "10"], action_id
+    assert menu("setup-aiometadata.sh")["10"] == "Exit"
+    mf = menu("setup-mediaflow.sh")
+    assert mf["10"].startswith("Update") and mf["11"] == "Exit"
+
+
+def test_exit_is_last_in_every_menu():
+    for script in ("setup-aiometadata.sh", "setup-aiomanager.sh", "setup-mediaflow.sh", "setup-vpn-gluetun.sh",
+                   "control-panel/setup-ui.sh"):
+        m = menu(script)
+        assert m[max(m, key=int)] == "Exit", script
 
 
 def test_the_panel_runs_named_commands_the_scripts_know():
@@ -78,10 +96,8 @@ def test_aiomanager_has_the_commands_the_panel_runs():
     assert m["10"].startswith("Sign-ups")
 
 
-def test_mediaflow_update_is_a_new_number_after_exit():
-    """Older panels type 3 then 10 into MediaFlow's menu, so Update came in at 11."""
-    m = menu("setup-mediaflow.sh")
-    assert (m["3"], m["10"]) == ("Stop", "Exit") and m["11"].startswith("Update")
+def test_mediaflow_update_is_a_named_command():
+    """The panel's MediaFlow Update runs update-mediaflow, never the menu (where it's 10)."""
     assert '"${1:-}" == "update-mediaflow"' in (ROOT / "setup-mediaflow.sh").read_text(encoding="utf-8")
 
 

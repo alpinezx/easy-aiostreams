@@ -73,7 +73,7 @@ You don't need to run the steps above just to be safe before an update. From
 the management menu:
 
 ```
-5) Update (pull latest images + restart; can also switch stable/nightly)
+5) Update (or switch stable/nightly)
 ```
 
 picking this now shows:

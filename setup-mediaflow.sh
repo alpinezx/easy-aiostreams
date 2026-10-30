@@ -513,7 +513,7 @@ ensure_pinned() {
     if valid_version "$v"; then
         MF_VERSION="$v"
         write_config "$DOMAIN" "$MEDIAFLOW_API_PASSWORD" "${MEDIAFLOW_PROXY_URL:-}" "$MF_VERSION"
-        echo "Pinned to MediaFlow Proxy Light $MF_VERSION, its newest release. Update (option 11) moves it on."
+        echo "Pinned to MediaFlow Proxy Light $MF_VERSION, its newest release. Update (option 10) moves it on."
     else
         warn "Couldn't look up MediaFlow's newest release, so it keeps the 'latest' image for now."
     fi
@@ -774,7 +774,7 @@ do_status() {
     latest=$(latest_version)
     if valid_version "$latest" && [[ "$latest" != "${MF_VERSION:-}" ]]; then
         echo ""
-        echo "Newest release: $latest (Update is option 11)"
+        echo "Newest release: $latest (Update is option 10)"
     fi
 }
 
@@ -869,7 +869,7 @@ apply_update() {
     return 1
 }
 
-# Menu option 11: the same as update-mediaflow, with questions.
+# Menu option 10: the same as update-mediaflow, with questions.
 do_update() {
     [[ -f "$CONFIG_FILE" ]] || error "Not set up yet. Run option 2 (Start) first."
     # shellcheck disable=SC1090
@@ -1031,15 +1031,16 @@ while true; do
     echo "1) Status"
     echo "2) Start"
     echo "3) Stop"
-    echo "4) Reconfigure (change subdomain/password)"
-    echo "5) Test (checks the proxy itself is alive)"
-    echo "6) Show AIOStreams dashboard settings to paste in"
-    echo "7) Add fail2ban protection (blocks bots probing this subdomain)"
+    echo "4) Reconfigure (subdomain, password)"
+    echo "5) Test"
+    echo "6) Show AIOStreams dashboard settings"
+    echo "7) Add fail2ban protection"
     echo "8) Remove fail2ban protection"
     echo "9) Uninstall"
-    echo "10) Exit"
-    # A new number after Exit: older control panels type 3 then 10, so none of the others move
-    echo "11) Update (or go back to an older version)"
+    echo "10) Update (or go back to an older version)"
+    # Exit moved from 10 to 11 in October 2026. Control panels from 1.28.1 on run
+    # stop-mediaflow and never reach this menu; older ones typed 3 then 10.
+    echo "11) Exit"
     read -rp "Choose an option [1-11]: " CHOICE
     case "$CHOICE" in
         1) do_status ;;
@@ -1053,8 +1054,8 @@ while true; do
         7) do_install_fail2ban ;;
         8) do_uninstall_fail2ban ;;
         9) do_uninstall ;;
-        10) exit 0 ;;
-        11) do_update ;;
+        10) do_update ;;
+        11) exit 0 ;;
         *) warn "Not a valid option." ;;
     esac
 done

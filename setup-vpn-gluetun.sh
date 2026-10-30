@@ -1598,11 +1598,11 @@ while true; do
     echo ""
     echo "1) Status"
     echo "2) Turn VPN ON"
-    echo "3) Turn VPN OFF (direct connection)"
-    echo "4) Reconfigure VPN (change WireGuard server/config, go back to the previous one, delete old ones)"
-    echo "5) Update gluetun (pull latest stable image; safe restart if VPN is on)"
-    echo "6) Force cleanup (remove stray containers if a toggle got wedged)"
-    echo "7) Uninstall VPN layer (clean removal, back to plain AIOStreams + Caddy)"
+    echo "3) Turn VPN OFF"
+    echo "4) Reconfigure VPN (server or config)"
+    echo "5) Update gluetun"
+    echo "6) Force cleanup (if a switch got stuck)"
+    echo "7) Uninstall VPN layer"
     echo "8) Exit"
     read -rp "Choose an option [1-8]: " CHOICE
 
