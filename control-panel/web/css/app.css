@@ -313,6 +313,11 @@ button.chip:hover { text-decoration: underline; }
 .sec-head h2.sec { margin: 0; }
 .sec-head.folded { margin: 0; padding: 12px 16px; background: var(--raised); border: 1px solid var(--line-soft); border-radius: var(--radius); }
 .sec-head.folded h2.sec { font-size: .98rem; }
+/* Open, the Services title is the top of the table's card, like every other card's title */
+.sec-head:not(.folded) { margin: 0; padding: 16px 16px 12px; background: var(--raised); border: 1px solid var(--line-soft); border-bottom: 0;
+  border-radius: var(--radius) var(--radius) 0 0; }
+.sec-head:not(.folded) h2.sec { font-size: .98rem; }
+.sec-head:not(.folded) + .rows { border-top: 0; border-radius: 0 0 var(--radius) var(--radius); }
 .chain { display: flex; align-items: stretch; }
 .path-start { align-self: center; display: flex; align-items: center; gap: 8px; color: var(--faint); font-size: .9rem; padding-right: 10px; }
 .path-start i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--faint); }
