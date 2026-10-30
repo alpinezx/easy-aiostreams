@@ -193,6 +193,14 @@ async def panel_version(force: bool = False, user: str = Depends(current_user)):
     return {**info, "running": running, "last": await asyncio.to_thread(panelupdate.last_update)}
 
 
+@app.get("/api/panel/changelog")
+async def panel_changelog(user: str = Depends(current_user)):
+    """The project's changelog, with the entries newer than this panel marked."""
+    if config.DEMO:
+        return panelupdate.demo_changelog()
+    return await asyncio.to_thread(panelupdate.changelog)
+
+
 @app.post("/api/panel/update")
 async def panel_update(request: Request, user: str = Depends(current_user)):
     """Downloads the newest panel and rebuilds it, from outside this container."""
