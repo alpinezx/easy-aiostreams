@@ -643,7 +643,7 @@ restore_start_stack() {
     return 0
 }
 
-# ---- Maintenance lives in setup-maintenance.sh (menu option 11, and the
+# ---- Maintenance lives in setup-maintenance.sh (menu option 10, and the
 # free-space, system-updates, log-limits and restart-schedule commands, which
 # hand over to it). What it needs from here, the VPN-aware start, it calls
 # back for: "_ensure-running" and "_recreate-stack".
@@ -853,7 +853,7 @@ show_status() {
         s=$(grep -c -- '-security' <<< "$list" || true)
         ph=$(( $(upgradable_count) - n ))
         if (( n )); then
-            echo "  Updates:   $n waiting$( (( s )) && echo " ($s for security)"), option 11 installs them$( (( ph > 0 )) && echo "; $ph more rolling out gradually (phased)")"
+            echo "  Updates:   $n waiting$( (( s )) && echo " ($s for security)"), option 10 installs them$( (( ph > 0 )) && echo "; $ph more rolling out gradually (phased)")"
         else
             echo "  Updates:   none waiting$( (( ph > 0 )) && echo " ($ph rolling out gradually, phased: Ubuntu offers them to this server in a few days)")"
         fi
@@ -1105,16 +1105,18 @@ if [[ -f "$COMPOSE_FILE" ]]; then
     echo "  1) View status"
     echo "  2) Stop AIOStreams"
     echo "  3) Start AIOStreams"
-    echo "  4) Restart the stack (AIOStreams + Caddy, and the VPN if enabled)"
-    echo "  5) Update (pull latest images + restart; can also switch stable/nightly)"
-    echo "  6) Reconfigure (change domain/login, backs up current config)"
-    echo "  7) Backup (one tarball with everything needed for migration or safekeeping)"
-    echo "  8) Restore from backup (replaces this install. See docs/basic/backup-restore.md)"
-    echo "  9) Uninstall (clean removal)"
-    echo " 10) Exit"
-    echo " 11) Maintenance (free up space, system updates, log limits, scheduled reboot)"
+    echo "  4) Restart the stack"
+    echo "  5) Update (or switch stable/nightly)"
+    echo "  6) Reconfigure (domain, login)"
+    echo "  7) Backup"
+    echo "  8) Restore from backup"
+    echo "  9) Uninstall"
+    echo " 10) Maintenance"
+    echo " 11) Exit"
     echo ""
-    # Exit stays 10 and Maintenance is 11: the control panel types 10 to leave the menu
+    # Exit moved from 10 to 11 in October 2026. Control panels from 1.28.1 on run
+    # named commands (start, stop...) and never reach this menu; older ones typed
+    # 10 to leave it, so they need updating first.
     read -rp "Select an option [1-11]: " MENU_CHOICE
 
     case "$MENU_CHOICE" in
@@ -1123,7 +1125,7 @@ if [[ -f "$COMPOSE_FILE" ]]; then
             show_status
             continue
             ;;
-        11)
+        10)
             if script=$(maint_script); then bash "$script" || true; fi
             continue
             ;;
@@ -1264,7 +1266,7 @@ if [[ -f "$COMPOSE_FILE" ]]; then
             run_backup_script restore || true
             continue
             ;;
-        10)
+        11)
             echo "Exiting."
             exit 0
             ;;

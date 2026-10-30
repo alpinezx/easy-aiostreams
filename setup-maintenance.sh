@@ -11,7 +11,7 @@
 #       (needed: only when an update is waiting for a restart; 1 Monday .. 7 Sunday)
 #
 # None of the commands ask anything; the control panel's Maintenance page runs
-# them. setup-aiostreams.sh's option 11 and its commands of the same names hand
+# them. setup-aiostreams.sh's option 10 and its commands of the same names hand
 # over to this script, so either way works.
 
 set -euo pipefail
@@ -256,10 +256,10 @@ maintenance_menu() {
         echo "=== Maintenance ==="
         maint_summary
         echo ""
-        echo "  1) Free up space (old images, build leftovers, system logs beyond 100 MB)"
-        echo "  2) Install updates (the system's, as apt upgrade would)"
-        echo "  3) Set container log limits (10 MB each; every container restarts once)"
-        echo "  4) Scheduled server reboot (now: $(restart_text))"
+        echo "  1) Free up space"
+        echo "  2) Install system updates"
+        echo "  3) Container log limits"
+        echo "  4) Scheduled reboot (now: $(restart_text))"
         echo "  0) Back"
         read -rp "Choose [0-4]: " c || return 0
         case "$c" in

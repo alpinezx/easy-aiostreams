@@ -142,15 +142,17 @@ Run it again any time with `sudo bash /opt/aiostreams/setup-aiostreams.sh` and i
  1) View status
  2) Stop AIOStreams
  3) Start AIOStreams
- 4) Restart the stack (AIOStreams + Caddy, and the VPN if enabled)
- 5) Update (pull latest images + restart; can also switch stable/nightly)
- 6) Reconfigure (change domain/login, backs up your current config first)
- 7) Backup (one tarball with everything needed for migration or safekeeping)
- 8) Restore from backup (also runs on a fresh server: sudo bash setup-aiostreams.sh restore <file>)
- 9) Uninstall (clean removal)
-10) Exit
-11) Maintenance (free up space, system updates, log limits, scheduled reboot)
+ 4) Restart the stack
+ 5) Update (or switch stable/nightly)
+ 6) Reconfigure (domain, login)
+ 7) Backup
+ 8) Restore from backup
+ 9) Uninstall
+10) Maintenance
+11) Exit
 ```
+
+**Restart the stack** restarts AIOStreams and Caddy, and the VPN if it's on. **Reconfigure** backs up your current config first. **Backup** makes one file with everything needed to move to a new server or keep safe, and **Restore from backup** also works on a fresh server: `sudo bash setup-aiostreams.sh restore <file>`. **Maintenance** frees up space, installs system updates, sets log limits and schedules server reboots.
 
 ## Backup & Restore (Migrating to a new server, optional)
 
