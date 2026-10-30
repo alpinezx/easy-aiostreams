@@ -106,6 +106,53 @@ export function openReleases(rel, running) {
   $("#rel-x").focus();
 }
 
+// easy-aiostreams' own CHANGELOG.md, in the same drawer: one box per date,
+// each change tagged by its kind, the ones since this panel's version opened.
+const KIND = { new: ["New", "cl-new"], fixed: ["Fixed", "cl-fixed"], docs: ["Docs", "cl-docs"] };
+
+function inlineMd(text) {
+  // One line of markdown; renderMarkdown wraps it in a paragraph, kept inline here.
+  const frag = renderMarkdown(text);
+  const p = frag.firstChild;
+  return p && p.nodeName === "P" ? [...p.childNodes] : [frag];
+}
+
+export function openChangelog(log) {
+  lastFocus = document.activeElement;
+  const list = $("#rel-list");
+  clear(list);
+  const news = log.entries.filter((e) => e.new).length;
+  $("#rel-title").textContent = "What's new";
+  $("#rel-sub").textContent = news
+    ? `${news === 1 ? "One change" : `${news} changes`} since your control panel's v${log.current}, newest first.`
+    : `Nothing newer than your control panel's v${log.current}. The latest changes, newest first.`;
+  const foot = $("#rel-foot");
+  foot.href = log.page;
+  foot.firstChild.textContent = "The full changelog on GitHub ";
+  const days = [];
+  for (const e of log.entries) {
+    if (!days.length || days[days.length - 1].date !== e.date) days.push({ date: e.date, items: [] });
+    days[days.length - 1].items.push(e);
+  }
+  days.forEach((d, i) => {
+    const fresh = d.items.some((e) => e.new);
+    list.append(h("details", { class: "rel", open: fresh || (!news && i === 0) },
+      h("summary", {},
+        h("span", { class: "rel-tag", text: d.date }),
+        fresh ? h("span", { class: "chip warn", text: "New to you" }) : null,
+        h("span", { class: "rel-when cl-count", text: `${d.items.length} ${d.items.length === 1 ? "change" : "changes"}` })),
+      h("ul", { class: "rel-body cl-list" }, ...d.items.map((e) => {
+        const [word, cls] = KIND[e.kind] || KIND.new;
+        return h("li", { class: e.new ? "cl-fresh" : null }, h("span", { class: `cl-kind ${cls}`, text: word }), h("span", {}, ...inlineMd(e.text)));
+      }))));
+  });
+  if (!days.length) list.append(h("p", { class: "dim", text: log.error ? `Couldn't load the changelog. ${log.error}` : "The changelog is empty." }));
+  list.scrollTop = 0;
+  $("#rel-drawer").hidden = false;
+  $("#scrim").hidden = false;
+  $("#rel-x").focus();
+}
+
 $("#rel-x").addEventListener("click", closeReleases);
 $("#scrim").addEventListener("click", closeReleases);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && $("#dialog").hidden) closeReleases(); });

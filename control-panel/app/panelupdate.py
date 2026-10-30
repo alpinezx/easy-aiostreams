@@ -64,6 +64,94 @@ def latest(force: bool = False) -> dict:
                 "newer": bool(new and key(cur) and key(new) > key(cur))}
 
 
+CHANGELOG_RAW = "https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/{branch}/CHANGELOG.md"
+CHANGELOG_PAGE = "https://github.com/alpinezx/easy-aiostreams/blob/{branch}/CHANGELOG.md"
+CHANGELOG_KEEP = 40
+_log_lock = threading.Lock()
+_log_cache: dict = {"at": 0.0, "text": None, "error": None, "branch": None}
+_LEAD = re.compile(r"\*\*(Fixed|Docs|README|Changelog)\b[^*]*\*\*\s*")
+_PANEL = re.compile(r"\(Panel ([^)]*)")
+_VER = re.compile(r"\d+\.\d+(?:\.\d+)?")
+
+
+def _vkey(v: str) -> tuple:
+    return tuple(int(x) for x in v.split("."))
+
+
+def parse_changelog(text: str, current: str) -> list[dict]:
+    """CHANGELOG.md's entries, newest first: the date heading each sits under,
+    a kind taken from its bold lead (fixed, docs or new), the newest panel
+    version it names, and whether it came after the version running here.
+    Entries above the first one this panel already has count as new, so
+    script-only changes made since then are included."""
+    entries, date, seen = [], "", False
+    cur = _vkey(current) if VERSION_RE.fullmatch(current or "") else None
+    for line in text.splitlines():
+        if line.startswith("## "):
+            date = line[3:].strip()
+            continue
+        if not line.startswith("- "):
+            continue
+        body = line[2:].strip()
+        m = _LEAD.match(body)
+        kind = "new"
+        if m:
+            kind = "fixed" if m.group(1) == "Fixed" else "docs"
+            if kind == "fixed" or m.group(1) == "Docs":
+                body = body[m.end():]
+                body = body[:1].upper() + body[1:]
+        panel = None
+        p = _PANEL.search(body)
+        if p:
+            vers = _VER.findall(p.group(1))
+            if vers:
+                panel = max(vers, key=_vkey)
+        if cur and panel and _vkey(panel) <= cur:
+            seen = True
+        entries.append({"date": date, "kind": kind, "text": body, "panel": panel, "new": bool(cur) and not seen})
+    news = sum(e["new"] for e in entries)
+    return entries[:max(CHANGELOG_KEEP, news)]
+
+
+def changelog() -> dict:
+    """The update branch's CHANGELOG.md, fetched as often as the version.
+    Its own lock, so a slow GitHub here never holds up the version check."""
+    branch = config.UPDATE_BRANCH
+    with _log_lock:
+        now = time.time()
+        if _log_cache["branch"] != branch:
+            _log_cache.update(at=0.0, text=None, error=None, branch=branch)
+        if now - _log_cache["at"] > (RETRY if _log_cache["error"] else FRESH):
+            try:
+                r = requests.get(CHANGELOG_RAW.format(branch=branch), timeout=10, headers={"User-Agent": "easy-aiostreams-panel"})
+                if not r.ok:
+                    raise RuntimeError(f"GitHub answered {r.status_code}.")
+                _log_cache["text"], _log_cache["error"] = r.text, None
+            except RuntimeError as e:
+                _log_cache["error"] = str(e)
+            except Exception:
+                _log_cache["error"] = "Couldn't reach GitHub."
+            _log_cache["at"] = now
+        text, err = _log_cache["text"], _log_cache["error"]
+    entries = parse_changelog(text, config.VERSION) if text else []
+    return {"current": config.VERSION, "entries": entries, "page": CHANGELOG_PAGE.format(branch=branch),
+            "error": err if text is None else None}
+
+
+def demo_changelog() -> dict:
+    """The demo reads the checkout's own CHANGELOG.md. UI_DEMO_CHANGELOG_FROM
+    pretends an older panel, so some entries show as new."""
+    import os
+    from pathlib import Path
+    current = os.environ.get("UI_DEMO_CHANGELOG_FROM") or config.VERSION
+    try:
+        text = (Path(__file__).resolve().parent.parent.parent / "CHANGELOG.md").read_text(encoding="utf-8")
+    except OSError:
+        text = ""
+    return {"current": current, "entries": parse_changelog(text, current),
+            "page": CHANGELOG_PAGE.format(branch="main"), "error": None if text else "No changelog in the demo."}
+
+
 def _log_path():
     return config.STATE_DIR / LOG_NAME
 
