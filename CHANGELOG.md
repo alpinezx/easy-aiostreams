@@ -4,7 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 31 October 2026
 
-- **Fixed:** the Overview no longer sits mostly blank for a second or two while it opens. The browser now fetches all the panel's scripts at once, asks for your login and the server's status together, and Caddy compresses the panel's files to about a quarter of their size. Caddy picks up the compression when the panel updates. (Panel 1.47.3, [#114](https://github.com/alpinezx/easy-aiostreams/pull/114))
+- **Fixed:** the Overview no longer sits mostly blank for a second or two while it opens. The browser now fetches all the panel's scripts at once, asks for your login and the server's status together, the server's first reading no longer pauses to measure CPU, and Caddy compresses the panel's files to about a quarter of their size. The Overview then appears all at once, with no empty card frames first. Caddy picks up the compression when the panel updates. (Panel 1.47.4, [#114](https://github.com/alpinezx/easy-aiostreams/pull/114))
 
 ## 30 October 2026
 
