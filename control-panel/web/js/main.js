@@ -97,10 +97,11 @@ function initNav() {
 
 function goLogs(container) { pendingLogs = container; location.hash = "#logs"; }
 
-async function tick() {
+async function tick(first) {
   clearTimeout(timer);
   try {
-    status = await api("/api/status");
+    // boot() passes the first reading, asked for alongside /api/me; event listeners pass an Event
+    status = await (first instanceof Promise ? first : api("/api/status"));
     // Back after the panel restarted (a maintenance job restarts Docker): reload the page shown
     if (!$("#offline").hidden) { $("#offline").hidden = true; enter(); }
     document.title = `${status.headline} - Easy AIOStreams`;
@@ -154,6 +155,8 @@ async function tick() {
 }
 
 async function boot() {
+  const firstStatus = api("/api/status");
+  firstStatus.catch(() => {});     // tick() reports a failure; this only stops an unhandled rejection
   const me = await api("/api/me");
   // One login, so the name isn't shown; it's on Sign out's tooltip.
   $("#logout").dataset.tip = `Sign out (${me.user})`;
@@ -179,7 +182,7 @@ async function boot() {
   document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
   window.addEventListener("resize", () => { if (status && view === "overview") { /* trunk position */ render(status, goLogs); } });
   route();
-  await tick();
+  await tick(firstStatus);
   enter();
 }
 boot();
