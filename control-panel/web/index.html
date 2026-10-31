@@ -9,6 +9,26 @@
 <script src="/js/theme.js"></script>
 <link rel="stylesheet" href="/vendor/xterm.css">
 <link rel="stylesheet" href="/css/app.css">
+<!-- Every module main.js pulls in, so the browser fetches them all at once, not one import layer at a time -->
+<link rel="modulepreload" href="/js/main.js">
+<link rel="modulepreload" href="/js/actions.js">
+<link rel="modulepreload" href="/js/activity.js">
+<link rel="modulepreload" href="/js/addons.js">
+<link rel="modulepreload" href="/js/alerts.js">
+<link rel="modulepreload" href="/js/layout.js">
+<link rel="modulepreload" href="/js/logs.js">
+<link rel="modulepreload" href="/js/maint.js">
+<link rel="modulepreload" href="/js/md.js">
+<link rel="modulepreload" href="/js/net.js">
+<link rel="modulepreload" href="/js/overview.js">
+<link rel="modulepreload" href="/js/releases.js">
+<link rel="modulepreload" href="/js/scripts.js">
+<link rel="modulepreload" href="/js/select.js">
+<link rel="modulepreload" href="/js/terminal.js">
+<link rel="modulepreload" href="/js/traffic.js">
+<link rel="modulepreload" href="/js/util.js">
+<link rel="modulepreload" href="/js/viewport.js">
+<link rel="modulepreload" href="/js/vpn.js">
 </head>
 <body>
 <header class="topbar">
