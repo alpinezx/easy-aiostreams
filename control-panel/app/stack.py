@@ -266,6 +266,10 @@ class Backend:
         while True:
             if time.time() - self._last_view > 45:
                 self._stats = {}
+                try:
+                    self._cpu_prev = self._cpu_read()     # so the next visitor's CPU figure needn't wait
+                except Exception:
+                    pass
                 time.sleep(2)
                 continue
             try:
@@ -816,22 +820,26 @@ class Backend:
 
     def _cpu_pct(self) -> float | None:
         """How busy all the CPUs were since the last look, worked out as AIOStreams' own
-        dashboard does, so the two agree. The first look, or one after a long gap,
-        measures a quarter of a second instead."""
-        def read() -> tuple[float, int, int]:
-            f = [int(x) for x in _proc_stat_cpu().split()[1:9]]
-            return time.monotonic(), sum(f), f[3] + f[4]      # all time, then idle + iowait
-        now = read()
+        dashboard does, so the two agree. While nobody has the panel open, _stats_loop
+        keeps a recent look, so the first status reading doesn't wait; without one (or
+        one too close to tell anything) it measures a quarter of a second instead."""
+        now = self._cpu_read()
         prev = getattr(self, "_cpu_prev", None)
-        if prev is None or now[0] - prev[0] > 60:
+        gap = now[0] - prev[0] if prev else None
+        if gap is None or gap > 60 or (gap < 0.1 and getattr(self, "_cpu_last", None) is None):
             time.sleep(0.25)
-            prev, now = now, read()
+            prev, now = now, self._cpu_read()
         total, idle = now[1] - prev[1], now[2] - prev[2]
         if total <= 0:                  # two looks within one tick: keep the last figure
             return getattr(self, "_cpu_last", None)
         self._cpu_prev = now
         self._cpu_last = round(100 * (total - idle) / total, 1)
         return self._cpu_last
+
+    @staticmethod
+    def _cpu_read() -> tuple[float, int, int]:
+        f = [int(x) for x in _proc_stat_cpu().split()[1:9]]
+        return time.monotonic(), sum(f), f[3] + f[4]      # all time, then idle + iowait
 
     def _host(self) -> dict:
         out: dict = {"cpus": os.cpu_count()}

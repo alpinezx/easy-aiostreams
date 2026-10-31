@@ -184,6 +184,7 @@ export function render(st, goLogs) {
   remember(rel, runningTag(st));
   hero(st); path(st); rows(st, goLogs); side(st);
   applyLayout(st);
+  $("#view-overview").classList.add("drawn");
 }
 
 // Caddy renews a certificate with about a third of its life left, so it only gets
