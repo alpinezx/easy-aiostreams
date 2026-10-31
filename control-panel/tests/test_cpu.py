@@ -28,6 +28,15 @@ def test_iowait_counts_as_idle(monkeypatch):
     assert b._cpu_pct() == 10.0
 
 
+def test_a_recent_background_look_means_no_wait(monkeypatch):
+    # _stats_loop keeps a look while nobody's watching, so the first status reading doesn't sleep
+    monkeypatch.setattr(stack, "_proc_stat_cpu", lines("cpu 180 0 20 1200 0 0 0 0"))
+    monkeypatch.setattr(stack.time, "sleep", lambda s: (_ for _ in ()).throw(AssertionError("waited")))
+    b = object.__new__(stack.Backend)
+    b._cpu_prev = (stack.time.monotonic() - 1.5, 1000, 900)
+    assert b._cpu_pct() == 25.0
+
+
 def test_no_ticks_keeps_last_figure(monkeypatch):
     monkeypatch.setattr(stack, "_proc_stat_cpu", lines("cpu 0 0 0 0 0 0 0 0", "cpu 10 0 0 90 0 0 0 0",
                                                        "cpu 10 0 0 90 0 0 0 0"))

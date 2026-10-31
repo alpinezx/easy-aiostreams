@@ -309,6 +309,8 @@ button.chip:hover { text-decoration: underline; }
 .panel.folded { padding-top: 12px; padding-bottom: 12px; }
 .panel.folded .card-head, .ver-card.folded .ver-head { justify-content: flex-start; }
 #view-overview .panel.folded { align-self: start; }
+/* Until the first status reading draws it, so empty card frames never flash up */
+#view-overview:not(.drawn) { visibility: hidden; }
 .sec-head { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; }
 .sec-head h2.sec { margin: 0; }
 .sec-head.folded { margin: 0; padding: 12px 16px; background: var(--raised); border: 1px solid var(--line-soft); border-radius: var(--radius); }

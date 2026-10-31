@@ -119,7 +119,8 @@ write_caddy_snippet() {
     # even discoverable. Opening /unlock/<token> once sets the cookie. It's
     # SameSite=Lax, so a link from another app (tapping a phone alert) still
     # gets in; Strict left those on "Not found". Every visit sets it again,
-    # which also moves older Strict cookies over.
+    # which also moves older Strict cookies over. Only the static files are
+    # compressed (about a quarter the size), never the API's live log streams.
     cat > "$CADDY_SNIPPET" << CADDY_EOF
 ${domain} {
     @unlock path /unlock/${token}
@@ -129,8 +130,10 @@ ${domain} {
     }
 
     @gated header Cookie *ui_gate=${token}*
+    @static path /js/* /css/* /vendor/*
     handle @gated {
         header Set-Cookie "ui_gate=${token}; Path=/; Max-Age=31536000; HttpOnly; Secure; SameSite=Lax"
+        encode @static zstd gzip
         reverse_proxy ${CONTAINER_NAME}:${INTERNAL_PORT}
     }
 
