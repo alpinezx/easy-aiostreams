@@ -881,3 +881,26 @@ def test_every_colours_button_is_applied_and_styled():
     for t in themes[1:]:
         assert f'"{t}"' in early, t
         assert t == "dark" or f':root[data-theme="{t}"] {{' in css, t
+
+
+def test_index_preloads_every_module():
+    """The page lists every module main.js pulls in, so the browser fetches them all at
+    once instead of one import layer at a time (the Overview stayed blank meanwhile)."""
+    import re
+    from pathlib import Path
+    web = Path(__file__).resolve().parents[1] / "web"
+    seen, todo = set(), ["main.js"]
+    while todo:
+        f = todo.pop()
+        if f not in seen:
+            seen.add(f)
+            todo += re.findall(r'(?:from|import) "\./([\w-]+\.js)"', (web / "js" / f).read_text(encoding="utf-8"))
+    html = (web / "index.html").read_text(encoding="utf-8")
+    assert set(re.findall(r'<link rel="modulepreload" href="/js/([\w-]+\.js)">', html)) == seen
+
+
+def test_caddy_compresses_only_the_static_files():
+    from pathlib import Path
+    sh = (Path(__file__).resolve().parents[1] / "setup-ui.sh").read_text(encoding="utf-8")
+    assert "@static path /js/* /css/* /vendor/*" in sh and "encode @static zstd gzip" in sh
+    assert "\n        encode zstd" not in sh     # never the API: its log streams must flush as they come
