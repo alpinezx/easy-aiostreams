@@ -104,11 +104,13 @@ Download the installer:
 sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-aiostreams.sh -o setup-aiostreams.sh
 ```
 
-Run it with `--home`, which sets it up for a Cloudflare Tunnel:
+Run it:
 
 ```bash
-sudo bash setup-aiostreams.sh --home
+sudo bash setup-aiostreams.sh
 ```
+
+It first asks **Where is this server?** Choose **2) A computer at home**, then **1) Fresh install**. (Moving from a VPS? Choose **2) Restore from a backup** instead: see [Adding more later](#adding-more-later).)
 
 It asks for your domain, a login and which build to run, like a VPS install, but skips the VPS's DNS check (your domain points at Cloudflare, not your home). Then it asks for the tunnel's token: paste it. **Nothing shows on screen** while you paste: that's expected.
 
@@ -138,7 +140,7 @@ From here it works just like a VPS install. The main README covers each part:
 
 - **The control panel or an add-on:** add its route first (step 4), then install it as its guide says. Where it would check your DNS, it reminds you about the route instead.
 - **Already installed on a home server?** Run `sudo bash /opt/aiostreams/setup-aiostreams.sh tunnel`, then **Turn the tunnel on**. It lists the routes you need.
-- **Moving from a VPS to home?** Back up on the VPS, restore at home ([Backup & Restore](./backup-restore.md)), then turn the tunnel on as above. Switch the VPS off afterwards.
+- **Moving from a VPS to home?** Back up on the VPS and copy the backup home ([Backup & Restore](./backup-restore.md)). In Cloudflare, delete the domains' old A records, then add their routes (step 4). At home, run the installer as in step 5, choose **2) A computer at home**, then **2) Restore from a backup**: it asks for the tunnel's token and puts the restored stack behind it. Switch the VPS off afterwards.
 
 ---
 

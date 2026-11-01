@@ -135,7 +135,7 @@ Run it:
 sudo bash setup-aiostreams.sh
 ```
 
-It asks for your domain, a login, and which build to run. Once it finishes, visit your domain and log in. From there, AIOStreams' own setup takes over.
+It first asks where the server is: choose **1) A VPS**, then **1) Fresh install**. It asks for your domain, a login, and which build to run. Once it finishes, visit your domain and log in. From there, AIOStreams' own setup takes over.
 
 ## Re-running the script later
 
