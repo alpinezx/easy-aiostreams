@@ -1,6 +1,6 @@
 # Hosting from Home: Basic Guide
 
-For running Easy AIOStreams on a computer at home (a mini PC, an old laptop, a home server) instead of a VPS, through a free Cloudflare Tunnel.
+For running Easy AIOStreams on a computer at home (a mini PC, an old laptop, a home server) instead of a VPS, through a free Cloudflare Tunnel. This guide replaces the main README's Prerequisites and Quick start, which are for a VPS. Everything after installing is the same, and [After installing](#after-installing) links to it.
 
 ## Is this for you?
 
@@ -103,6 +103,18 @@ It ends with **The Cloudflare Tunnel is connected**. Visit your domain and log i
 ## 6. Always use HTTPS
 
 In Cloudflare, open your domain, then **SSL/TLS → Edge Certificates**, and switch on **Always Use HTTPS**. Visitors who type `http://` are then sent to the secure address.
+
+---
+
+## After installing
+
+From here it works just like a VPS install. The main README covers each part:
+
+- [The management menu](../../README.md#re-running-the-script-later): status, restart, updates, backups. Option **11** is the Cloudflare Tunnel's own menu.
+- [The control panel](./control-panel.md), to manage it all from your browser or phone. Add its route first (step 4).
+- [Backup & Restore](./backup-restore.md)
+- [Other scripts](../other-scripts.md): add-ons, the VPN layer, phone alerts
+- [Troubleshooting](../troubleshooting.md)
 
 ---
 
