@@ -72,6 +72,11 @@ warn_if_vpn_layer_off() {
     alert "${action_desc} now means AIOStreams' traffic, including debrid API"
     alert "calls, goes out via your VPS's real IP, not through the VPN."
     echo ""
+    # A same-server restore from the control panel, where you already said yes (setup-backup.sh --without-vpn)
+    if [[ "${AIOS_ALLOW_DIRECT:-}" == 1 ]]; then
+        echo "Going on in direct mode, as you chose."
+        return 0
+    fi
     if [[ "${UNATTENDED:-false}" == true ]]; then
         echo "Not done: the VPN is set up but switched off. Turn it on first (sudo bash setup-vpn-gluetun.sh),"
         echo "or do this from the menu over SSH, which asks whether to go on in direct mode."
@@ -201,6 +206,14 @@ ensure_caddy_dropin_dir() {
     tidy_caddyfile
 }
 
+# The main site's domain: the Caddyfile's first site, which comes after the
+# Cloudflare Tunnel's settings block when there is one (setup-tunnel.sh)
+caddy_domain() {
+    grep -m1 -oP '^[A-Za-z0-9.-]+\.[A-Za-z0-9-]+(?=\s*\{)' "${1:-$CADDYFILE}" 2>/dev/null || true
+}
+
+tunnel_active() { [[ -s "$INSTALL_DIR/tunnel-state/token.env" ]]; }
+
 # Caddy wants a tab at the start of an indented line, and otherwise logs
 # "Caddyfile input is not formatted" every time it loads the file. Older
 # installs (and the VPN script's saved copies) were written with four
@@ -249,6 +262,12 @@ remove_addons_on_uninstall() {
         (cd "$INSTALL_DIR/mediaflow-state" && docker compose -f docker-compose.yml down >/dev/null 2>&1) || \
             docker rm -f mediaflow-proxy-light >/dev/null 2>&1 || true
         removed+=("MediaFlow Proxy Light container")
+    fi
+    if [[ -f "$INSTALL_DIR/tunnel-state/docker-compose.yml" ]]; then
+        (cd "$INSTALL_DIR/tunnel-state" && docker compose -f docker-compose.yml down >/dev/null 2>&1) || \
+            docker rm -f cloudflared >/dev/null 2>&1 || true
+        rm -f /etc/sysctl.d/60-aiostreams-tunnel.conf   # its network buffer limits (setup-tunnel.sh)
+        removed+=("Cloudflare Tunnel")
     fi
     # Its Redis cache is a Docker volume: kept for a restore (the restored
     # AIOMetadata reuses it), removed with an uninstall.
@@ -582,6 +601,7 @@ helper_script() {
 
 backup_script() { helper_script setup-backup.sh 'do_restore()' "backup and restore"; }
 maint_script() { helper_script setup-maintenance.sh 'do_free_space()' "maintenance"; }
+tunnel_script() { helper_script setup-tunnel.sh 'do_apply()' "Cloudflare Tunnel"; }
 
 # Runs setup-backup.sh with the given command. AIOS_MAIN_SCRIPT tells a
 # restore which copy of this script to put back into the install folder.
@@ -633,11 +653,20 @@ restore_start_stack() {
     fi
     cleanup_replaced_images "$image_snapshot"
 
+    # Through a Cloudflare Tunnel, Cloudflare holds the certificates: start it
+    # (its token came back with the backup, so it asks nothing)
+    if tunnel_active; then
+        local script
+        if script=$(tunnel_script); then
+            bash "$script" on < /dev/null || warn "The Cloudflare Tunnel didn't start. Run: sudo bash $INSTALL_DIR/setup-tunnel.sh"
+        fi
+        return 0
+    fi
     # DNS matching doesn't rule out a blocked port on a new server, so
     # confirm the certificate itself.
     if [[ -f "$CADDYFILE" ]]; then
         local restored_domain
-        restored_domain=$(head -n1 "$CADDYFILE" | awk '{print $1}')
+        restored_domain=$(caddy_domain)
         [[ -n "$restored_domain" ]] && wait_for_cert_and_diagnose "$restored_domain"
     fi
     return 0
@@ -780,10 +809,16 @@ status_version() {
 show_status() {
     local domain end days c label st up load cpus total used pct sched every time day line list n s ph age newest
     cd "$INSTALL_DIR"
-    domain=$(head -n1 "$CADDYFILE" 2>/dev/null | awk '{print $1}')
+    domain=$(caddy_domain)
     echo "=== AIOStreams ==="
     status_version
-    if [[ -n "$domain" ]]; then
+    if [[ -n "$domain" ]] && tunnel_active; then
+        if bash "$INSTALL_DIR/setup-tunnel.sh" check >/dev/null 2>&1; then
+            echo "  Site:      https://$domain, through the Cloudflare Tunnel (connected)"
+        else
+            echo -e "  Site:      https://$domain, \033[1;33mCloudflare Tunnel not connected\033[0m (check: sudo bash setup-tunnel.sh status)"
+        fi
+    elif [[ -n "$domain" ]]; then
         end=$(echo | timeout 10 openssl s_client -connect 127.0.0.1:443 -servername "$domain" 2>/dev/null \
             | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2) || true
         if [[ -n "$end" ]]; then
@@ -919,6 +954,7 @@ do_restart_stack() {
         echo "Restarting the stack..."
         docker compose restart
     fi
+    if tunnel_active; then docker restart cloudflared >/dev/null 2>&1 || true; fi
     echo "Restarted. Check status with: docker compose ps"
 }
 
@@ -1013,6 +1049,16 @@ do_update_aio() {
         docker compose up -d --force-recreate --remove-orphans
     fi
     cleanup_replaced_images "$IMAGE_SNAPSHOT"
+    # Nothing else updates cloudflared, and Cloudflare supports each release for about
+    # a year, so it comes along with AIOStreams' updates
+    if tunnel_active; then
+        echo ""
+        info "Updating the Cloudflare Tunnel's cloudflared"
+        local tunnel_sh
+        if tunnel_sh=$(tunnel_script); then
+            bash "$tunnel_sh" update < /dev/null || warn "Couldn't update cloudflared. Try: sudo bash $INSTALL_DIR/setup-tunnel.sh update"
+        fi
+    fi
     echo ""
     echo "Update complete. Current images:"
     docker compose images
@@ -1079,6 +1125,11 @@ case "${1:-}" in
         exit 0
         ;;
     remove-webhook-relay) remove_webhook_relay; exit 0 ;;
+    tunnel)
+        shift
+        script=$(tunnel_script) || exit 1
+        exec bash "$script" "$@"
+        ;;
 esac
 
 
@@ -1112,12 +1163,13 @@ if [[ -f "$COMPOSE_FILE" ]]; then
     echo "  8) Restore from backup"
     echo "  9) Uninstall"
     echo " 10) Maintenance"
-    echo " 11) Exit"
+    echo " 11) Cloudflare Tunnel (host from home)"
+    echo " 12) Exit"
     echo ""
-    # Exit moved from 10 to 11 in October 2026. Control panels from 1.28.1 on run
-    # named commands (start, stop...) and never reach this menu; older ones typed
-    # 10 to leave it, so they need updating first.
-    read -rp "Select an option [1-11]: " MENU_CHOICE
+    # Exit is always last: 10 until October 2026, then 11, 12 since the tunnel
+    # (November 2026). Control panels from 1.28.1 on run named commands (start,
+    # stop...) and never reach this menu; older ones typed 10 to leave it.
+    read -rp "Select an option [1-12]: " MENU_CHOICE
 
     case "$MENU_CHOICE" in
         1)
@@ -1127,6 +1179,10 @@ if [[ -f "$COMPOSE_FILE" ]]; then
             ;;
         10)
             if script=$(maint_script); then bash "$script" || true; fi
+            continue
+            ;;
+        11)
+            if script=$(tunnel_script); then bash "$script" || true; fi
             continue
             ;;
         2) do_stop_aio; continue ;;
@@ -1266,7 +1322,7 @@ if [[ -f "$COMPOSE_FILE" ]]; then
             run_backup_script restore || true
             continue
             ;;
-        11)
+        12)
             echo "Exiting."
             exit 0
             ;;
@@ -1334,6 +1390,28 @@ while true; do
     break
 done
 
+# How visitors reach this server. A Reconfigure keeps what the install has.
+USE_TUNNEL=false
+if [[ -f "$COMPOSE_FILE" ]]; then
+    if tunnel_active; then
+        USE_TUNNEL=true
+        echo "This install uses a Cloudflare Tunnel, and keeps it."
+    fi
+else
+    echo ""
+    echo "How will people reach this server?"
+    echo "  1) Directly: a VPS, or a home server with ports 80 and 443 forwarded to it"
+    echo "  2) Through a Cloudflare Tunnel: a home server behind any router, nothing"
+    echo "     forwarded. Needs the domain on Cloudflare (free) and a tunnel made there"
+    echo "     first, with a route for $DOMAIN (see the home hosting guide)."
+    read -rp "Choice [1-2] (Enter for 1): " REACH_CHOICE
+    [[ "$REACH_CHOICE" == 2 ]] && USE_TUNNEL=true
+fi
+
+if $USE_TUNNEL; then
+    echo ""
+    echo "Skipping the DNS check: through the tunnel, $DOMAIN points at Cloudflare, not here."
+else
 echo ""
 echo "Checking DNS resolution for $DOMAIN..."
 if require_cmd getent; then
@@ -1369,6 +1447,7 @@ else
         echo "Resolved $DOMAIN -> $RESOLVED_IP, matches this server."
     fi
 fi
+fi   # USE_TUNNEL
 
 echo ""
 while true; do
@@ -1636,6 +1715,13 @@ EOF
 
 ensure_shared_network
 
+# Through a Cloudflare Tunnel: asks for its token (a Reconfigure keeps it),
+# starts it, and puts Caddy in tunnel mode before the stack starts
+if $USE_TUNNEL; then
+    TUNNEL_SCRIPT=$(tunnel_script) || error "Couldn't get setup-tunnel.sh. Check this server's internet connection and try again."
+    bash "$TUNNEL_SCRIPT" on || error "The Cloudflare Tunnel didn't start. Run: sudo bash $INSTALL_DIR/setup-tunnel.sh"
+fi
+
 info "Pulling images"
 MAX_RETRIES=3
 attempt=1
@@ -1696,7 +1782,15 @@ if $RECONFIGURE_WAS_VPN_ACTIVE; then
     fi
 fi
 
-wait_for_cert_and_diagnose "$DOMAIN"
+if $USE_TUNNEL; then
+    if bash "$TUNNEL_SCRIPT" check; then
+        echo "The Cloudflare Tunnel is connected, and Cloudflare holds the HTTPS certificate."
+    else
+        warn "The Cloudflare Tunnel isn't connected. Check: sudo bash $INSTALL_DIR/setup-tunnel.sh status"
+    fi
+else
+    wait_for_cert_and_diagnose "$DOMAIN"
+fi
 
 CREDS_FILE="$INSTALL_DIR/CREDENTIALS.txt"
 OLD_UMASK=$(umask)

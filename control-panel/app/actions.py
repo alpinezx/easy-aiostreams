@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import ipaddress
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 
 @dataclass(frozen=True)
@@ -56,7 +56,7 @@ _STATIC: dict[str, Action] = {a.id: a for a in [
            confirm="Stop AIOStreams? Caddy stays up, so visitors get a 502 until you start it again."),
     Action("stack.restart", "Restart", "Restarting", "Restart finished", AIO,
            args=("restart",), stdin="4\n" + _PAD + "10\n", timeout=420, needs=(AIO,),
-           confirm="Restart AIOStreams and Caddy, and the VPN if it's on? Streams stop loading for a few seconds."),
+           confirm="Restart AIOStreams and Caddy, and the VPN and tunnel if they're on? Streams stop loading for a few seconds."),
     Action("stack.backup", "Back up now", "Backing up", "Backup finished", AIO,
            args=("backup",), stdin="\n", timeout=300, needs=(AIO,),
            confirm="Make a backup of your AIOStreams setup now? It is saved on this server and takes a few seconds."),
@@ -212,13 +212,14 @@ def build_mediaflow_update(backup: bool) -> Action:
                   confirm="Update MediaFlow Proxy to its newest release? Streams through it pause for a few seconds.")
 
 
-def build_restore(path: str) -> Action:
+def build_restore(path: str, without_vpn: bool = False) -> Action:
     """A same-server rollback to the backup at path, which the caller has
     matched against the backups actually on the server. --same-server runs
     the check first and refuses rather than asks. AIOS_UI_TERMINAL tells it
     the panel is running it, so it leaves the panel running."""
     return Action("stack.restore", "Restore", "Restoring", "Restore finished", AIO,
-                  args=("restore", "--same-server", path), timeout=1800, needs=(AIO,),
+                  args=("restore", "--same-server") + (("--without-vpn",) if without_vpn else ()) + (path,),
+                  timeout=1800, needs=(AIO,),
                   env=("AIOS_UI_TERMINAL=1",))
 
 
@@ -311,8 +312,19 @@ ADDON_STATE = {"vpn": "vpn-state", "mediaflow": "mediaflow-state", "watchdog": "
                "aiometadata": "aiometadata-state", "aiomanager": "aiomanager-state"}
 
 
+# Start, Restart and Update ask before going on with the VPN set up but switched off, which
+# a panel job can't answer; the panel asks in its own dialog and sends without_vpn instead.
+WITHOUT_VPN = ("stack.start", "stack.restart", "stack.update")
+
+
 def resolve(action_id: str, params: dict | None = None) -> Action:
-    params = params or {}
+    act = _resolve(action_id, params or {})
+    if action_id in WITHOUT_VPN and (params or {}).get("without_vpn") is True:
+        act = replace(act, env=act.env + ("AIOS_ALLOW_DIRECT=1",))
+    return act
+
+
+def _resolve(action_id: str, params: dict) -> Action:
     if action_id == "stack.update":
         return build_update(params.get("backup", True), params.get("channel"))
     if action_id == "aiometadata.update":

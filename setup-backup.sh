@@ -7,6 +7,8 @@
 #   sudo bash /opt/aiostreams/setup-backup.sh restore [file]   restore one
 #   ... restore --check <file>         would it restore here without questions?
 #   ... restore --same-server <file>   roll this install back, no questions
+#   ... restore --same-server --without-vpn <file>   the same, answering the one question
+#       a check can leave: start AIOStreams without the VPN it had switched off
 #                                      (only after the check passes)
 #   sudo bash /opt/aiostreams/setup-backup.sh schedule         scheduled backups:
 #   ... schedule off | daily HH:MM | weekly <1-7> HH:MM        (1 Monday .. 7 Sunday)
@@ -94,7 +96,8 @@ do_backup() {
     info "Backing up $INSTALL_DIR"
     echo "Included: compose files (SECRET_KEY + logins), Caddyfile + drop-ins,"
     echo "AIOStreams user configs (./data), vpn-state (WireGuard private key,"
-    echo "if the VPN layer was ever set up), the add-ons' settings (including"
+    echo "if the VPN layer was ever set up), the Cloudflare Tunnel's token (if"
+    echo "it's used), the add-ons' settings (including"
     echo "AIOMetadata's configurations and AIOManager's logins), and any original"
     echo "WireGuard .conf file(s) found in /root or your home directory (staged as a"
     echo "convenience copy, not required for the VPN layer itself to keep working)."
@@ -679,10 +682,31 @@ keep_menu() {
 # summary doesn't promise that installed addons keep working.
 RESTORE_OLD_DOMAIN=""
 
+# The main site's domain: the Caddyfile's first site, after the Cloudflare
+# Tunnel's settings block when there is one (setup-tunnel.sh). Reads the
+# file given, or the Caddyfile text on stdin with "-".
+caddy_domain() {
+    local f="${1:-$CADDYFILE}"
+    [[ "$f" == - ]] && f=/dev/stdin
+    grep -m1 -oP '^[A-Za-z0-9.-]+\.[A-Za-z0-9-]+(?=\s*\{)' "$f" 2>/dev/null || true
+}
+
+tunnel_active() { [[ -s "$INSTALL_DIR/tunnel-state/token.env" ]]; }
+
+# Through a Cloudflare Tunnel the domains point at Cloudflare, so there's no DNS
+# to check. The one thing to say: the old server must not run the same tunnel.
+tunnel_restore_note() {
+    echo ""
+    echo "This backup uses a Cloudflare Tunnel, so its domains point at Cloudflare and"
+    echo "need no change. If the server it came from still runs, stop it (or its tunnel):"
+    echo "two servers running the same tunnel both take visitors, half each."
+}
+
 check_restored_domain_dns() {
     [[ -f "$CADDYFILE" ]] || return 0   # nothing to check against
+    if tunnel_active; then tunnel_restore_note; return 0; fi
     local domain
-    domain=$(head -n1 "$CADDYFILE" | awk '{print $1}')
+    domain=$(caddy_domain)
     [[ -n "$domain" ]] || return 0
 
     local retry_interval="${DNS_RETRY_INTERVAL:-15}"
@@ -784,7 +808,8 @@ check_restored_domain_dns() {
                     continue
                 fi
                 [[ -n "$RESTORE_OLD_DOMAIN" ]] || RESTORE_OLD_DOMAIN="$domain"
-                sed -i "1s/.*/${new_domain} {/" "$CADDYFILE"
+                # The first site line (line 1, unless a tunnel's block comes first)
+                sed -i "0,/^[A-Za-z0-9.-]\+\.[A-Za-z0-9-]\+[[:space:]]*{/s//${new_domain} {/" "$CADDYFILE"
                 # Compose file's BASE_URL must match too, or the VPN toggle
                 # script would regenerate the Caddyfile from the old domain.
                 if [[ -f "${COMPOSE_FILE:-}" ]]; then
@@ -920,6 +945,7 @@ current_addons() {
     [[ -f /etc/systemd/system/aiostreams-watchdog.timer ]] && found+=("watchdog")
     [[ -f /etc/systemd/system/aiostreams-vpn-boot.service ]] && found+=("VPN boot hook")
     [[ -f /etc/fail2ban/jail.d/aios-mediaflow.conf ]] && found+=("MediaFlow fail2ban jail")
+    [[ -f "$INSTALL_DIR/tunnel-state/docker-compose.yml" ]] && found+=("Cloudflare Tunnel")
     docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx aios-ui && found+=("control panel")
     (( ${#found[@]} )) && printf '%s, ' "${found[@]}" | sed 's/, $//'
     return 0
@@ -992,7 +1018,7 @@ check_addon_domains() {
     local a id name dir site ctr domain ip here choice new taken main_domain
     find_public_ip
     here="$PUBLIC_IP"
-    main_domain=$(head -n1 "$CADDYFILE" 2>/dev/null | awk '{print $1}')
+    main_domain=$(caddy_domain)
     taken="${main_domain,,}"
     for a in "${ADDONS[@]}"; do
         IFS='|' read -r id name dir site ctr <<< "$a"
@@ -1005,6 +1031,9 @@ check_addon_domains() {
         [[ -n "$domain" ]] && taken+=" ${domain,,}"
     done
     (( ${#ADDON_NAME[@]} )) || return 0
+    # Through a Cloudflare Tunnel the add-ons' names point at Cloudflare too: nothing to ask.
+    # (Only after the loop above, which says which add-ons start again.)
+    tunnel_active && return 0
 
     echo ""
     echo "Checking the add-ons' subdomains..."
@@ -1095,9 +1124,11 @@ backup_old_ref() {
 # a rollback of this server, to a backup with the same domains, which point
 # here. Anything else is a restore for SSH. Returns 0 when it's fine, 3 when not.
 restore_check() {
-    local tarball="${1:-}" listing problems=0
+    local tarball="${1:-}" listing problems=0 questions=0
     check_no() { problems=$((problems + 1)); echo "  no: $1"; }
     check_ok() { echo "  ok: $1"; }
+    # A question the control panel can ask itself; --without-vpn answers it
+    check_ask() { questions=$((questions + 1)); echo "  ask: $1"; }
     from_backup() { tar -xzOf "$tarball" --occurrence=1 "aiostreams/$1" 2>/dev/null || true; }
 
     echo "Checking $tarball for a same-server restore. Nothing is changed."
@@ -1128,15 +1159,19 @@ restore_check() {
         check_no "Docker or its Compose plugin isn't available."
     fi
 
-    local domain current ip caddyfile
+    local domain current ip caddyfile tunnel=false
+    # Through a Cloudflare Tunnel every name points at Cloudflare, not here
+    grep -qx 'aiostreams/tunnel-state/token.env' <<< "$listing" && tunnel=true
     caddyfile=$(from_backup Caddyfile)
-    domain=$(head -n1 <<< "$caddyfile" | awk '{print $1}')
-    current=$(head -n1 "$CADDYFILE" 2>/dev/null | awk '{print $1}')
+    domain=$(caddy_domain - <<< "$caddyfile")
+    current=$(caddy_domain)
     find_public_ip
     if [[ -z "$domain" ]]; then
         check_no "Its Caddyfile names no domain."
     elif [[ -n "$current" && "${domain,,}" != "${current,,}" ]]; then
         check_no "Its domain is $domain, but this install uses $current."
+    elif $tunnel; then
+        check_ok "$domain is reached through its Cloudflare Tunnel."
     elif [[ -z "$PUBLIC_IP" ]]; then
         check_no "This server's own public IP couldn't be found, so DNS can't be checked."
     else
@@ -1158,6 +1193,8 @@ restore_check() {
         cdomain=$(addon_domain "$dir")
         if [[ -n "$cdomain" && "${bdomain,,}" != "${cdomain,,}" ]]; then
             check_no "$name: it uses $bdomain, but this install uses $cdomain."
+        elif $tunnel; then
+            check_ok "$name: $bdomain is reached through the Cloudflare Tunnel."
         elif [[ -n "$PUBLIC_IP" && "$(resolve_ip "$bdomain")" != "$PUBLIC_IP" ]]; then
             check_no "$name: $bdomain doesn't point at this server."
         else
@@ -1171,7 +1208,7 @@ restore_check() {
     bcompose=$(from_backup docker-compose.yml)
     if grep -qx 'aiostreams/vpn-state/active' <<< "$listing" \
         && ! grep -q 'container_name: gluetun' <<< "$bcompose"; then
-        check_no "Its VPN was switched off, and a restore asks before starting AIOStreams without it."
+        check_ask "Its VPN was switched off, so AIOStreams starts without it: its traffic, debrid included, goes out through this server's own IP."
     fi
 
     # Room for the unpacked backup next to the current install, which is
@@ -1188,6 +1225,11 @@ restore_check() {
         echo "Result: not a same-server restore. Restore it over SSH instead:"
         echo "  sudo bash $INSTALL_DIR/setup-aiostreams.sh restore $tarball"
         return 3
+    fi
+    # Its own code, so a panel from before questions refuses rather than restores without the answer
+    if (( questions )); then
+        echo "Result: OK, with the question above: restore --same-server --without-vpn answers it."
+        return 4
     fi
     echo "Result: OK, it can be restored here without questions."
     return 0
@@ -1634,7 +1676,7 @@ do_restore() {
     info "Restore complete!"
     echo ""
     local main_now
-    main_now=$(head -n1 "$CADDYFILE" 2>/dev/null | awk '{print $1}')
+    main_now=$(caddy_domain)
     if [[ -n "$RESTORE_OLD_DOMAIN" && "$RESTORE_OLD_DOMAIN" != "$main_now" ]]; then
         echo "The SECRET_KEY and data came over intact, so every user config is here."
         echo "But the domain changed from $RESTORE_OLD_DOMAIN to $main_now, and addons"
@@ -1696,15 +1738,26 @@ case "${1:-}" in
     restore)
         case "${2:-}" in
             --check)
-                if restore_check "${3:-}"; then exit 0; else exit 3; fi
+                # 0 restores without questions, 4 with the one --without-vpn answers, 3 not here
+                rc=0; restore_check "${3:-}" || rc=$?
+                exit "$rc"
                 ;;
             --same-server)
-                if ! restore_check "${3:-}"; then
+                file="${3:-}" check=0
+                if [[ "$file" == --without-vpn ]]; then
+                    file="${4:-}"
+                    # setup-aiostreams.sh's start reads it in place of asking
+                    export AIOS_ALLOW_DIRECT=1
+                fi
+                restore_check "$file" || check=$?
+                if (( check == 4 )) && [[ "${AIOS_ALLOW_DIRECT:-}" == 1 ]]; then
+                    echo "Answered: start without the VPN (--without-vpn)."
+                elif (( check != 0 )); then
                     echo "Nothing was changed."
                     exit 3
                 fi
                 UNATTENDED=true
-                do_restore "${3:-}" < /dev/null
+                do_restore "$file" < /dev/null
                 exit 0
                 ;;
             *)

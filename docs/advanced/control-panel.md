@@ -56,7 +56,7 @@ Found a security problem? Please report it privately from the repository's **Sec
 | Button | Script and input |
 | --- | --- |
 | Start, Stop (AIOStreams' row), Restart stack | `setup-aiostreams.sh start`, `stop`, `restart` (menu options 3, 2, 4 without their questions) |
-| Restart (per service) | restarts just that container through Docker; AIOStreams, MediaFlow, AIOMetadata and AIOManager only |
+| Restart (per service) | restarts just that container through Docker; AIOStreams, MediaFlow, AIOMetadata, AIOManager and the Cloudflare Tunnel only |
 | Update | `setup-aiostreams.sh update`, with `--backup` and `--channel latest\|nightly` from the dialog (menu option 5 without its questions) |
 | Back up now | `setup-aiostreams.sh backup` |
 | Scheduled backups: Set, Off | `setup-backup.sh schedule daily HH:MM`, `weekly <1-7> HH:MM`, `off`, which writes `backup-schedule` and the systemd timer |
@@ -110,6 +110,8 @@ Each line is split the way AIOStreams' own log viewer shows it: time, a dot for 
 Once a minute, whether or not the panel is open, it reads two sets of byte counters: the server's own network card (the one its default route leaves by, `eth0`, `ens3` and so on, from the host's `/proc/1/net`) and, with the VPN on, gluetun's tunnel (`tun0`). What went through since the last reading is added to that minute and that hour. Minutes are kept for a day and hours for 30 days, in `ui-state/host-traffic.json` and `ui-state/vpn-traffic.json`, saved every few minutes, so an update or reboot only loses the minutes in between, and a backup and restore carries the history. A minute with no reading (the VPN off, the panel not running) is a gap in the graph rather than zero. Counters starting again from zero (a reboot, gluetun restarting) are taken as a fresh start, not traffic.
 
 **Whole server** and **VPN tunnel** (only once the VPN is set up) switch the Traffic card between the two. The graph is minute by minute over 1 hour, 5-minute averages over 24 hours and hourly averages over 7 days. **Clear history** empties the one shown and starts it again from now. **By service** is each container's speed from Docker's own counters, worked out from the panel's last two looks at them. AIOStreams on the VPN shares gluetun's network and has no counters of its own, so it's shown once, under the tunnel.
+
+[Through a Cloudflare Tunnel](./home-hosting.md#phone-alerts-and-the-control-panel), the tunnel comes first in the Request flow and Services, and its certificate tile shows Cloudflare's certificates.
 
 The Overview's **This server** shows the server's speed now and today's totals as its **Network** value, the VPN's card shows the tunnel's, and MediaFlow's card shows what's passing through MediaFlow now; all three link here.
 

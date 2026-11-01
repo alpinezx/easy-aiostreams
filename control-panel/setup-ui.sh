@@ -219,8 +219,19 @@ do_install() {
     main_domain=$(grep -oP 'BASE_URL=https?://\K[^\s"]+' "$COMPOSE_FILE" | head -n1 || true)
     [[ "$DOMAIN" != "$main_domain" ]] || error "That's your AIOStreams domain. The panel needs its own subdomain."
 
-    local ip dns
-    ip=$(curl -4 -fsS --max-time 5 ifconfig.me 2>/dev/null || true)
+    local ip="" dns
+    # Through a Cloudflare Tunnel the name points at Cloudflare, not here: it needs a route instead
+    if [[ -s "$INSTALL_DIR/tunnel-state/token.env" ]]; then
+        # Its route makes its DNS record, so a name that doesn't exist is a typo or a route not added yet
+        if ! getent ahostsv4 "$DOMAIN" >/dev/null 2>&1; then
+            alert "$DOMAIN doesn't exist. Check the spelling, and that it has a route on the tunnel"
+            echo "in Cloudflare (Routes > Add route > Published application, Service URL http://caddy:80)."
+            read -rp "Continue anyway? (y/N): " CONT
+            [[ "$CONT" =~ ^[Yy]$ ]] || exit 0
+        fi
+    else
+        ip=$(curl -4 -fsS --max-time 5 ifconfig.me 2>/dev/null || true)
+    fi
     dns=$(getent ahostsv4 "$DOMAIN" 2>/dev/null | awk 'NR==1{print $1}' || true)
     if [[ -n "$ip" && "$dns" != "$ip" ]]; then
         alert "$DOMAIN resolves to '${dns:-nothing}', but this server is $ip."

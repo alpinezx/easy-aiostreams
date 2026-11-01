@@ -14,7 +14,7 @@ It works on any install. The site, disk and certificate checks always run; the V
 
 ### Every 2 minutes, always
 
-1. **The site answers.** It loads `https://<your domain>/` the way a visitor would, HTTPS and certificate included, but through this server's own port 443 (`curl --resolve`) rather than DNS, so a DNS hiccup elsewhere, or a cloud that can't reach its own public IP, doesn't count as the site being down. Any answer below 500 means it's up. The alert says which way it failed: nothing answering on 443 (Caddy is down), an invalid certificate, a 502/503/504 (Caddy is up but AIOStreams isn't answering behind it), another server error, or no answer within 15 seconds.
+1. **The site answers.** It loads `https://<your domain>/` the way a visitor would, HTTPS and certificate included, but through this server's own port 443 (`curl --resolve`) rather than DNS, so a DNS hiccup elsewhere, or a cloud that can't reach its own public IP, doesn't count as the site being down. Any answer below 500 means it's up. The alert says which way it failed: nothing answering on 443 (Caddy is down), an invalid certificate, a 502/503/504 (Caddy is up but AIOStreams isn't answering behind it), another server error, or no answer within 15 seconds. [Through a Cloudflare Tunnel](./home-hosting.md#phone-alerts-and-the-control-panel) there's no port 443: it checks the tunnel is connected, then loads the site from Caddy over Docker's network.
 
 ### Every 2 minutes, in VPN mode
 
@@ -37,7 +37,7 @@ The same again for AIOManager: **Caddy is running**, **AIOManager's container is
 ### Warnings (alert once each way)
 
 6. **Disk nearly full.** The disk holding `/opt/aiostreams` at 90% used or more. The all-clear comes once it's back under 85%, so a disk hovering around 90% doesn't send a stream of alerts. A full disk is a common way for a Docker server to break quietly (old images and logs pile up, then nothing can write).
-7. **Certificate not renewing.** Every 6 hours, the certificate of every site this server serves (the main domain and each add-on's subdomain: MediaFlow, AIOMetadata, AIOManager, the control panel), asked of this server's port 443. Each site alerts once each way on its own, naming it, so a second site going bad still alerts while the first is. Caddy renews well before it runs out (with 30 days left on a 90-day certificate, about 15 on a 45-day one), so under 10 days left means renewal has been failing. An already expired or broken certificate fails the site check above instead.
+7. **Certificate not renewing.** Every 6 hours, the certificate of every site this server serves (the main domain and each add-on's subdomain: MediaFlow, AIOMetadata, AIOManager, the control panel), asked of this server's port 443. Each site alerts once each way on its own, naming it, so a second site going bad still alerts while the first is. Caddy renews well before it runs out (with 30 days left on a 90-day certificate, about 15 on a 45-day one), so under 10 days left means renewal has been failing. An already expired or broken certificate fails the site check above instead. Skipped through a Cloudflare Tunnel, where Cloudflare holds and renews the certificates.
 
 ### Once per boot, if switched on
 
