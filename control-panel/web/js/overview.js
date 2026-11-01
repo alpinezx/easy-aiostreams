@@ -86,7 +86,7 @@ function releasedAgo(running) {
   return r && r.published ? `Released ${ago(Date.parse(r.published) / 1000)}` : "";
 }
 
-const RESTARTABLE = new Set(["aiostreams", "mediaflow", "aiometadata", "aiomanager"]);
+const RESTARTABLE = new Set(["tunnel", "aiostreams", "mediaflow", "aiometadata", "aiomanager"]);
 const hist = {};          // cpu history per service, for the sparklines
 const keys = {};          // last structure key per region, so we only rebuild on real changes
 const SVG = "http://www.w3.org/2000/svg";
@@ -699,7 +699,7 @@ function certTiles(grid, st) {
   if (certs.length === 1) {
     const c = certs[0], d = c.days_left;
     const one = c.ok
-      ? stat("HTTPS certificate", `${d} day${d === 1 ? "" : "s"} left`, certTone(c) ? "Not renewed yet: check Caddy's logs" : "Auto-renews", certTone(c))
+      ? stat("HTTPS certificate", `${d} day${d === 1 ? "" : "s"} left`, certTone(c) ? "Not renewed yet: check Caddy's logs" : st.tunnel ? "Cloudflare's, auto-renews" : "Auto-renews", certTone(c))
       : stat("HTTPS certificate", "Couldn't check", "", "warn");
     one.classList.add("cert-tile");
     grid.append(one);

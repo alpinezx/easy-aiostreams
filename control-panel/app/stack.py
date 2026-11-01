@@ -114,6 +114,8 @@ REBOOT_CHECK = ('if [ -e /var/run/reboot-required ]; then echo y; exit; fi; '
 
 # name, container, display name, what it does, path (relative to install dir) that proves it's set up
 SERVICES = [
+    # First: through a Cloudflare Tunnel, visitors come in through it (setup-tunnel.sh)
+    ("tunnel", "cloudflared", "Cloudflare Tunnel", "The way in, from Cloudflare", "tunnel-state/token.env"),
     ("caddy", "caddy", "Caddy", "HTTPS front door", None),
     ("gluetun", "gluetun", "VPN tunnel", "gluetun, WireGuard", "VPN"),
     ("aiostreams", "aiostreams", "AIOStreams", "Addon aggregator", None),
@@ -124,8 +126,9 @@ SERVICES = [
 ]
 ADDONS = {"mediaflow", "webhook", "aiometadata", "aiomanager"}
 # Services the panel may restart on their own. Caddy has the stack-wide Restart,
-# and bouncing the VPN tunnel can strand the containers routed through it.
-RESTARTABLE = {"aiostreams", "mediaflow", "aiometadata", "aiomanager"}
+# and bouncing the VPN tunnel can strand the containers routed through it. The
+# Cloudflare Tunnel only reconnects, a few seconds without visitors.
+RESTARTABLE = {"tunnel", "aiostreams", "mediaflow", "aiometadata", "aiomanager"}
 # AIOManager's logins, counted inside its container (its image has Node, not a shell).
 # Rows without a password are its own bookkeeping. Read-only.
 _LOGIN_COUNT_JS = ("const D=require('better-sqlite3');"
@@ -136,7 +139,7 @@ _LOGIN_COUNT_JS = ("const D=require('better-sqlite3');"
 
 # The AIOStreams menu hands backup and restore, and Maintenance, to these, so the
 # Scripts tab's AIOStreams row compares and updates them with it
-WITH_MAIN = ("setup-backup.sh", "setup-maintenance.sh")
+WITH_MAIN = ("setup-backup.sh", "setup-maintenance.sh", "setup-tunnel.sh")
 
 TIME_RE = re.compile(r"^([01]?\d|2[0-3]):[0-5]\d$")
 
@@ -653,6 +656,8 @@ class Backend:
             "installed": installed, "docker_ok": docker_ok,
             "domain": domain, "channel": tag, "version": version, "build_tag": build_tag,
             "vpn": vpn, "install_dir": str(config.INSTALL_DIR),
+            # Hosting through a Cloudflare Tunnel: Cloudflare holds the certificates
+            "tunnel": self.p("tunnel-state/token.env").exists(),
             "scripts": [{"id": i, "label": l, "file": f, "present": self.p(f).exists(),
                          "in_use": i not in ADDON_STATE or self.addon_set_up(i)} for i, l, f in SCRIPTS],
             "user_copy": self.user_copy(),
@@ -1378,12 +1383,15 @@ class Backend:
             if len(parts) == 3 and parts[1].isdigit() and parts[2].isdigit():
                 tally.append({"day": parts[0], "passed": int(parts[1]), "failed": int(parts[2])})
         domain = None
-        m = re.search(r"^(\S+)\s*\{", _read(self.p("Caddyfile")), re.M)
+        # The first site with a dot: a Cloudflare Tunnel's settings block comes before it
+        m = re.search(r"^([A-Za-z0-9.-]+\.[A-Za-z0-9-]+)\s*\{", _read(self.p("Caddyfile")), re.M)
         if m:
             domain = m.group(1)
         n_sites = len(self._caddy_sites(domain))
+        tunnel = self.p("tunnel-state/token.env").exists()
         watches = ([f"https://{domain}"] if domain else ["The site"]) + [
-            "Disk space", f"HTTPS certificates ({n_sites} sites)" if n_sites > 1 else "HTTPS certificate"]
+            "Disk space", "Cloudflare Tunnel" if tunnel
+            else f"HTTPS certificates ({n_sites} sites)" if n_sites > 1 else "HTTPS certificate"]
         img = re.search(r"^\s*image:\s*viren070/aiostreams:(\S+)\s*$", _read(self.p("docker-compose.yml")), re.M)
         if self.vpn_mode() == "on":
             watches += ["VPN tunnel", "AIOStreams through the VPN"]
