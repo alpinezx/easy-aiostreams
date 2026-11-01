@@ -61,7 +61,7 @@ def net_now() -> dict:
 app =FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 lockout = auth.Lockout()
 COOKIE = "ui_session"
-LOGGABLE = {"caddy", "gluetun", "aiostreams", "mediaflow-proxy-light", "aiometadata", "aiomanager"}
+LOGGABLE = {"cloudflared", "caddy", "gluetun", "aiostreams", "mediaflow-proxy-light", "aiometadata", "aiomanager"}
 
 
 # ---- security headers + CSRF ------------------------------------------
