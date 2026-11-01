@@ -17,10 +17,11 @@ const FALLBACK = [
   { id: "vpn", label: "VPN (Gluetun)", file: "setup-vpn-gluetun.sh", present: false },
   { id: "mediaflow", label: "MediaFlow Proxy", file: "setup-mediaflow.sh", present: false },
 ];
-// The AIOStreams menu runs backup and restore through setup-backup.sh, and
-// Maintenance through setup-maintenance.sh, and only downloads them when
-// they're missing, so its Update refreshes all three.
-const UPDATE_WITH = { aiostreams: ["setup-backup.sh", "setup-maintenance.sh"] };
+// The AIOStreams menu runs backup and restore through setup-backup.sh,
+// Maintenance through setup-maintenance.sh and the Cloudflare Tunnel through
+// setup-tunnel.sh, and only downloads them when they're missing, so its Update
+// refreshes them all (one not on this server doesn't count as differing).
+const UPDATE_WITH = { aiostreams: ["setup-backup.sh", "setup-maintenance.sh", "setup-tunnel.sh"] };
 
 let cmp = null, cmpLoading = false, cmpAsked = false, last = null;
 
