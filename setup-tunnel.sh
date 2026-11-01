@@ -4,7 +4,8 @@
 # with no ports forwarded and no public IP needed.
 #
 #   sudo bash /opt/aiostreams/setup-tunnel.sh            menu
-#   sudo bash /opt/aiostreams/setup-tunnel.sh on         turn it on (asks for the tunnel's token)
+#   sudo bash /opt/aiostreams/setup-tunnel.sh on         turn it on (asks for the tunnel's token;
+#                                                        exit 3 when you decline, as the site works directly)
 #   sudo bash /opt/aiostreams/setup-tunnel.sh off        back to a normal server (asks first; --yes skips)
 #   sudo bash /opt/aiostreams/setup-tunnel.sh status     on or off, connected or not, the routes needed
 #   sudo bash /opt/aiostreams/setup-tunnel.sh check      exit 0 connected, 1 not connected, 2 off
@@ -283,6 +284,28 @@ warn_older_scripts() {
     warn "Scripts tab (Update on each row), or download them again as their guides say."
 }
 
+# Asked before a first "on": a site that already points straight at this server works
+# without a tunnel (a VPS, usually), and switching would take it offline until its routes
+# exist in Cloudflare. Returns 1 to stop. Says nothing when the domain points elsewhere.
+confirm_direct_site() {
+    local domain ip="" dns svc c
+    domain=$(hostnames | head -n 1)
+    [[ -n "$domain" ]] || return 0
+    dns=$(getent ahostsv4 "$domain" 2>/dev/null | awk '{ print $1; exit }' || true)
+    [[ -n "$dns" ]] || return 0
+    for svc in https://ifconfig.me https://icanhazip.com https://ipinfo.io/ip; do
+        ip=$(curl -fs4 --max-time 4 "$svc" 2>/dev/null | tr -d ' \n') && [[ -n "$ip" ]] && break
+    done
+    [[ -n "$ip" && "$dns" == "$ip" ]] || return 0
+    echo ""
+    warn "$domain already points straight at this server, so it works without a tunnel."
+    echo "Turning the tunnel on moves it behind Cloudflare: it's offline until its route exists"
+    echo "in Cloudflare (and the domain's DNS is there), and its A record gets replaced."
+    echo "Most VPS installs don't need this."
+    read -rp "Turn the tunnel on anyway? [y/N]: " c || return 1
+    [[ "$c" =~ ^[Yy]$ ]]
+}
+
 print_routes() {
     local h
     echo "Each of these needs a route on the tunnel in Cloudflare:"
@@ -305,6 +328,8 @@ do_on() {
         info "Cloudflare Tunnel"
         echo "Visitors reach this server through Cloudflare, so it works behind any router"
         echo "with nothing forwarded. Cloudflare holds the HTTPS certificates."
+        # 3: you said no; the installer then carries on without the tunnel
+        confirm_direct_site || { echo "Left off. Nothing was changed."; return 3; }
         ask_token
     fi
     ensure_shared_network
@@ -412,7 +437,7 @@ tunnel_menu() {
             read -rp "Choose an option [1-3]: " c || return 0
             case "$c" in
                 1) echo ""; do_status ;;
-                2) do_on ;;
+                2) do_on || true ;;
                 3) return 0 ;;
                 *) echo "Choose 1 to 3." ;;
             esac
