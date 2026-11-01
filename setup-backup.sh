@@ -94,7 +94,8 @@ do_backup() {
     info "Backing up $INSTALL_DIR"
     echo "Included: compose files (SECRET_KEY + logins), Caddyfile + drop-ins,"
     echo "AIOStreams user configs (./data), vpn-state (WireGuard private key,"
-    echo "if the VPN layer was ever set up), the add-ons' settings (including"
+    echo "if the VPN layer was ever set up), the Cloudflare Tunnel's token (if"
+    echo "it's used), the add-ons' settings (including"
     echo "AIOMetadata's configurations and AIOManager's logins), and any original"
     echo "WireGuard .conf file(s) found in /root or your home directory (staged as a"
     echo "convenience copy, not required for the VPN layer itself to keep working)."
@@ -679,10 +680,31 @@ keep_menu() {
 # summary doesn't promise that installed addons keep working.
 RESTORE_OLD_DOMAIN=""
 
+# The main site's domain: the Caddyfile's first site, after the Cloudflare
+# Tunnel's settings block when there is one (setup-tunnel.sh). Reads the
+# file given, or the Caddyfile text on stdin with "-".
+caddy_domain() {
+    local f="${1:-$CADDYFILE}"
+    [[ "$f" == - ]] && f=/dev/stdin
+    grep -m1 -oP '^[A-Za-z0-9.-]+\.[A-Za-z0-9-]+(?=\s*\{)' "$f" 2>/dev/null || true
+}
+
+tunnel_active() { [[ -s "$INSTALL_DIR/tunnel-state/token.env" ]]; }
+
+# Through a Cloudflare Tunnel the domains point at Cloudflare, so there's no DNS
+# to check. The one thing to say: the old server must not run the same tunnel.
+tunnel_restore_note() {
+    echo ""
+    echo "This backup uses a Cloudflare Tunnel, so its domains point at Cloudflare and"
+    echo "need no change. If the server it came from still runs, stop it (or its tunnel):"
+    echo "two servers running the same tunnel both take visitors, half each."
+}
+
 check_restored_domain_dns() {
     [[ -f "$CADDYFILE" ]] || return 0   # nothing to check against
+    if tunnel_active; then tunnel_restore_note; return 0; fi
     local domain
-    domain=$(head -n1 "$CADDYFILE" | awk '{print $1}')
+    domain=$(caddy_domain)
     [[ -n "$domain" ]] || return 0
 
     local retry_interval="${DNS_RETRY_INTERVAL:-15}"
@@ -784,7 +806,8 @@ check_restored_domain_dns() {
                     continue
                 fi
                 [[ -n "$RESTORE_OLD_DOMAIN" ]] || RESTORE_OLD_DOMAIN="$domain"
-                sed -i "1s/.*/${new_domain} {/" "$CADDYFILE"
+                # The first site line (line 1, unless a tunnel's block comes first)
+                sed -i "0,/^[A-Za-z0-9.-]\+\.[A-Za-z0-9-]\+[[:space:]]*{/s//${new_domain} {/" "$CADDYFILE"
                 # Compose file's BASE_URL must match too, or the VPN toggle
                 # script would regenerate the Caddyfile from the old domain.
                 if [[ -f "${COMPOSE_FILE:-}" ]]; then
@@ -920,6 +943,7 @@ current_addons() {
     [[ -f /etc/systemd/system/aiostreams-watchdog.timer ]] && found+=("watchdog")
     [[ -f /etc/systemd/system/aiostreams-vpn-boot.service ]] && found+=("VPN boot hook")
     [[ -f /etc/fail2ban/jail.d/aios-mediaflow.conf ]] && found+=("MediaFlow fail2ban jail")
+    [[ -f "$INSTALL_DIR/tunnel-state/docker-compose.yml" ]] && found+=("Cloudflare Tunnel")
     docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx aios-ui && found+=("control panel")
     (( ${#found[@]} )) && printf '%s, ' "${found[@]}" | sed 's/, $//'
     return 0
@@ -990,9 +1014,11 @@ ask_new_domain() {
 # running) leave it switched off for now. Nothing here blocks the restore.
 check_addon_domains() {
     local a id name dir site ctr domain ip here choice new taken main_domain
+    # Through a Cloudflare Tunnel the add-ons' names point at Cloudflare too
+    tunnel_active && return 0
     find_public_ip
     here="$PUBLIC_IP"
-    main_domain=$(head -n1 "$CADDYFILE" 2>/dev/null | awk '{print $1}')
+    main_domain=$(caddy_domain)
     taken="${main_domain,,}"
     for a in "${ADDONS[@]}"; do
         IFS='|' read -r id name dir site ctr <<< "$a"
@@ -1130,13 +1156,15 @@ restore_check() {
 
     local domain current ip caddyfile
     caddyfile=$(from_backup Caddyfile)
-    domain=$(head -n1 <<< "$caddyfile" | awk '{print $1}')
-    current=$(head -n1 "$CADDYFILE" 2>/dev/null | awk '{print $1}')
+    domain=$(caddy_domain - <<< "$caddyfile")
+    current=$(caddy_domain)
     find_public_ip
     if [[ -z "$domain" ]]; then
         check_no "Its Caddyfile names no domain."
     elif [[ -n "$current" && "${domain,,}" != "${current,,}" ]]; then
         check_no "Its domain is $domain, but this install uses $current."
+    elif grep -qx 'aiostreams/tunnel-state/token.env' <<< "$listing"; then
+        check_ok "$domain is reached through its Cloudflare Tunnel."
     elif [[ -z "$PUBLIC_IP" ]]; then
         check_no "This server's own public IP couldn't be found, so DNS can't be checked."
     else
@@ -1634,7 +1662,7 @@ do_restore() {
     info "Restore complete!"
     echo ""
     local main_now
-    main_now=$(head -n1 "$CADDYFILE" 2>/dev/null | awk '{print $1}')
+    main_now=$(caddy_domain)
     if [[ -n "$RESTORE_OLD_DOMAIN" && "$RESTORE_OLD_DOMAIN" != "$main_now" ]]; then
         echo "The SECRET_KEY and data came over intact, so every user config is here."
         echo "But the domain changed from $RESTORE_OLD_DOMAIN to $main_now, and addons"

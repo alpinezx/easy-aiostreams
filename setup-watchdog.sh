@@ -81,6 +81,12 @@ aiomanager_configured() {
     [[ -f "$AIOMANAGER_STATE_DIR/config" ]]
 }
 
+# Hosting through a Cloudflare Tunnel (setup-tunnel.sh): visitors come in through
+# cloudflared, Cloudflare holds the certificates and nothing listens on port 443
+tunnel_on() {
+    [[ -s "$INSTALL_DIR/tunnel-state/token.env" ]]
+}
+
 check_gluetun_tunnel() {
     docker exec gluetun wget -qO- --timeout=5 http://127.0.0.1:9999 >/dev/null 2>&1
 }
@@ -105,8 +111,10 @@ aiostreams_running() {
 }
 
 # The main site, the first one in the Caddyfile (the add-ons live in caddy.d/).
+# A real domain has a dot, which skips the Cloudflare Tunnel's settings block
+# ("servers {") when there is one.
 site_domain() {
-    awk 'NF && $1 !~ /^#/ && $2 == "{" {print $1; exit}' "$INSTALL_DIR/Caddyfile" 2>/dev/null || true
+    awk 'NF && $1 !~ /^#/ && $2 == "{" && $1 ~ /\./ {print $1; exit}' "$INSTALL_DIR/Caddyfile" 2>/dev/null || true
 }
 
 # Loads the site the way a visitor would, HTTPS and certificate included, but
@@ -121,6 +129,10 @@ check_site() {
     local domain code rc=0
     domain=$(site_domain)
     [[ -n "$domain" ]] || return 0
+    if tunnel_on; then
+        check_site_tunnel "$domain"
+        return
+    fi
     code=$(curl -s -o /dev/null -w '%{http_code}' -m 15 --resolve "$domain:443:127.0.0.1" "https://$domain/") || rc=$?
     if [[ $rc -ne 0 && $rc -ne 28 ]]; then
         sleep 5
@@ -133,6 +145,35 @@ check_site() {
         28) FAIL_REASON="https://$domain didn't answer within 15 seconds. Check: docker logs caddy, docker logs aiostreams"; return 1 ;;
         35|51|58|60) FAIL_REASON="the HTTPS certificate for $domain isn't valid (expired, or Caddy couldn't get one). Check: docker logs caddy"; return 1 ;;
         *) FAIL_REASON="https://$domain couldn't be loaded (curl error $rc). Check: docker logs caddy"; return 1 ;;
+    esac
+    case "$code" in
+        502|503|504) FAIL_REASON="https://$domain is up but AIOStreams isn't answering behind it (HTTP $code). Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"; return 1 ;;
+        5??) FAIL_REASON="https://$domain answered with a server error (HTTP $code). Check: docker logs aiostreams"; return 1 ;;
+    esac
+    return 0
+}
+
+# Through a Cloudflare Tunnel: is cloudflared connected (it's the only way in),
+# then does the site load from Caddy, over Docker's network as cloudflared asks it
+check_site_tunnel() {
+    local domain="$1" ip code rc=0
+    if ! docker exec cloudflared cloudflared tunnel --metrics localhost:20241 ready >/dev/null 2>&1; then
+        sleep 5
+        if ! docker exec cloudflared cloudflared tunnel --metrics localhost:20241 ready >/dev/null 2>&1; then
+            FAIL_REASON="the Cloudflare Tunnel isn't connected, so https://$domain can't be reached from outside. Check: sudo bash setup-tunnel.sh status, docker logs cloudflared"
+            return 1
+        fi
+    fi
+    ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' caddy 2>/dev/null | awk '{print $1}')
+    if [[ -z "$ip" ]]; then
+        FAIL_REASON="Caddy isn't running, so https://$domain is unreachable. Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"
+        return 1
+    fi
+    code=$(curl -s -o /dev/null -w '%{http_code}' -m 15 --resolve "$domain:80:$ip" "http://$domain/") || rc=$?
+    case "$rc" in
+        0) ;;
+        28) FAIL_REASON="https://$domain didn't answer within 15 seconds. Check: docker logs caddy, docker logs aiostreams"; return 1 ;;
+        *) FAIL_REASON="Caddy isn't answering for $domain (curl error $rc). Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"; return 1 ;;
     esac
     case "$code" in
         502|503|504) FAIL_REASON="https://$domain is up but AIOStreams isn't answering behind it (HTTP $code). Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"; return 1 ;;
@@ -353,6 +394,12 @@ site_domains() {
 # asked keeps the state it had.
 check_cert() {
     local stamp="$STATE_DIR/cert-checked" dir="$STATE_DIR/cert-hosts" domain end days state was f any=0 sites=()
+    # Through a Cloudflare Tunnel, Cloudflare holds and renews the certificates
+    if tunnel_on; then
+        rm -rf "$dir"
+        echo ok > "$STATE_DIR/cert-state"
+        return 0
+    fi
     if [[ -f "$stamp" ]] && (( $(date +%s) - $(stat -c %Y "$stamp") < 21600 )); then return 0; fi
     touch "$stamp"
     mkdir -p "$dir"
