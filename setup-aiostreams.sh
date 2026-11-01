@@ -1049,6 +1049,16 @@ do_update_aio() {
         docker compose up -d --force-recreate --remove-orphans
     fi
     cleanup_replaced_images "$IMAGE_SNAPSHOT"
+    # Nothing else updates cloudflared, and Cloudflare supports each release for about
+    # a year, so it comes along with AIOStreams' updates
+    if tunnel_active; then
+        echo ""
+        info "Updating the Cloudflare Tunnel's cloudflared"
+        local tunnel_sh
+        if tunnel_sh=$(tunnel_script); then
+            bash "$tunnel_sh" update < /dev/null || warn "Couldn't update cloudflared. Try: sudo bash $INSTALL_DIR/setup-tunnel.sh update"
+        fi
+    fi
     echo ""
     echo "Update complete. Current images:"
     docker compose images
