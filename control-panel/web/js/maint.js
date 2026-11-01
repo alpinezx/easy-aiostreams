@@ -229,7 +229,7 @@ function render(force) {
   if (root.querySelector(".tz-edit") && !force) return;
   const open = !!(root.querySelector(".maint-last") || {}).open;   // keep the output open across refreshes
   clear(root);
-  root.append(h("div", { class: "maint-grid" }, space(last), updates(last), logs(last), rs && rs.available ? restart(rs) : null));
+  root.append(h("div", { class: "maint-grid" }, updates(last), rs && rs.available ? restart(rs) : null, space(last), logs(last)));
   const run = lastRun(last);
   if (run) root.append(run);
   if (open && root.querySelector(".maint-last")) root.querySelector(".maint-last").open = true;
