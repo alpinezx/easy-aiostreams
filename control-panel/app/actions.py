@@ -212,13 +212,14 @@ def build_mediaflow_update(backup: bool) -> Action:
                   confirm="Update MediaFlow Proxy to its newest release? Streams through it pause for a few seconds.")
 
 
-def build_restore(path: str) -> Action:
+def build_restore(path: str, without_vpn: bool = False) -> Action:
     """A same-server rollback to the backup at path, which the caller has
     matched against the backups actually on the server. --same-server runs
     the check first and refuses rather than asks. AIOS_UI_TERMINAL tells it
     the panel is running it, so it leaves the panel running."""
     return Action("stack.restore", "Restore", "Restoring", "Restore finished", AIO,
-                  args=("restore", "--same-server", path), timeout=1800, needs=(AIO,),
+                  args=("restore", "--same-server") + (("--without-vpn",) if without_vpn else ()) + (path,),
+                  timeout=1800, needs=(AIO,),
                   env=("AIOS_UI_TERMINAL=1",))
 
 

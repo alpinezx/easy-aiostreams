@@ -72,6 +72,11 @@ warn_if_vpn_layer_off() {
     alert "${action_desc} now means AIOStreams' traffic, including debrid API"
     alert "calls, goes out via your VPS's real IP, not through the VPN."
     echo ""
+    # A same-server restore from the control panel, where you already said yes (setup-backup.sh --without-vpn)
+    if [[ "${AIOS_ALLOW_DIRECT:-}" == 1 ]]; then
+        echo "Going on in direct mode, as you chose."
+        return 0
+    fi
     if [[ "${UNATTENDED:-false}" == true ]]; then
         echo "Not done: the VPN is set up but switched off. Turn it on first (sudo bash setup-vpn-gluetun.sh),"
         echo "or do this from the menu over SSH, which asks whether to go on in direct mode."

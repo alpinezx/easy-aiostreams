@@ -86,7 +86,10 @@ def parse_restore_check(out: str, code: int) -> dict:
             "Update it on the Terminal tab (AIOStreams menu, Update), then try again."]}
     reasons = [l.strip()[4:] for l in lines if l.strip().startswith("no: ")]
     notes = [l.strip()[4:] for l in lines if l.strip().startswith("ok: ")]
-    return {"ok": code == 0 and not reasons, "reasons": reasons, "notes": notes}
+    # A question the panel asks itself (code 4): starting without a VPN that was switched off
+    questions = [l.strip()[5:] for l in lines if l.strip().startswith("ask: ")]
+    ok = not reasons and (code == 0 or (code == 4 and bool(questions)))
+    return {"ok": ok, "reasons": reasons, "notes": notes, "questions": questions if ok else []}
 
 
 def parse_backup_info(text: str) -> dict | None:

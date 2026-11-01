@@ -993,7 +993,9 @@ async def run_action(action_id: str, request: Request, user: str = Depends(curre
         # Same-server only: the script checks again and refuses rather than asks.
         if str((params or {}).get("confirm", "")).strip().lower() != "restore":
             raise HTTPException(400, "Type restore to confirm.")
-        action = build_restore(backup_path(await _backup_item(str((params or {}).get("name", "")))))
+        # The check's one question, answered in the dialog: start without the VPN that was off
+        action = build_restore(backup_path(await _backup_item(str((params or {}).get("name", "")))),
+                               without_vpn=bool((params or {}).get("without_vpn")))
     else:
         try:
             action = resolve(action_id, params)

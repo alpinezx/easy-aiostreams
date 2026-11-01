@@ -7,6 +7,8 @@
 #   sudo bash /opt/aiostreams/setup-backup.sh restore [file]   restore one
 #   ... restore --check <file>         would it restore here without questions?
 #   ... restore --same-server <file>   roll this install back, no questions
+#   ... restore --same-server --without-vpn <file>   the same, answering the one question
+#       a check can leave: start AIOStreams without the VPN it had switched off
 #                                      (only after the check passes)
 #   sudo bash /opt/aiostreams/setup-backup.sh schedule         scheduled backups:
 #   ... schedule off | daily HH:MM | weekly <1-7> HH:MM        (1 Monday .. 7 Sunday)
@@ -1121,9 +1123,11 @@ backup_old_ref() {
 # a rollback of this server, to a backup with the same domains, which point
 # here. Anything else is a restore for SSH. Returns 0 when it's fine, 3 when not.
 restore_check() {
-    local tarball="${1:-}" listing problems=0
+    local tarball="${1:-}" listing problems=0 questions=0
     check_no() { problems=$((problems + 1)); echo "  no: $1"; }
     check_ok() { echo "  ok: $1"; }
+    # A question the control panel can ask itself; --without-vpn answers it
+    check_ask() { questions=$((questions + 1)); echo "  ask: $1"; }
     from_backup() { tar -xzOf "$tarball" --occurrence=1 "aiostreams/$1" 2>/dev/null || true; }
 
     echo "Checking $tarball for a same-server restore. Nothing is changed."
@@ -1199,7 +1203,7 @@ restore_check() {
     bcompose=$(from_backup docker-compose.yml)
     if grep -qx 'aiostreams/vpn-state/active' <<< "$listing" \
         && ! grep -q 'container_name: gluetun' <<< "$bcompose"; then
-        check_no "Its VPN was switched off, and a restore asks before starting AIOStreams without it."
+        check_ask "Its VPN was switched off, so AIOStreams starts without it: its traffic, debrid included, goes out through this server's own IP."
     fi
 
     # Room for the unpacked backup next to the current install, which is
@@ -1216,6 +1220,11 @@ restore_check() {
         echo "Result: not a same-server restore. Restore it over SSH instead:"
         echo "  sudo bash $INSTALL_DIR/setup-aiostreams.sh restore $tarball"
         return 3
+    fi
+    # Its own code, so a panel from before questions refuses rather than restores without the answer
+    if (( questions )); then
+        echo "Result: OK, with the question above: restore --same-server --without-vpn answers it."
+        return 4
     fi
     echo "Result: OK, it can be restored here without questions."
     return 0
@@ -1724,15 +1733,26 @@ case "${1:-}" in
     restore)
         case "${2:-}" in
             --check)
-                if restore_check "${3:-}"; then exit 0; else exit 3; fi
+                # 0 restores without questions, 4 with the one --without-vpn answers, 3 not here
+                rc=0; restore_check "${3:-}" || rc=$?
+                exit "$rc"
                 ;;
             --same-server)
-                if ! restore_check "${3:-}"; then
+                file="${3:-}" check=0
+                if [[ "$file" == --without-vpn ]]; then
+                    file="${4:-}"
+                    # setup-aiostreams.sh's start reads it in place of asking
+                    export AIOS_ALLOW_DIRECT=1
+                fi
+                restore_check "$file" || check=$?
+                if (( check == 4 )) && [[ "${AIOS_ALLOW_DIRECT:-}" == 1 ]]; then
+                    echo "Answered: start without the VPN (--without-vpn)."
+                elif (( check != 0 )); then
                     echo "Nothing was changed."
                     exit 3
                 fi
                 UNATTENDED=true
-                do_restore "${3:-}" < /dev/null
+                do_restore "$file" < /dev/null
                 exit 0
                 ;;
             *)
