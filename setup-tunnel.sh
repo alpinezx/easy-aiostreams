@@ -293,7 +293,7 @@ do_check() {
     connected
 }
 
-do_status() {
+status_line() {
     if ! tunnel_on; then
         echo "Cloudflare Tunnel: off"
         return 0
@@ -305,6 +305,11 @@ do_status() {
     else
         echo -e "Cloudflare Tunnel: on, \033[1;33mnot connected\033[0m (cloudflared: $st; log: sudo docker logs cloudflared)"
     fi
+}
+
+do_status() {
+    status_line
+    tunnel_on || return 0
     echo ""
     print_routes
 }
@@ -335,7 +340,7 @@ do_update() {
 tunnel_menu() {
     while true; do
         echo ""
-        do_status | head -n 1
+        status_line
         echo ""
         echo "  1) Status and routes"
         if tunnel_on; then
