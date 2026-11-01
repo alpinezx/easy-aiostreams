@@ -12,11 +12,32 @@ For running Easy AIOStreams on a computer at home (a mini PC, an old laptop, a h
 
 Want more detail first? → [Advanced guide](../advanced/home-hosting.md)
 
+## What you need
+
+- **A computer at home that stays on**, running Ubuntu 24.04+ or Debian 13, with at least 2 GB of RAM. A cable to your router is better than Wi-Fi.
+- **SSH access to it** (or its own screen and keyboard), with a user that can use `sudo`.
+- **A domain of your own** (step 1).
+- **A free Cloudflare account** (step 2).
+
 ---
 
-## 1. Put your domain on Cloudflare
+## 1. Get a domain
 
-**This does:** lets Cloudflare answer for your domain, which a tunnel needs.
+**This does:** gives you a name for your server, like `yourdomain.xyz`. Skip this if you already have a spare one.
+
+You need a whole domain of your own, bought from a **registrar** (a company that sells domains). Free subdomains like DuckDNS's won't work here: a tunnel needs a domain you can point at Cloudflare.
+
+The easiest choice is to **buy it from Cloudflare itself**: in your Cloudflare account (step 2), **Domains → Buy domain**. It's then on Cloudflare already, and you can skip step 2.
+
+Any other registrar works too, for example [Porkbun](https://porkbun.com) or [Namecheap](https://namecheap.com). `.xyz` and `.top` are cheap and ready within minutes; country domains (`.co.uk`, `.de`) can take hours or days.
+
+You only need the domain. Don't add any records at the registrar: Cloudflare makes them for you later.
+
+---
+
+## 2. Put your domain on Cloudflare
+
+**This does:** lets Cloudflare answer for your domain, which a tunnel needs. Bought it from Cloudflare? It's already done: skip to step 3.
 
 1. Make a free account at [dash.cloudflare.com](https://dash.cloudflare.com/sign-up).
 2. Click **Add a domain**, then **Connect a domain** (not Transfer or Buy). Type the bare domain, like `yourdomain.xyz`.
@@ -27,11 +48,11 @@ Want more detail first? → [Advanced guide](../advanced/home-hosting.md)
 7. Back in Cloudflare, click **Check nameservers now**. It usually turns **Active** within minutes, and you get an email saying so.
 
 > [!TIP]
-> Using a domain that already runs other sites? Cloudflare copies its records over in step 3, but check they're all there before step 5, or those sites stop working.
+> Using a domain that already runs other sites? Cloudflare's DNS scan copies its records over, but check they're all there before you change the nameservers, or those sites stop working.
 
 ---
 
-## 2. Create the tunnel
+## 3. Create the tunnel
 
 **This does:** makes the connection your server will use, and gives you its token.
 
@@ -40,14 +61,14 @@ Want more detail first? → [Advanced guide](../advanced/home-hosting.md)
 3. Under **Operating System**, choose **Docker**.
 4. Click the copy button on the **Run tunnel with Docker** box and paste it into a private note. Keep only the long part after `--token` (it starts with `eyJ`): that's the **token**. Run nothing.
 
-The page then waits for a connection, with **Continue** greyed out. That's expected: your server makes the connection in step 4. You can leave the page.
+The page then waits for a connection, with **Continue** greyed out. That's expected: your server makes the connection in step 5. You can leave the page.
 
 > [!CAUTION]
 > The token lets anyone run your tunnel. Keep it private, like a password.
 
 ---
 
-## 3. Add a route for each subdomain
+## 4. Add a route for each subdomain
 
 **This does:** tells Cloudflare which names go down the tunnel. Do it **before** installing.
 
@@ -67,7 +88,7 @@ Add one for each name you'll use: AIOStreams now, and later one each for the con
 
 ---
 
-## 4. Install
+## 5. Install
 
 **This does:** installs everything, then starts the tunnel with your token.
 
@@ -79,7 +100,7 @@ It ends with **The Cloudflare Tunnel is connected**. Visit your domain and log i
 
 ---
 
-## 5. Always use HTTPS
+## 6. Always use HTTPS
 
 In Cloudflare, open your domain, then **SSL/TLS → Edge Certificates**, and switch on **Always Use HTTPS**. Visitors who type `http://` are then sent to the secure address.
 
@@ -87,7 +108,7 @@ In Cloudflare, open your domain, then **SSL/TLS → Edge Certificates**, and swi
 
 ## Adding more later
 
-- **The control panel or an add-on:** add its route first (step 3), then install it as its guide says. Where it would check your DNS, it reminds you about the route instead.
+- **The control panel or an add-on:** add its route first (step 4), then install it as its guide says. Where it would check your DNS, it reminds you about the route instead.
 - **Already installed on a home server?** Run `sudo bash /opt/aiostreams/setup-aiostreams.sh`, choose **11) Cloudflare Tunnel**, then **Turn the tunnel on**. It lists the routes you need.
 - **Moving from a VPS to home?** Back up on the VPS, restore at home ([Backup & Restore](./backup-restore.md)), then turn the tunnel on as above. Switch the VPS off afterwards.
 
