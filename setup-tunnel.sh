@@ -180,6 +180,33 @@ EOF
 
 tunnel_compose() { (cd "$STATE_DIR" && docker compose -f "$TUNNEL_COMPOSE" "$@"); }
 
+# cloudflared connects over QUIC (UDP) and asks for 7 MB socket buffers, more
+# than Linux allows by default, which it logs as "failed to sufficiently
+# increase receive buffer size" and runs a little slower. These limits are the
+# whole server's, kept in a file of their own; never lowered if already higher.
+# Prints "changed" when it raised them.
+SYSCTL_FILE="/etc/sysctl.d/60-aiostreams-tunnel.conf"
+BUFFER_BYTES=7500000
+
+raise_buffers() {
+    local key now changed=""
+    for key in net.core.rmem_max net.core.wmem_max; do
+        now=$(sysctl -n "$key" 2>/dev/null || echo 0)
+        (( now < BUFFER_BYTES )) && changed=1
+    done
+    [[ -n "$changed" ]] || return 0
+    printf '# Written by setup-tunnel.sh: room for cloudflared'"'"'s QUIC connection (removed with the tunnel)\nnet.core.rmem_max = %s\nnet.core.wmem_max = %s\n' \
+        "$BUFFER_BYTES" "$BUFFER_BYTES" > "$SYSCTL_FILE"
+    if sysctl -q -p "$SYSCTL_FILE" >/dev/null 2>&1; then
+        echo changed
+    else
+        warn "Couldn't raise the network buffer limits. The tunnel works anyway, a little slower."
+    fi
+}
+
+# Taken out with the tunnel; the limits go back to the defaults at the next restart
+drop_buffers() { rm -f "$SYSCTL_FILE"; }
+
 # 0 connected, 1 not
 connected() {
     docker exec cloudflared cloudflared tunnel --metrics "localhost:$METRICS_PORT" ready >/dev/null 2>&1
@@ -255,9 +282,14 @@ do_on() {
     fi
     ensure_shared_network
     write_tunnel_compose
+    local raised was_running=""
+    raised=$(raise_buffers)
+    [[ -n "$(docker ps -q --filter name='^cloudflared$' 2>/dev/null)" ]] && was_running=1
     info "Starting cloudflared"
     tunnel_compose pull -q 2>/dev/null || warn "Couldn't pull $IMAGE, using the copy already here."
     tunnel_compose up -d
+    # A running one only takes the larger buffers when it reconnects
+    if [[ -n "$raised" && -n "$was_running" ]]; then docker restart cloudflared >/dev/null 2>&1 || true; fi
     info "Switching Caddy to the tunnel"
     do_apply
     if wait_connected; then
@@ -282,6 +314,7 @@ do_off() {
     fi
     [[ -f "$TUNNEL_COMPOSE" ]] && tunnel_compose down >/dev/null 2>&1 || true
     rm -f "$TOKEN_FILE"
+    drop_buffers
     info "Switching Caddy back"
     do_apply
     echo "The tunnel is off. In Cloudflare, replace each site's Tunnel record with an A record"
