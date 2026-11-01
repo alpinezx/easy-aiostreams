@@ -1064,12 +1064,14 @@ do_update_aio() {
     docker compose images
 }
 
-# "--home": installing at home through a Cloudflare Tunnel (the Hosting from home
-# guide's command). A plain install never mentions the tunnel.
+# A fresh server's first question: a VPS, or a computer at home reached through a
+# Cloudflare Tunnel. "--home" answers it up front.
 HOME_INSTALL=false
+WHERE_KNOWN=false
 case "${1:-}" in
     --home)
         HOME_INSTALL=true
+        WHERE_KNOWN=true
         ;;
     backup|restore)
         script=$(backup_script) || exit 1
@@ -1351,18 +1353,48 @@ if [[ -f "$COMPOSE_FILE" ]]; then
     esac
 else
     info "AIOStreams self-hosted setup"
-    echo ""
+    if ! $WHERE_KNOWN; then
+        echo ""
+        echo "Where is this server?"
+        echo "  1) A VPS: a rented server with its own public IP"
+        echo "  2) A computer at home, reached through a free Cloudflare Tunnel"
+        echo "     (do the Hosting from home guide's steps first)"
+        echo ""
+        read -rp "Select an option [1-2], or Ctrl+C to cancel: " WHERE_CHOICE
+        case "$WHERE_CHOICE" in
+            1)  ;;
+            2)  HOME_INSTALL=true ;;
+            *)
+                warn "Not a valid option."
+                continue
+                ;;
+        esac
+        WHERE_KNOWN=true
+        echo ""
+    fi
+    if $HOME_INSTALL; then
+        echo "Hosting from home, through your Cloudflare Tunnel"
+        echo ""
+    fi
     echo "  1) Fresh install, sets up:"
     echo "       - Docker (installed automatically if missing)"
     echo "       - AIOStreams (the Stremio meta-addon)"
-    echo "       - Caddy (reverse proxy with automatic HTTPS via Let's Encrypt)"
+    if $HOME_INSTALL; then
+        echo "       - Caddy behind your Cloudflare Tunnel (Cloudflare holds the HTTPS certificates)"
+    else
+        echo "       - Caddy (reverse proxy with automatic HTTPS via Let's Encrypt)"
+    fi
     echo "       - AIOStreams' built-in login, locking config creation/editing to your account only"
     echo ""
     echo "  2) Restore from a backup (migrating from another server), brings back your"
     echo "     whole stack from a tarball made by this script's Backup option, same"
     echo "     SECRET_KEY and all, so every existing user config and installed Stremio"
     echo "     manifest keeps working. Handles everything itself, including Docker."
-    echo "     (Also available non-interactively:  sudo bash setup-aiostreams.sh restore <file>)"
+    if $HOME_INSTALL; then
+        echo "     A backup from a VPS is put behind your tunnel (it asks for the token)."
+    else
+        echo "     (Also available non-interactively:  sudo bash setup-aiostreams.sh restore <file>)"
+    fi
     echo ""
     echo "After either path, you'll land back on the management menu, no need to"
     echo "re-run this script."
@@ -1371,7 +1403,11 @@ else
     case "$FIRSTRUN_CHOICE" in
         1)  ;;  # fall through to the fresh-install flow below
         2)
-            run_backup_script restore || true
+            if $HOME_INSTALL; then
+                AIOS_HOME=1 run_backup_script restore || true
+            else
+                run_backup_script restore || true
+            fi
             continue
             ;;
         *)
@@ -1409,7 +1445,7 @@ while true; do
 done
 
 # How visitors reach this server: straight here, or through a Cloudflare Tunnel when
-# hosting from home (--home). A Reconfigure keeps what the install has.
+# hosting from home (the first question, or --home). A Reconfigure keeps what the install has.
 USE_TUNNEL=false
 if [[ -f "$COMPOSE_FILE" ]] && tunnel_active; then
     USE_TUNNEL=true
@@ -1437,7 +1473,7 @@ if [[ -z "$RESOLVED_IP" ]]; then
     warn "Could not resolve $DOMAIN. If you haven't set the DNS A record yet, Caddy will fail to get an HTTPS certificate."
     read -rp "Continue anyway? (y/N): " CONTINUE_ANYWAY
     if [[ ! "$CONTINUE_ANYWAY" =~ ^[Yy]$ ]]; then
-        echo "(Hosting from home through a Cloudflare Tunnel? Run it as: sudo bash setup-aiostreams.sh --home)"
+        echo "(Hosting from home? Run the script again and choose 2) A computer at home.)"
         error "Aborting. Set up your DNS A record first, then re-run this script."
     fi
 else
@@ -1455,7 +1491,7 @@ else
         alert "That usually means DNS is pointing somewhere else, a different server, or a typo."
         read -rp "Continue anyway? (y/N): " CONTINUE_ANYWAY
         if [[ ! "$CONTINUE_ANYWAY" =~ ^[Yy]$ ]]; then
-            echo "(Hosting from home through a Cloudflare Tunnel? Run it as: sudo bash setup-aiostreams.sh --home)"
+            echo "(Hosting from home? Run the script again and choose 2) A computer at home.)"
             error "Aborting. Point $DOMAIN's A record at $PUBLIC_IP, then re-run this script."
         fi
     else

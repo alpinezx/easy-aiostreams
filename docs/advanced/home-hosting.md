@@ -53,13 +53,13 @@ The DNS page also recommends records for `www` and the bare domain. Ignore those
 
 ## Installing, add-ons and the panel
 
-`setup-aiostreams.sh --home` installs for a tunnel: it skips the "domain points at this server" check (it points at Cloudflare), asks for the token, and starts the tunnel before the stack, so Caddy never tries for certificates. A plain install never mentions the tunnel. Reconfigure keeps it.
+On a fresh server the installer's first question is **Where is this server?** (`--home` answers it up front). **2) A computer at home** installs for a tunnel: it skips the "domain points at this server" check (it points at Cloudflare), asks for the token, and starts the tunnel before the stack, so Caddy never tries for certificates. A plain install never mentions the tunnel. Reconfigure keeps it.
 
 The add-on scripts and the panel's `setup-ui.sh` skip their DNS check through a tunnel too, and remind you to add a route instead. Add the route first: if anything looks a name up before its record exists, resolvers can remember "doesn't exist" for up to 30 minutes (Cloudflare's negative-cache time).
 
 ## Backups and restores
 
-A backup holds `tunnel-state/` like everything else in `/opt/aiostreams`, token included, so treat backups as private as ever. A restore starts the tunnel again from it, with no questions, and skips the DNS checks a VPS restore makes (the panel's same-server restore included).
+A backup holds `tunnel-state/` like everything else in `/opt/aiostreams`, token included, so treat backups as private as ever. A restore starts the tunnel again from it, with no questions, and skips the DNS checks a VPS restore makes (the panel's same-server restore included). Restoring a VPS's backup at home (first question **2**, then **2) Restore from a backup**) runs `setup-tunnel.sh on` once the backup is unpacked, before the DNS checks and the start, so it comes back behind the tunnel.
 
 > [!WARNING]
 > **Never run two servers with the same tunnel.** Both connect, and Cloudflare splits visitors between them, half each. When you restore onto a new box, switch the old one off (or its tunnel: `setup-tunnel.sh off`) first.

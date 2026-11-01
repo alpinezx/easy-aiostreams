@@ -143,7 +143,7 @@ Run this from wherever step 3 uploaded the files (your home directory, or `/root
 ```bash
 sudo bash setup-aiostreams.sh
 ```
-- **Brand-new server, nothing installed yet:** pick **2) Restore from a backup** on the first-run screen.
+- **Brand-new server, nothing installed yet:** pick **1) A VPS** (or **2) A computer at home**), then **2) Restore from a backup** on the first-run screen.
 - **Server already has an install on it** (e.g. you ran a fresh install here earlier): pick **8) Restore from backup** from the management menu instead.
 
 Either way, select your backup file from the list.
