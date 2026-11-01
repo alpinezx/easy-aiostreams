@@ -152,7 +152,7 @@ Run it again any time with `sudo bash /opt/aiostreams/setup-aiostreams.sh` and i
 11) Exit
 ```
 
-**Restart the stack** restarts AIOStreams and Caddy, and the VPN if it's on. **Reconfigure** backs up your current config first. **Backup** makes one file with everything needed to move to a new server or keep safe, and **Restore from backup** also works on a fresh server: `sudo bash setup-aiostreams.sh restore <file>`. **Maintenance** frees up space, installs system updates, sets log limits and schedules server reboots.
+**Restore from backup** also works on a fresh server: `sudo bash setup-aiostreams.sh restore <file>`. **Maintenance** frees up space, installs system updates, sets log limits and schedules server reboots.
 
 ## Backup & Restore (Migrating to a new server, optional)
 
