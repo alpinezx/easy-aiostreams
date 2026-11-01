@@ -241,6 +241,12 @@ other_domains() {
 # keyboard, or no way to learn this server's IP, means go ahead.
 check_subdomain_dns() {
     local domain="$1" ip="" dns svc choice
+    # Through a Cloudflare Tunnel the name points at Cloudflare, not here: it needs a route instead
+    if [[ -s "$INSTALL_DIR/tunnel-state/token.env" ]]; then
+        echo "Through the Cloudflare Tunnel: add a route for $domain on the tunnel in Cloudflare"
+        echo "(Routes > Add route > Published application, Service URL http://caddy:80)."
+        return 0
+    fi
     for svc in https://ifconfig.me https://icanhazip.com https://ipinfo.io/ip; do
         ip=$(curl -fs4 --max-time 4 "$svc" 2>/dev/null | tr -d ' \n') && [[ -n "$ip" ]] && break
     done
