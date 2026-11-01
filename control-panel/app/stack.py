@@ -1511,9 +1511,13 @@ class Backend:
             raise ValueError(str(e))
         for f, data in got.items():
             path = str(config.INSTALL_DIR / f)
+            # Mode and owner from the file it replaces; a helper new to this server (setup-tunnel.sh
+            # on an older install) takes setup-aiostreams.sh's, which an install always has
             r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "sh", "-c",
-                                'cat > "$1.new" && chmod --reference="$1" "$1.new" && chown --reference="$1" "$1.new" && mv -f "$1.new" "$1"',
-                                "sh", path], input=data, capture_output=True, timeout=30)
+                                'ref="$1"; [ -e "$ref" ] || ref="$2"; '
+                                'cat > "$1.new" && chmod --reference="$ref" "$1.new" && chown --reference="$ref" "$1.new" && mv -f "$1.new" "$1"',
+                                "sh", path, str(config.INSTALL_DIR / "setup-aiostreams.sh")],
+                               input=data, capture_output=True, timeout=30)
             if r.returncode != 0:
                 raise ValueError(f"Couldn't write {f}.")
         note = None
