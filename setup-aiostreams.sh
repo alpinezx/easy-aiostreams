@@ -1719,7 +1719,14 @@ ensure_shared_network
 # starts it, and puts Caddy in tunnel mode before the stack starts
 if $USE_TUNNEL; then
     TUNNEL_SCRIPT=$(tunnel_script) || error "Couldn't get setup-tunnel.sh. Check this server's internet connection and try again."
-    bash "$TUNNEL_SCRIPT" on || error "The Cloudflare Tunnel didn't start. Run: sudo bash $INSTALL_DIR/setup-tunnel.sh"
+    tunnel_rc=0
+    bash "$TUNNEL_SCRIPT" on || tunnel_rc=$?
+    if (( tunnel_rc == 3 )); then
+        # The domain already points here and you chose not to switch: a normal install
+        USE_TUNNEL=false
+    elif (( tunnel_rc != 0 )); then
+        error "The Cloudflare Tunnel didn't start. Run: sudo bash $INSTALL_DIR/setup-tunnel.sh"
+    fi
 fi
 
 info "Pulling images"
