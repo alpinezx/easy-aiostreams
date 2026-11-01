@@ -49,7 +49,12 @@ export function ask({ title, body, confirmLabel, danger, options }) {
 }
 
 // ---------- running an action ----------
+// With the VPN set up but switched off, Start, Restart and Update would ask whether to go on
+// without it: the dialog says so, and confirming answers yes (without_vpn)
+const VPN_OFF_NOTE = "The VPN is switched off, so AIOStreams' traffic, debrid included, goes out through this server's own IP.";
+
 export async function runAction(act, params) {
+  const vpnOff = window.__vpn === "off" && ["stack.start", "stack.restart", "stack.update"].includes(act.id);
   if (act.id === "stack.update") {
     const channelNow = window.__channel || "latest";
     const backup = h("input", { type: "checkbox", id: "up-backup", checked: true });
@@ -93,8 +98,8 @@ export async function runAction(act, params) {
       warn);
     const res = await ask({
       title: "Update or switch build",
-      body: "Pulls the newest image and recreates the container. Streams stop loading for a minute or so.",
-      confirmLabel: "Update", options: { el, read: () => ({ backup: backup.checked, channel: sel.value || null }) },
+      body: "Pulls the newest image and recreates the container. Streams stop loading for a minute or so." + (vpnOff ? " " + VPN_OFF_NOTE : ""),
+      confirmLabel: "Update", options: { el, read: () => ({ backup: backup.checked, channel: sel.value || null, without_vpn: vpnOff }) },
     });
     if (wantNotes) { openKnown(); return; }
     if (!res) return;
@@ -117,9 +122,11 @@ export async function runAction(act, params) {
     });
     if (!res) return;
     params = res;
-  } else if (act.confirm) {
-    const ok = await ask({ title: `${act.label}?`, body: act.confirm, confirmLabel: act.label, danger: /stop|forget|delete|uninstall/i.test(act.id) });
+  } else if (act.confirm || vpnOff) {
+    const body = [act.confirm, vpnOff ? VPN_OFF_NOTE : null].filter(Boolean).join(" ");
+    const ok = await ask({ title: `${act.label}?`, body, confirmLabel: act.label, danger: /stop|forget|delete|uninstall/i.test(act.id) });
     if (!ok) return;
+    if (vpnOff) params = { ...(params || {}), without_vpn: true };
   }
   try {
     const job = await api(`/api/actions/${act.id}`, { method: "POST", body: JSON.stringify({ params: params || {} }) });
@@ -239,7 +246,11 @@ export async function openJob(id, reconnecting, before) {
   }
   $("#drawer-title").textContent = `${job.running}…`;
   $("#drawer-sub").textContent = "Running the same script you'd run over SSH. You can close this; it keeps going.";
-  foot.append(h("span", { class: "spin", "aria-hidden": "true" }), h("span", { class: "dim", text: "Working" }));
+  // A quiet log looked like a crash: say a long job is expected to pause
+  const wait = job.action === "stack.restore"
+    ? "Working. A restore takes a few minutes, and the output pauses while things restart."
+    : "Working. Some jobs take a few minutes, and the output can pause along the way.";
+  foot.append(h("span", { class: "spin", "aria-hidden": "true" }), h("span", { class: "dim", text: wait }));
   es = new EventSource(`/api/jobs/${id}/stream`);
   es.onmessage = (ev) => {
     const m = JSON.parse(ev.data);

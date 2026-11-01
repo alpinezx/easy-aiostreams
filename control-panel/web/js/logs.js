@@ -22,6 +22,9 @@ const NOISE = [
 ];
 // AIOStreams cutting a response is only noise next to a stack restart; on its own it means a viewer's stream broke.
 const CUT_BY_AIOS = /aborting with incomplete response.*"error":"reading: [^"]*(:3000: read: connection reset by peer|unexpected EOF)"/;
+// cloudflared's "stream canceled by remote with error code 0": a visitor closed a connection still open (left
+// this page's live log, stopped a video). Shown in grey, not as an error.
+const QUIET = /canceled by remote with error code 0/;
 const CADDY_STOP = /shutting down apps, then terminating|"msg":"shutdown complete"|exiting; byeee/;
 const RESTART_WINDOW = 10;
 const CADDY_TS = /"ts":([0-9.]+)/;
@@ -72,10 +75,12 @@ function parse(raw) {
     if (p) { cls = LEVEL_CLS[p[1].toLowerCase()] || null; mod = p[2] || ""; msg = p[3]; }
   }
   if (!cls) cls = ERR.test(text) ? "error" : WARN.test(text) ? "warn" : "out";
+  const quiet = QUIET.test(raw);
+  if (quiet) cls = "out";
   const ts = Number((CADDY_TS.exec(text) || [])[1]) || NaN;
   const cut = CUT_BY_AIOS.test(raw);
   const noise = NOISE.some((r) => r.test(raw)) || (cut && ts - lastStop <= RESTART_WINDOW);
-  return { raw, noise, time, text, cls, mod, msg, extra, ts, cut };
+  return { raw, noise, time, text, cls, mod, msg, extra, ts, cut, quiet };
 }
 
 // A Caddy stop marks AIOStreams cuts just before it as noise. Returns true if any line changed.
@@ -121,7 +126,7 @@ function syncControls() {
 function setCount() { $("#log-count").textContent = `${lines.filter(visible).length} shown`; }
 
 function node(l) {
-  return h("div", { class: `lg-ln ${l.cls}` },
+  return h("div", { class: `lg-ln ${l.cls}${l.quiet ? " quiet" : ""}` },
     l.time ? h("time", { class: "lg-time", text: l.time }) : null,
     h("i", { class: "lg-dot", "aria-hidden": "true" }),
     h("span", { class: "lg-msg" },

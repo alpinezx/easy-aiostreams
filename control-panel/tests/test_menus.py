@@ -7,7 +7,8 @@ October 2026: Exit became the last option everywhere, so setup-aiostreams.sh's
 and setup-mediaflow.sh's Exit moved from 10 to 11. The panel still types 10 to
 leave: that only reaches scripts too old to know the commands, where 10 is
 still Exit. (Panels older than 1.28.1 typed numbers alone, and need updating
-before the scripts.)"""
+before the scripts.) November 2026: setup-aiostreams.sh's Cloudflare Tunnel took
+11 and Exit moved to 12."""
 import os
 import re
 from pathlib import Path
@@ -31,13 +32,13 @@ def typed(action_id: str) -> list[str]:
 
 def test_aiostreams_menu_numbers_the_panel_types():
     text = (ROOT / "setup-aiostreams.sh").read_text(encoding="utf-8")
-    main = dict(re.findall(r'echo "\s*(\d+)\) ([^"]+)"', text[text.index('echo "What would you like to do?"'):text.index('read -rp "Select an option [1-11]')]))
+    main = dict(re.findall(r'echo "\s*(\d+)\) ([^"]+)"', text[text.index('echo "What would you like to do?"'):text.index('read -rp "Select an option [1-12]')]))
     assert main["2"].startswith("Stop AIOStreams")
     assert main["3"].startswith("Start AIOStreams")
     assert main["4"].startswith("Restart the stack")
     assert main["5"].startswith("Update")
-    assert main["10"] == "Maintenance" and main["11"] == "Exit"
-    assert max(main, key=int) == "11"   # Exit last
+    assert main["10"] == "Maintenance" and main["11"].startswith("Cloudflare Tunnel") and main["12"] == "Exit"
+    assert max(main, key=int) == "12"   # Exit last
     # the typed 10 below is for older scripts only, where 10 was Exit
     assert typed("stack.stop")[0] == "2" and typed("stack.stop")[-2] == "10"
     assert typed("stack.start")[0] == "3" and typed("stack.start")[-2] == "10"

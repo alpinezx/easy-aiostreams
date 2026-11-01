@@ -318,6 +318,9 @@ def test_restore_action_is_same_server_and_marks_itself_as_from_the_panel():
     a = actions.build_restore("/root/aiostreams-backup-20261012-010000.tar.gz")
     assert a.args == ("restore", "--same-server", "/root/aiostreams-backup-20261012-010000.tar.gz")
     assert "AIOS_UI_TERMINAL=1" in a.env and a.stdin == ""
+    # the dialog's answer to the check's question: start without the VPN that was off
+    a = actions.build_restore("/root/b.tar.gz", without_vpn=True)
+    assert a.args == ("restore", "--same-server", "--without-vpn", "/root/b.tar.gz")
 
 
 def test_restore_check_endpoint(client):
@@ -343,12 +346,26 @@ def test_restore_needs_the_typed_word_and_a_real_backup(client):
     assert j["code"] == 0 and j["action"] == "stack.restore"
 
 
+def test_start_restart_update_can_go_on_without_the_vpn():
+    # the panel asked in its dialog; the script reads AIOS_ALLOW_DIRECT in place of asking
+    for aid, params in (("stack.start", {}), ("stack.restart", {}), ("stack.update", {"backup": False})):
+        assert "AIOS_ALLOW_DIRECT=1" not in actions.resolve(aid, params).env
+        assert "AIOS_ALLOW_DIRECT=1" in actions.resolve(aid, {**params, "without_vpn": True}).env
+    assert "AIOS_ALLOW_DIRECT=1" not in actions.resolve("stack.stop", {"without_vpn": True}).env
+
+
+def test_every_service_has_logs():
+    # Logs streams only these; the retired webhook relay is the one service left out
+    from app import main, stack
+    assert {c for _, c, *_ in stack.SERVICES} - {"aios-webhook-relay"} <= main.LOGGABLE
+
+
 def test_scripts_compare_endpoint_covers_every_script_and_the_backup_one(client):
     login(client)
     out = client.get("/api/scripts/compare").json()
     assert set(out["files"]) == {"setup-aiostreams.sh", "setup-vpn-gluetun.sh", "setup-mediaflow.sh",
                                  "setup-watchdog.sh", "setup-aiometadata.sh", "setup-aiomanager.sh", "setup-backup.sh",
-                                 "setup-maintenance.sh"}
+                                 "setup-maintenance.sh", "setup-tunnel.sh"}
     assert out["files"]["setup-mediaflow.sh"]["differs"] is True
     client.post("/api/logout"); client.cookies.clear()
     assert client.get("/api/scripts/compare").status_code == 401

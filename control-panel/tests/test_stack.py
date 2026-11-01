@@ -347,8 +347,14 @@ def test_backup_build_asks_tar_for_backup_info_only(monkeypatch):
 
 def test_parse_restore_check():
     ok = "Checking x. Nothing is changed.\n  ok: It holds AIOStreams v2.35.9.\n  ok: a.example.com points at this server.\nResult: OK, it can be restored here without questions.\n"
-    assert stack.parse_restore_check(ok, 0) == {"ok": True, "reasons": [],
+    assert stack.parse_restore_check(ok, 0) == {"ok": True, "reasons": [], "questions": [],
                                                 "notes": ["It holds AIOStreams v2.35.9.", "a.example.com points at this server."]}
+    # its one question, which the panel asks itself: code 4
+    ask = ("Checking x.\n  ok: a.example.com points at this server.\n"
+           "  ask: Its VPN was switched off, so AIOStreams starts without it.\nResult: OK, with the question above.\n")
+    got = stack.parse_restore_check(ask, 4)
+    assert got["ok"] is True and got["questions"] == ["Its VPN was switched off, so AIOStreams starts without it."]
+    assert stack.parse_restore_check(ask.replace("  ask:", "  no:"), 3)["ok"] is False
     no = "Checking x.\n  no: Its domain is b.example.com, but this install uses a.example.com.\nResult: not a same-server restore.\n"
     got = stack.parse_restore_check(no, 3)
     assert got["ok"] is False and got["reasons"] == ["Its domain is b.example.com, but this install uses a.example.com."]
@@ -469,6 +475,25 @@ def test_certs_lists_every_caddy_site(tmp_path, monkeypatch):
     certs = b._certs("streams.example.com")
     assert [(c["label"], c["host"]) for c in certs] == [
         ("AIOStreams", "streams.example.com"), ("AIOMetadata", "meta.example.com"), ("Control panel", "cp.example.com")]
+
+
+def test_tunnel_block_isnt_a_site(tmp_path, monkeypatch):
+    # setup-tunnel.sh puts its settings block first; its "servers {" isn't a site
+    b = make_backend(tmp_path, monkeypatch, [container("aiostreams")])
+    root = config.INSTALL_DIR
+    (root / "Caddyfile").write_text(
+        "# >>> Cloudflare Tunnel (setup-tunnel.sh adds and removes this block)\n{\n\tauto_https off\n\thttps_port 80\n"
+        "\tservers {\n\t\ttrusted_proxies static private_ranges\n\t}\n}\n# <<< Cloudflare Tunnel\n\n"
+        "streams.example.com {\n\treverse_proxy aiostreams:3000\n}\nimport caddy.d/*.caddy\n")
+    b._cert = lambda host: {"host": host, "days_left": 80, "ok": True, "days_total": 90}
+    assert [c["host"] for c in b._certs("streams.example.com")] == ["streams.example.com"]
+
+
+def test_tunnel_comes_first_and_restarts_alone():
+    assert stack.SERVICES[0][:2] == ("tunnel", "cloudflared")
+    assert stack.SERVICES[0][4] == "tunnel-state/token.env"   # listed only once it's set up
+    assert "tunnel" in stack.RESTARTABLE and "tunnel" not in stack.ADDONS
+    assert "setup-tunnel.sh" in stack.WITH_MAIN
 
 
 def test_certs_empty_without_sites(tmp_path, monkeypatch):
