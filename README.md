@@ -135,7 +135,7 @@ Run it:
 sudo bash setup-aiostreams.sh
 ```
 
-It asks for your domain, a login, and which build to run. Once it finishes, visit your domain and log in. From there, AIOStreams' own setup takes over.
+It first asks where the server is: choose **1) A VPS**, then **1) Fresh install**. It asks for your domain, a login, and which build to run. Once it finishes, visit your domain and log in. From there, AIOStreams' own setup takes over.
 
 ## Re-running the script later
 
@@ -152,8 +152,7 @@ Run it again any time with `sudo bash /opt/aiostreams/setup-aiostreams.sh` and i
  8) Restore from backup
  9) Uninstall
 10) Maintenance
-11) Cloudflare Tunnel (host from home)
-12) Exit
+11) Exit
 ```
 
 **Restore from backup** also works on a fresh server: `sudo bash setup-aiostreams.sh restore <file>`. **Maintenance** frees up space, installs system updates, sets log limits and schedules server reboots.
