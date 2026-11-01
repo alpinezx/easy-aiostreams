@@ -348,7 +348,7 @@ def test_scripts_compare_endpoint_covers_every_script_and_the_backup_one(client)
     out = client.get("/api/scripts/compare").json()
     assert set(out["files"]) == {"setup-aiostreams.sh", "setup-vpn-gluetun.sh", "setup-mediaflow.sh",
                                  "setup-watchdog.sh", "setup-aiometadata.sh", "setup-aiomanager.sh", "setup-backup.sh",
-                                 "setup-maintenance.sh"}
+                                 "setup-maintenance.sh", "setup-tunnel.sh"}
     assert out["files"]["setup-mediaflow.sh"]["differs"] is True
     client.post("/api/logout"); client.cookies.clear()
     assert client.get("/api/scripts/compare").status_code == 401
