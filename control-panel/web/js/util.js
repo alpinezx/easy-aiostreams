@@ -95,7 +95,11 @@ export async function api(path, opts = {}) {
   });
   if (res.status === 401) { location.href = "/login"; throw new Error("signed out"); }
   if (!res.ok) {
-    let msg = `Request failed (${res.status})`;
+    // A gateway error with no reason from the panel: Caddy (or the tunnel) couldn't reach it for a
+    // moment, as when the VPN is switched or the stack restarts. Not a fault, so not worded like one.
+    let msg = [502, 503, 504].includes(res.status)
+      ? "The panel is briefly out of reach while things restart. It comes back by itself."
+      : `Request failed (${res.status})`;
     try { const body = await res.json(); msg = body.detail || body.error || msg; } catch (_) {}
     const err = new Error(msg); err.status = res.status; throw err;
   }
