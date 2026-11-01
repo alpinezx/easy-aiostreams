@@ -347,8 +347,14 @@ def test_backup_build_asks_tar_for_backup_info_only(monkeypatch):
 
 def test_parse_restore_check():
     ok = "Checking x. Nothing is changed.\n  ok: It holds AIOStreams v2.35.9.\n  ok: a.example.com points at this server.\nResult: OK, it can be restored here without questions.\n"
-    assert stack.parse_restore_check(ok, 0) == {"ok": True, "reasons": [],
+    assert stack.parse_restore_check(ok, 0) == {"ok": True, "reasons": [], "questions": [],
                                                 "notes": ["It holds AIOStreams v2.35.9.", "a.example.com points at this server."]}
+    # its one question, which the panel asks itself: code 4
+    ask = ("Checking x.\n  ok: a.example.com points at this server.\n"
+           "  ask: Its VPN was switched off, so AIOStreams starts without it.\nResult: OK, with the question above.\n")
+    got = stack.parse_restore_check(ask, 4)
+    assert got["ok"] is True and got["questions"] == ["Its VPN was switched off, so AIOStreams starts without it."]
+    assert stack.parse_restore_check(ask.replace("  ask:", "  no:"), 3)["ok"] is False
     no = "Checking x.\n  no: Its domain is b.example.com, but this install uses a.example.com.\nResult: not a same-server restore.\n"
     got = stack.parse_restore_check(no, 3)
     assert got["ok"] is False and got["reasons"] == ["Its domain is b.example.com, but this install uses a.example.com."]

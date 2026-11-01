@@ -318,6 +318,9 @@ def test_restore_action_is_same_server_and_marks_itself_as_from_the_panel():
     a = actions.build_restore("/root/aiostreams-backup-20261012-010000.tar.gz")
     assert a.args == ("restore", "--same-server", "/root/aiostreams-backup-20261012-010000.tar.gz")
     assert "AIOS_UI_TERMINAL=1" in a.env and a.stdin == ""
+    # the dialog's answer to the check's question: start without the VPN that was off
+    a = actions.build_restore("/root/b.tar.gz", without_vpn=True)
+    assert a.args == ("restore", "--same-server", "--without-vpn", "/root/b.tar.gz")
 
 
 def test_restore_check_endpoint(client):

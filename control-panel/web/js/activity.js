@@ -90,6 +90,7 @@ async function copy(text, okMsg) {
 
 // A same-server rollback. The check runs first (it changes nothing); anything it finds means the
 // restore needs answers only SSH can give, so the panel refuses and offers the SSH command instead.
+// Its one question (start without the VPN, switched off in the backup) is asked here instead.
 async function startRestore(it, restoreCmd, btn) {
   const label = btn.textContent;
   btn.disabled = true; btn.textContent = "Checking…";
@@ -107,8 +108,11 @@ async function startRestore(it, restoreCmd, btn) {
   }
   const build = it.build ? `, AIOStreams ${tagLabel(it.build.tag)}` : "";
   const input = h("input", { class: "input", type: "text", autocomplete: "off", spellcheck: "false", placeholder: "restore", "aria-label": "Type restore to confirm" });
+  const asks = res.questions || [];
   const el = h("div", { class: "opts" },
     h("ul", { class: "check-list ok" }, ...res.notes.map((n) => h("li", { text: n }))),
+    asks.length ? h("ul", { class: "check-list" }, ...asks.map((q) => h("li", { text: q }))) : null,
+    asks.length ? h("p", { class: "small", text: "Restoring says yes to that. Turn the VPN back on afterwards if you want it." }) : null,
     h("p", { class: "dim small", text: "This restore's own output won't stay in Activity afterwards: that list is part of what gets rolled back." }),
     input);
   const ok = await ask({ title: "Roll your AIOStreams setup back?", danger: true, confirmLabel: "Restore",
@@ -116,7 +120,7 @@ async function startRestore(it, restoreCmd, btn) {
     options: { el, gate: input, word: "restore", read: () => true } });
   if (!ok) return;
   try {
-    const job = await api("/api/actions/stack.restore", { method: "POST", body: JSON.stringify({ params: { name: it.name, confirm: "restore" } }) });
+    const job = await api("/api/actions/stack.restore", { method: "POST", body: JSON.stringify({ params: { name: it.name, confirm: "restore", without_vpn: asks.length > 0 } }) });
     openJob(job.id);
     window.dispatchEvent(new CustomEvent("job-started"));
   } catch (e) { toast(e.message || "Couldn't start the restore.", true); }
