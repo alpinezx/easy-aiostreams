@@ -2,6 +2,10 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 1 November 2026
+
+- **Fixed:** Restart stack's confirm now says what it restarts (AIOStreams and Caddy, and the VPN if it's on) instead of "the whole stack". Maintenance shows System updates and Scheduled server reboot first, and System updates names the server's system (Ubuntu 26.04, Debian 13) in place of an old note about AIOStreams. (Panel 1.47.5, [#115](https://github.com/alpinezx/easy-aiostreams/pull/115))
+
 ## 31 October 2026
 
 - **Fixed:** the Overview no longer sits mostly blank for a second or two while it opens. The browser now fetches all the panel's scripts at once, asks for your login and the server's status together, the server's first reading no longer pauses to measure CPU, and Caddy compresses the panel's files to about a quarter of their size. The Overview then appears all at once, with no empty card frames first. Caddy picks up the compression when the panel updates. (Panel 1.47.4, [#114](https://github.com/alpinezx/easy-aiostreams/pull/114))

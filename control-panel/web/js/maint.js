@@ -40,7 +40,7 @@ function space(m) {
 
 function updates(m) {
   const u = m.updates;
-  if (!u.available) return card("System updates", [stat("Waiting", "Can't tell", "This server doesn't use apt")], "", null);
+  if (!u.available) return card("System updates", [stat("Waiting", "Can't tell", "This server doesn't use apt")], u.os, null);
   return card("System updates", [
     stat("Waiting", u.count ? `${u.count} update${u.count === 1 ? "" : "s"}` : "Up to date",
       (u.count ? (u.security ? `${u.security} for security` : "None for security") + (u.phased ? `, ${u.phased} more phasing in` : "")
@@ -49,7 +49,7 @@ function updates(m) {
         + "so Install updates leaves them until its turn, usually within days." : null),
     stat("Restart", u.reboot ? "Needed" : "Not needed", u.reboot ? "To finish installing updates" : "", u.reboot ? "warn" : ""),
     stat("Checked", u.checked_at ? ago(u.checked_at) : "Unknown", "The package lists"),
-  ], "AIOStreams' own updates are on the Overview.", button("maint.updates", u.count > 0),
+  ], u.os, button("maint.updates", u.count > 0),
   u.reboot ? h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer,
     disabled: !!(status && status.busy) || !!(last && last.last && last.last.running) }) : null);
 }
@@ -229,7 +229,7 @@ function render(force) {
   if (root.querySelector(".tz-edit") && !force) return;
   const open = !!(root.querySelector(".maint-last") || {}).open;   // keep the output open across refreshes
   clear(root);
-  root.append(h("div", { class: "maint-grid" }, space(last), updates(last), logs(last), rs && rs.available ? restart(rs) : null));
+  root.append(h("div", { class: "maint-grid" }, updates(last), rs && rs.available ? restart(rs) : null, space(last), logs(last)));
   const run = lastRun(last);
   if (run) root.append(run);
   if (open && root.querySelector(".maint-last")) root.querySelector(".maint-last").open = true;

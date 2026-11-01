@@ -969,13 +969,22 @@ class Backend:
             pass
         return {"images": images, "image_count": count, "build": build, "journal": journal}
 
+    def _host_os(self) -> str:
+        """The server's own system, short: "Ubuntu 26.04", "Debian 13" (not the panel container's)."""
+        try:
+            rel = dict(re.findall(r'^(\w+)="?([^"\n]*)"?$', self._on_host("cat", "/etc/os-release"), re.M))
+        except Exception:
+            return ""
+        return " ".join(x for x in (rel.get("NAME", "").replace(" GNU/Linux", ""), rel.get("VERSION_ID", "")) if x)
+
     def _maint_updates(self) -> dict:
+        os_name = self._host_os()
         try:
             out = self._on_host("apt", "list", "--upgradable", timeout=40)
         except Exception:
-            return {"available": False}
+            return {"available": False, "os": os_name}
         if not out and not self._on_host("sh", "-c", "command -v apt"):
-            return {"available": False}
+            return {"available": False, "os": os_name}
         lines = [l for l in out.splitlines() if "/" in l and "[upgradable" in l]
         # Only what Install updates would install now: Ubuntu phases some updates in (a growing
         # share of servers over a few days) and apt holds those back until this server's turn.
@@ -989,7 +998,7 @@ class Backend:
                 phased, lines = len(lines) - len(now), now
         stamp = self._on_host("sh", "-c", "stat -c %Y /var/lib/apt/periodic/update-success-stamp 2>/dev/null "
                                        "|| stat -c %Y /var/lib/apt/lists 2>/dev/null").strip()
-        return {"available": True, "count": len(lines), "security": sum("-security" in l for l in lines), "phased": phased,
+        return {"available": True, "os": os_name, "count": len(lines), "security": sum("-security" in l for l in lines), "phased": phased,
                 "reboot": self.reboot_needed(),
                 "checked_at": int(stamp) if stamp.isdigit() else None}
 

@@ -723,9 +723,13 @@ def test_maintenance_leaves_phased_updates_out():
             return answers.get(args[0], "")
         ns = SimpleNamespace(_on_host=on_host)
         ns.reboot_needed = lambda: stack.Backend.reboot_needed(ns)
+        ns._host_os = lambda: stack.Backend._host_os(ns)
         return ns
-    u = stack.Backend._maint_updates(host({"apt": listing, "apt-get": sim, "sh": ""}))
+    os_release = 'PRETTY_NAME="Debian GNU/Linux 13 (trixie)"\nNAME="Debian GNU/Linux"\nVERSION_ID="13"\nID=debian\n'
+    u = stack.Backend._maint_updates(host({"apt": listing, "apt-get": sim, "sh": "", "cat": os_release}))
     assert (u["count"], u["security"], u["phased"]) == (1, 1, 2)
+    # the card's title names the server's own system, short
+    assert u["os"] == "Debian 13"
     # if the simulation can't run, every waiting update still shows
     u = stack.Backend._maint_updates(host({"apt": listing, "apt-get": "", "sh": ""}))
     assert (u["count"], u["phased"]) == (3, 0)
