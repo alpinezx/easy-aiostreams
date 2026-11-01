@@ -245,6 +245,8 @@ If you're restoring on the same server, you're already done: see above.
 
 ### Update your DNS record: do this before restoring, not after
 
+(Through a [Cloudflare Tunnel](./home-hosting.md#backups-and-restores) there's nothing to change: the domain points at Cloudflare. Switch the old server off instead, so the two don't share the tunnel.)
+
 This is the one step the script *can't* do for you, and it's worth doing
 **before** you run the restore on the new server rather than after.
 
