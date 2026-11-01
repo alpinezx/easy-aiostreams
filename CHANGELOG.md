@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 1 November 2026
 
+- **Changed:** hosting from home is kept out of a VPS's way. A fresh install first asks where the server is, a VPS or a computer at home, and only the home answer sets up the Cloudflare Tunnel (a VPS's backup restored at home is put behind it too). The menu shows the tunnel's option only on servers that use it, so a VPS's Exit is 11 again. ([#120](https://github.com/alpinezx/easy-aiostreams/pull/120))
 - **Docs:** the README is about VPS hosting again, with one pointer to the Hosting from home guide, which now covers home users from start to finish. ([#119](https://github.com/alpinezx/easy-aiostreams/pull/119))
 - **Fixed:** turning the Cloudflare Tunnel on (menu 11) on a server whose site already works directly, like a VPS, now warns first: the site would be offline until its route exists in Cloudflare. Saying no changes nothing, and an install carries on as a normal one. ([#118](https://github.com/alpinezx/easy-aiostreams/pull/118))
 - **Fixed:** the Scripts tab's AIOStreams Update stopped with "Couldn't write setup-tunnel.sh" on servers that didn't have it yet. A helper script new to the server now gets the same permissions as the others. (Panel 1.48.1, [#117](https://github.com/alpinezx/easy-aiostreams/pull/117))

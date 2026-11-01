@@ -696,6 +696,7 @@ tunnel_active() { [[ -s "$INSTALL_DIR/tunnel-state/token.env" ]]; }
 # Through a Cloudflare Tunnel the domains point at Cloudflare, so there's no DNS
 # to check. The one thing to say: the old server must not run the same tunnel.
 tunnel_restore_note() {
+    [[ -n "${TUNNEL_JUST_ON:-}" ]] && return 0   # set up by this restore: nothing else runs it
     echo ""
     echo "This backup uses a Cloudflare Tunnel, so its domains point at Cloudflare and"
     echo "need no change. If the server it came from still runs, stop it (or its tunnel):"
@@ -1484,6 +1485,19 @@ do_restore() {
         rm -rf "$INSTALL_DIR/webhook-relay-state"
         rm -f "$INSTALL_DIR"/caddy.d/50-webhook-relay.caddy{,.rejected} "$INSTALL_DIR/setup-webhook.sh"
         relay_dropped=true
+    fi
+
+    # Restoring onto a computer at home (the first-run screen's "A computer at
+    # home"): a backup from a VPS has no tunnel yet, so set it up before anything
+    # starts. Its token makes the DNS checks below skip, as for any tunnel backup.
+    if [[ "${AIOS_HOME:-}" == 1 ]] && ! tunnel_active; then
+        local tunnel_rc=0
+        bash "$INSTALL_DIR/setup-aiostreams.sh" tunnel on || tunnel_rc=$?
+        # exported: the restore's start (setup-aiostreams.sh) then doesn't run it again
+        (( tunnel_rc == 0 )) && export TUNNEL_JUST_ON=1
+        if (( tunnel_rc != 0 && tunnel_rc != 3 )); then
+            warn "The Cloudflare Tunnel didn't start. After the restore: sudo bash $INSTALL_DIR/setup-aiostreams.sh tunnel"
+        fi
     fi
 
     check_restored_domain_dns

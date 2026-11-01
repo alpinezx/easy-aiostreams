@@ -92,9 +92,27 @@ Add one for each name you'll use: AIOStreams now, and later one each for the con
 
 **This does:** installs everything, then starts the tunnel with your token.
 
-Follow the README's [Run the installer](../../README.md#run-the-installer) steps. You can skip its DNS check: through a tunnel, your domain points at Cloudflare, not your home.
+On the home computer, create the install folder and move into it:
 
-When it asks **How will people reach this server?**, choose **2) Through a Cloudflare Tunnel**. Then paste the token when asked. **Nothing shows on screen** while you paste: that's expected.
+```bash
+sudo mkdir -p /opt/aiostreams && cd /opt/aiostreams
+```
+
+Download the installer:
+
+```bash
+sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-aiostreams.sh -o setup-aiostreams.sh
+```
+
+Run it:
+
+```bash
+sudo bash setup-aiostreams.sh
+```
+
+It first asks **Where is this server?** Choose **2) A computer at home**, then **1) Fresh install**. (Moving from a VPS? Choose **2) Restore from a backup** instead: see [Adding more later](#adding-more-later).)
+
+It asks for your domain, a login and which build to run, like a VPS install, but skips the VPS's DNS check (your domain points at Cloudflare, not your home). Then it asks for the tunnel's token: paste it. **Nothing shows on screen** while you paste: that's expected.
 
 It ends with **The Cloudflare Tunnel is connected**. Visit your domain and log in.
 
@@ -110,7 +128,7 @@ In Cloudflare, open your domain, then **SSL/TLS → Edge Certificates**, and swi
 
 From here it works just like a VPS install. The main README covers each part:
 
-- [The management menu](../../README.md#re-running-the-script-later): status, restart, updates, backups. Option **11** is the Cloudflare Tunnel's own menu.
+- [The management menu](../../README.md#re-running-the-script-later): status, restart, updates, backups. With the tunnel on, option **11** is its own menu (a VPS doesn't have it).
 - [The control panel](./control-panel.md), to manage it all from your browser or phone. Add its route first (step 4).
 - [Backup & Restore](./backup-restore.md)
 - [Other scripts](../other-scripts.md): add-ons, the VPN layer, phone alerts
@@ -121,8 +139,8 @@ From here it works just like a VPS install. The main README covers each part:
 ## Adding more later
 
 - **The control panel or an add-on:** add its route first (step 4), then install it as its guide says. Where it would check your DNS, it reminds you about the route instead.
-- **Already installed on a home server?** Run `sudo bash /opt/aiostreams/setup-aiostreams.sh`, choose **11) Cloudflare Tunnel**, then **Turn the tunnel on**. It lists the routes you need.
-- **Moving from a VPS to home?** Back up on the VPS, restore at home ([Backup & Restore](./backup-restore.md)), then turn the tunnel on as above. Switch the VPS off afterwards.
+- **Already installed on a home server?** Run `sudo bash /opt/aiostreams/setup-aiostreams.sh tunnel`, then **Turn the tunnel on**. It lists the routes you need.
+- **Moving from a VPS to home?** Back up on the VPS and copy the backup home ([Backup & Restore](./backup-restore.md)). In Cloudflare, delete the domains' old A records, then add their routes (step 4). At home, run the installer as in step 5, choose **2) A computer at home**, then **2) Restore from a backup**: it asks for the tunnel's token and puts the restored stack behind it. Switch the VPS off afterwards.
 
 ---
 

@@ -654,10 +654,11 @@ restore_start_stack() {
     cleanup_replaced_images "$image_snapshot"
 
     # Through a Cloudflare Tunnel, Cloudflare holds the certificates: start it
-    # (its token came back with the backup, so it asks nothing)
+    # (its token came back with the backup, so it asks nothing). A VPS's backup
+    # restored at home had it set up moments ago (TUNNEL_JUST_ON, setup-backup.sh).
     if tunnel_active; then
         local script
-        if script=$(tunnel_script); then
+        if [[ -z "${TUNNEL_JUST_ON:-}" ]] && script=$(tunnel_script); then
             bash "$script" on < /dev/null || warn "The Cloudflare Tunnel didn't start. Run: sudo bash $INSTALL_DIR/setup-tunnel.sh"
         fi
         return 0
@@ -1064,7 +1065,15 @@ do_update_aio() {
     docker compose images
 }
 
+# A fresh server's first question: a VPS, or a computer at home reached through a
+# Cloudflare Tunnel. "--home" answers it up front.
+HOME_INSTALL=false
+WHERE_KNOWN=false
 case "${1:-}" in
+    --home)
+        HOME_INSTALL=true
+        WHERE_KNOWN=true
+        ;;
     backup|restore)
         script=$(backup_script) || exit 1
         AIOS_MAIN_SCRIPT="$SELF_SCRIPT_PATH" exec bash "$script" "$@"
@@ -1163,13 +1172,25 @@ if [[ -f "$COMPOSE_FILE" ]]; then
     echo "  8) Restore from backup"
     echo "  9) Uninstall"
     echo " 10) Maintenance"
-    echo " 11) Cloudflare Tunnel (host from home)"
-    echo " 12) Exit"
+    # The Cloudflare Tunnel's option only where it's used (hosting from home);
+    # a VPS never sees it. Exit is always last: 11, or 12 with the tunnel.
+    # Control panels from 1.28.1 on run named commands (start, stop...) and
+    # never reach this menu; older ones typed 10 to leave it.
+    if tunnel_active; then
+        echo " 11) Cloudflare Tunnel"
+        echo " 12) Exit"
+        MENU_LAST=12
+    else
+        echo " 11) Exit"
+        MENU_LAST=11
+    fi
     echo ""
-    # Exit is always last: 10 until October 2026, then 11, 12 since the tunnel
-    # (November 2026). Control panels from 1.28.1 on run named commands (start,
-    # stop...) and never reach this menu; older ones typed 10 to leave it.
-    read -rp "Select an option [1-12]: " MENU_CHOICE
+    read -rp "Select an option [1-$MENU_LAST]: " MENU_CHOICE
+    if [[ "$MENU_CHOICE" == "$MENU_LAST" ]]; then
+        MENU_CHOICE="exit"
+    elif [[ "$MENU_CHOICE" == 11 ]]; then
+        MENU_CHOICE="tunnel"
+    fi
 
     case "$MENU_CHOICE" in
         1)
@@ -1181,7 +1202,7 @@ if [[ -f "$COMPOSE_FILE" ]]; then
             if script=$(maint_script); then bash "$script" || true; fi
             continue
             ;;
-        11)
+        tunnel)
             if script=$(tunnel_script); then bash "$script" || true; fi
             continue
             ;;
@@ -1322,7 +1343,7 @@ if [[ -f "$COMPOSE_FILE" ]]; then
             run_backup_script restore || true
             continue
             ;;
-        12)
+        exit)
             echo "Exiting."
             exit 0
             ;;
@@ -1333,18 +1354,48 @@ if [[ -f "$COMPOSE_FILE" ]]; then
     esac
 else
     info "AIOStreams self-hosted setup"
-    echo ""
+    if ! $WHERE_KNOWN; then
+        echo ""
+        echo "Where is this server?"
+        echo "  1) A VPS: a rented server with its own public IP"
+        echo "  2) A computer at home, reached through a free Cloudflare Tunnel"
+        echo "     (do the Hosting from home guide's steps first)"
+        echo ""
+        read -rp "Select an option [1-2], or Ctrl+C to cancel: " WHERE_CHOICE
+        case "$WHERE_CHOICE" in
+            1)  ;;
+            2)  HOME_INSTALL=true ;;
+            *)
+                warn "Not a valid option."
+                continue
+                ;;
+        esac
+        WHERE_KNOWN=true
+        echo ""
+    fi
+    if $HOME_INSTALL; then
+        echo "Hosting from home, through your Cloudflare Tunnel"
+        echo ""
+    fi
     echo "  1) Fresh install, sets up:"
     echo "       - Docker (installed automatically if missing)"
     echo "       - AIOStreams (the Stremio meta-addon)"
-    echo "       - Caddy (reverse proxy with automatic HTTPS via Let's Encrypt)"
+    if $HOME_INSTALL; then
+        echo "       - Caddy behind your Cloudflare Tunnel (Cloudflare holds the HTTPS certificates)"
+    else
+        echo "       - Caddy (reverse proxy with automatic HTTPS via Let's Encrypt)"
+    fi
     echo "       - AIOStreams' built-in login, locking config creation/editing to your account only"
     echo ""
     echo "  2) Restore from a backup (migrating from another server), brings back your"
     echo "     whole stack from a tarball made by this script's Backup option, same"
     echo "     SECRET_KEY and all, so every existing user config and installed Stremio"
     echo "     manifest keeps working. Handles everything itself, including Docker."
-    echo "     (Also available non-interactively:  sudo bash setup-aiostreams.sh restore <file>)"
+    if $HOME_INSTALL; then
+        echo "     A backup from a VPS is put behind your tunnel (it asks for the token)."
+    else
+        echo "     (Also available non-interactively:  sudo bash setup-aiostreams.sh restore <file>)"
+    fi
     echo ""
     echo "After either path, you'll land back on the management menu, no need to"
     echo "re-run this script."
@@ -1353,7 +1404,11 @@ else
     case "$FIRSTRUN_CHOICE" in
         1)  ;;  # fall through to the fresh-install flow below
         2)
-            run_backup_script restore || true
+            if $HOME_INSTALL; then
+                AIOS_HOME=1 run_backup_script restore || true
+            else
+                run_backup_script restore || true
+            fi
             continue
             ;;
         *)
@@ -1390,22 +1445,17 @@ while true; do
     break
 done
 
-# How visitors reach this server. A Reconfigure keeps what the install has.
+# How visitors reach this server: straight here, or through a Cloudflare Tunnel when
+# hosting from home (the first question, or --home). A Reconfigure keeps what the install has.
 USE_TUNNEL=false
-if [[ -f "$COMPOSE_FILE" ]]; then
-    if tunnel_active; then
-        USE_TUNNEL=true
-        echo "This install uses a Cloudflare Tunnel, and keeps it."
-    fi
-else
+if [[ -f "$COMPOSE_FILE" ]] && tunnel_active; then
+    USE_TUNNEL=true
+    echo "This install uses a Cloudflare Tunnel, and keeps it."
+elif $HOME_INSTALL; then
+    USE_TUNNEL=true
     echo ""
-    echo "How will people reach this server?"
-    echo "  1) Directly: a VPS, or a home server with ports 80 and 443 forwarded to it"
-    echo "  2) Through a Cloudflare Tunnel: a home server behind any router, nothing"
-    echo "     forwarded. Needs the domain on Cloudflare (free) and a tunnel made there"
-    echo "     first, with a route for $DOMAIN (see the home hosting guide)."
-    read -rp "Choice [1-2] (Enter for 1): " REACH_CHOICE
-    [[ "$REACH_CHOICE" == 2 ]] && USE_TUNNEL=true
+    echo "Hosting from home: visitors come through your Cloudflare Tunnel, and Cloudflare"
+    echo "holds the HTTPS certificates. It asks for the tunnel's token shortly."
 fi
 
 if $USE_TUNNEL; then
@@ -1424,6 +1474,7 @@ if [[ -z "$RESOLVED_IP" ]]; then
     warn "Could not resolve $DOMAIN. If you haven't set the DNS A record yet, Caddy will fail to get an HTTPS certificate."
     read -rp "Continue anyway? (y/N): " CONTINUE_ANYWAY
     if [[ ! "$CONTINUE_ANYWAY" =~ ^[Yy]$ ]]; then
+        echo "(Hosting from home? Run the script again and choose 2) A computer at home.)"
         error "Aborting. Set up your DNS A record first, then re-run this script."
     fi
 else
@@ -1441,6 +1492,7 @@ else
         alert "That usually means DNS is pointing somewhere else, a different server, or a typo."
         read -rp "Continue anyway? (y/N): " CONTINUE_ANYWAY
         if [[ ! "$CONTINUE_ANYWAY" =~ ^[Yy]$ ]]; then
+            echo "(Hosting from home? Run the script again and choose 2) A computer at home.)"
             error "Aborting. Point $DOMAIN's A record at $PUBLIC_IP, then re-run this script."
         fi
     else
