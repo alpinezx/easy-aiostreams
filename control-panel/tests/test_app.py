@@ -346,6 +346,14 @@ def test_restore_needs_the_typed_word_and_a_real_backup(client):
     assert j["code"] == 0 and j["action"] == "stack.restore"
 
 
+def test_start_restart_update_can_go_on_without_the_vpn():
+    # the panel asked in its dialog; the script reads AIOS_ALLOW_DIRECT in place of asking
+    for aid, params in (("stack.start", {}), ("stack.restart", {}), ("stack.update", {"backup": False})):
+        assert "AIOS_ALLOW_DIRECT=1" not in actions.resolve(aid, params).env
+        assert "AIOS_ALLOW_DIRECT=1" in actions.resolve(aid, {**params, "without_vpn": True}).env
+    assert "AIOS_ALLOW_DIRECT=1" not in actions.resolve("stack.stop", {"without_vpn": True}).env
+
+
 def test_every_service_has_logs():
     # Logs streams only these; the retired webhook relay is the one service left out
     from app import main, stack

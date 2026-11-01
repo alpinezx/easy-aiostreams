@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import ipaddress
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 
 @dataclass(frozen=True)
@@ -312,8 +312,19 @@ ADDON_STATE = {"vpn": "vpn-state", "mediaflow": "mediaflow-state", "watchdog": "
                "aiometadata": "aiometadata-state", "aiomanager": "aiomanager-state"}
 
 
+# Start, Restart and Update ask before going on with the VPN set up but switched off, which
+# a panel job can't answer; the panel asks in its own dialog and sends without_vpn instead.
+WITHOUT_VPN = ("stack.start", "stack.restart", "stack.update")
+
+
 def resolve(action_id: str, params: dict | None = None) -> Action:
-    params = params or {}
+    act = _resolve(action_id, params or {})
+    if action_id in WITHOUT_VPN and (params or {}).get("without_vpn") is True:
+        act = replace(act, env=act.env + ("AIOS_ALLOW_DIRECT=1",))
+    return act
+
+
+def _resolve(action_id: str, params: dict) -> Action:
     if action_id == "stack.update":
         return build_update(params.get("backup", True), params.get("channel"))
     if action_id == "aiometadata.update":
