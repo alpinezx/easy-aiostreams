@@ -178,6 +178,7 @@ function foldSum(items) {
 let lastGoLogs = null;
 export function render(st, goLogs) {
   window.__channel = st.channel;
+  window.__vpn = st.vpn;   // "off": set up but switched off, which Start, Restart and Update ask about
   lastSt = st;
   lastGoLogs = goLogs;
   if (st.version && relFor !== relChannel(st)) { relFor = relChannel(st); rel = null; loadReleases(false); }
