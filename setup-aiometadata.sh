@@ -234,11 +234,28 @@ other_domains() {
 # keyboard, or no way to learn this server's IP, means go ahead.
 check_subdomain_dns() {
     local domain="$1" ip="" dns svc choice
-    # Through a Cloudflare Tunnel the name points at Cloudflare, not here: it needs a route instead
+    # Through a Cloudflare Tunnel the name points at Cloudflare, not here. Its route makes
+    # its DNS record, so a name that doesn't exist is a typo or a route not added yet.
     if [[ -s "$INSTALL_DIR/tunnel-state/token.env" ]]; then
-        echo "Through the Cloudflare Tunnel: add a route for $domain on the tunnel in Cloudflare"
-        echo "(Routes > Add route > Published application, Service URL http://caddy:80)."
-        return 0
+        while true; do
+            if getent ahostsv4 "$domain" >/dev/null 2>&1; then
+                echo "$domain exists, through the Cloudflare Tunnel."
+                return 0
+            fi
+            warn "$domain doesn't exist. Check the spelling, and that it has a route on the tunnel"
+            warn "in Cloudflare (Routes > Add route > Published application, Service URL http://caddy:80)."
+            [[ -t 0 ]] || return 0
+            echo "  1) Re-check (after adding the route; a new one can take a few minutes to show)"
+            echo "  2) Enter a different subdomain"
+            echo "  3) Use it anyway"
+            read -rp "Choice [1-3]: " choice || return 0
+            case "$choice" in
+                1) continue ;;
+                2) return 1 ;;
+                3) return 0 ;;
+                *) warn "Not a valid choice." ;;
+            esac
+        done
     fi
     for svc in https://ifconfig.me https://icanhazip.com https://ipinfo.io/ip; do
         ip=$(curl -fs4 --max-time 4 "$svc" 2>/dev/null | tr -d ' \n') && [[ -n "$ip" ]] && break
@@ -303,7 +320,11 @@ do_configure() {
 
     info "Subdomain for AIOMetadata"
     echo "Needs its OWN subdomain, different from your main AIOStreams domain,"
-    echo "with an A record already pointed at this server's IP."
+    if [[ -s "$INSTALL_DIR/tunnel-state/token.env" ]]; then
+        echo "with its own route on your Cloudflare Tunnel (Service URL http://caddy:80)."
+    else
+        echo "with an A record already pointed at this server's IP."
+    fi
     echo "e.g. meta.yourdomain.com"
     local domain taken clash
     while true; do
@@ -492,7 +513,7 @@ do_test() {
         echo "  OK (HTTP 200). DNS, HTTPS and Caddy are all working."
     elif [[ "$status" == "000" ]]; then
         warn "  Couldn't reach https://${DOMAIN} at all (DNS, certificate or network)."
-        warn "  Check its A record, and 'docker compose logs caddy' in $INSTALL_DIR."
+        warn "  Check its DNS record (or its route, through a Cloudflare Tunnel), and 'docker compose logs caddy' in $INSTALL_DIR."
     else
         warn "  Got HTTP ${status}, expected 200. Check 'docker compose logs caddy' in $INSTALL_DIR."
     fi
