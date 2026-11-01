@@ -189,14 +189,19 @@ SYSCTL_FILE="/etc/sysctl.d/60-aiostreams-tunnel.conf"
 BUFFER_BYTES=7500000
 
 raise_buffers() {
-    local key now changed=""
+    local key now low="" ours=1
     for key in net.core.rmem_max net.core.wmem_max; do
         now=$(sysctl -n "$key" 2>/dev/null || echo 0)
-        (( now < BUFFER_BYTES )) && changed=1
+        (( now < BUFFER_BYTES )) && low=1
+        (( now == BUFFER_BYTES )) || ours=""
     done
-    [[ -n "$changed" ]] || return 0
-    printf '# Written by setup-tunnel.sh: room for cloudflared'"'"'s QUIC connection (removed with the tunnel)\nnet.core.rmem_max = %s\nnet.core.wmem_max = %s\n' \
-        "$BUFFER_BYTES" "$BUFFER_BYTES" > "$SYSCTL_FILE"
+    # Exactly ours with no file: an off left them raised, but only until a restart. Higher: someone
+    # else's setting, which a file of ours could undo at the next boot.
+    if [[ -n "$low" || ( -n "$ours" && ! -f "$SYSCTL_FILE" ) ]]; then
+        printf '# Written by setup-tunnel.sh: room for cloudflared'"'"'s QUIC connection (removed with the tunnel)\nnet.core.rmem_max = %s\nnet.core.wmem_max = %s\n' \
+            "$BUFFER_BYTES" "$BUFFER_BYTES" > "$SYSCTL_FILE"
+    fi
+    [[ -n "$low" ]] || return 0
     if sysctl -q -p "$SYSCTL_FILE" >/dev/null 2>&1; then
         echo changed
     else
