@@ -1016,8 +1016,6 @@ ask_new_domain() {
 # running) leave it switched off for now. Nothing here blocks the restore.
 check_addon_domains() {
     local a id name dir site ctr domain ip here choice new taken main_domain
-    # Through a Cloudflare Tunnel the add-ons' names point at Cloudflare too
-    tunnel_active && return 0
     find_public_ip
     here="$PUBLIC_IP"
     main_domain=$(caddy_domain)
@@ -1033,6 +1031,9 @@ check_addon_domains() {
         [[ -n "$domain" ]] && taken+=" ${domain,,}"
     done
     (( ${#ADDON_NAME[@]} )) || return 0
+    # Through a Cloudflare Tunnel the add-ons' names point at Cloudflare too: nothing to ask.
+    # (Only after the loop above, which says which add-ons start again.)
+    tunnel_active && return 0
 
     echo ""
     echo "Checking the add-ons' subdomains..."
