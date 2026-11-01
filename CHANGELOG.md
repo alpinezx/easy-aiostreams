@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 1 November 2026
 
+- **New: hosting from home through a Cloudflare Tunnel.** Run it on a computer at home with nothing forwarded at your router and no VPS. The installer asks how people reach the server, and menu option 11 turns the tunnel on or off later. The control panel, add-ons, VPN, backups, restores and phone alerts all work through it, and the Overview shows the tunnel. The panel's restore also asks itself whether to start without a VPN that was switched off, instead of sending you to SSH. Guide: [Hosting from home](./docs/basic/home-hosting.md). (Panel 1.48.0, [#116](https://github.com/alpinezx/easy-aiostreams/pull/116))
 - **Fixed:** Restart stack's confirm now says what it restarts (AIOStreams and Caddy, and the VPN if it's on) instead of "the whole stack". Maintenance shows System updates and Scheduled server reboot first, and System updates names the server's system (Ubuntu 26.04, Debian 13) in place of an old note about AIOStreams. (Panel 1.47.5, [#115](https://github.com/alpinezx/easy-aiostreams/pull/115))
 
 ## 31 October 2026
