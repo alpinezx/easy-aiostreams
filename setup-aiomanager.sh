@@ -548,7 +548,11 @@ do_start() {
     reload_caddy
     echo "Waiting for it to report healthy (up to 90 seconds)..."
     if wait_healthy; then
-        echo "AIOManager is running. The HTTPS certificate for a new subdomain can take a minute."
+        if [[ -s "$INSTALL_DIR/tunnel-state/token.env" ]]; then
+            echo "AIOManager is running."
+        else
+            echo "AIOManager is running. The HTTPS certificate for a new subdomain can take a minute."
+        fi
     else
         warn "AIOManager didn't report healthy in time. Check its logs (option 9)."
     fi
