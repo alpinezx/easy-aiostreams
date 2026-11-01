@@ -13,11 +13,9 @@ function stat(label, value, sub, tone, why) {
     h("div", { class: "ver-sub", text: sub || "", title: why || null }));
 }
 
-// A title can carry a dim word after it: [title, extra]
 function card(title, grid, note, ...btns) {
-  const [name, extra] = [].concat(title);
   return h("section", { class: "panel maint-card" },
-    h("div", { class: "card-head" }, h("h3", null, name, extra ? h("span", { class: "dim title-extra", text: extra }) : null)),
+    h("div", { class: "card-head" }, h("h3", { text: title })),
     h("div", { class: "stat-grid" }, ...grid),
     h("div", { class: "card-foot" }, h("div", { class: "maint-foot" }, h("span", { class: "dim", text: note || "" }), ...btns)));
 }
@@ -42,9 +40,8 @@ function space(m) {
 
 function updates(m) {
   const u = m.updates;
-  const title = ["System updates", u.os];
-  if (!u.available) return card(title, [stat("Waiting", "Can't tell", "This server doesn't use apt")], "", null);
-  return card(title, [
+  if (!u.available) return card("System updates", [stat("Waiting", "Can't tell", "This server doesn't use apt")], u.os, null);
+  return card("System updates", [
     stat("Waiting", u.count ? `${u.count} update${u.count === 1 ? "" : "s"}` : "Up to date",
       (u.count ? (u.security ? `${u.security} for security` : "None for security") + (u.phased ? `, ${u.phased} more phasing in` : "")
         : u.phased ? `${u.phased} more phasing in` : ""), u.security ? "warn" : u.count ? "" : "ok",
@@ -52,7 +49,7 @@ function updates(m) {
         + "so Install updates leaves them until its turn, usually within days." : null),
     stat("Restart", u.reboot ? "Needed" : "Not needed", u.reboot ? "To finish installing updates" : "", u.reboot ? "warn" : ""),
     stat("Checked", u.checked_at ? ago(u.checked_at) : "Unknown", "The package lists"),
-  ], "", button("maint.updates", u.count > 0),
+  ], u.os, button("maint.updates", u.count > 0),
   u.reboot ? h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer,
     disabled: !!(status && status.busy) || !!(last && last.last && last.last.running) }) : null);
 }
