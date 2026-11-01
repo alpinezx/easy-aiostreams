@@ -261,6 +261,7 @@ remove_addons_on_uninstall() {
     if [[ -f "$INSTALL_DIR/tunnel-state/docker-compose.yml" ]]; then
         (cd "$INSTALL_DIR/tunnel-state" && docker compose -f docker-compose.yml down >/dev/null 2>&1) || \
             docker rm -f cloudflared >/dev/null 2>&1 || true
+        rm -f /etc/sysctl.d/60-aiostreams-tunnel.conf   # its network buffer limits (setup-tunnel.sh)
         removed+=("Cloudflare Tunnel")
     fi
     # Its Redis cache is a Docker volume: kept for a restore (the restored
