@@ -744,6 +744,8 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .lg-ln.error .lg-dot { background: var(--bad); }
 .lg-ln.warn .lg-msg { color: var(--warn); }
 .lg-ln.error .lg-msg { color: var(--bad); }
+.lg-ln.quiet .lg-dot { background: var(--faint); }
+.lg-ln.quiet .lg-msg { color: var(--dim); }
 .lg-mod { color: var(--dim); }
 .lg-extra { color: var(--faint); }
 .lg-list.wrap .lg-ln { white-space: normal; width: auto; align-items: flex-start; }
