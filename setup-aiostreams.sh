@@ -287,6 +287,13 @@ remove_addons_on_uninstall() {
             docker rm -f aiomanager >/dev/null 2>&1 || true
         removed+=("AIOManager container")
     fi
+    # The control panel: a restore keeps it running (setup-backup.sh rebuilds it
+    # from the restored files afterwards); an uninstall removes it.
+    if [[ "$mode" != restore && -f "$INSTALL_DIR/ui-state/docker-compose.yml" ]]; then
+        (cd "$INSTALL_DIR/ui-state" && docker compose -f docker-compose.yml down >/dev/null 2>&1) || \
+            docker rm -f aios-ui >/dev/null 2>&1 || true
+        removed+=("control panel")
+    fi
     # fail2ban can refuse to start at all if a jail's log file is missing, so
     # leaving this behind after ~/aiostreams is deleted would also take
     # down any other jails on the server (SSH included).
@@ -1263,6 +1270,11 @@ if [[ -f "$COMPOSE_FILE" ]]; then
         9)
             echo ""
             echo "=== AIOStreams Uninstall ==="
+            # It removes the control panel too, which would cut its own terminal off halfway
+            if [[ "${AIOS_UI_TERMINAL:-}" == 1 ]]; then
+                warn "You're inside the control panel's web terminal, which this removes. Run it from SSH instead."
+                continue
+            fi
             read -rp "Are you sure you want to completely remove AIOStreams? [y/N]: " CONFIRM_UNINSTALL
             if [[ ! "$CONFIRM_UNINSTALL" =~ ^[Yy]$ ]]; then
                 echo "Uninstall cancelled."
@@ -1292,6 +1304,12 @@ if [[ -f "$COMPOSE_FILE" ]]; then
                 warn "reusing this stale cached image against a newer database."
             fi
 
+            # The add-ons' and the panel's images, read before their settings go
+            ADDON_IMAGES=()
+            if [[ "$RMI_MODE" == all ]]; then
+                mapfile -t ADDON_IMAGES < <(grep -hoP '^\s*image:\s*\K\S+' "$INSTALL_DIR"/*-state/*.yml 2>/dev/null | sort -u || true)
+            fi
+
             if [[ "$REMOVE_VOLUMES" =~ ^[Yy]$ ]]; then
                 docker compose down -v --rmi "$RMI_MODE"
                 echo "Containers, volumes, and $([[ "$RMI_MODE" == "all" ]] && echo "images (including pulled ones)" || echo "locally-built images only, pulled images kept") removed."
@@ -1305,6 +1323,10 @@ if [[ -f "$COMPOSE_FILE" ]]; then
             # 2 min against a script that may be deleted next, and the relay
             # keeps running with nothing in front of it.
             remove_addons_on_uninstall
+            # One still used by something else on this server stays
+            for img in "${ADDON_IMAGES[@]}"; do
+                docker image rm "$img" >/dev/null 2>&1 || true
+            done
             docker network rm "$SHARED_NET" >/dev/null 2>&1 || true
 
             read -rp "Delete the config directory ($INSTALL_DIR), including your SECRET_KEY backup? [y/N]: " REMOVE_CONFIG
