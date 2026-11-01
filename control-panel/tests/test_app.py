@@ -343,6 +343,12 @@ def test_restore_needs_the_typed_word_and_a_real_backup(client):
     assert j["code"] == 0 and j["action"] == "stack.restore"
 
 
+def test_every_service_has_logs():
+    # Logs streams only these; the retired webhook relay is the one service left out
+    from app import main, stack
+    assert {c for _, c, *_ in stack.SERVICES} - {"aios-webhook-relay"} <= main.LOGGABLE
+
+
 def test_scripts_compare_endpoint_covers_every_script_and_the_backup_one(client):
     login(client)
     out = client.get("/api/scripts/compare").json()
