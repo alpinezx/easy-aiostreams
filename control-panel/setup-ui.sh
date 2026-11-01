@@ -222,8 +222,13 @@ do_install() {
     local ip="" dns
     # Through a Cloudflare Tunnel the name points at Cloudflare, not here: it needs a route instead
     if [[ -s "$INSTALL_DIR/tunnel-state/token.env" ]]; then
-        echo "Through the Cloudflare Tunnel: add a route for $DOMAIN on the tunnel in Cloudflare"
-        echo "(Routes > Add route > Published application, Service URL http://caddy:80)."
+        # Its route makes its DNS record, so a name that doesn't exist is a typo or a route not added yet
+        if ! getent ahostsv4 "$DOMAIN" >/dev/null 2>&1; then
+            alert "$DOMAIN doesn't exist. Check the spelling, and that it has a route on the tunnel"
+            echo "in Cloudflare (Routes > Add route > Published application, Service URL http://caddy:80)."
+            read -rp "Continue anyway? (y/N): " CONT
+            [[ "$CONT" =~ ^[Yy]$ ]] || exit 0
+        fi
     else
         ip=$(curl -4 -fsS --max-time 5 ifconfig.me 2>/dev/null || true)
     fi

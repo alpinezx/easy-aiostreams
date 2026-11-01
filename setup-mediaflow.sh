@@ -343,7 +343,8 @@ do_install_fail2ban() {
     # Through a Cloudflare Tunnel every visitor arrives from Cloudflare, not their own address, and
     # nothing reaches this server's ports 80 and 443, so a ban at its firewall can't stop anyone
     if [[ -s "$INSTALL_DIR/tunnel-state/token.env" ]]; then
-        error "This doesn't work through a Cloudflare Tunnel: bans happen at this server's firewall, which tunnel visitors never touch. MediaFlow's API password still protects it."
+        warn "This doesn't work through a Cloudflare Tunnel: bans happen at this server's firewall, which tunnel visitors never touch. MediaFlow's API password still protects it."
+        return 0
     fi
     command -v fail2ban-client >/dev/null 2>&1 || \
         error "fail2ban isn't installed on this server. Install it first (e.g. 'apt-get install -y fail2ban'), then re-run this option."
@@ -551,11 +552,28 @@ valid_domain() {
 # Never blocks: no keyboard, or no way to learn this server's IP, means go.
 check_subdomain_dns() {
     local domain="$1" ip="" dns svc choice
-    # Through a Cloudflare Tunnel the name points at Cloudflare, not here: it needs a route instead
+    # Through a Cloudflare Tunnel the name points at Cloudflare, not here. Its route makes
+    # its DNS record, so a name that doesn't exist is a typo or a route not added yet.
     if [[ -s "$INSTALL_DIR/tunnel-state/token.env" ]]; then
-        echo "Through the Cloudflare Tunnel: add a route for $domain on the tunnel in Cloudflare"
-        echo "(Routes > Add route > Published application, Service URL http://caddy:80)."
-        return 0
+        while true; do
+            if getent ahostsv4 "$domain" >/dev/null 2>&1; then
+                echo "$domain exists, through the Cloudflare Tunnel."
+                return 0
+            fi
+            warn "$domain doesn't exist. Check the spelling, and that it has a route on the tunnel"
+            warn "in Cloudflare (Routes > Add route > Published application, Service URL http://caddy:80)."
+            [[ -t 0 ]] || return 0
+            echo "  1) Re-check (after adding the route; a new one can take a few minutes to show)"
+            echo "  2) Enter a different subdomain"
+            echo "  3) Use it anyway"
+            read -rp "Choice [1-3]: " choice || return 0
+            case "$choice" in
+                1) continue ;;
+                2) return 1 ;;
+                3) return 0 ;;
+                *) warn "Not a valid choice." ;;
+            esac
+        done
     fi
     for svc in https://ifconfig.me https://icanhazip.com https://ipinfo.io/ip; do
         ip=$(curl -fs4 --max-time 4 "$svc" 2>/dev/null | tr -d ' \n') && [[ -n "$ip" ]] && break
@@ -607,8 +625,13 @@ do_configure() {
 
     info "Subdomain for MediaFlow Proxy Light"
     echo "Needs to be its OWN subdomain, different from your main AIOStreams"
-    echo "domain, with its own A record already pointed at this server's IP"
-    echo "(same as the main installer required). e.g. mediaflow.yourdomain.com"
+    if [[ -s "$INSTALL_DIR/tunnel-state/token.env" ]]; then
+        echo "domain, with its own route on your Cloudflare Tunnel (Service URL"
+        echo "http://caddy:80). e.g. mediaflow.yourdomain.com"
+    else
+        echo "domain, with its own A record already pointed at this server's IP"
+        echo "(same as the main installer required). e.g. mediaflow.yourdomain.com"
+    fi
     echo ""
     echo "This has to be publicly reachable: AIOStreams hands stream URLs"
     echo "built from this address straight to your Stremio-based client,"
@@ -749,7 +772,11 @@ do_start() {
     fi
     rm -f "$STOPPED_MARKER"
     restart_caddy_to_pick_up_dropin
-    info "MediaFlow Proxy Light running. It can take a minute for the HTTPS cert on the new subdomain to issue."
+    if [[ -s "$INSTALL_DIR/tunnel-state/token.env" ]]; then
+        info "MediaFlow Proxy Light running."
+    else
+        info "MediaFlow Proxy Light running. It can take a minute for the HTTPS cert on the new subdomain to issue."
+    fi
     if [[ "$quiet" == "true" ]]; then
         echo "Run 'sudo bash setup-mediaflow.sh' → option 6 if you need the URL/password again."
     else
@@ -828,7 +855,7 @@ do_test() {
     elif [[ "$http_status" == "000" ]]; then
         warn "  Could not reach https://${domain} at all (timeout or DNS/TLS failure)."
         warn "  The container is alive internally, but nothing outside this server can reach it right now."
-        warn "  Check: DNS A record for ${domain}, and 'docker compose logs caddy' in $INSTALL_DIR."
+        warn "  Check: ${domain}'s DNS record (or its route, through a Cloudflare Tunnel), and 'docker compose logs caddy' in $INSTALL_DIR."
     else
         warn "  Got HTTP ${http_status} from https://${domain}/health, expected 200."
         warn "  Check: 'docker compose logs caddy' in $INSTALL_DIR."
