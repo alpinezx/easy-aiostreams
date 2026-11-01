@@ -239,7 +239,11 @@ export async function openJob(id, reconnecting, before) {
   }
   $("#drawer-title").textContent = `${job.running}…`;
   $("#drawer-sub").textContent = "Running the same script you'd run over SSH. You can close this; it keeps going.";
-  foot.append(h("span", { class: "spin", "aria-hidden": "true" }), h("span", { class: "dim", text: "Working" }));
+  // A quiet log looked like a crash: say a long job is expected to pause
+  const wait = job.action === "stack.restore"
+    ? "Working. A restore takes a few minutes, and the output pauses while things restart."
+    : "Working. Some jobs take a few minutes, and the output can pause along the way.";
+  foot.append(h("span", { class: "spin", "aria-hidden": "true" }), h("span", { class: "dim", text: wait }));
   es = new EventSource(`/api/jobs/${id}/stream`);
   es.onmessage = (ev) => {
     const m = JSON.parse(ev.data);
