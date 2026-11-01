@@ -261,6 +261,28 @@ hostnames() {
     done | awk '!seen[$0]++'
 }
 
+# The scripts on this server that read the domain or reach Caddy, and are from before the
+# tunnel: they'd take its block for the site, or check the wrong things. One line each.
+older_scripts() {
+    local f
+    for f in setup-aiostreams.sh setup-backup.sh setup-watchdog.sh setup-vpn-gluetun.sh \
+             setup-mediaflow.sh setup-aiometadata.sh setup-aiomanager.sh control-panel/setup-ui.sh; do
+        [[ -f "$INSTALL_DIR/$f" ]] || continue
+        grep -q 'tunnel-state' "$INSTALL_DIR/$f" || echo "${f#control-panel/}"
+    done
+}
+
+warn_older_scripts() {
+    local old
+    old=$(older_scripts)
+    [[ -n "$old" ]] || return 0
+    echo ""
+    warn "These scripts on this server are from before the Cloudflare Tunnel and don't know about it:"
+    warn "  $(echo "$old" | paste -sd ' ')"
+    warn "Update them before relying on backups, restores or alerts: the control panel's"
+    warn "Scripts tab (Update on each row), or download them again as their guides say."
+}
+
 print_routes() {
     local h
     echo "Each of these needs a route on the tunnel in Cloudflare:"
@@ -306,6 +328,7 @@ do_on() {
     echo ""
     print_routes
     echo "Also worth switching on, for each domain: SSL/TLS > Edge Certificates > Always Use HTTPS."
+    warn_older_scripts
 }
 
 do_off() {
@@ -350,6 +373,7 @@ do_status() {
     tunnel_on || return 0
     echo ""
     print_routes
+    warn_older_scripts
 }
 
 do_token() {
