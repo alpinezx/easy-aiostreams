@@ -7,6 +7,7 @@ Every guide in this repo, basic and advanced. Jump straight to whichever one you
 | Guide | Basic | Advanced |
 |---|---|---|
 | Firewall & Ports | [Basic](./basic/firewall-ports.md) | [Advanced](./advanced/firewall-ports.md) |
+| Hosting from Home | [Basic](./basic/home-hosting.md) | [Advanced](./advanced/home-hosting.md) |
 | Addon Proxy Setup | [Basic](./basic/addon-proxy-setup.md) | [Advanced](./advanced/addon-proxy-setup.md) |
 | Proxy Setup | [Basic](./basic/proxy-setup.md) | [Advanced](./advanced/proxy-setup.md) |
 | AIOMetadata | [Basic](./basic/aiometadata.md) | [Advanced](./advanced/aiometadata.md) |

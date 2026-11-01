@@ -17,6 +17,7 @@ A one-command installer for a self-hosted [AIOStreams](https://github.com/Viren0
 - [What this gives you](#what-this-gives-you)
 - [Prerequisites](#prerequisites)
 - [Quick start](#quick-start)
+- [Hosting from home](#hosting-from-home)
 - [Re-running the script later](#re-running-the-script-later)
 - [Backup & Restore](#backup--restore-migrating-to-a-new-server-optional)
 - [Troubleshooting](#troubleshooting)
@@ -50,6 +51,8 @@ A one-command installer for a self-hosted [AIOStreams](https://github.com/Viren0
 - At least 2 GB of RAM. 1 GB is too tight once Docker, AIOStreams and the control panel are running. If you plan to run the full set of add-ons, 3 to 4 GB is more comfortable, or add a swap file for some headroom.
 - Ports 80 and 443 opened in your provider's firewall if it's enabled. Oracle cloud users, do this first > [Firewall Ports](./docs/basic/firewall-ports.md#2-check-your-providers-own-firewall-separate-from-the-server).
 - A subdomain you control, with an **A record already pointed at your server's IP** before running the script
+
+Hosting on a computer at home instead? See [Hosting from home](#hosting-from-home): no VPS, no ports to forward.
 
 <details>
 <summary><b>Don't have a VPS yet?</b></summary>
@@ -149,10 +152,15 @@ Run it again any time with `sudo bash /opt/aiostreams/setup-aiostreams.sh` and i
  8) Restore from backup
  9) Uninstall
 10) Maintenance
-11) Exit
+11) Cloudflare Tunnel (host from home)
+12) Exit
 ```
 
 **Restore from backup** also works on a fresh server: `sudo bash setup-aiostreams.sh restore <file>`. **Maintenance** frees up space, installs system updates, sets log limits and schedules server reboots.
+
+## Hosting from home
+
+Run it on a computer at home (a mini PC, an old laptop) instead of a VPS, through a free Cloudflare Tunnel. It works behind any router, with nothing forwarded and no fixed IP, and comes back by itself after a power cut. Your domain needs to use Cloudflare's DNS, and your home upload speed limits how many streams play through a proxy at once. → [Basic](./docs/basic/home-hosting.md) · [Advanced](./docs/advanced/home-hosting.md)
 
 ## Backup & Restore (Migrating to a new server, optional)
 

@@ -159,6 +159,8 @@ Any public subdomain gets scanned by automated bots within hours of going live, 
 
 ### fail2ban protection
 
+(Not available [through a Cloudflare Tunnel](./home-hosting.md#mediaflow-proxy-and-video): every visitor arrives from the tunnel, so a ban at the server's firewall can't stop anyone.)
+
 Menu option 7 goes a step further: it installs a fail2ban jail that watches Caddy's access log for this one subdomain specifically, and bans any IP that triggers 3 `401`s or `404`s on paths *outside* MediaFlow's real API within 10 minutes, for 24 hours.
 
 Only paths outside the real API count: anything under `/proxy/*` and `/extractor/*` (including MediaFlow's encrypted links, `/_token_…/proxy/…`, which is what AIOStreams sends), plus `/generate_url(s)`, `/health`, `/metrics` and the bare `/`, is ignored even when it errors. That matters because real clients can legitimately get errors there: a `401` from a stream link cached before you changed the password, or a `404` passed through from a dead upstream link. Counting those would ban your own IP from ports 80/443 for 24 hours, main AIOStreams site included. Bots, on the other hand, probe paths like `/wp-login.php`, `/.env` and `/admin`, which a real client never requests, so those still get banned.
