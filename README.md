@@ -152,8 +152,7 @@ Run it again any time with `sudo bash /opt/aiostreams/setup-aiostreams.sh` and i
  8) Restore from backup
  9) Uninstall
 10) Maintenance
-11) Cloudflare Tunnel (host from home)
-12) Exit
+11) Exit
 ```
 
 **Restore from backup** also works on a fresh server: `sudo bash setup-aiostreams.sh restore <file>`. **Maintenance** frees up space, installs system updates, sets log limits and schedules server reboots.

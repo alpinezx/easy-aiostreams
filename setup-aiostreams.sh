@@ -1064,7 +1064,13 @@ do_update_aio() {
     docker compose images
 }
 
+# "--home": installing at home through a Cloudflare Tunnel (the Hosting from home
+# guide's command). A plain install never mentions the tunnel.
+HOME_INSTALL=false
 case "${1:-}" in
+    --home)
+        HOME_INSTALL=true
+        ;;
     backup|restore)
         script=$(backup_script) || exit 1
         AIOS_MAIN_SCRIPT="$SELF_SCRIPT_PATH" exec bash "$script" "$@"
@@ -1163,13 +1169,25 @@ if [[ -f "$COMPOSE_FILE" ]]; then
     echo "  8) Restore from backup"
     echo "  9) Uninstall"
     echo " 10) Maintenance"
-    echo " 11) Cloudflare Tunnel (host from home)"
-    echo " 12) Exit"
+    # The Cloudflare Tunnel's option only where it's used (hosting from home);
+    # a VPS never sees it. Exit is always last: 11, or 12 with the tunnel.
+    # Control panels from 1.28.1 on run named commands (start, stop...) and
+    # never reach this menu; older ones typed 10 to leave it.
+    if tunnel_active; then
+        echo " 11) Cloudflare Tunnel"
+        echo " 12) Exit"
+        MENU_LAST=12
+    else
+        echo " 11) Exit"
+        MENU_LAST=11
+    fi
     echo ""
-    # Exit is always last: 10 until October 2026, then 11, 12 since the tunnel
-    # (November 2026). Control panels from 1.28.1 on run named commands (start,
-    # stop...) and never reach this menu; older ones typed 10 to leave it.
-    read -rp "Select an option [1-12]: " MENU_CHOICE
+    read -rp "Select an option [1-$MENU_LAST]: " MENU_CHOICE
+    if [[ "$MENU_CHOICE" == "$MENU_LAST" ]]; then
+        MENU_CHOICE="exit"
+    elif [[ "$MENU_CHOICE" == 11 ]]; then
+        MENU_CHOICE="tunnel"
+    fi
 
     case "$MENU_CHOICE" in
         1)
@@ -1181,7 +1199,7 @@ if [[ -f "$COMPOSE_FILE" ]]; then
             if script=$(maint_script); then bash "$script" || true; fi
             continue
             ;;
-        11)
+        tunnel)
             if script=$(tunnel_script); then bash "$script" || true; fi
             continue
             ;;
@@ -1322,7 +1340,7 @@ if [[ -f "$COMPOSE_FILE" ]]; then
             run_backup_script restore || true
             continue
             ;;
-        12)
+        exit)
             echo "Exiting."
             exit 0
             ;;
@@ -1390,22 +1408,17 @@ while true; do
     break
 done
 
-# How visitors reach this server. A Reconfigure keeps what the install has.
+# How visitors reach this server: straight here, or through a Cloudflare Tunnel when
+# hosting from home (--home). A Reconfigure keeps what the install has.
 USE_TUNNEL=false
-if [[ -f "$COMPOSE_FILE" ]]; then
-    if tunnel_active; then
-        USE_TUNNEL=true
-        echo "This install uses a Cloudflare Tunnel, and keeps it."
-    fi
-else
+if [[ -f "$COMPOSE_FILE" ]] && tunnel_active; then
+    USE_TUNNEL=true
+    echo "This install uses a Cloudflare Tunnel, and keeps it."
+elif $HOME_INSTALL; then
+    USE_TUNNEL=true
     echo ""
-    echo "How will people reach this server?"
-    echo "  1) Directly: a VPS, or a home server with ports 80 and 443 forwarded to it"
-    echo "  2) Through a Cloudflare Tunnel: a home server behind any router, nothing"
-    echo "     forwarded. Needs the domain on Cloudflare (free) and a tunnel made there"
-    echo "     first, with a route for $DOMAIN (see the home hosting guide)."
-    read -rp "Choice [1-2] (Enter for 1): " REACH_CHOICE
-    [[ "$REACH_CHOICE" == 2 ]] && USE_TUNNEL=true
+    echo "Hosting from home: visitors come through your Cloudflare Tunnel, and Cloudflare"
+    echo "holds the HTTPS certificates. It asks for the tunnel's token shortly."
 fi
 
 if $USE_TUNNEL; then
@@ -1424,6 +1437,7 @@ if [[ -z "$RESOLVED_IP" ]]; then
     warn "Could not resolve $DOMAIN. If you haven't set the DNS A record yet, Caddy will fail to get an HTTPS certificate."
     read -rp "Continue anyway? (y/N): " CONTINUE_ANYWAY
     if [[ ! "$CONTINUE_ANYWAY" =~ ^[Yy]$ ]]; then
+        echo "(Hosting from home through a Cloudflare Tunnel? Run it as: sudo bash setup-aiostreams.sh --home)"
         error "Aborting. Set up your DNS A record first, then re-run this script."
     fi
 else
@@ -1441,6 +1455,7 @@ else
         alert "That usually means DNS is pointing somewhere else, a different server, or a typo."
         read -rp "Continue anyway? (y/N): " CONTINUE_ANYWAY
         if [[ ! "$CONTINUE_ANYWAY" =~ ^[Yy]$ ]]; then
+            echo "(Hosting from home through a Cloudflare Tunnel? Run it as: sudo bash setup-aiostreams.sh --home)"
             error "Aborting. Point $DOMAIN's A record at $PUBLIC_IP, then re-run this script."
         fi
     else
