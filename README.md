@@ -2,12 +2,13 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-A one-command installer for a self-hosted [AIOStreams](https://github.com/Viren070/AIOStreams) instance. It sets up Docker, Caddy (automatic HTTPS), and secure login access to the config page and dashboard, all in one script. Restricted to your own credentials.
+A one-command installer for a self-hosted [AIOStreams](https://github.com/Viren070/AIOStreams) instance. It sets up Docker, Caddy (automatic HTTPS via Let's Encrypt), and secure login access to the config page and dashboard, all in one script. Restricted to your own credentials.
 
-Run it on a **VPS** (a rented server), or on a **computer at home** through a free Cloudflare Tunnel, with no ports to forward. See [two ways to run it](#prerequisites).
+> [!TIP]
+> **Hosting on a computer at home instead of a VPS?** Follow the [Hosting from home](./docs/basic/home-hosting.md) guide: no ports to forward, through a free Cloudflare Tunnel. It uses this same installer.
 
 > [!NOTE]
-> **Opinionated by design.** The script owns the whole stack on a fresh server: Docker, Caddy, the compose file and the services. It's made for people who want one thing that works end to end, and it won't slot into an existing reverse proxy or compose setup. If you already have one you like, you probably don't need this. It's one bash script, so you can read exactly what it sets up before you run it.
+> **Opinionated by design.** The script owns the whole stack on a fresh VPS: Docker, Caddy, the compose file and the services. It's made for people who want one thing that works end to end, and it won't slot into an existing reverse proxy or compose setup. If you already have one you like, you probably don't need this. It's one bash script, so you can read exactly what it sets up before you run it.
 
 > [!IMPORTANT]
 > **Installed this before October 2026?** The install folder has moved from `/root/aiostreams` to `/opt/aiostreams`, and these scripts only work with the new location. [Follow these steps to move your install](https://github.com/alpinezx/easy-aiostreams/tree/migrate-to-opt) (about a minute of downtime, with a backup first).
@@ -19,7 +20,6 @@ Run it on a **VPS** (a rented server), or on a **computer at home** through a fr
 - [What this gives you](#what-this-gives-you)
 - [Prerequisites](#prerequisites)
 - [Quick start](#quick-start)
-- [Hosting from home](#hosting-from-home)
 - [Re-running the script later](#re-running-the-script-later)
 - [Backup & Restore](#backup--restore-migrating-to-a-new-server-optional)
 - [Troubleshooting](#troubleshooting)
@@ -49,30 +49,10 @@ Run it on a **VPS** (a rented server), or on a **computer at home** through a fr
 
 ## Prerequisites
 
-There are two ways to run it. Same installer, same features; only how visitors reach the server differs.
-
-| | On a VPS | On a computer at home |
-|---|---|---|
-| **What it is** | A rented server with its own public IP | A mini PC, old laptop or home server that stays on |
-| **How visitors get in** | Straight to the server | Through a free Cloudflare Tunnel, nothing forwarded at your router |
-| **Costs** | The VPS, a few dollars a month, plus a domain | A domain only |
-| **Speed** | The VPS's connection | Your home upload speed |
-| **Guide** | The [Quick start](#quick-start) below | [Hosting from home](./docs/basic/home-hosting.md) |
-
-### On a VPS
-
 - A fresh VPS with root access, running Ubuntu 24.04+ or Debian 13 (should also work on Debian 12, untested)
 - At least 2 GB of RAM. 1 GB is too tight once Docker, AIOStreams and the control panel are running. If you plan to run the full set of add-ons, 3 to 4 GB is more comfortable, or add a swap file for some headroom.
 - Ports 80 and 443 opened in your provider's firewall if it's enabled. Oracle cloud users, do this first > [Firewall Ports](./docs/basic/firewall-ports.md#2-check-your-providers-own-firewall-separate-from-the-server).
 - A subdomain you control, with an **A record already pointed at your server's IP** before running the script
-
-### On a computer at home
-
-- A computer that stays on, running Ubuntu 24.04+ or Debian 13, with at least 2 GB of RAM
-- A domain of your own using Cloudflare's DNS (free), and a Cloudflare Tunnel made before installing
-- Nothing to open or forward at your router
-
-Follow the [Hosting from home](./docs/basic/home-hosting.md) guide: it walks through Cloudflare and then this installer.
 
 <details>
 <summary><b>Don't have a VPS yet?</b></summary>
@@ -96,8 +76,6 @@ Any registrar works. If you're buying one just for this, prefer `.xyz` or `.top`
 </details>
 
 ## Quick start
-
-For a VPS. Hosting from home? Follow the [Hosting from home](./docs/basic/home-hosting.md) guide instead: it uses the same installer, without the DNS check below.
 
 ### Confirm your DNS is actually pointing at your server first
 
@@ -179,10 +157,6 @@ Run it again any time with `sudo bash /opt/aiostreams/setup-aiostreams.sh` and i
 ```
 
 **Restore from backup** also works on a fresh server: `sudo bash setup-aiostreams.sh restore <file>`. **Maintenance** frees up space, installs system updates, sets log limits and schedules server reboots.
-
-## Hosting from home
-
-Run it on a computer at home (a mini PC, an old laptop) instead of a VPS, through a free Cloudflare Tunnel. It works behind any router, with nothing forwarded and no fixed IP, and comes back by itself after a power cut. Your domain needs to use Cloudflare's DNS, and your home upload speed limits how many streams play through a proxy at once. → [Basic](./docs/basic/home-hosting.md) · [Advanced](./docs/advanced/home-hosting.md)
 
 ## Backup & Restore (Migrating to a new server, optional)
 
