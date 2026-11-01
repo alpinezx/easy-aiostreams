@@ -502,6 +502,25 @@ reapply_mediaflow_patches_if_present() {
         warn "Couldn't re-apply MediaFlow's compose changes. Run: sudo bash setup-mediaflow.sh (option 2, Start)."
 }
 
+# The saved Caddyfile and compose copies are plain ones. With a Cloudflare
+# Tunnel, setup-tunnel.sh puts its settings block and the closed ports back.
+reapply_tunnel_if_present() {
+    [[ -s "$INSTALL_DIR/tunnel-state/token.env" ]] || return 0
+    if [[ ! -f "$INSTALL_DIR/setup-tunnel.sh" ]]; then
+        warn "This server uses a Cloudflare Tunnel but setup-tunnel.sh isn't in $INSTALL_DIR to put Caddy back in tunnel mode."
+        warn "Get it on the panel's Scripts tab, then run: sudo bash setup-tunnel.sh on"
+        return 0
+    fi
+    bash "$INSTALL_DIR/setup-tunnel.sh" _apply < /dev/null || \
+        warn "Couldn't put Caddy back in tunnel mode. Run: sudo bash setup-tunnel.sh on"
+}
+
+# The main site's domain: the Caddyfile's first site, after the Cloudflare
+# Tunnel's settings block when there is one
+caddy_domain() {
+    grep -m1 -oP '^[A-Za-z0-9.-]+\.[A-Za-z0-9-]+(?=\s*\{)' "$1" 2>/dev/null || true
+}
+
 apply_mode() {
     local mode="$1"  # "direct" or "vpn"
     # Must stay opt-in, not the default: do_uninstall_vpn relies on
@@ -514,7 +533,7 @@ apply_mode() {
     # a stale one frozen in the snapshot.
     if [[ -f "$CADDYFILE" ]]; then
         local live_domain
-        live_domain=$(head -1 "$CADDYFILE" | awk '{print $1}') || true
+        live_domain=$(caddy_domain "$CADDYFILE")
         if [[ -n "$live_domain" ]]; then
             [[ -f "$DIRECT_CADDYFILE" ]] && sed -i "1s/.*/${live_domain} {/" "$DIRECT_CADDYFILE"
             [[ -f "$VPN_CADDYFILE" ]] && sed -i "1s/.*/${live_domain} {/" "$VPN_CADDYFILE"
@@ -560,10 +579,11 @@ apply_mode() {
     fi
     chmod 600 "$COMPOSE_FILE"
     reapply_mediaflow_patches_if_present
+    reapply_tunnel_if_present
     echo "$mode" > "$ACTIVE_MARKER"
 
     local domain
-    domain=$(head -1 "$CADDYFILE" | awk '{print $1}')
+    domain=$(caddy_domain "$CADDYFILE")
 
     info "Starting the stack in '$mode' mode"
 
