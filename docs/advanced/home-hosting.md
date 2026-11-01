@@ -27,7 +27,7 @@ Turning it off puts the Caddyfile and compose file back exactly as a normal inst
 
 ## The commands
 
-The menu is `sudo bash /opt/aiostreams/setup-aiostreams.sh`, option **11) Cloudflare Tunnel**, or `setup-tunnel.sh` directly:
+With the tunnel on, the menu (`sudo bash /opt/aiostreams/setup-aiostreams.sh`) has option **11) Cloudflare Tunnel**; a server without it doesn't show the option. `sudo bash /opt/aiostreams/setup-aiostreams.sh tunnel` opens the same menu anywhere (downloading `setup-tunnel.sh` if it's missing), or run `setup-tunnel.sh` directly:
 
 | Command | What it does |
 |---|---|
@@ -53,7 +53,7 @@ The DNS page also recommends records for `www` and the bare domain. Ignore those
 
 ## Installing, add-ons and the panel
 
-A fresh install asks **How will people reach this server?** Choosing the tunnel skips the "domain points at this server" check (it points at Cloudflare), and starts the tunnel before the stack, so Caddy never tries for certificates. Reconfigure keeps it.
+`setup-aiostreams.sh --home` installs for a tunnel: it skips the "domain points at this server" check (it points at Cloudflare), asks for the token, and starts the tunnel before the stack, so Caddy never tries for certificates. A plain install never mentions the tunnel. Reconfigure keeps it.
 
 The add-on scripts and the panel's `setup-ui.sh` skip their DNS check through a tunnel too, and remind you to add a route instead. Add the route first: if anything looks a name up before its record exists, resolvers can remember "doesn't exist" for up to 30 minutes (Cloudflare's negative-cache time).
 
