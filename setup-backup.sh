@@ -1158,7 +1158,9 @@ restore_check() {
         check_no "Docker or its Compose plugin isn't available."
     fi
 
-    local domain current ip caddyfile
+    local domain current ip caddyfile tunnel=false
+    # Through a Cloudflare Tunnel every name points at Cloudflare, not here
+    grep -qx 'aiostreams/tunnel-state/token.env' <<< "$listing" && tunnel=true
     caddyfile=$(from_backup Caddyfile)
     domain=$(caddy_domain - <<< "$caddyfile")
     current=$(caddy_domain)
@@ -1167,7 +1169,7 @@ restore_check() {
         check_no "Its Caddyfile names no domain."
     elif [[ -n "$current" && "${domain,,}" != "${current,,}" ]]; then
         check_no "Its domain is $domain, but this install uses $current."
-    elif grep -qx 'aiostreams/tunnel-state/token.env' <<< "$listing"; then
+    elif $tunnel; then
         check_ok "$domain is reached through its Cloudflare Tunnel."
     elif [[ -z "$PUBLIC_IP" ]]; then
         check_no "This server's own public IP couldn't be found, so DNS can't be checked."
@@ -1190,6 +1192,8 @@ restore_check() {
         cdomain=$(addon_domain "$dir")
         if [[ -n "$cdomain" && "${bdomain,,}" != "${cdomain,,}" ]]; then
             check_no "$name: it uses $bdomain, but this install uses $cdomain."
+        elif $tunnel; then
+            check_ok "$name: $bdomain is reached through the Cloudflare Tunnel."
         elif [[ -n "$PUBLIC_IP" && "$(resolve_ip "$bdomain")" != "$PUBLIC_IP" ]]; then
             check_no "$name: $bdomain doesn't point at this server."
         else
