@@ -654,10 +654,11 @@ restore_start_stack() {
     cleanup_replaced_images "$image_snapshot"
 
     # Through a Cloudflare Tunnel, Cloudflare holds the certificates: start it
-    # (its token came back with the backup, so it asks nothing)
+    # (its token came back with the backup, so it asks nothing). A VPS's backup
+    # restored at home had it set up moments ago (TUNNEL_JUST_ON, setup-backup.sh).
     if tunnel_active; then
         local script
-        if script=$(tunnel_script); then
+        if [[ -z "${TUNNEL_JUST_ON:-}" ]] && script=$(tunnel_script); then
             bash "$script" on < /dev/null || warn "The Cloudflare Tunnel didn't start. Run: sudo bash $INSTALL_DIR/setup-tunnel.sh"
         fi
         return 0

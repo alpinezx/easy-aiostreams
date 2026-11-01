@@ -1493,7 +1493,8 @@ do_restore() {
     if [[ "${AIOS_HOME:-}" == 1 ]] && ! tunnel_active; then
         local tunnel_rc=0
         bash "$INSTALL_DIR/setup-aiostreams.sh" tunnel on || tunnel_rc=$?
-        (( tunnel_rc == 0 )) && TUNNEL_JUST_ON=1
+        # exported: the restore's start (setup-aiostreams.sh) then doesn't run it again
+        (( tunnel_rc == 0 )) && export TUNNEL_JUST_ON=1
         if (( tunnel_rc != 0 && tunnel_rc != 3 )); then
             warn "The Cloudflare Tunnel didn't start. After the restore: sudo bash $INSTALL_DIR/setup-aiostreams.sh tunnel"
         fi
