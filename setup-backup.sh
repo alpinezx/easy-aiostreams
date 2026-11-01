@@ -1361,6 +1361,16 @@ do_restore() {
         fi
     fi
 
+    # A fresh server where only the installer was downloaded (as the Quick
+    # start does) has no install to move aside: drop the scripts, the
+    # restore brings its own. cd /: a shell sitting in the folder loses it.
+    local other
+    if [[ -d "$INSTALL_DIR" ]] \
+        && other=$(find "$INSTALL_DIR" -mindepth 1 -maxdepth 1 ! -name 'setup-*.sh' -print -quit) \
+        && [[ -z "$other" ]]; then
+        cd / && rm -rf -- "$INSTALL_DIR"
+    fi
+
     local aside=""
     if [[ -d "$INSTALL_DIR" ]]; then
         local addons_now
