@@ -404,20 +404,29 @@ tunnel_menu() {
         echo ""
         status_line
         echo ""
-        echo "  1) Status and routes"
-        if tunnel_on; then
-            echo "  2) Change the token"
-            echo "  3) Turn the tunnel off"
-        else
+        # Off, there's nothing to turn off or update, so the menu only offers what applies
+        if ! tunnel_on; then
+            echo "  1) Status"
             echo "  2) Turn the tunnel on"
-            echo "  3) (off already)"
+            echo "  3) Exit"
+            read -rp "Choose an option [1-3]: " c || return 0
+            case "$c" in
+                1) echo ""; do_status ;;
+                2) do_on ;;
+                3) return 0 ;;
+                *) echo "Choose 1 to 3." ;;
+            esac
+            continue
         fi
+        echo "  1) Status and routes"
+        echo "  2) Change the token"
+        echo "  3) Turn the tunnel off"
         echo "  4) Update cloudflared"
         echo "  5) Exit"
         read -rp "Choose an option [1-5]: " c || return 0
         case "$c" in
             1) echo ""; do_status ;;
-            2) if tunnel_on; then do_token; else do_on; fi ;;
+            2) do_token ;;
             3) do_off ;;
             4) do_update || true ;;
             5) return 0 ;;
