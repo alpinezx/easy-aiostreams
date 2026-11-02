@@ -27,7 +27,8 @@ const CUT_BY_AIOS = /aborting with incomplete response.*"error":"reading: [^"]*(
 const QUIET = [
   /canceled by remote with error code 0\b/,   // a visitor closed a connection still open (left a live page, stopped a video)
   /ERR {2}error="unexpected EOF" .*originService=/,   // a cut connection's first half; its Request failed line says what it was
-  /Request failed error="unexpected EOF" .*dest=https?:\/\/[^/ ]+\/api\/v1\/dashboard\/[^ ]*\/stream /,   // AIOStreams or Caddy restarted under an open dashboard page
+  // A restart cut a live page: AIOStreams' dashboard, or this panel's own Logs.
+  /Request failed error="unexpected EOF" .*dest=https?:\/\/[^/ ]+\/api\/(v1\/dashboard\/[^ ]*\/stream|logs\/[^ ]*) /,
 ];
 const CADDY_STOP = /shutting down apps, then terminating|"msg":"shutdown complete"|exiting; byeee/;
 const RESTART_WINDOW = 10;
