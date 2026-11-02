@@ -22,9 +22,10 @@ const NOISE = [
 ];
 // AIOStreams cutting a response is only noise next to a stack restart; on its own it means a viewer's stream broke.
 const CUT_BY_AIOS = /aborting with incomplete response.*"error":"reading: [^"]*(:3000: read: connection reset by peer|unexpected EOF)"/;
-// cloudflared lines shown in grey, not as errors. It logs each failure twice: a first half without the address,
-// then "Request failed ... dest=<url>".
+// Tunnel and VPN lines shown in grey, not as errors. cloudflared logs each failure twice: a first half without
+// the address, then "Request failed ... dest=<url>".
 const QUIET = [
+  /WARN \[dns\] exchanging over tls connection .*: EOF$/,   // gluetun: the DNS server closed an idle connection; retried at once
   /canceled by remote with error code 0\b/,   // a visitor closed a connection still open (left a live page, stopped a video)
   /ERR {2}error="unexpected EOF" .*originService=/,   // a cut connection's first half; its Request failed line says what it was
   // A restart cut a live page: AIOStreams' dashboard, or this panel's own Logs.
@@ -52,6 +53,9 @@ const LEVEL_NUM = (n) => (n >= 50 ? "error" : n >= 40 ? "warn" : "out");   // pi
 const TS = /^(\d{4}-\d\d-\d\dT[\d:.]+)Z?\s(.*)$/s;
 // Plain-text lines like "info: [Filter] 73 streams kept"
 const PLAIN = /^(trace|debug|info|warn(?:ing)?|error|fatal)\s*:\s*(?:\[([^\]]+)\]\s*)?(.*)$/is;
+// The VPN tunnel's (gluetun's) lines: "2026-11-02T18:38:41Z INFO [wireguard] ...", its own time then the level.
+// Full-word levels only: cloudflared's INF / ERR keep the word-based guess.
+const STAMPED = /^\d{4}-\d\d-\d\dT[\d:.]+Z?\s+(TRACE|DEBUG|INFO|WARN|ERROR|FATAL)\s+(?:\[([^\]]+)\]\s*)?(.*)$/s;
 const SKIP = new Set(["level", "time", "ts", "module", "logger", "msg", "message"]);
 
 const fmtVal = (v) => (typeof v === "string" ? v : JSON.stringify(v));
@@ -76,7 +80,7 @@ function parse(raw) {
       extra = Object.keys(j).filter((k) => !SKIP.has(k)).map((k) => `${k}=${fmtVal(j[k])}`).join(" ");
     } catch (_) {}
   } else {
-    const p = PLAIN.exec(t);
+    const p = PLAIN.exec(t) || STAMPED.exec(t);
     if (p) { cls = LEVEL_CLS[p[1].toLowerCase()] || null; mod = p[2] || ""; msg = p[3]; }
   }
   if (!cls) cls = ERR.test(text) ? "error" : WARN.test(text) ? "warn" : "out";
@@ -100,8 +104,8 @@ function markRestart(stop) {
 }
 
 const isCaddy = () => current === "caddy";
-// Logs with a Hide noise switch: Caddy's, and the tunnel's grey lines.
-const hasNoise = () => isCaddy() || current === "cloudflared";
+// Logs with a Hide noise switch: Caddy's, and the Cloudflare Tunnel's and VPN tunnel's grey lines.
+const hasNoise = () => isCaddy() || current === "cloudflared" || current === "gluetun";
 const hiddenByToggle = (l) => (hideNoise && hasNoise() && l.noise) || (levels.size > 0 && !levels.has(l.cls));
 
 // The filter as a test: plain text (any case), or a regular expression with .* on. A broken pattern matches everything.

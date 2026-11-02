@@ -889,20 +889,21 @@ def test_no_stray_control_characters():
 
 
 def test_tunnel_noise_is_grey_and_real_failures_stay_red():
-    """The Logs page greys cloudflared's harmless lines (logs.js QUIET). Checked against real ones,
+    """The Logs page greys the tunnels' harmless lines (logs.js QUIET). Checked against real ones,
     so a pattern that stops matching, or starts matching real failures, fails here."""
     import re
     from pathlib import Path
     js = (Path(__file__).resolve().parents[1] / "web" / "js" / "logs.js").read_text(encoding="utf-8")
     block = re.search(r"const QUIET = \[(.*?)\n\];", js, re.S).group(1)
     quiet = [re.compile(p) for p in re.findall(r"^\s*/(.+)/,", block, re.M)]
-    assert len(quiet) == 3
+    assert len(quiet) == 4
     grey = [
         'ERR  error="unexpected EOF" connIndex=3 event=1 ingressRule=0 originService=http://caddy:80',
         'ERR Request failed error="unexpected EOF" connIndex=3 dest=https://aio.example.com/api/v1/dashboard/streams/live/stream event=0 type=http',
         'ERR Request failed error="unexpected EOF" connIndex=3 dest=https://aio.example.com/api/v1/dashboard/system/stream event=0 type=http',
         'ERR Request failed error="stream 585 canceled by remote with error code 0" connIndex=3 dest=https://cp.example.com/api/logs/aiostreams event=0',
         'ERR Request failed error="unexpected EOF" connIndex=3 dest=https://cp.example.com/api/logs/caddy?tail=300 event=0 ip=198.41.200.23 type=http',
+        '2026-11-02T18:49:08Z WARN [dns] exchanging over tls connection (13ms) for request IN A ipinfo.io.: EOF',
     ]
     red = [
         'ERR  error="Unable to reach the origin service. dial tcp: lookup caddy on 127.0.0.11:53: server misbehaving" connIndex=3 event=1 originService=http://caddy:80',
@@ -910,6 +911,7 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
         'ERR Request failed error="unexpected EOF" connIndex=3 dest=https://cp.example.com/api/status event=0 type=http',
         'ERR Request failed error="Unable to reach the origin service. dial tcp 172.18.0.2:80: connect: connection refused" connIndex=3 dest=https://aio.example.com/ event=0',
         'ERR Request failed error="stream 5 canceled by remote with error code 10" connIndex=3 dest=https://aio.example.com/x event=0',
+        '2026-11-02T18:49:08Z WARN [dns] exchanging over tls connection (5000ms) for request IN A ipinfo.io.: i/o timeout',
     ]
     for line in grey:
         assert any(r.search(line) for r in quiet), line

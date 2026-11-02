@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 2 November 2026
 
+- **Fixed:** the Logs page reads the VPN tunnel's own levels, so its "Wireguard setup is complete" note no longer shows in red, and its harmless DNS retries ("exchanging over tls connection ... EOF") are grey, with a Hide noise switch like Caddy's and the Cloudflare Tunnel's. (Panel 1.48.5, [#128](https://github.com/alpinezx/easy-aiostreams/pull/128))
 - **Fixed:** the Logs page also greys the Cloudflare Tunnel's "unexpected EOF" lines from AIOStreams or Caddy restarting under an open AIOStreams dashboard. Real failures, like a cut video or Caddy being down, stay red. The tunnel's log gets Caddy's Hide noise switch and a fold-out saying which of its errors are fine after a restart and which are worth a look, and Caddy's expected lines are grey as well. The live log no longer shows every line twice after reconnecting (when the panel restarts, for example). (Panel 1.48.4, [#127](https://github.com/alpinezx/easy-aiostreams/pull/127))
 - **Fixed:** two of the control panel's tests caught up with features added since they were written (the VPN page's DNS check, MediaFlow's address on its Add-ons card), so the whole suite passes again. Tests only, nothing changes on a server. ([#126](https://github.com/alpinezx/easy-aiostreams/pull/126))
 - **Docs:** the Hosting from home guide says where Add a domain is in Cloudflare, and how to find the nameserver steps for registrars other than Porkbun. ([#125](https://github.com/alpinezx/easy-aiostreams/pull/125))
