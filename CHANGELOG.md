@@ -2,6 +2,10 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 2 November 2026
+
+- **Panel base image updated:** Python 3.15, from the monthly dependency check. (Panel 1.48.2, [#123](https://github.com/alpinezx/easy-aiostreams/pull/123))
+
 ## 1 November 2026
 
 - **Fixed:** Uninstall also removes the control panel, the add-ons' images (when you choose to remove images) and the shared network, and refuses to run from the panel's own terminal. A restore onto a fresh server no longer warns about an existing install when the folder only holds the downloaded scripts. ([#121](https://github.com/alpinezx/easy-aiostreams/pull/121))
