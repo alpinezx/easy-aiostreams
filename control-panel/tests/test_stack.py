@@ -392,6 +392,8 @@ def test_vpn_info_on_asks_gluetun_where_traffic_leaves(tmp_path, monkeypatch):
     asked = []
 
     def exec_run(cmd):
+        if cmd[0] != "wget":               # the DNS check that follows a successful lookup
+            return SimpleNamespace(exit_code=0, output=b"")
         asked.append(cmd[-1])
         out = b'{"ip": "203.0.113.17", "city": "Amsterdam", "country": "NL", "org": "AS64500 Example"}'
         return SimpleNamespace(exit_code=0, output=out)
@@ -517,7 +519,8 @@ def test_add_ons_read_from_their_saved_settings(tmp_path, monkeypatch):
     for s in ("pw-one", "key-two", "pw-three", "user:pass", "tok-four", "topic-five"):
         assert s not in text, s
     assert info == [{"id": "aiometadata", "domain": "meta.example.com", "version": "3.7.0"},
-                    {"id": "mediaflow", "domain": "mf.example.com", "proxy": "socks5://proxy.example.net:1080"},
+                    {"id": "mediaflow", "domain": "mf.example.com", "url": "http://mediaflow-proxy-light:8888",
+                     "proxy": "socks5://proxy.example.net:1080"},
                     {"id": "webhook", "domain": "hooks.example.com", "retired": True}]
     assert b.addon_secret("aiometadata", "admin_key") == "key-two"
     assert b.addon_secret("mediaflow", "api_password") == "pw-three"
