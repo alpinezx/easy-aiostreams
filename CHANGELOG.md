@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 2 November 2026
 
+- **Fixed:** the Logs page also greys the Cloudflare Tunnel's "unexpected EOF" lines from AIOStreams or Caddy restarting under an open AIOStreams dashboard. Real failures, like a cut video or Caddy being down, stay red. (Panel 1.48.4, [#127](https://github.com/alpinezx/easy-aiostreams/pull/127))
 - **Fixed:** two of the control panel's tests caught up with features added since they were written (the VPN page's DNS check, MediaFlow's address on its Add-ons card), so the whole suite passes again. Tests only, nothing changes on a server. ([#126](https://github.com/alpinezx/easy-aiostreams/pull/126))
 - **Docs:** the Hosting from home guide says where Add a domain is in Cloudflare, and how to find the nameserver steps for registrars other than Porkbun. ([#125](https://github.com/alpinezx/easy-aiostreams/pull/125))
 - **Docs:** the Hosting from home guide, walked through as a new user: Cloudflare's clicks spelled out for routes and Always Use HTTPS, and a new part on changing your domain. The README mentions hosting from home among what you get. At home, the installer's domain question now asks for the tunnel route's full name, and Reconfigure's messages no longer contradict a "without backing up" choice. ([#124](https://github.com/alpinezx/easy-aiostreams/pull/124))
