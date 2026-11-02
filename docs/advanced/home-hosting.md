@@ -57,6 +57,10 @@ On a fresh server the installer's first question is **Where is this server?** (`
 
 The add-on scripts and the panel's `setup-ui.sh` skip their DNS check through a tunnel too, and remind you to add a route instead. Add the route first: if anything looks a name up before its record exists, resolvers can remember "doesn't exist" for up to 30 minutes (Cloudflare's negative-cache time).
 
+## Changing the domain
+
+Reconfigure (menu **6**) keeps the tunnel and skips the DNS check, so the new name needs its route before you switch: add it, Reconfigure, check the site, then delete the old route. The tunnel itself doesn't care which names it carries, as long as they're on the same Cloudflare account. For a domain on another account, make a tunnel there with a route for every name, then `setup-tunnel.sh token` and paste its token.
+
 ## Backups and restores
 
 A backup holds `tunnel-state/` like everything else in `/opt/aiostreams`, token included, so treat backups as private as ever. A restore starts the tunnel again from it, with no questions, and skips the DNS checks a VPS restore makes (the panel's same-server restore included). Restoring a VPS's backup at home (first question **2**, then **2) Restore from a backup**) runs `setup-tunnel.sh on` once the backup is unpacked, before the DNS checks and the start, so it comes back behind the tunnel.

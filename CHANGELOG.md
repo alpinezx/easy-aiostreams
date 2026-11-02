@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 2 November 2026
 
+- **Docs:** the Hosting from home guide, walked through as a new user: Cloudflare's clicks spelled out for routes and Always Use HTTPS, and a new part on changing your domain. The README mentions hosting from home among what you get. At home, the installer's domain question now asks for the tunnel route's full name, and Reconfigure's messages no longer contradict a "without backing up" choice. ([#124](https://github.com/alpinezx/easy-aiostreams/pull/124))
 - **Panel base image updated:** Python 3.15, from the monthly dependency check. Also fixed: the Cloudflare Tunnel's harmless "stream canceled" lines show in grey on the Logs page, as they were meant to, instead of red. (Panel 1.48.3, [#123](https://github.com/alpinezx/easy-aiostreams/pull/123))
 
 ## 1 November 2026

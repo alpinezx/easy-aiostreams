@@ -28,6 +28,7 @@ A one-command installer for a self-hosted [AIOStreams](https://github.com/Viren0
 ## What this gives you
 
 - Your own AIOStreams instance, not a shared public one
+- Runs on a rented VPS, or on a computer at home through a free Cloudflare Tunnel, with no ports to forward. → [Hosting from home](./docs/basic/home-hosting.md)
 - HTTPS out of the box, auto-renewing, no manual cert wrangling
 - **App-level login** (AIOStreams' own auth). The configure page, dashboard, and the config API all require your username/password, so nobody else can create or edit configs on your instance.
 - A management menu for status, restart, updates, backups, and clean uninstall
