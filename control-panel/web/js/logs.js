@@ -124,6 +124,7 @@ const visible = (l) => !hiddenByToggle(l) && matcher(l);
 function syncControls() {
   $("#log-noise-row").hidden = !hasNoise();
   $("#log-help").hidden = !isCaddy();
+  $("#log-help-tunnel").hidden = current !== "cloudflared";
   $("#log-noise").checked = hideNoise;
   const n = hasNoise() ? lines.filter((l) => l.noise).length : 0;
   $("#log-noise-n").textContent = n ? `(${n})` : "";
