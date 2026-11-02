@@ -72,19 +72,21 @@ The page then waits for a connection, with **Continue** greyed out. That's expec
 
 **This does:** tells Cloudflare which names go down the tunnel. Do it **before** installing.
 
-1. **Networking → Tunnels**, click your tunnel's name, then the **Routes** tab, then **Add route**.
+1. Leave the waiting page from step 3: click **Tunnels** in the left sidebar (under **Networking**). Then click your tunnel's name, and the **Routes** tab at the top left, next to **Overview**. Click **Add route**.
 2. Choose **Published application**.
 3. Fill it in:
    - **Subdomain:** just the first part, like `aio` (the Domain box adds the rest). Check the **Full hostname** line reads what you expect.
-   - **Domain:** your domain.
+   - **Domain:** usually filled in already. With more than one domain on Cloudflare, pick the right one from its list.
    - **Path:** leave empty.
    - **Service URL:** `http://caddy:80`
-4. Leave the other settings alone and click **Add route**.
+4. Leave **Additional application settings** at the bottom folded: nothing in it is needed. Click **Add route**.
 
 Add one for each name you'll use: AIOStreams now, and later one each for the control panel and any add-on with its own subdomain. They all use the same `http://caddy:80`.
 
 > [!IMPORTANT]
 > Use the **Routes tab on your tunnel**, not **Networking → Routes** in the sidebar: that one is for private networks. If a box mentions WARP, Gateway or Split Tunnels, you're in the wrong place.
+
+Cloudflare's DNS page may show **Recommendations** like "Visitors cannot reach www…". Ignore them: each route makes the record it needs.
 
 ---
 
@@ -112,7 +114,7 @@ sudo bash setup-aiostreams.sh
 
 It first asks **Where is this server?** Choose **2) A computer at home**, then **1) Fresh install**. (Moving from a VPS? Choose **2) Restore from a backup** instead: see [Adding more later](#adding-more-later).)
 
-It asks for your domain, a login and which build to run, like a VPS install, but skips the VPS's DNS check (your domain points at Cloudflare, not your home). Then it asks for the tunnel's token: paste it. **Nothing shows on screen** while you paste: that's expected.
+It asks for your domain (the full name from your route in step 4, like `aio.yourdomain.xyz`), a login and which build to run, like a VPS install, but skips the VPS's DNS check (your domain points at Cloudflare, not your home). Then it asks for the tunnel's token: paste it. **Nothing shows on screen** while you paste: that's expected.
 
 It ends with **The Cloudflare Tunnel is connected**. Visit your domain and log in.
 
@@ -120,7 +122,14 @@ It ends with **The Cloudflare Tunnel is connected**. Visit your domain and log i
 
 ## 6. Always use HTTPS
 
-In Cloudflare, open your domain, then **SSL/TLS → Edge Certificates**, and switch on **Always Use HTTPS**. Visitors who type `http://` are then sent to the secure address.
+**This does:** sends visitors who type `http://` to the secure address.
+
+1. In Cloudflare's left sidebar, click **Domains**, then **Overview** under it.
+2. Click your domain's name in the list in the middle.
+3. In the left sidebar again, click **SSL/TLS**, then **Edge Certificates** under it.
+4. Scroll down the page to **Always Use HTTPS**. It's off on a new domain: switch it on.
+
+Its note about redirect loops doesn't apply: through the tunnel, your server never redirects to HTTPS itself, so the two can't loop.
 
 ---
 
@@ -141,6 +150,7 @@ From here it works just like a VPS install. The main README covers each part:
 - **The control panel or an add-on:** add its route first (step 4), then install it as its guide says. Where it would check your DNS, it reminds you about the route instead.
 - **Already installed on a home server?** Run `sudo bash /opt/aiostreams/setup-aiostreams.sh tunnel`, then **Turn the tunnel on**. It lists the routes you need.
 - **Moving from a VPS to home?** Back up on the VPS and copy the backup home ([Backup & Restore](./backup-restore.md)). In Cloudflare, delete the domains' old A records, then add their routes (step 4). At home, run the installer as in step 5, choose **2) A computer at home**, then **2) Restore from a backup**: it asks for the tunnel's token and puts the restored stack behind it. Switch the VPS off afterwards.
+- **Changing your domain:** keep the same tunnel. Add a route for the new name first (step 4), then run `sudo bash /opt/aiostreams/setup-aiostreams.sh`, choose **6) Reconfigure** and type the new name. Once the site opens on it, delete the old name's route on the tunnel's Routes tab. One tunnel works for every domain in your Cloudflare account; you only need a new one for a domain in a different Cloudflare account. Then create it (step 3), add a route on it for every name you use, and choose **11) Cloudflare Tunnel**, then **Change the token**.
 
 ---
 

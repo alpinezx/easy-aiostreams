@@ -1260,7 +1260,7 @@ if [[ -f "$COMPOSE_FILE" ]]; then
                 warn_if_vpn_layer_off "Reconfiguring" || continue
             fi
 
-            echo "Proceeding with reconfiguration. Current config will be backed up first."
+            echo "Reconfiguring. The current settings files are kept as .bak copies first."
             BACKUP_SUFFIX="$(date +%Y%m%d%H%M%S)"
             cp "$COMPOSE_FILE" "${COMPOSE_FILE}.bak_${BACKUP_SUFFIX}"
             [[ -f "$CADDYFILE" ]] && cp "$CADDYFILE" "${CADDYFILE}.bak_${BACKUP_SUFFIX}"
@@ -1442,8 +1442,13 @@ fi
 
 info "A few questions before we start"
 
+DOMAIN_PROMPT="Domain/subdomain for this instance (e.g. streams.example.com): "
+# Through a tunnel there's no DNS check to catch a wrong name, so point at the route.
+if $HOME_INSTALL || { [[ -f "$COMPOSE_FILE" ]] && tunnel_active; }; then
+    DOMAIN_PROMPT="Domain for this instance, the full name of its tunnel route (e.g. aio.example.com): "
+fi
 while true; do
-    read -rp "Domain/subdomain for this instance (e.g. streams.example.com): " DOMAIN
+    read -rp "$DOMAIN_PROMPT" DOMAIN
     DOMAIN=$(echo "$DOMAIN" | xargs)  # trim whitespace
 
     if [[ -z "$DOMAIN" ]]; then
@@ -1776,7 +1781,7 @@ if [[ -f "$INSTALL_DIR/mediaflow-state/config" ]]; then
     fi
 fi
 
-info "Writing Caddyfile (HTTPS reverse proxy; access control is handled by AIOStreams' own login)"
+info "Writing Caddyfile (reverse proxy; access control is handled by AIOStreams' own login)"
 cat > Caddyfile << EOF
 ${DOMAIN} {
 	reverse_proxy aiostreams:3000
