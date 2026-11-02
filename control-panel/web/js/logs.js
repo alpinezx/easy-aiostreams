@@ -132,7 +132,8 @@ function syncControls() {
 function setCount() { $("#log-count").textContent = `${lines.filter(visible).length} shown`; }
 
 function node(l) {
-  return h("div", { class: `lg-ln ${l.cls}${l.quiet ? " quiet" : ""}` },
+  // Noise (Caddy's expected warnings, the tunnel's closed connections) is grey, whatever its level.
+  return h("div", { class: `lg-ln ${l.cls}${l.noise ? " quiet" : ""}` },
     l.time ? h("time", { class: "lg-time", text: l.time }) : null,
     h("i", { class: "lg-dot", "aria-hidden": "true" }),
     h("span", { class: "lg-msg" },
@@ -176,7 +177,12 @@ function connect() {
   if (!current) return;
   setConn("retry");
   es = new EventSource(`/api/logs/${encodeURIComponent(current)}?tail=300`);
-  es.onopen = () => { setConn("live"); connected = true; if (!lines.length) paint(); };
+  es.onopen = () => {
+    // The browser reconnects by itself (the panel restarted, say) and the server sends the last 300 lines
+    // again: start from those, not after the ones already shown, or each line appears twice.
+    if (lines.length) { lines = []; lastStop = -Infinity; syncControls(); }
+    setConn("live"); connected = true; paint();
+  };
   es.onmessage = (ev) => {
     const m = JSON.parse(ev.data);
     if (m.end) { setConn("", "container stopped"); es.close(); es = null; return; }
@@ -187,7 +193,7 @@ function connect() {
     const term = $("#log-term");
     if (!isNaN(l.ts) && CADDY_STOP.test(l.raw) && markRestart(l)) {
       syncControls();
-      if (hideNoise && isCaddy()) paint();
+      paint();                         // lines just before the restart turn grey (or hide)
     }
     if (l.noise) syncControls();
     if (visible(l)) {
