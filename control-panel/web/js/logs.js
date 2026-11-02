@@ -22,9 +22,14 @@ const NOISE = [
 ];
 // AIOStreams cutting a response is only noise next to a stack restart; on its own it means a viewer's stream broke.
 const CUT_BY_AIOS = /aborting with incomplete response.*"error":"reading: [^"]*(:3000: read: connection reset by peer|unexpected EOF)"/;
-// cloudflared's "stream canceled by remote with error code 0": a visitor closed a connection still open (left
-// this page's live log, stopped a video). Shown in grey, not as an error.
-const QUIET = /canceled by remote with error code 0\b/;
+// cloudflared lines shown in grey, not as errors. It logs each failure twice: a first half without the address,
+// then "Request failed ... dest=<url>".
+const QUIET = [
+  /canceled by remote with error code 0\b/,   // a visitor closed a connection still open (left a live page, stopped a video)
+  /ERR {2}error="unexpected EOF" .*originService=/,   // a cut connection's first half; its Request failed line says what it was
+  // A restart cut a live page: AIOStreams' dashboard, or this panel's own Logs.
+  /Request failed error="unexpected EOF" .*dest=https?:\/\/[^/ ]+\/api\/(v1\/dashboard\/[^ ]*\/stream|logs\/[^ ]*) /,
+];
 const CADDY_STOP = /shutting down apps, then terminating|"msg":"shutdown complete"|exiting; byeee/;
 const RESTART_WINDOW = 10;
 const CADDY_TS = /"ts":([0-9.]+)/;
@@ -75,11 +80,11 @@ function parse(raw) {
     if (p) { cls = LEVEL_CLS[p[1].toLowerCase()] || null; mod = p[2] || ""; msg = p[3]; }
   }
   if (!cls) cls = ERR.test(text) ? "error" : WARN.test(text) ? "warn" : "out";
-  const quiet = QUIET.test(raw);
+  const quiet = QUIET.some((r) => r.test(raw));
   if (quiet) cls = "out";
   const ts = Number((CADDY_TS.exec(text) || [])[1]) || NaN;
   const cut = CUT_BY_AIOS.test(raw);
-  const noise = NOISE.some((r) => r.test(raw)) || (cut && ts - lastStop <= RESTART_WINDOW);
+  const noise = quiet || NOISE.some((r) => r.test(raw)) || (cut && ts - lastStop <= RESTART_WINDOW);
   return { raw, noise, time, text, cls, mod, msg, extra, ts, cut, quiet };
 }
 
@@ -95,7 +100,9 @@ function markRestart(stop) {
 }
 
 const isCaddy = () => current === "caddy";
-const hiddenByToggle = (l) => (hideNoise && isCaddy() && l.noise) || (levels.size > 0 && !levels.has(l.cls));
+// Logs with a Hide noise switch: Caddy's, and the tunnel's grey lines.
+const hasNoise = () => isCaddy() || current === "cloudflared";
+const hiddenByToggle = (l) => (hideNoise && hasNoise() && l.noise) || (levels.size > 0 && !levels.has(l.cls));
 
 // The filter as a test: plain text (any case), or a regular expression with .* on. A broken pattern matches everything.
 let matcher = () => true;
@@ -115,10 +122,11 @@ function setMatcher() {
 const visible = (l) => !hiddenByToggle(l) && matcher(l);
 
 function syncControls() {
-  $("#log-noise-row").hidden = !isCaddy();
+  $("#log-noise-row").hidden = !hasNoise();
   $("#log-help").hidden = !isCaddy();
+  $("#log-help-tunnel").hidden = current !== "cloudflared";
   $("#log-noise").checked = hideNoise;
-  const n = isCaddy() ? lines.filter((l) => l.noise).length : 0;
+  const n = hasNoise() ? lines.filter((l) => l.noise).length : 0;
   $("#log-noise-n").textContent = n ? `(${n})` : "";
   document.querySelectorAll(".lg-levels button").forEach((b) => b.setAttribute("aria-pressed", String(levels.has(b.dataset.lv))));
 }
@@ -126,7 +134,8 @@ function syncControls() {
 function setCount() { $("#log-count").textContent = `${lines.filter(visible).length} shown`; }
 
 function node(l) {
-  return h("div", { class: `lg-ln ${l.cls}${l.quiet ? " quiet" : ""}` },
+  // Noise (Caddy's expected warnings, the tunnel's closed connections) is grey, whatever its level.
+  return h("div", { class: `lg-ln ${l.cls}${l.noise ? " quiet" : ""}` },
     l.time ? h("time", { class: "lg-time", text: l.time }) : null,
     h("i", { class: "lg-dot", "aria-hidden": "true" }),
     h("span", { class: "lg-msg" },
@@ -170,7 +179,12 @@ function connect() {
   if (!current) return;
   setConn("retry");
   es = new EventSource(`/api/logs/${encodeURIComponent(current)}?tail=300`);
-  es.onopen = () => { setConn("live"); connected = true; if (!lines.length) paint(); };
+  es.onopen = () => {
+    // The browser reconnects by itself (the panel restarted, say) and the server sends the last 300 lines
+    // again: start from those, not after the ones already shown, or each line appears twice.
+    if (lines.length) { lines = []; lastStop = -Infinity; syncControls(); }
+    setConn("live"); connected = true; paint();
+  };
   es.onmessage = (ev) => {
     const m = JSON.parse(ev.data);
     if (m.end) { setConn("", "container stopped"); es.close(); es = null; return; }
@@ -181,7 +195,7 @@ function connect() {
     const term = $("#log-term");
     if (!isNaN(l.ts) && CADDY_STOP.test(l.raw) && markRestart(l)) {
       syncControls();
-      if (hideNoise && isCaddy()) paint();
+      paint();                         // lines just before the restart turn grey (or hide)
     }
     if (l.noise) syncControls();
     if (visible(l)) {
