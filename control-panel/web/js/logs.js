@@ -83,7 +83,7 @@ function parse(raw) {
   if (quiet) cls = "out";
   const ts = Number((CADDY_TS.exec(text) || [])[1]) || NaN;
   const cut = CUT_BY_AIOS.test(raw);
-  const noise = NOISE.some((r) => r.test(raw)) || (cut && ts - lastStop <= RESTART_WINDOW);
+  const noise = quiet || NOISE.some((r) => r.test(raw)) || (cut && ts - lastStop <= RESTART_WINDOW);
   return { raw, noise, time, text, cls, mod, msg, extra, ts, cut, quiet };
 }
 
@@ -99,7 +99,9 @@ function markRestart(stop) {
 }
 
 const isCaddy = () => current === "caddy";
-const hiddenByToggle = (l) => (hideNoise && isCaddy() && l.noise) || (levels.size > 0 && !levels.has(l.cls));
+// Logs with a Hide noise switch: Caddy's, and the tunnel's grey lines.
+const hasNoise = () => isCaddy() || current === "cloudflared";
+const hiddenByToggle = (l) => (hideNoise && hasNoise() && l.noise) || (levels.size > 0 && !levels.has(l.cls));
 
 // The filter as a test: plain text (any case), or a regular expression with .* on. A broken pattern matches everything.
 let matcher = () => true;
@@ -119,10 +121,10 @@ function setMatcher() {
 const visible = (l) => !hiddenByToggle(l) && matcher(l);
 
 function syncControls() {
-  $("#log-noise-row").hidden = !isCaddy();
+  $("#log-noise-row").hidden = !hasNoise();
   $("#log-help").hidden = !isCaddy();
   $("#log-noise").checked = hideNoise;
-  const n = isCaddy() ? lines.filter((l) => l.noise).length : 0;
+  const n = hasNoise() ? lines.filter((l) => l.noise).length : 0;
   $("#log-noise-n").textContent = n ? `(${n})` : "";
   document.querySelectorAll(".lg-levels button").forEach((b) => b.setAttribute("aria-pressed", String(levels.has(b.dataset.lv))));
 }
