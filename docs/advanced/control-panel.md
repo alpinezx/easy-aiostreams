@@ -93,7 +93,7 @@ The version chip on the Overview tab is read from the running AIOStreams contain
 
 ![The Logs tab](../images/control-panel/logs.png)
 
-Each line is split the way AIOStreams' own log viewer shows it: time, a dot for its JSON `level`, `[module]`, the message, then any other fields. The **INFO**, **WARN** and **ERROR** buttons show only the levels picked (none picked shows everything). For Caddy, **Hide noise** hides the lines that look alarming but are expected (a restart, the log viewer reconnecting) and says how many it is hiding; those lines are logged as warnings and errors themselves, so the level buttons can't do this. All of these are display filters only; they never change what's logged. **Clear** hides everything logged so far, and it stays hidden after a reload; Docker's own log file is left alone on purpose, since emptying it behind Docker's back breaks `docker logs`.
+Each line is split the way AIOStreams' own log viewer shows it: time, a dot for its JSON `level`, `[module]`, the message, then any other fields. The **INFO**, **WARN** and **ERROR** buttons show only the levels picked (none picked shows everything). For Caddy and the Cloudflare Tunnel, **Hide noise** hides the lines that look alarming but are expected (a restart, the log viewer reconnecting, a closed page) and says how many it is hiding; those lines are logged as warnings and errors themselves, so the level buttons can't do this. All of these are display filters only; they never change what's logged. **Clear** hides everything logged so far, and it stays hidden after a reload; Docker's own log file is left alone on purpose, since emptying it behind Docker's back breaks `docker logs`.
 
 ## Layouts: the Overview and the rail
 
