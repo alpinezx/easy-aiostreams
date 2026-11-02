@@ -876,6 +876,18 @@ def test_no_class_names_an_ad_blocker_hides():
         assert not found, (f.name, found[:5])
 
 
+def test_no_stray_control_characters():
+    """A \\b once went into logs.js as a real backspace, so its pattern never matched and the
+    tunnel's harmless lines showed red. Only tabs and newlines belong in the panel's own files."""
+    import re
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    files = [*root.glob("app/*.py"), *root.glob("web/js/*.js"), *root.glob("web/css/*.css"), root / "web" / "index.html"]
+    for f in files:
+        bad = re.findall(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", f.read_text(encoding="utf-8"))
+        assert not bad, (f.name, bad[:3])
+
+
 def test_light_colours_match_whether_followed_or_picked():
     """Light is written twice in app.css: once for a device set to light, once for Light picked
     on the Edit menu. The two must give the same colours."""

@@ -4,7 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 2 November 2026
 
-- **Panel base image updated:** Python 3.15, from the monthly dependency check. (Panel 1.48.2, [#123](https://github.com/alpinezx/easy-aiostreams/pull/123))
+- **Panel base image updated:** Python 3.15, from the monthly dependency check. Also fixed: the Cloudflare Tunnel's harmless "stream canceled" lines show in grey on the Logs page, as they were meant to, instead of red. (Panel 1.48.3, [#123](https://github.com/alpinezx/easy-aiostreams/pull/123))
 
 ## 1 November 2026
 
