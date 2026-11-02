@@ -902,10 +902,13 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
         'ERR Request failed error="unexpected EOF" connIndex=3 dest=https://aio.example.com/api/v1/dashboard/streams/live/stream event=0 type=http',
         'ERR Request failed error="unexpected EOF" connIndex=3 dest=https://aio.example.com/api/v1/dashboard/system/stream event=0 type=http',
         'ERR Request failed error="stream 585 canceled by remote with error code 0" connIndex=3 dest=https://cp.example.com/api/logs/aiostreams event=0',
+        'ERR Request failed error="unexpected EOF" connIndex=3 dest=https://cp.example.com/api/logs/caddy?tail=300 event=0 ip=198.41.200.23 type=http',
     ]
     red = [
         'ERR  error="Unable to reach the origin service. dial tcp: lookup caddy on 127.0.0.11:53: server misbehaving" connIndex=3 event=1 originService=http://caddy:80',
         'ERR Request failed error="unexpected EOF" connIndex=3 dest=https://mf.example.com/proxy/stream?d=x event=0 type=http',
+        'ERR Request failed error="unexpected EOF" connIndex=3 dest=https://cp.example.com/api/status event=0 type=http',
+        'ERR Request failed error="Unable to reach the origin service. dial tcp 172.18.0.2:80: connect: connection refused" connIndex=3 dest=https://aio.example.com/ event=0',
         'ERR Request failed error="stream 5 canceled by remote with error code 10" connIndex=3 dest=https://aio.example.com/x event=0',
     ]
     for line in grey:
