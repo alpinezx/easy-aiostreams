@@ -24,7 +24,7 @@ const NOISE = [
 const CUT_BY_AIOS = /aborting with incomplete response.*"error":"reading: [^"]*(:3000: read: connection reset by peer|unexpected EOF)"/;
 // cloudflared's "stream canceled by remote with error code 0": a visitor closed a connection still open (left
 // this page's live log, stopped a video). Shown in grey, not as an error.
-const QUIET = /canceled by remote with error code 0/;
+const QUIET = /canceled by remote with error code 0\b/;
 const CADDY_STOP = /shutting down apps, then terminating|"msg":"shutdown complete"|exiting; byeee/;
 const RESTART_WINDOW = 10;
 const CADDY_TS = /"ts":([0-9.]+)/;
