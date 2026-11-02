@@ -888,6 +888,35 @@ def test_no_stray_control_characters():
         assert not bad, (f.name, bad[:3])
 
 
+def test_tunnel_noise_is_grey_and_real_failures_stay_red():
+    """The Logs page greys cloudflared's harmless lines (logs.js QUIET). Checked against real ones,
+    so a pattern that stops matching, or starts matching real failures, fails here."""
+    import re
+    from pathlib import Path
+    js = (Path(__file__).resolve().parents[1] / "web" / "js" / "logs.js").read_text(encoding="utf-8")
+    block = re.search(r"const QUIET = \[(.*?)\n\];", js, re.S).group(1)
+    quiet = [re.compile(p) for p in re.findall(r"^\s*/(.+)/,", block, re.M)]
+    assert len(quiet) == 3
+    grey = [
+        'ERR  error="unexpected EOF" connIndex=3 event=1 ingressRule=0 originService=http://caddy:80',
+        'ERR Request failed error="unexpected EOF" connIndex=3 dest=https://aio.example.com/api/v1/dashboard/streams/live/stream event=0 type=http',
+        'ERR Request failed error="unexpected EOF" connIndex=3 dest=https://aio.example.com/api/v1/dashboard/system/stream event=0 type=http',
+        'ERR Request failed error="stream 585 canceled by remote with error code 0" connIndex=3 dest=https://cp.example.com/api/logs/aiostreams event=0',
+        'ERR Request failed error="unexpected EOF" connIndex=3 dest=https://cp.example.com/api/logs/caddy?tail=300 event=0 ip=198.41.200.23 type=http',
+    ]
+    red = [
+        'ERR  error="Unable to reach the origin service. dial tcp: lookup caddy on 127.0.0.11:53: server misbehaving" connIndex=3 event=1 originService=http://caddy:80',
+        'ERR Request failed error="unexpected EOF" connIndex=3 dest=https://mf.example.com/proxy/stream?d=x event=0 type=http',
+        'ERR Request failed error="unexpected EOF" connIndex=3 dest=https://cp.example.com/api/status event=0 type=http',
+        'ERR Request failed error="Unable to reach the origin service. dial tcp 172.18.0.2:80: connect: connection refused" connIndex=3 dest=https://aio.example.com/ event=0',
+        'ERR Request failed error="stream 5 canceled by remote with error code 10" connIndex=3 dest=https://aio.example.com/x event=0',
+    ]
+    for line in grey:
+        assert any(r.search(line) for r in quiet), line
+    for line in red:
+        assert not any(r.search(line) for r in quiet), line
+
+
 def test_light_colours_match_whether_followed_or_picked():
     """Light is written twice in app.css: once for a device set to light, once for Light picked
     on the Edit menu. The two must give the same colours."""

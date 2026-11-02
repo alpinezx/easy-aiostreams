@@ -158,6 +158,6 @@ From here it works just like a VPS install. The main README covers each part:
 
 - **Your browser says the site doesn't exist, but it's set up.** Something looked the name up before its route existed, and your router or ISP is remembering "doesn't exist" for up to 30 minutes. Wait, or try your phone on mobile data. Adding routes before installing avoids it.
 - **"The Cloudflare Tunnel isn't connected".** Usually the token: choose **11) Cloudflare Tunnel**, then **Change the token**, and paste it again.
-- **Red "stream canceled by remote" lines in the tunnel's log.** Someone closed a page or stopped a video. Harmless; the control panel shows them in grey.
+- **Red "stream canceled by remote" or "unexpected EOF" lines in the tunnel's log.** Someone closed a page or stopped a video, or AIOStreams restarted while its dashboard was open. Harmless; the control panel shows them in grey, and its **Hide noise** switch hides them.
 
 More fixes: [Advanced guide: Troubleshooting](../advanced/home-hosting.md#troubleshooting)
