@@ -22,9 +22,13 @@ const NOISE = [
 ];
 // AIOStreams cutting a response is only noise next to a stack restart; on its own it means a viewer's stream broke.
 const CUT_BY_AIOS = /aborting with incomplete response.*"error":"reading: [^"]*(:3000: read: connection reset by peer|unexpected EOF)"/;
-// cloudflared's "stream canceled by remote with error code 0": a visitor closed a connection still open (left
-// this page's live log, stopped a video). Shown in grey, not as an error.
-const QUIET = /canceled by remote with error code 0\b/;
+// cloudflared lines shown in grey, not as errors. It logs each failure twice: a first half without the address,
+// then "Request failed ... dest=<url>".
+const QUIET = [
+  /canceled by remote with error code 0\b/,   // a visitor closed a connection still open (left a live page, stopped a video)
+  /ERR {2}error="unexpected EOF" .*originService=/,   // a cut connection's first half; its Request failed line says what it was
+  /Request failed error="unexpected EOF" .*dest=https?:\/\/[^/ ]+\/api\/v1\/dashboard\/[^ ]*\/stream /,   // AIOStreams or Caddy restarted under an open dashboard page
+];
 const CADDY_STOP = /shutting down apps, then terminating|"msg":"shutdown complete"|exiting; byeee/;
 const RESTART_WINDOW = 10;
 const CADDY_TS = /"ts":([0-9.]+)/;
@@ -75,7 +79,7 @@ function parse(raw) {
     if (p) { cls = LEVEL_CLS[p[1].toLowerCase()] || null; mod = p[2] || ""; msg = p[3]; }
   }
   if (!cls) cls = ERR.test(text) ? "error" : WARN.test(text) ? "warn" : "out";
-  const quiet = QUIET.test(raw);
+  const quiet = QUIET.some((r) => r.test(raw));
   if (quiet) cls = "out";
   const ts = Number((CADDY_TS.exec(text) || [])[1]) || NaN;
   const cut = CUT_BY_AIOS.test(raw);

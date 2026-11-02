@@ -96,6 +96,8 @@ The [control panel](./control-panel.md) shows the tunnel first in the Request fl
 
 **Red lines in the tunnel's log: "stream canceled by remote with error code 0".** A visitor closed a connection that was still open: leaving a page that streams live (the panel's Logs, AIOStreams' dashboard) or stopping a video. Harmless; the control panel shows them in grey.
 
+**"unexpected EOF" lines when AIOStreams or Caddy restarts.** An open AIOStreams dashboard keeps two live connections (`/api/v1/dashboard/.../stream`), and a restart cuts them. The panel greys those, and the first half of every such pair (cloudflared logs each failure twice; only the second line names the address). A "Request failed" line for any other address stays red, as it's a real cut. So does "Unable to reach the origin service", which during a restart lasts a second or two, but otherwise means Caddy is down.
+
 **"failed to sufficiently increase receive buffer size".** The network buffers above aren't raised; `setup-tunnel.sh on` raises them. Containers that block `sysctl` (some LXC setups) can't, and the tunnel then works a little slower.
 
 **Can't reach the server on your network while your computer's VPN is on.** Not the tunnel: many VPN apps send local traffic into the VPN too. Look for a setting like "Allow LAN access" or "Bypass LAN".
