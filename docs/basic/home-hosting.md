@@ -43,7 +43,7 @@ You only need the domain. Don't add any records at the registrar: Cloudflare mak
 2. In the left sidebar, click **Domains**, then **Overview** under it. Click the blue **Add a domain** button at the top right, then **Connect a domain** (not Transfer or Buy). Type the bare domain, like `yourdomain.xyz`.
 3. Leave the DNS scan on automatic and continue. A spare domain shows **no records**: that's right. Continue to activation, and **Confirm** on the "Add records later" box.
 4. Pick the **Free** plan.
-5. Cloudflare shows **two nameservers** (like `kirk.ns.cloudflare.com`). At your registrar, replace the domain's nameservers with those two. On Porkbun: the small **NS** tag under the domain, delete the four `ns.porkbun.com` ones, add Cloudflare's two, **Save**, then **OK** on the warning. Somewhere else? Search for something like "How do I point my Namecheap domain's nameservers to Cloudflare?", with your registrar's name.
+5. Cloudflare shows **two nameservers** (like `kirk.ns.cloudflare.com`). At your registrar, replace the domain's nameservers with those two. Every registrar does this differently: if you're not sure where, search for something like "How do I point my Namecheap domain's nameservers to Cloudflare?", with your registrar's name. On Porkbun: the small **NS** tag under the domain, delete the four `ns.porkbun.com` ones, add Cloudflare's two, **Save**, then **OK** on the warning.
 6. Make sure **DNSSEC is off** at your registrar (it is unless you turned it on).
 7. Back in Cloudflare, click **Check nameservers now**. It usually turns **Active** within minutes, and you get an email saying so.
 
