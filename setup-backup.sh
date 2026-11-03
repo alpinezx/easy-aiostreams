@@ -990,9 +990,11 @@ set_addon_domain() {
 }
 
 # Asks for a new subdomain for an add-on until it gets a usable one, or an
-# empty answer (keep the old one). Prints the chosen domain.
+# empty answer (keep the old one). Prints the chosen domain. With "tunnel" as
+# the fifth argument, a name that doesn't exist is caught instead: its route
+# makes its DNS record, so it's a typo or a route not added yet.
 ask_new_domain() {
-    local name="$1" here="$2" taken="$3" current="$4" new ip yn
+    local name="$1" here="$2" taken="$3" current="$4" tunnel="${5:-}" new ip yn
     while true; do
         read -rp "New subdomain for $name (Enter to keep the current one): " new >&2 || return 0
         new=$(echo "$new" | xargs)
@@ -1006,7 +1008,15 @@ ask_new_domain() {
             continue
         fi
         ip=$(resolve_ip "$new")
-        if [[ -n "$here" && "$ip" != "$here" ]]; then
+        if [[ -n "$tunnel" ]]; then
+            if [[ -z "$ip" ]]; then
+                warn "$new doesn't exist. Check the spelling, and that it has a route on the tunnel in Cloudflare." >&2
+                echo "  1) Type it again" >&2
+                echo "  2) Use it anyway (a route added moments ago can take a while to show)" >&2
+                read -rp "Choice [1-2] (Enter = 1): " yn >&2 || yn=1
+                [[ "$yn" == 2 ]] || continue
+            fi
+        elif [[ -n "$here" && "$ip" != "$here" ]]; then
             if [[ -n "$ip" ]]; then
                 warn "$new points at $ip, not this server ($here)." >&2
             else
@@ -1169,7 +1179,7 @@ offer_home_names() {
         esac
     done
     echo "Type each new name in full, as its route (Enter keeps the current one)."
-    new=$(ask_new_domain "AIOStreams" "" "$taken" "$main")
+    new=$(ask_new_domain "AIOStreams" "" "$taken" "$main" tunnel)
     if [[ -n "$new" ]]; then
         set_main_domain "$main" "$new"
         taken+=" ${new,,}"
@@ -1179,7 +1189,7 @@ offer_home_names() {
         IFS='|' read -r id name dir site ctr <<< "$a"
         d=$(addon_domain "$dir")
         [[ -n "$d" ]] || continue
-        new=$(ask_new_domain "$name" "" "$taken" "$d")
+        new=$(ask_new_domain "$name" "" "$taken" "$d" tunnel)
         [[ -n "$new" ]] || continue
         set_addon_domain "$dir" "$site" "$d" "$new"
         ADDON_NEW[$id]="$new"
