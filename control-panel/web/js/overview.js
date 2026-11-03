@@ -180,6 +180,7 @@ export function render(st, goLogs) {
   window.__channel = st.channel;
   window.__vpn = st.vpn;   // "off": set up but switched off, which Start, Restart and Update ask about
   window.__tunnel = !!st.tunnel;
+  window.__addons = (st.services || []).some((s) => s.addon);   // Restart stack leaves them alone, and says so
   lastSt = st;
   lastGoLogs = goLogs;
   if (st.version && relFor !== relChannel(st)) { relFor = relChannel(st); rel = null; loadReleases(false); }
