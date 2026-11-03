@@ -1125,7 +1125,12 @@ current_repickable_conf() {
 # Reads the WireGuard values from a .conf file into WG_*.
 parse_conf() {
     WG_PRIVATE_KEY=$(grep -i '^PrivateKey' "$1" | head -1 | cut -d= -f2- | tr -d ' \r' || true)
-    WG_ADDRESS=$(grep -i '^Address' "$1" | head -1 | cut -d= -f2- | tr -d ' \r' || true)
+    # Just the IPv4 addresses: gluetun won't start on a server without IPv6 if
+    # it's given an IPv6 one. A config with only IPv6 ones is left as it is.
+    local addresses
+    addresses=$(grep -i '^Address' "$1" | cut -d= -f2- | tr -d ' \r' | tr ',' '\n' || true)
+    WG_ADDRESS=$(grep -v ':' <<<"$addresses" | paste -sd, - || true)
+    [[ -n "$WG_ADDRESS" ]] || WG_ADDRESS=$(paste -sd, - <<<"$addresses")
     WG_PUBLIC_KEY=$(grep -i '^PublicKey' "$1" | head -1 | cut -d= -f2- | tr -d ' \r' || true)
     WG_ENDPOINT=$(grep -i '^Endpoint' "$1" | head -1 | cut -d= -f2- | tr -d ' \r' || true)
 
