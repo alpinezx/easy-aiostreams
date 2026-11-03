@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 3 November 2026
 
+- **New:** moving from a VPS to a computer at home takes one restore. It asks where the server is when it can't tell, keeps a tunnel the computer already has, and can give AIOStreams, the control panel and any add-ons new names on a domain that's on Cloudflare. Also fixed: removing the control panel no longer forgets which backups are locked. (Panel 1.48.9, [#133](https://github.com/alpinezx/easy-aiostreams/pull/133))
 - **Docs:** the Hosting from home guides say how to get a lost Cloudflare Tunnel token back, and what to do if it leaks. ([#132](https://github.com/alpinezx/easy-aiostreams/pull/132))
 - **Fixed:** Sign out asks first, so a stray click no longer signs you out. (Panel 1.48.8, [#131](https://github.com/alpinezx/easy-aiostreams/pull/131))
 

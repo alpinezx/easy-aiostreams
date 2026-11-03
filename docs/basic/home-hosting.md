@@ -149,7 +149,11 @@ From here it works just like a VPS install. The main README covers each part:
 
 - **The control panel or an add-on:** add its route first (step 4), then install it as its guide says. Where it would check your DNS, it reminds you about the route instead.
 - **Already installed on a home server?** Run `sudo bash /opt/aiostreams/setup-aiostreams.sh tunnel`, then **Turn the tunnel on**. It lists the routes you need.
-- **Moving from a VPS to home?** Back up on the VPS and copy the backup home ([Backup & Restore](./backup-restore.md)). In Cloudflare, delete the domains' old A records, then add their routes (step 4). At home, run the installer as in step 5, choose **2) A computer at home**, then **2) Restore from a backup**: it asks for the tunnel's token and puts the restored stack behind it. Switch the VPS off afterwards.
+- **Moving from a VPS to home?** Back up on the VPS and copy the backup home ([Backup & Restore](./backup-restore.md)). At home, run the installer as in step 5, choose **2) A computer at home**, then **2) Restore from a backup** (on a computer that already has an install, **8) Restore from backup** keeps its tunnel). It shows the backup's site names and asks:
+  - **Keep these names**, when their domain is on Cloudflare (step 2): in Cloudflare, delete their old A records and add their routes (step 4).
+  - **Use new names**, when it isn't (a domain you'd rather leave where it is): add routes for the new names first (step 4), then type them in. AIOStreams, the control panel and any add-ons move in one go. Stremio installs from the old address don't follow: install each one again from the new address.
+
+  Then it asks for the tunnel's token and puts the restored stack behind it. Once it works, switch the VPS off (at least its Phone alerts, or both servers send them).
 - **Changing your domain:** keep the same tunnel. Add a route for the new name first (step 4), then run `sudo bash /opt/aiostreams/setup-aiostreams.sh`, choose **6) Reconfigure** and type the new name. Once the site opens on it, delete the old name's route on the tunnel's Routes tab. One tunnel works for every domain in your Cloudflare account; you only need a new one for a domain in a different Cloudflare account. Then create it (step 3), add a route on it for every name you use, and choose **11) Cloudflare Tunnel**, then **Change the token**.
 
 ---
