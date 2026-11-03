@@ -693,6 +693,23 @@ caddy_domain() {
 
 tunnel_active() { [[ -s "$INSTALL_DIR/tunnel-state/token.env" ]]; }
 
+# Points the main site at a new domain: the Caddyfile's first site (after a
+# tunnel's block), the VPN layer's saved copies, the compose file's BASE_URL
+# (or the VPN toggle would bring the old name back) and CREDENTIALS.txt.
+set_main_domain() {
+    local old="$1" new="$2" f old_re
+    [[ -n "$RESTORE_OLD_DOMAIN" ]] || RESTORE_OLD_DOMAIN="$old"
+    for f in "$CADDYFILE" "$INSTALL_DIR/vpn-state/Caddyfile.direct" "$INSTALL_DIR/vpn-state/Caddyfile.vpn"; do
+        [[ -f "$f" ]] && sed -i "0,/^[A-Za-z0-9.-]\+\.[A-Za-z0-9-]\+[[:space:]]*{/s//${new} {/" "$f"
+    done
+    for f in "${COMPOSE_FILE:-}" "$INSTALL_DIR/vpn-state/docker-compose.direct.yml" "$INSTALL_DIR/vpn-state/docker-compose.vpn.yml"; do
+        [[ -f "$f" ]] && sed -i "s|BASE_URL=https://[^\"[:space:]]*|BASE_URL=https://${new}|" "$f"
+    done
+    old_re=$(printf '%s' "$old" | sed 's/[.]/\\./g')
+    [[ -f "$INSTALL_DIR/CREDENTIALS.txt" ]] && sed -i "s|https://${old_re}\b|https://${new}|g" "$INSTALL_DIR/CREDENTIALS.txt"
+    return 0
+}
+
 # Through a Cloudflare Tunnel the domains point at Cloudflare, so there's no DNS
 # to check. The one thing to say: the old server must not run the same tunnel.
 tunnel_restore_note() {
@@ -808,14 +825,7 @@ check_restored_domain_dns() {
                     warn "Domain can only contain letters, numbers, dots, and hyphens (e.g. streams.example.com)."
                     continue
                 fi
-                [[ -n "$RESTORE_OLD_DOMAIN" ]] || RESTORE_OLD_DOMAIN="$domain"
-                # The first site line (line 1, unless a tunnel's block comes first)
-                sed -i "0,/^[A-Za-z0-9.-]\+\.[A-Za-z0-9-]\+[[:space:]]*{/s//${new_domain} {/" "$CADDYFILE"
-                # Compose file's BASE_URL must match too, or the VPN toggle
-                # script would regenerate the Caddyfile from the old domain.
-                if [[ -f "${COMPOSE_FILE:-}" ]]; then
-                    sed -i "s|BASE_URL=https://[^\"[:space:]]*|BASE_URL=https://${new_domain}|" "$COMPOSE_FILE"
-                fi
+                set_main_domain "$domain" "$new_domain"
                 domain="$new_domain"
                 echo "Caddyfile and compose file's BASE_URL updated to use $domain. Re-checking..."
                 continue
@@ -1103,6 +1113,78 @@ check_addon_domains() {
                 *) warn "Not a valid choice." ;;
             esac
         done
+    done
+    return 0
+}
+
+# Asked when a restore can't tell whether it's for a VPS or a home computer
+# (a fresh server, restored with the plain command). Returns 0 for home.
+ask_where() {
+    local c
+    echo ""
+    echo "Where is this server?"
+    echo "  1) A VPS: a rented server with its own public IP"
+    echo "  2) A computer at home, reached through a free Cloudflare Tunnel"
+    echo "     (do the Hosting from home guide's steps first)"
+    while true; do
+        read -rp "Select an option [1-2]: " c || return 1
+        case "$c" in
+            1) return 1 ;;
+            2) return 0 ;;
+            *) warn "Not a valid option." ;;
+        esac
+    done
+}
+
+# A VPS's backup restored at home: through the tunnel each site needs a route in
+# Cloudflare, so its domain must be on the Cloudflare account, and a VPS's often
+# isn't. Offers new names for AIOStreams and each add-on (the panel among them),
+# before the tunnel lists the routes to add.
+offer_home_names() {
+    local a id name dir site ctr main new choice taken d
+    main=$(caddy_domain)
+    [[ -n "$main" ]] || return 0
+    echo ""
+    info "Site names"
+    echo "Through the tunnel, each site needs a route in Cloudflare, so its domain must"
+    echo "be on your Cloudflare account. This backup's sites:"
+    echo "  AIOStreams: $main"
+    taken="${main,,}"
+    for a in "${ADDONS[@]}"; do
+        IFS='|' read -r id name dir site ctr <<< "$a"
+        d=$(addon_domain "$dir")
+        [[ -n "$d" ]] || continue
+        echo "  $name: $d"
+        taken+=" ${d,,}"
+    done
+    echo ""
+    echo "  1) Keep these names (their domain is on Cloudflare, or will be)"
+    echo "  2) Use new names, on a domain that's on Cloudflare"
+    while true; do
+        read -rp "Choice [1-2] (Enter = 1): " choice || choice=1
+        case "${choice:-1}" in
+            1) return 0 ;;
+            2) break ;;
+            *) warn "Not a valid choice." ;;
+        esac
+    done
+    echo "Type each new name in full, as its route (Enter keeps the current one)."
+    new=$(ask_new_domain "AIOStreams" "" "$taken" "$main")
+    if [[ -n "$new" ]]; then
+        set_main_domain "$main" "$new"
+        taken+=" ${new,,}"
+        echo "  AIOStreams now uses $new."
+    fi
+    for a in "${ADDONS[@]}"; do
+        IFS='|' read -r id name dir site ctr <<< "$a"
+        d=$(addon_domain "$dir")
+        [[ -n "$d" ]] || continue
+        new=$(ask_new_domain "$name" "" "$taken" "$d")
+        [[ -n "$new" ]] || continue
+        set_addon_domain "$dir" "$site" "$d" "$new"
+        ADDON_NEW[$id]="$new"
+        taken+=" ${new,,}"
+        echo "  $name now uses $new."
     done
     return 0
 }
@@ -1497,10 +1579,29 @@ do_restore() {
         relay_dropped=true
     fi
 
-    # Restoring onto a computer at home (the first-run screen's "A computer at
-    # home"): a backup from a VPS has no tunnel yet, so set it up before anything
-    # starts. Its token makes the DNS checks below skip, as for any tunnel backup.
-    if [[ "${AIOS_HOME:-}" == 1 ]] && ! tunnel_active; then
+    # Restoring onto a computer at home: a backup from a VPS has no tunnel yet,
+    # so set it up before anything starts. Its token makes the DNS checks below
+    # skip, as for any tunnel backup. Home when the installer's first question
+    # said so (AIOS_HOME), when this server already ran a tunnel (kept, token
+    # and all), or when asked on a fresh server. A same-server restore puts back
+    # exactly what the backup holds.
+    local home=false
+    if ! tunnel_active && ! $UNATTENDED && [[ "${AIOS_HOME:-}" != 0 ]]; then
+        if [[ "${AIOS_HOME:-}" == 1 ]]; then
+            home=true
+        elif [[ -n "$aside" && -s "$aside/tunnel-state/token.env" ]]; then
+            home=true
+            mkdir -p "$INSTALL_DIR/tunnel-state"
+            chmod 700 "$INSTALL_DIR/tunnel-state"
+            cp -p -- "$aside/tunnel-state/token.env" "$INSTALL_DIR/tunnel-state/token.env"
+            echo ""
+            echo "This server used a Cloudflare Tunnel, so the restore keeps it, token and all."
+        elif [[ -z "$aside" ]] && ask_where; then
+            home=true
+        fi
+    fi
+    if $home; then
+        offer_home_names
         local tunnel_rc=0
         bash "$INSTALL_DIR/setup-aiostreams.sh" tunnel on || tunnel_rc=$?
         # exported: the restore's start (setup-aiostreams.sh) then doesn't run it again
@@ -1539,8 +1640,10 @@ do_restore() {
     if [[ -f "$INSTALL_DIR/watchdog-state/was-active-at-backup" ]]; then
         script=$(find_script setup-watchdog.sh)
         [[ -n "$script" ]] && { bash "$script" install-timer < /dev/null || true; }
-        if systemctl is-active --quiet aiostreams-watchdog.timer 2>/dev/null; then
+        if systemctl is-active --quiet aiostreams-watchdog.timer 2>/dev/null && $UNATTENDED; then
             summary+=("Watchdog: running again, alerts resume by themselves.")
+        elif systemctl is-active --quiet aiostreams-watchdog.timer 2>/dev/null; then
+            summary+=("Watchdog: running again, alerts resume by themselves. If this backup came from another server that still runs, stop that one's watchdog, or both send alerts.")
         else
             summary+=("Watchdog: was running, but couldn't be started. Run 'sudo bash $INSTALL_DIR/setup-watchdog.sh' and choose Start.")
         fi
@@ -1585,7 +1688,7 @@ do_restore() {
     fi
     if [[ -f "$INSTALL_DIR/restart-schedule" ]]; then
         if systemctl is-active --quiet aiostreams-restart.timer 2>/dev/null; then
-            summary+=("Scheduled server reboot: on, as when the backup was made.")
+            summary+=("Scheduled server reboot: on, as when the backup was made (the panel's Maintenance page changes it).")
         else
             summary+=("Scheduled server reboot was on, but the timer couldn't be started. Set it again on the panel's Maintenance page, or: sudo bash $maint restart-schedule")
         fi

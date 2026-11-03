@@ -213,7 +213,10 @@ print_unlock() {
 do_install() {
     info "Easy AIOStreams Control Panel"
     echo "This adds one container and one Caddy site. Your AIOStreams config is not touched."
-    read -rp "Domain/subdomain for the control panel (e.g. panel.example.com): " DOMAIN
+    local prompt="Domain/subdomain for the control panel (e.g. panel.example.com): "
+    [[ -s "$INSTALL_DIR/tunnel-state/token.env" ]] && \
+        prompt="Domain for the control panel, the full name of its tunnel route (e.g. panel.example.com): "
+    read -rp "$prompt" DOMAIN
     valid_domain "$DOMAIN" || error "That doesn't look like a valid domain."
     local main_domain
     main_domain=$(grep -oP 'BASE_URL=https?://\K[^\s"]+' "$COMPOSE_FILE" | head -n1 || true)
@@ -441,8 +444,11 @@ do_uninstall() {
     rm -f "$CADDY_SNIPPET" "${CADDY_SNIPPET}.rejected"
     reload_caddy || true
     docker image rm "$IMAGE_NAME" >/dev/null 2>&1 || true
-    rm -rf "${STATE_DIR:?}"
-    echo "Removed the panel, its settings and its login."
+    # The backups' locks and notes describe the backup files, not the panel, and
+    # scheduled backups keep using them, so they stay.
+    find "${STATE_DIR:?}" -mindepth 1 -maxdepth 1 ! -name backup-meta.json -exec rm -rf {} +
+    rmdir "$STATE_DIR" 2>/dev/null || true
+    echo "Removed the panel, its settings and its login. Backup locks and notes are kept."
     read -rp "Also delete the panel's own files in $PANEL_DIR? Say n to reinstall from them. [y/N]: " C
     if [[ "$C" =~ ^[Yy]$ ]]; then
         cd / && rm -rf "${PANEL_DIR:?}"

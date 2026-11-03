@@ -1426,10 +1426,11 @@ else
     case "$FIRSTRUN_CHOICE" in
         1)  ;;  # fall through to the fresh-install flow below
         2)
+            # Answered above, so the restore doesn't ask again
             if $HOME_INSTALL; then
                 AIOS_HOME=1 run_backup_script restore || true
             else
-                run_backup_script restore || true
+                AIOS_HOME=0 run_backup_script restore || true
             fi
             continue
             ;;
