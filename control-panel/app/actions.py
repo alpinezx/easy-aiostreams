@@ -361,7 +361,7 @@ def catalog() -> list[Action]:
 # setup-backup.sh isn't listed: the AIOStreams menu runs it (options 7 and 8)
 # and the Terminal tab updates it together with setup-aiostreams.sh.
 SCRIPTS = [
-    ("aiostreams", "AIOStreams menu", "setup-aiostreams.sh"),
+    ("aiostreams", "AIOStreams", "setup-aiostreams.sh"),
     ("aiometadata", "AIOMetadata", "setup-aiometadata.sh"),
     ("aiomanager", "AIOManager", "setup-aiomanager.sh"),
     ("watchdog", "Phone alerts", "setup-watchdog.sh"),
