@@ -2,6 +2,10 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 3 November 2026
+
+- **Fixed:** Restart stack's confirm names only what it restarts on this server ("Restart AIOStreams, Caddy and the Cloudflare Tunnel?"), and a few other messages read more simply: the Network page's By service note, MediaFlow's Uninstall warning, the tunnel's warning on a working VPS, and the AIOManager line after a restore to a new domain. The Scripts tab's first row says AIOStreams instead of AIOStreams menu. (Panel 1.48.6, [#129](https://github.com/alpinezx/easy-aiostreams/pull/129))
+
 ## 2 November 2026
 
 - **Fixed:** the Logs page reads the VPN tunnel's own levels, so its "Wireguard setup is complete" note no longer shows in red, and its harmless DNS retries ("exchanging over tls connection ... EOF") are grey, with a Hide noise switch like Caddy's and the Cloudflare Tunnel's. (Panel 1.48.5, [#128](https://github.com/alpinezx/easy-aiostreams/pull/128))
