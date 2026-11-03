@@ -18,6 +18,7 @@ let status = null;
 let view = "overview";
 let pendingLogs = null;
 let lastBusy = null;
+let jobStarted = false;   // a job started since the last look: it may be over already
 let timer = null;
 
 const VIEWS = ["overview", "logs", "net", "activity", "backups", "scripts", "vpn", "alerts", "addons", "maint", "terminal"];
@@ -137,11 +138,15 @@ async function tick(first) {
           toast(j.code === 0 ? j.done : `${j.label} failed. Open Activity to see why.`, j.code !== 0);
         } catch (_) {}
       }
+    }
+    // Also when a quick job was over before any look saw it running
+    if ((lastBusy || jobStarted) && !status.busy) {
       if (view === "activity") showActivity().catch(() => {});
       if (view === "backups") showBackups(status).catch(() => {});
       if (view === "vpn") vpn.show(true, status);     // a VPN switch just finished: check again
       if (view === "alerts") alerts.show(status);
     }
+    jobStarted = false;
     if (view === "alerts") alerts.setStatus(status);
     if (view === "net") net.setStatus(status);
     if (view === "vpn") vpn.setStatus(status);
@@ -178,7 +183,7 @@ async function boot() {
     location.href = "/login";
   });
   window.addEventListener("hashchange", route);
-  window.addEventListener("job-started", tick);
+  window.addEventListener("job-started", () => { jobStarted = true; tick(); });
   window.addEventListener("job-finished", tick);
   window.addEventListener("restart-panel", () => terminal.restartPanel());
   document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
