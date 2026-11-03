@@ -4,7 +4,7 @@ import { $, api, toast } from "./util.js";
 import { render, record } from "./overview.js";
 import * as logs from "./logs.js";
 import { showActivity, showBackups } from "./activity.js";
-import { currentJobId, openJob } from "./actions.js";
+import { ask, currentJobId, openJob } from "./actions.js";
 import * as terminal from "./terminal.js";
 import * as scripts from "./scripts.js";
 import * as vpn from "./vpn.js";
@@ -171,7 +171,9 @@ async function boot() {
   });
   logs.init();
   initNav();
+  // Asked first: it sits at the rail's foot, easy to hit by mistake
   $("#logout").addEventListener("click", async () => {
+    if (!await ask({ title: "Sign out?", body: "You'll need your password to sign back in.", confirmLabel: "Sign out" })) return;
     await api("/api/logout", { method: "POST" }).catch(() => {});
     location.href = "/login";
   });
