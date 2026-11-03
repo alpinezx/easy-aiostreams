@@ -10,7 +10,7 @@ const GUIDE = `${REPO}/blob/main/docs/basic/control-panel.md`;
 const ADDONS_GUIDE = `${REPO}/blob/main/docs/other-scripts.md`;
 const RAW_BASE = "https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/";
 const FALLBACK = [
-  { id: "aiostreams", label: "AIOStreams menu", file: "setup-aiostreams.sh", present: true },
+  { id: "aiostreams", label: "AIOStreams", file: "setup-aiostreams.sh", present: true },
   { id: "aiometadata", label: "AIOMetadata", file: "setup-aiometadata.sh", present: false },
   { id: "aiomanager", label: "AIOManager", file: "setup-aiomanager.sh", present: false },
   { id: "watchdog", label: "Phone alerts", file: "setup-watchdog.sh", present: false },
