@@ -132,7 +132,8 @@ export async function runAction(act, params) {
     if (!res) return;
     params = res;
   } else if (act.confirm || vpnOff) {
-    const body = [restartWhat(act), act.confirm, vpnOff ? VPN_OFF_NOTE : null].filter(Boolean).join(" ");
+    const addonsNote = act.id === "stack.restart" && window.__addons ? "Add-ons aren't restarted: use Restart on their row in Services." : null;
+    const body = [restartWhat(act), act.confirm, addonsNote, vpnOff ? VPN_OFF_NOTE : null].filter(Boolean).join(" ");
     const ok = await ask({ title: `${act.label}?`, body, confirmLabel: act.label, danger: /stop|forget|delete|uninstall/i.test(act.id) });
     if (!ok) return;
     if (vpnOff) params = { ...(params || {}), without_vpn: true };

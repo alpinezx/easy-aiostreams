@@ -4,6 +4,8 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 3 November 2026
 
+- **Fixed:** with an add-on installed, Restart stack's confirm says add-ons aren't restarted, and to use Restart on their row in Services. (Panel 1.48.7, [#130](https://github.com/alpinezx/easy-aiostreams/pull/130))
+
 - **Fixed:** Restart stack's confirm names only what it restarts on this server ("Restart AIOStreams, Caddy and the Cloudflare Tunnel?"), and a few other messages read more simply: the Network page's By service note, MediaFlow's Uninstall warning, the tunnel's warning on a working VPS, and the AIOManager line after a restore to a new domain. The Scripts tab's first row says AIOStreams instead of AIOStreams menu. (Panel 1.48.6, [#129](https://github.com/alpinezx/easy-aiostreams/pull/129))
 
 ## 2 November 2026
