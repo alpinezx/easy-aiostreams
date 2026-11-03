@@ -47,8 +47,8 @@ function services(box) {
             : [h("span", { class: "num", text: s.rx != null ? fmtRate(s.rx) : measured ? "" : "Measuring…" }),
               h("span", { class: "num", text: s.tx != null ? fmtRate(s.tx) : "" })]);
       })),
-    h("p", { class: "vpn-note dim ns-note", text: "Each container's traffic, including what passes between them: a stream comes in"
-      + (onVpn ? " through the VPN tunnel" : " to AIOStreams") + ", goes over to Caddy and out to the viewer, so it shows on both, and these add up to more than the whole server's." })));
+    h("p", { class: "vpn-note dim ns-note", text: "Includes traffic between containers. A stream passes through "
+      + (onVpn ? "the VPN tunnel" : "AIOStreams") + ", then Caddy, so it's counted on both. That's why these add up to more than the whole server." })));
 }
 
 export function show(status) {

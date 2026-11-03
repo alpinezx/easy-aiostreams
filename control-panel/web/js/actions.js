@@ -53,6 +53,15 @@ export function ask({ title, body, confirmLabel, danger, options }) {
 // without it: the dialog says so, and confirming answers yes (without_vpn)
 const VPN_OFF_NOTE = "The VPN is switched off, so AIOStreams' traffic, debrid included, goes out through this server's own IP.";
 
+// Restart stack names only what it restarts here: "Restart AIOStreams, Caddy and the VPN?"
+function restartWhat(act) {
+  if (act.id !== "stack.restart") return null;
+  const parts = ["AIOStreams", "Caddy"];
+  if (window.__vpn === "on") parts.push("the VPN");
+  if (window.__tunnel) parts.push("the Cloudflare Tunnel");
+  return `Restart ${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}?`;
+}
+
 export async function runAction(act, params) {
   const vpnOff = window.__vpn === "off" && ["stack.start", "stack.restart", "stack.update"].includes(act.id);
   if (act.id === "stack.update") {
@@ -123,7 +132,7 @@ export async function runAction(act, params) {
     if (!res) return;
     params = res;
   } else if (act.confirm || vpnOff) {
-    const body = [act.confirm, vpnOff ? VPN_OFF_NOTE : null].filter(Boolean).join(" ");
+    const body = [restartWhat(act), act.confirm, vpnOff ? VPN_OFF_NOTE : null].filter(Boolean).join(" ");
     const ok = await ask({ title: `${act.label}?`, body, confirmLabel: act.label, danger: /stop|forget|delete|uninstall/i.test(act.id) });
     if (!ok) return;
     if (vpnOff) params = { ...(params || {}), without_vpn: true };

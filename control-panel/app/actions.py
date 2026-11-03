@@ -56,7 +56,8 @@ _STATIC: dict[str, Action] = {a.id: a for a in [
            confirm="Stop AIOStreams? Caddy stays up, so visitors get a 502 until you start it again."),
     Action("stack.restart", "Restart", "Restarting", "Restart finished", AIO,
            args=("restart",), stdin="4\n" + _PAD + "10\n", timeout=420, needs=(AIO,),
-           confirm="Restart AIOStreams and Caddy, and the VPN and tunnel if they're on? Streams stop loading for a few seconds."),
+           # the panel puts "Restart AIOStreams, Caddy, the VPN and the Cloudflare Tunnel?" in front, naming only what's on
+           confirm="Streams stop loading for a few seconds."),
     Action("stack.backup", "Back up now", "Backing up", "Backup finished", AIO,
            args=("backup",), stdin="\n", timeout=300, needs=(AIO,),
            confirm="Make a backup of your AIOStreams setup now? It is saved on this server and takes a few seconds."),
