@@ -958,7 +958,7 @@ do_update() {
 }
 
 do_uninstall() {
-    warn "This stops and removes the MediaFlow Proxy Light container, its Caddy site, saved config (including the API password), and the fail2ban jail if one was added."
+    warn "This removes MediaFlow Proxy Light: its container, Caddy site and saved config (API password included), plus its fail2ban jail if one was added."
     read -rp "Continue? [y/N]: " CONFIRM
     case "$CONFIRM" in
         y|Y|yes|Yes) ;;

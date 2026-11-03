@@ -1682,7 +1682,7 @@ do_restore() {
         summary+=("AIOMetadata moved to ${ADDON_NEW[aiometadata]}: apps keep using the old address, so open https://${ADDON_NEW[aiometadata]}/configure, load each configuration and install it again.")
     fi
     if [[ -n "${ADDON_NEW[aiomanager]:-}" ]]; then
-        summary+=("AIOManager moved to ${ADDON_NEW[aiomanager]}: sign in there with your UUID and password, and use Pull from Cloud (Settings) if your accounts don't appear.")
+        summary+=("AIOManager moved to ${ADDON_NEW[aiomanager]}: sign in there with your UUID and password. If your accounts don't appear, use Pull from Cloud (Settings).")
     fi
     if [[ -n "${ADDON_NAME[panel]:-}" && -f "$INSTALL_DIR/ui-state/gate-token" ]]; then
         summary+=("Control panel unlock link (open it once in each browser): https://${ADDON_DOMAIN[panel]}/unlock/$(cat "$INSTALL_DIR/ui-state/gate-token")")

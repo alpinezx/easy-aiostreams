@@ -299,8 +299,8 @@ confirm_direct_site() {
     [[ -n "$ip" && "$dns" == "$ip" ]] || return 0
     echo ""
     warn "$domain already points straight at this server, so it works without a tunnel."
-    echo "Turning the tunnel on moves it behind Cloudflare: it's offline until its route exists"
-    echo "in Cloudflare (and the domain's DNS is there), and its A record gets replaced."
+    echo "Turning the tunnel on moves it behind Cloudflare and replaces its A record."
+    echo "The site is offline until the domain is on Cloudflare with a route to the tunnel."
     echo "Most VPS installs don't need this."
     read -rp "Turn the tunnel on anyway? [y/N]: " c || return 1
     [[ "$c" =~ ^[Yy]$ ]]
