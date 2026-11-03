@@ -92,7 +92,7 @@ The [control panel](./control-panel.md) shows the tunnel first in the Request fl
 
 **`status` says not connected.** Usually the token: `setup-tunnel.sh token` and paste it again (only the `eyJ...` part). Check `sudo docker logs cloudflared` for the reason, and that the server has internet access.
 
-**A lost or leaked token.** Lost: the server keeps it in `tunnel-state/token.env` (root only), every backup has it, and Cloudflare's dashboard shows it again on the tunnel's connector setup page. Leaked: refresh it on the tunnel's page in Cloudflare. The old token stops working at once, so the site is down until `setup-tunnel.sh token` has the new one. Routes belong to the tunnel, not the token, so they stay.
+**A lost or leaked token.** Lost: the server keeps it in `tunnel-state/token.env` (root only), every backup has it, and Cloudflare shows it again on the tunnel's **Overview** (choose **Docker** under **Select Operating System**; it's in the **Run tunnel with Docker** command, after `--token`). Leaked: **Rotate token** in the same page's **Refresh token** box. The old token stops working at once, so the site is down until `setup-tunnel.sh token` has the new one. Routes belong to the tunnel, not the token, so they stay.
 
 **A route gives Cloudflare's error 1033 or 502.** 1033: the tunnel isn't connected. 502: it is, but the route's Service URL is wrong; it must be `http://caddy:80`, with the `http://`.
 
