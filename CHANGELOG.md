@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 3 November 2026
 
+- **Docs:** the Hosting from home guides say how to get a lost Cloudflare Tunnel token back, and what to do if it leaks. ([#132](https://github.com/alpinezx/easy-aiostreams/pull/132))
 - **Fixed:** Sign out asks first, so a stray click no longer signs you out. (Panel 1.48.8, [#131](https://github.com/alpinezx/easy-aiostreams/pull/131))
 
 - **Fixed:** with an add-on installed, Restart stack's confirm says add-ons aren't restarted, and to use Restart on their row in Services. (Panel 1.48.7, [#130](https://github.com/alpinezx/easy-aiostreams/pull/130))
