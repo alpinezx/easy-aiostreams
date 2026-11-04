@@ -2,6 +2,10 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 4 November 2026
+
+- **Fixed:** the Add-ons and Maintenance pages update after a very quick job too, so an uninstalled add-on's card goes without a reload. (Panel 1.48.11, [#135](https://github.com/alpinezx/easy-aiostreams/pull/135))
+
 ## 3 November 2026
 
 - **Fixed:** a WireGuard config that lists both IPv4 and IPv6 addresses now connects on a server without IPv6, instead of leaving the VPN stopped. Pages also update after a very quick job, so a deleted VPN config no longer stays listed until a reload. (Panel 1.48.10, [#134](https://github.com/alpinezx/easy-aiostreams/pull/134))
