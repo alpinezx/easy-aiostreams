@@ -145,6 +145,9 @@ async function tick(first) {
       if (view === "backups") showBackups(status).catch(() => {});
       if (view === "vpn") vpn.show(true, status);     // a VPN switch just finished: check again
       if (view === "alerts") alerts.show(status);
+      // These two watch for a job ending by themselves, so only a quick one needs this
+      if (!lastBusy && view === "addons") addons.show(status);
+      if (!lastBusy && view === "maint") maint.show(status, true).catch(() => {});
     }
     jobStarted = false;
     if (view === "alerts") alerts.setStatus(status);
