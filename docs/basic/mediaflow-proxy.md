@@ -23,7 +23,7 @@ Should print this server's IP.
 ## 2. Install and run the script
 
 ```bash
-sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-mediaflow.sh -o /opt/aiostreams/setup-mediaflow.sh
+sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/scripts/others/setup-mediaflow.sh -o /opt/aiostreams/setup-mediaflow.sh
 sudo bash /opt/aiostreams/setup-mediaflow.sh
 ```
 

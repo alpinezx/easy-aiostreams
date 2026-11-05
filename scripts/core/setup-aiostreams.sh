@@ -167,7 +167,7 @@ fi
 unset _old
 COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"
 # Where setup-backup.sh is fetched from when it's missing. AIOS_BRANCH=dev to test.
-RAW_BASE="https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/${AIOS_BRANCH:-main}"
+RAW_BASE="https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/${AIOS_BRANCH:-main}/scripts/core"
 CADDYFILE="$INSTALL_DIR/Caddyfile"
 CADDY_DROPIN_DIR="$INSTALL_DIR/caddy.d"
 # Written by "Stop AIOStreams" so the watchdog knows a stopped aiostreams is

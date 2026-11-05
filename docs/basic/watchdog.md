@@ -21,7 +21,7 @@ Install [ntfy](https://ntfy.sh) from the Play Store or App Store, or just keep `
 **This does:** installs the watchdog and walks you through first-time setup.
 
 ```bash
-sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-watchdog.sh -o /opt/aiostreams/setup-watchdog.sh
+sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/scripts/others/setup-watchdog.sh -o /opt/aiostreams/setup-watchdog.sh
 sudo bash /opt/aiostreams/setup-watchdog.sh
 ```
 

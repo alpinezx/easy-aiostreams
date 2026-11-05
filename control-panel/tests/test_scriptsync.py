@@ -8,6 +8,20 @@ def fresh_cache(monkeypatch):
     monkeypatch.setattr(scriptsync, "_cache", {"at": 0.0, "shas": None, "error": None})
 
 
+def test_listing_covers_the_scripts_folders_only(monkeypatch):
+    class R:
+        status_code, ok = 200, True
+
+        def json(self):
+            return {"tree": [{"path": "setup-aiostreams.sh", "type": "blob", "sha": "redirect"},
+                             {"path": "scripts/core", "type": "tree", "sha": "folder"},
+                             {"path": "scripts/core/setup-aiostreams.sh", "type": "blob", "sha": "main"},
+                             {"path": "scripts/others/setup-mediaflow.sh", "type": "blob", "sha": "mf"},
+                             {"path": "README.md", "type": "blob", "sha": "doc"}]}
+    monkeypatch.setattr(scriptsync.requests, "get", lambda *a, **k: R())
+    assert scriptsync._fetch() == {"setup-aiostreams.sh": "main", "setup-mediaflow.sh": "mf"}
+
+
 def test_blob_sha_matches_git():
     # git hash-object of "hello\n"
     assert scriptsync.blob_sha(b"hello\n") == "ce013625030ba8dba906f756967f9e9ca394464a"

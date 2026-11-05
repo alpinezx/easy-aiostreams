@@ -58,7 +58,7 @@ COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"
 CADDYFILE="$INSTALL_DIR/Caddyfile"
 
 # Where a missing setup-aiostreams.sh is fetched from. AIOS_BRANCH=dev to test.
-RAW_BASE="https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/${AIOS_BRANCH:-main}"
+RAW_BASE="https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/${AIOS_BRANCH:-main}/scripts/core"
 MIGRATE_SCRIPT_URL="https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/migrate-to-opt/setup-aiostreams.sh"
 
 # Root's home: where backup tarballs are written. Looked up rather than
@@ -1414,8 +1414,9 @@ do_restore() {
         echo "  sudo bash ~/setup-aiostreams-migrate.sh restore $tarball"
         echo "  rm ~/setup-aiostreams-migrate.sh"
         echo "  cd $INSTALL_DIR"
+        echo "  base=https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/scripts"
         echo "  for s in setup-*.sh; do"
-        echo "    sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/\$s -o \$s"
+        echo "    sudo curl -fsSL \$base/core/\$s -o \$s || sudo curl -fsSL \$base/others/\$s -o \$s"
         echo "  done"
         echo ""
         echo "(Every script, not just this one: the add-on scripts in that backup are from"

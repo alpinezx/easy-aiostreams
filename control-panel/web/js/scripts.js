@@ -8,7 +8,7 @@ import { openChangelog } from "./releases.js";
 const REPO = "https://github.com/alpinezx/easy-aiostreams";
 const GUIDE = `${REPO}/blob/main/docs/basic/control-panel.md`;
 const ADDONS_GUIDE = `${REPO}/blob/main/docs/other-scripts.md`;
-const RAW_BASE = "https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/";
+const RAW_BASE = "https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/scripts/";
 const FALLBACK = [
   { id: "aiostreams", label: "AIOStreams", file: "setup-aiostreams.sh", present: true },
   { id: "aiometadata", label: "AIOMetadata", file: "setup-aiometadata.sh", present: false },
@@ -22,6 +22,9 @@ const FALLBACK = [
 // setup-tunnel.sh, and only downloads them when they're missing, so its Update
 // refreshes them all (one not on this server doesn't count as differing).
 const UPDATE_WITH = { aiostreams: ["setup-backup.sh", "setup-maintenance.sh", "setup-tunnel.sh"] };
+// On GitHub the AIOStreams script and those three sit in scripts/core, the add-ons in scripts/others.
+const CORE = ["setup-aiostreams.sh", ...UPDATE_WITH.aiostreams];
+const rawUrl = (f) => `${RAW_BASE}${CORE.includes(f) ? "core" : "others"}/${f}`;
 
 let cmp = null, cmpLoading = false, cmpAsked = false, last = null;
 
@@ -267,7 +270,7 @@ function render() {
   const asUser = uc && shellAs(status) !== "root";
   // Scripts live in the install folder, which only root can write to, so as the user every step
   // goes through sudo. Fetch to a temporary name first, so a failed download never leaves a broken script.
-  const fetchCmd = (f) => `curl -fsSL ${RAW_BASE}${f} -o ${f}.new && chmod 755 ${f}.new && mv ${f}.new ${f}`;
+  const fetchCmd = (f) => `curl -fsSL ${rawUrl(f)} -o ${f}.new && chmod 755 ${f}.new && mv ${f}.new ${f}`;
   const fetchTo = (f) => asUser ? `sudo sh -c 'cd ${dir} && ${fetchCmd(f)}'` : `cd ${dir} && ${fetchCmd(f)}`;
   const updateOf = (x) => {
     const files = [x.file, ...(UPDATE_WITH[x.id] || [])];

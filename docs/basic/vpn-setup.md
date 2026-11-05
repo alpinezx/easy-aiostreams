@@ -32,7 +32,7 @@ In your VPN provider's site or app, look for an "advanced," "manual setup," or "
 **This does:** installs the VPN layer and walks you through first-time setup.
 
 ```bash
-sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-vpn-gluetun.sh -o /opt/aiostreams/setup-vpn-gluetun.sh
+sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/scripts/others/setup-vpn-gluetun.sh -o /opt/aiostreams/setup-vpn-gluetun.sh
 sudo bash /opt/aiostreams/setup-vpn-gluetun.sh
 ```
 
