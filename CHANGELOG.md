@@ -2,6 +2,10 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 5 November 2026
+
+- **Fixed:** stopping the VPN's first setup part-way no longer leaves it half there, with no way to remove it: the script now clears up after itself, and the Scripts tab offers Remove on a server already in that state. On phones, Remove no longer runs off the Scripts tab and address tags fit the VPN dialog, a config with one address no longer leaves its button greyed out, and cancelling MediaFlow's first setup no longer restarts AIOStreams. (Panel 1.48.13, [#137](https://github.com/alpinezx/easy-aiostreams/pull/137))
+
 ## 4 November 2026
 
 - **Fixed:** the Add-ons and Maintenance pages update after a very quick job too, so an uninstalled add-on's card goes without a reload. (Panel 1.48.11, [#135](https://github.com/alpinezx/easy-aiostreams/pull/135))
