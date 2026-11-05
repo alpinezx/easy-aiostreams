@@ -135,7 +135,7 @@ case auto-detect doesn't find it .  you'll be asked for it either way.
 Download it into your AIOStreams install folder (`/opt/aiostreams`) and run it:
 
 ```bash
-sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-vpn-gluetun.sh -o /opt/aiostreams/setup-vpn-gluetun.sh
+sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/scripts/others/setup-vpn-gluetun.sh -o /opt/aiostreams/setup-vpn-gluetun.sh
 sudo bash /opt/aiostreams/setup-vpn-gluetun.sh
 ```
 

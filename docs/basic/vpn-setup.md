@@ -65,7 +65,7 @@ Either way the script auto-detects it .  remember the path in case you need it, 
 **This does:** installs the VPN layer and walks you through first-time setup.
 
 ```bash
-sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-vpn-gluetun.sh -o /opt/aiostreams/setup-vpn-gluetun.sh
+sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/scripts/others/setup-vpn-gluetun.sh -o /opt/aiostreams/setup-vpn-gluetun.sh
 sudo bash /opt/aiostreams/setup-vpn-gluetun.sh
 ```
 

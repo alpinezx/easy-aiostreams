@@ -43,7 +43,7 @@ Then replace every script in the folder with the current one from the main branc
 ```bash
 cd /opt/aiostreams
 for s in setup-*.sh; do
-  sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/$s -o $s
+  sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/scripts/core/$s -o $s || sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/scripts/others/$s -o $s
 done
 ```
 
