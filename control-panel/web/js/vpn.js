@@ -38,18 +38,20 @@ function toggle() {
 const waiting = (text) => h("p", { class: "dim addr-wait", role: "status" }, h("span", { class: "spin", "aria-hidden": "true" }), h("span", { text }));
 
 // The address list in Change server and Change config: fastest first, the
-// fastest one not in use picked to start with. pick(a) runs on each choice.
+// fastest one not in use picked to start with, or the first if all are in use.
+// pick(a) runs on each choice.
 function fillAddresses(list, r, pick, before) {
   clear(list);
   let rows = r.addresses;
   // The address a config used before goes in even if the lookup didn't return it, and is picked to start with
   if (before && !rows.some((a) => a.ip === before)) rows = [...rows, { ip: before, ms: undefined, in_use: false, recommended: false }];
   if (!rows.length) list.append(h("p", { class: "vpn-note", text: r.error || "The lookup found no addresses." }));
-  let first = null;
+  let first = null, only = null;
   for (const a of rows) {
     const radio = h("input", { type: "radio", name: "vpn-addr", value: a.ip });
     radio.addEventListener("change", () => pick(a));
     if (before ? a.ip === before : !first && !a.in_use) first = radio;
+    only ||= radio;
     list.append(h("label", { class: "addr" }, radio,
       h("span", { class: "mono", text: a.ip }),
       h("span", { class: "addr-tags" },
@@ -58,6 +60,8 @@ function fillAddresses(list, r, pick, before) {
         before && a.ip === before ? h("span", { class: "chip", text: "Used before" }) : null),
       h("span", { class: "addr-ms", text: a.ms === undefined ? "" : a.ms == null ? "no reply" : `${a.ms} ms` })));
   }
+  // Every address in use (a config with just the one): picked anyway, so nothing sits greyed out unexplained
+  first ||= only;
   if (first) { first.checked = true; first.dispatchEvent(new Event("change")); }
 }
 

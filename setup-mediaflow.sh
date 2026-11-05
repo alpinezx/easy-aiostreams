@@ -621,7 +621,6 @@ do_configure() {
     chmod 700 "$STATE_DIR"
     ensure_caddy_dropin_dir
     ensure_shared_network
-    apply_main_compose_patches
 
     info "Subdomain for MediaFlow Proxy Light"
     echo "Needs to be its OWN subdomain, different from your main AIOStreams"
@@ -718,6 +717,10 @@ do_configure() {
         [[ "$proxy_url" =~ ^(https?|socks5h?)://[^\'[:space:]]+$ ]] && break
         warn "Needs to start with http://, https://, socks5:// or socks5h://, with no spaces or single quotes."
     done
+
+    # After the questions: it can restart AIOStreams, which a cancelled setup
+    # should not do.
+    apply_main_compose_patches
 
     # Keeps the pinned release (MF_VERSION came with the config read above)
     write_config "$domain" "$password" "$proxy_url" "${MF_VERSION:-}"

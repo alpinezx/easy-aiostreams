@@ -1340,7 +1340,11 @@ class Backend:
 
     def addon_set_up(self, script_id: str) -> bool:
         """Whether an add-on is set up: its state folder has something in it. Each script makes
-        the folder before its first question, so a setup cancelled part-way leaves it empty."""
+        the folder before its first question, so a setup cancelled part-way leaves it empty.
+        The VPN saves files there before its questions, so it counts once its setup finished."""
+        if script_id == "vpn":
+            return (self.p("vpn-state/active").exists()
+                    or "container_name: gluetun" in _read(self.p("docker-compose.yml")))
         d = self.p(ADDON_STATE[script_id])
         try:
             return d.is_dir() and any(d.iterdir())
@@ -1350,7 +1354,9 @@ class Backend:
     def remove_script(self, script_id: str) -> str:
         """Deletes an add-on's script from the install folder once the add-on
         isn't set up, and the empty state folder a cancelled setup leaves (rmdir
-        only ever removes an empty one). Never the AIOStreams script."""
+        only ever removes an empty one). The VPN's can hold files from a setup
+        that never finished, a pasted private key among them, so it all goes.
+        Never the AIOStreams script."""
         found = next(((i, f) for i, _, f in SCRIPTS if i == script_id), None)
         if not found or script_id not in ADDON_STATE:
             raise ValueError("Only an add-on's script can be removed.")
@@ -1363,7 +1369,8 @@ class Backend:
             raise ValueError("Couldn't remove it.")
         state = self.p(ADDON_STATE[script_id])
         if state.is_dir():
-            subprocess.run([*host, "rmdir", "--", str(state)], capture_output=True, text=True, timeout=20)
+            remove = ["rm", "-rf"] if script_id == "vpn" else ["rmdir"]
+            subprocess.run([*host, *remove, "--", str(state)], capture_output=True, text=True, timeout=20)
         return found[1]
 
     def watchdog_info(self) -> dict:

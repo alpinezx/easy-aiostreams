@@ -619,7 +619,13 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .addr:has(input:checked) { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); background: var(--accent-soft); }
 .addr input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
 .addr-tags { display: flex; flex-wrap: wrap; gap: 6px; }
-.addr-tags .chip { font-size: .74rem; padding: 1px 8px; }
+.addr-tags .chip { font-size: .74rem; padding: 1px 8px; white-space: nowrap; }
+@media (max-width: 720px) {
+  /* the tags take their own line under the address, or they squeeze into a narrow column */
+  .addr { grid-template-columns: 18px minmax(0, 1fr) auto; row-gap: 6px; }
+  .addr-tags { grid-column: 2 / -1; grid-row: 2; }
+  .addr-tags:empty { display: none; }
+}
 .addr-ms { color: var(--dim); font-size: .88rem; font-variant-numeric: tabular-nums; text-align: right; }
 .addr-wait, .conf-checking { display: flex; align-items: center; gap: 10px; margin: 0; }
 .addr-wait .spin, .conf-checking .spin { flex: none; }
@@ -1023,7 +1029,8 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   .cmd { display: none; }
   /* the badge drops under the name in one piece rather than squeezing beside it */
   .cmd-label { flex-wrap: wrap; row-gap: 6px; color: var(--text); font-size: .95rem; font-weight: 500; }
-  .cmd-btns { gap: 8px; }
+  /* a fourth button (Remove) drops to its own line rather than running off the screen */
+  .scripts-panel .cmd-btns { flex-wrap: wrap; gap: 8px; }
   .cmd-btns .btn { flex: 1; border-color: var(--line); background: var(--raised); color: var(--text); padding: 8px 12px; }
 }
 .sdot-tag { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; font-weight: 600; }

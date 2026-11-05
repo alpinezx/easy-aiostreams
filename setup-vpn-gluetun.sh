@@ -1250,15 +1250,29 @@ turn_vpn_off() {
     apply_mode "direct" "$skip_aio"
 }
 
+# A first setup stopped part-way (Ctrl+C, a closed SSH session, a config that
+# won't parse) leaves nothing behind, so the panel doesn't see half an add-on
+# and no pasted private key stays on the server. Nothing outside vpn-state has
+# changed by then.
+discard_unfinished_setup() {
+    [[ -f "$ACTIVE_MARKER" ]] && return 0
+    grep -q 'container_name: gluetun' "$COMPOSE_FILE" 2>/dev/null && return 0
+    rm -rf "$STATE_DIR"
+    echo ""
+    echo "VPN setup stopped. Nothing was changed."
+}
+
 first_time_setup() {
     info "First-time VPN setup"
     read_existing_values "$COMPOSE_FILE"
     echo "  Domain: $DOMAIN"
     echo "  Auth user: ${AUTH_LINE%%:*}"
 
+    trap discard_unfinished_setup EXIT
     write_direct_files   # capture current (pre-VPN) state as the "direct" variant
 
     do_reconfigure_vpn
+    trap - EXIT
 
     BACKUP_DIR="$INSTALL_DIR/backup-pre-vpn-$(date +%Y%m%d-%H%M%S)"
     mkdir -p "$BACKUP_DIR"

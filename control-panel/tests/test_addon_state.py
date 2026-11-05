@@ -1,3 +1,4 @@
+import shutil
 from types import SimpleNamespace
 
 import pytest
@@ -14,7 +15,9 @@ def backend(tmp_path, monkeypatch):
         args = cmd[cmd.index("--") + 1:]
         ran.append(args[0])
         target = tmp_path / args[-1].split("/")[-1]
-        if args[0] == "rm":
+        if args[0] == "rm" and target.is_dir():
+            shutil.rmtree(target)
+        elif args[0] == "rm":
             target.unlink(missing_ok=True)
         elif args[0] == "rmdir":
             target.rmdir()          # fails, like rmdir, if anything is in it
@@ -42,6 +45,31 @@ def test_remove_takes_the_script_and_the_empty_folder(backend, tmp_path):
     assert not (tmp_path / "setup-mediaflow.sh").exists()
     assert not (tmp_path / "mediaflow-state").exists()
     assert backend.ran == ["rm", "rmdir"]
+
+
+def test_a_vpn_setup_stopped_part_way_isnt_set_up_and_can_be_removed(backend, tmp_path):
+    (tmp_path / "setup-vpn-gluetun.sh").write_text("#!/bin/bash\n")
+    (tmp_path / "docker-compose.yml").write_text("services:\n  aiostreams:\n")
+    state = tmp_path / "vpn-state"
+    state.mkdir()
+    (state / "docker-compose.direct.yml").write_text("x\n")
+    (state / "wireguard.conf").write_text("x\n")
+    assert not backend.addon_set_up("vpn")
+    assert backend.remove_script("vpn") == "setup-vpn-gluetun.sh"
+    assert not state.exists() and not (tmp_path / "setup-vpn-gluetun.sh").exists()
+
+
+def test_a_vpn_thats_set_up_stays_set_up(backend, tmp_path):
+    (tmp_path / "setup-vpn-gluetun.sh").write_text("#!/bin/bash\n")
+    (tmp_path / "vpn-state").mkdir()
+    (tmp_path / "docker-compose.yml").write_text("    container_name: gluetun\n")
+    assert backend.addon_set_up("vpn")                           # switched on, marker or not
+    (tmp_path / "docker-compose.yml").write_text("services:\n")
+    (tmp_path / "vpn-state" / "active").write_text("direct\n")
+    assert backend.addon_set_up("vpn")                           # set up, switched off
+    with pytest.raises(ValueError):
+        backend.remove_script("vpn")
+    assert (tmp_path / "vpn-state" / "active").exists() and backend.ran == []
 
 
 def test_remove_refuses_while_set_up(backend, tmp_path):
