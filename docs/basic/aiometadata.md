@@ -23,7 +23,7 @@ Should print this server's IP.
 ## 2. Install and run the script
 
 ```bash
-sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-aiometadata.sh -o /opt/aiostreams/setup-aiometadata.sh
+sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/scripts/others/setup-aiometadata.sh -o /opt/aiostreams/setup-aiometadata.sh
 sudo bash /opt/aiostreams/setup-aiometadata.sh
 ```
 

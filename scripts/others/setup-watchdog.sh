@@ -660,8 +660,10 @@ check_scripts() {
     if [[ -f "$stamp" ]] && (( $(date +%s) - $(stat -c %Y "$stamp") < 21600 )); then return 0; fi
     touch "$stamp"
     branch=$(script_branch)
-    listing=$(curl -fsS -m 15 "https://api.github.com/repos/alpinezx/easy-aiostreams/contents/?ref=$branch" 2>/dev/null \
-        | grep -oP '"(name|sha)":\s*"\K[^"]+') || return 0
+    listing=$(for dir in core others; do
+            curl -fsS -m 15 "https://api.github.com/repos/alpinezx/easy-aiostreams/contents/scripts/$dir?ref=$branch" 2>/dev/null \
+                | grep -oP '"(name|sha)":\s*"\K[^"]+' || exit 1
+        done) || return 0
     # The listing comes as name, sha, name, sha...
     declare -A remote=()
     while read -r name && read -r sha; do remote[$name]=$sha; done <<< "$listing"

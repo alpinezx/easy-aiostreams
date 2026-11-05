@@ -20,9 +20,17 @@ from app import actions  # noqa: E402
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def script_path(name: str) -> Path:
+    """A script's place in the repo: scripts/core or scripts/others."""
+    if "/" in name:
+        return ROOT / name
+    core = ROOT / "scripts" / "core" / name
+    return core if core.exists() else ROOT / "scripts" / "others" / name
+
+
 def menu(script: str) -> dict[str, str]:
     """The 'N) Label' lines of a script's main menu, the last one in the file, as {N: label}."""
-    text = (ROOT / script).read_text(encoding="utf-8")
+    text = script_path(script).read_text(encoding="utf-8")
     return dict(re.findall(r'echo "\s*(\d+)\) ([^"]+)"', text[text.rindex("while true; do"):]))
 
 
@@ -31,7 +39,7 @@ def typed(action_id: str) -> list[str]:
 
 
 def test_aiostreams_menu_numbers_the_panel_types():
-    text = (ROOT / "setup-aiostreams.sh").read_text(encoding="utf-8")
+    text = script_path("setup-aiostreams.sh").read_text(encoding="utf-8")
     main = dict(re.findall(r'echo "\s*(\d+)\) ([^"]+)"', text[text.index('echo "What would you like to do?"'):text.index('read -rp "Select an option [1-$MENU_LAST]')]))
     assert main["2"].startswith("Stop AIOStreams")
     assert main["3"].startswith("Start AIOStreams")
@@ -70,15 +78,15 @@ def test_exit_is_last_in_every_menu():
 
 
 def test_the_panel_runs_named_commands_the_scripts_know():
-    aio = (ROOT / "setup-aiostreams.sh").read_text(encoding="utf-8")
+    aio = script_path("setup-aiostreams.sh").read_text(encoding="utf-8")
     assert re.search(r"^\s*stop\|start\|restart\|update\)", aio, re.M)
     for action_id, cmd in (("stack.start", "start"), ("stack.stop", "stop"), ("stack.restart", "restart")):
         assert actions.resolve(action_id).args == (cmd,)
     assert actions.build_update(True, "latest").args == ("update", "--backup", "--channel", "latest")
     assert actions.build_update(False, None).args == ("update",)
-    assert '"${1:-}" == "stop-mediaflow"' in (ROOT / "setup-mediaflow.sh").read_text(encoding="utf-8")
+    assert '"${1:-}" == "stop-mediaflow"' in script_path("setup-mediaflow.sh").read_text(encoding="utf-8")
     assert actions.resolve("mediaflow.stop").args == ("stop-mediaflow",)
-    meta = (ROOT / "setup-aiometadata.sh").read_text(encoding="utf-8")
+    meta = script_path("setup-aiometadata.sh").read_text(encoding="utf-8")
     for cmd in ("start-aiometadata", "stop-aiometadata", "update-aiometadata"):
         assert re.search(rf"^\s*{cmd}\)", meta, re.M), cmd
     assert actions.resolve("aiometadata.stop").args == ("stop-aiometadata",)
@@ -87,7 +95,7 @@ def test_the_panel_runs_named_commands_the_scripts_know():
 
 def test_aiomanager_has_the_commands_the_panel_runs():
     """A new script: the panel only runs its named commands, never menu numbers."""
-    mgr = (ROOT / "setup-aiomanager.sh").read_text(encoding="utf-8")
+    mgr = script_path("setup-aiomanager.sh").read_text(encoding="utf-8")
     for cmd in ("start-aiomanager", "stop-aiomanager", "update-aiomanager", "signups", "uninstall"):
         assert re.search(rf"^\s*{cmd}\)", mgr, re.M), cmd
     for sub in ("open", "close"):
@@ -101,14 +109,14 @@ def test_aiomanager_has_the_commands_the_panel_runs():
 
 def test_mediaflow_update_is_a_named_command():
     """The panel's MediaFlow Update runs update-mediaflow, never the menu (where it's 10)."""
-    assert '"${1:-}" == "update-mediaflow"' in (ROOT / "setup-mediaflow.sh").read_text(encoding="utf-8")
+    assert '"${1:-}" == "update-mediaflow"' in script_path("setup-mediaflow.sh").read_text(encoding="utf-8")
 
 
 def test_the_add_ons_uninstall_is_a_named_command():
     """The Add-ons page's Uninstall runs each script's "uninstall"; the menus keep their numbers."""
-    meta = (ROOT / "setup-aiometadata.sh").read_text(encoding="utf-8")
+    meta = script_path("setup-aiometadata.sh").read_text(encoding="utf-8")
     assert re.search(r"^\s*uninstall\)", meta, re.M)
-    assert '"${1:-}" == "uninstall"' in (ROOT / "setup-mediaflow.sh").read_text(encoding="utf-8")
+    assert '"${1:-}" == "uninstall"' in script_path("setup-mediaflow.sh").read_text(encoding="utf-8")
     assert menu("setup-aiometadata.sh")["8"] == "Uninstall"
     assert menu("setup-mediaflow.sh")["9"] == "Uninstall"
     assert actions.resolve("aiometadata.uninstall", {"remove_image": True}).args == ("uninstall", "remove-image")
@@ -120,6 +128,25 @@ def test_the_add_ons_uninstall_is_a_named_command():
     relay = actions.resolve("webhook.uninstall", {"remove_image": True})
     assert relay.script == "setup-aiostreams.sh" and relay.args == ("remove-webhook-relay",)
     assert relay.script_has == "remove-webhook-relay"
-    aio = (ROOT / "setup-aiostreams.sh").read_text(encoding="utf-8")
+    aio = script_path("setup-aiostreams.sh").read_text(encoding="utf-8")
     assert re.search(r"^\s*remove-webhook-relay\)", aio, re.M)
-    assert not (ROOT / "setup-webhook.sh").exists()
+    assert not script_path("setup-webhook.sh").exists()
+
+
+def test_scripts_sit_in_their_folders():
+    """The panel and the scripts fetch them from here: core is what the main script needs, others the add-ons."""
+    from app.stack import WITH_MAIN
+    core = {p.name for p in (ROOT / "scripts" / "core").glob("*.sh")}
+    others = {p.name for p in (ROOT / "scripts" / "others").glob("*.sh")}
+    assert core == {"setup-aiostreams.sh", *WITH_MAIN}
+    assert others == {f for _, _, f in actions.SCRIPTS} - core
+    js = (ROOT / "control-panel" / "web" / "js" / "scripts.js").read_text(encoding="utf-8")
+    assert all(f'"{f}"' in js[js.index("const UPDATE_WITH"):js.index("const CORE")] for f in WITH_MAIN)
+
+
+def test_only_the_redirect_is_left_in_the_root():
+    """Old links land on it, so it must go on fetching the real script from scripts/core."""
+    assert [p.name for p in ROOT.glob("*.sh")] == ["setup-aiostreams.sh"]
+    text = (ROOT / "setup-aiostreams.sh").read_text(encoding="utf-8")
+    assert "/scripts/core/setup-aiostreams.sh" in text
+    assert "SELF_SCRIPT_PATH" in script_path("setup-aiostreams.sh").read_text(encoding="utf-8")

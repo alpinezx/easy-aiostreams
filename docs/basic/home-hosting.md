@@ -103,7 +103,7 @@ sudo mkdir -p /opt/aiostreams && cd /opt/aiostreams
 Download the installer:
 
 ```bash
-sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/setup-aiostreams.sh -o setup-aiostreams.sh
+sudo curl -fsSL https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/scripts/core/setup-aiostreams.sh -o setup-aiostreams.sh
 ```
 
 Run it:
