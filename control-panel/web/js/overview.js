@@ -106,6 +106,13 @@ function cpuTone(h, cpus) {
   return low >= 90 ? "bad" : low >= 75 ? "warn" : "";
 }
 
+// The last half minute's average, not one poll: a second's burst, such as the VPN's own
+// health check every 5s, would otherwise show as 3.5% one poll and 0% the next
+function cpuAvg(s) {
+  const h = (hist[s.key] || []).slice(-10);
+  return h.length ? Math.round((h.reduce((a, b) => a + b, 0) / h.length) * 10) / 10 : s.cpu;
+}
+
 function uptime(s) {
   if (s.state !== "running" || !s.started_at) return "";
   return fmtDur((Date.now() - Date.parse(s.started_at)) / 1000);
@@ -542,7 +549,8 @@ function spark(values) {
 }
 function fillSpark(svg, values) {
   const v = values.length > 1 ? values : [0, 0];
-  const max = Math.max(5, ...v);
+  // Scaled to at least 50%, so a small burst stays small and a busy service still stands out
+  const max = Math.max(50, ...v);
   const pts = v.map((y, i) => [(i / (v.length - 1)) * 96, 26 - (y / max) * 22]);
   const d = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(" ");
   svg.querySelector(".line").setAttribute("d", d);
@@ -614,7 +622,7 @@ function rows(st, goLogs) {
     const word = sx === "running" && up ? `Up for ${up}` : (STATE_WORD[sx] || sx) + (up ? ` for ${up}` : "");
     setText(row, "[data-w]", word + (s.restarts ? `, restarted ${s.restarts}×` : ""));
     setText(row, "[data-img]", s.image || "");
-    setText(row, "[data-cpu]", s.state === "running" && s.cpu != null ? `${s.cpu}%` : "");
+    setText(row, "[data-cpu]", s.state === "running" && s.cpu != null ? `${cpuAvg(s)}%` : "");
     const cpuEl = row.querySelector("[data-cpu]");
     if (cpuEl) cpuEl.className = "num " + cpuTone(hist[s.key], (st.host && st.host.cpus) || 1);
     setText(row, "[data-mem]", s.state === "running" && s.mem != null ? fmtBytes(s.mem) : "");
