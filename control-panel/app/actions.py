@@ -45,6 +45,9 @@ _PAD = "N\n"
 
 AIO = "setup-aiostreams.sh"
 
+# Add-ons a VPN page switch can send through the VPN, in the page's order
+ROUTABLE = ("mediaflow", "aiomanager")
+
 _STATIC: dict[str, Action] = {a.id: a for a in [
     # Each runs the script's own command; the typed menu answers after it are
     # only read by an older script that doesn't know the command (it falls
@@ -237,6 +240,16 @@ def build_use_address(ip) -> Action:
                   needs=("setup-vpn-gluetun.sh", "vpn-state/active", "vpn-state/endpoint-host"))
 
 
+def build_route(service, on) -> Action:
+    """Sends one add-on through the VPN, or back to this server's own address.
+    The VPN page's switch asks first, so no modal here."""
+    if service not in ROUTABLE:
+        raise BadAction("That can't go through the VPN.")
+    word = "on" if on is True else "off"
+    return Action("vpn.route", "Through the VPN", "Moving it", "Done", "setup-vpn-gluetun.sh",
+                  args=("route", service, word), timeout=180, needs=("setup-vpn-gluetun.sh", "vpn-state/active"))
+
+
 def build_use_config(ip, on: bool = False) -> Action:
     """Switches to the config the VPN page checked and staged in vpn-state,
     at the server address picked (IPv4 only); the script keeps the old one."""
@@ -336,6 +349,8 @@ def _resolve(action_id: str, params: dict) -> Action:
         return build_mediaflow_update(params.get("backup", True))
     if action_id == "vpn.use":
         return build_use_address(params.get("ip"))
+    if action_id == "vpn.route":
+        return build_route(params.get("service"), params.get("on"))
     if action_id == "vpn.uninstall":
         return build_vpn_uninstall(params.get("remove_image") is True, params.get("delete_confs") is True)
     if action_id == "watchdog.topic":
@@ -353,7 +368,7 @@ def _resolve(action_id: str, params: dict) -> Action:
 def catalog() -> list[Action]:
     return list(_STATIC.values()) + [build_update(True, None), build_meta_update(True), build_manager_update(True), build_mediaflow_update(True), build_use_address("192.0.2.1"), build_use_config("192.0.2.1"),
                                      build_delete_config("/"), build_use_file("/", "192.0.2.1"), build_vpn_uninstall(False, False),
-                                     build_set_topic("aios-example-topic")] + [build_addon_uninstall(a, False) for a in ADDON_UNINSTALL]
+                                     build_set_topic("aios-example-topic"), build_route("mediaflow", True)] + [build_addon_uninstall(a, False) for a in ADDON_UNINSTALL]
 
 
 # The stack's scripts, in the order the Terminal tab lists them. Only the first

@@ -135,6 +135,12 @@ networks:
   ${SHARED_NET}:
     external: true
 EOF
+    # Switched to go through the VPN (the VPN page): stays attached to it
+    if grep -qx aiomanager "$INSTALL_DIR/vpn-state/routed" 2>/dev/null \
+        && [[ "$(cat "$INSTALL_DIR/vpn-state/active" 2>/dev/null || true)" == vpn ]]; then
+        sed -i '/^    networks:$/,$d' "$AIOMAN_COMPOSE"
+        echo '    network_mode: "container:gluetun"' >> "$AIOMAN_COMPOSE"
+    fi
     chmod 600 "$AIOMAN_COMPOSE"
 }
 
@@ -752,6 +758,10 @@ do_logs() {
 # "uninstall" command (the control panel's) share it. $1 = yes also removes
 # the image.
 remove_aiomanager() {
+    # On the VPN page's list: off it first, while the VPN script can still see it
+    if grep -qx aiomanager "$INSTALL_DIR/vpn-state/routed" 2>/dev/null; then
+        bash "$INSTALL_DIR/setup-vpn-gluetun.sh" route aiomanager off < /dev/null || true
+    fi
     local images="${1:-no}" version=""
     load_config && version="${AIOMAN_VERSION:-}"
     cancel_signups_timer

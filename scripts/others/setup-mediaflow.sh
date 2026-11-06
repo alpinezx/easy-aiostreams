@@ -249,6 +249,12 @@ networks:
   ${SHARED_NET}:
     external: true
 EOF
+    # Switched to go through the VPN (the VPN page): stays attached to it
+    if grep -qx mediaflow "$INSTALL_DIR/vpn-state/routed" 2>/dev/null \
+        && [[ "$(cat "$INSTALL_DIR/vpn-state/active" 2>/dev/null || true)" == vpn ]]; then
+        sed -i '/^    networks:$/,$d' "$MEDIAFLOW_COMPOSE"
+        echo '    network_mode: "container:gluetun"' >> "$MEDIAFLOW_COMPOSE"
+    fi
 }
 
 write_caddy_snippet() {
@@ -974,6 +980,10 @@ do_uninstall() {
 # "uninstall" command (the control panel's) share it. $1 = yes also removes
 # the image.
 remove_mediaflow() {
+    # On the VPN page's list: off it first, while the VPN script can still see it
+    if grep -qx mediaflow "$INSTALL_DIR/vpn-state/routed" 2>/dev/null; then
+        bash "$INSTALL_DIR/setup-vpn-gluetun.sh" route mediaflow off < /dev/null || true
+    fi
     local images="${1:-no}" image=""
     [[ -f "$MEDIAFLOW_COMPOSE" ]] && image=$(compose_image_refs "$MEDIAFLOW_COMPOSE" | head -n1)
     # The jail first (it reads the config), then the config, then the

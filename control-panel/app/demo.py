@@ -107,6 +107,7 @@ class DemoBackend:
         self._cleared_logs: set[str] = set()
         self.vpn = os.environ.get("UI_DEMO_VPN", "on")   # on | off | none, to preview the header chip
         self.tunnel = bool(os.environ.get("UI_DEMO_TUNNEL"))
+        self.routed = {x for x in os.environ.get("UI_DEMO_ROUTED", "").split(",") if x}   # add-ons sent through the VPN
         self.vpn_ip = "203.0.113.16"
         self.vpn_host = "nl.wg.example-vpn.net"
         self.staged = None
@@ -183,6 +184,8 @@ class DemoBackend:
                "checked_at": None, "error": None}
         if self.vpn == "none":
             return out
+        names = {"mediaflow": "MediaFlow Proxy", "aiomanager": "AIOManager"}
+        out["routes"] = [{"key": k, "name": n, "on": k in self.routed} for k, n in names.items()]
         out.update(endpoint_host=self.vpn_host if self.has_config else None, endpoint_ip=self.vpn_ip if self.has_config else None,
                    endpoint_port="51820" if self.has_config else None, previous=self.previous, has_config=self.has_config)
         if self.vpn == "on":
@@ -315,7 +318,7 @@ class DemoBackend:
             run = self.running[cname]
             s = {"key": key, "container": cname, "name": name, "role": role, "addon": addon,
                  "present": True, "state": "running" if run else "stopped", "health": "healthy" if run else None,
-                 "restarts": 0, "image": image,
+                 "restarts": 0, "image": image, "via_vpn": self.vpn == "on" and key in self.routed,
                  "on_purpose": (not run) and key == "aiostreams" and self.stopped_on_purpose}
             if run:
                 s.update(started_at=self.started[cname].isoformat().replace("+00:00", "Z"),
@@ -574,6 +577,11 @@ class DemoBackend:
                       "Confirm at https://streams.example.com"]:
                 say(l, 0.5)
             self.vpn = "on" if on else "off"
+        elif action.id == "vpn.route":
+            key, word = action.args[1], action.args[2]
+            for l in ["==> Updating the VPN's firewall ports", f"==> Moving {key}", "Done."]:
+                say(l, 0.4)
+            (self.routed.add if word == "on" else self.routed.discard)(key)
         elif action.id == "vpn.use":
             ip = action.args[1]
             for l in [f"Server address: {ip}:51820 (was {self.vpn_ip})", "==> Stopping the current stack", "==> Starting the stack in 'vpn' mode",

@@ -39,8 +39,8 @@ function services(box) {
     h("div", { class: "ns-list" },
       h("div", { class: "ns-row ns-head" }, h("span", { text: "Service" }), h("span", { class: "num", text: "Down" }), h("span", { class: "num", text: "Up" })),
       ...rows.map((s) => {
-        // On the VPN's network, Docker reports gluetun's counters for AIOStreams too: one count, under the tunnel
-        const shared = s.key === "aiostreams" && onVpn;
+        // On the VPN's network, Docker reports gluetun's counters for these too: one count, under the tunnel
+        const shared = (s.key === "aiostreams" || s.via_vpn) && onVpn;
         return h("div", { class: "ns-row" },
           h("span", { class: "ns-name", text: s.name }),
           shared ? h("span", { class: "ns-shared dim", text: "Counted under VPN tunnel" })

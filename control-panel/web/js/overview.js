@@ -475,15 +475,6 @@ function versionCard(st, avail) {
 }
 
 // ---------------- signal path ----------------
-function node(s) {
-  const st = stateOf(s);
-  // On phones only the name shows, so the state is on its tooltip and for screen readers too
-  return h("div", { class: "node", dataset: { s: st, svc: s.key }, title: `${s.name}: ${STATE_WORD[st] || st}` },
-    h("div", { class: "node-name", text: s.name }),
-    h("div", { class: "node-state" }, h("span", { class: "word", text: STATE_WORD[st] || st }),
-      " ", h("span", { class: "dim", dataset: { up: s.key }, text: uptime(s) })));
-}
-
 // Folded until someone opens it (see folding above)
 function path(st) {
   const folded = isFolded("flow");
@@ -505,41 +496,37 @@ function path(st) {
       })), restartBtn());
       return;
     }
-    const chain = h("div", { class: "chain" });
-    chain.append(h("div", { class: "path-start" }, h("i"), "Visitors"));
-    let upstreamOk = true;   // everything before this point is running
-    main.forEach((s) => {
-      const ok = s.state === "running";
-      chain.append(h("span", { class: "link " + (upstreamOk && ok ? "live" : "broken") }));
-      chain.append(node(s));
-      upstreamOk = upstreamOk && ok;
-    });
-    el.append(chain);
-    if (addons.length) {
-      const caddy = main.find((s) => s.key === "caddy");
-      const wrap = h("div", { class: "addons-wrap" });
-      const ul = h("ul", { class: "addons" });
-      addons.forEach((s) => {
-        const ok = s.state === "running" && caddy && caddy.state === "running";
-        ul.append(h("li", { class: ok ? "live" : "broken" }, node(s)));
-      });
-      wrap.append(ul);
-      el.append(wrap);
-      el.dataset.hasAddons = "1";
-    }
-    // Buttons that do something substantial sit at the card's bottom right
-    el.append(h("div", { class: "card-foot path-foot" },
-      addons.length ? h("p", { class: "addon-note", text: "Add-ons hang off Caddy, each on its own subdomain." }) : null,
-      restartBtn()));
+    // One tree on every screen: who hands on to whom, a light for each service
+    const up = (s, upstreamOk) => upstreamOk && s.state === "running";
+    const row = (s, ok) => {
+      const sx = stateOf(s);
+      return h("li", { class: ok ? "live" : "broken" },
+        h("div", { class: "t-row", dataset: { s: sx, svc: s.key }, title: `${s.name}: ${STATE_WORD[sx] || sx}` },
+          h("span", { class: "t-name", text: s.name }),
+          h("span", { class: "t-state" }, h("span", { class: "word", text: STATE_WORD[sx] || sx }),
+            " ", h("span", { class: "dim", dataset: { up: s.key }, text: uptime(s) }))));
+    };
+    // What each service hands on to: the next in the main line, then its add-ons
+    const after = (i, ok) => {
+      const s = main[i];
+      const li = row(s, up(s, ok));
+      const here = up(s, ok);
+      const kids = [];
+      if (i + 1 < main.length) kids.push(after(i + 1, here));
+      const vpnKey = main.some((m) => m.key === "gluetun");
+      for (const a of addons) {
+        const via = vpnKey && a.via_vpn ? "gluetun" : "caddy";
+        if (via === s.key) kids.push(row(a, up(a, here)));
+      }
+      if (kids.length) li.append(h("ul", {}, ...kids));
+      return li;
+    };
+    const tree = h("ul", { class: "flow-tree" },
+      h("li", { class: "t-root" }, h("div", { class: "t-row t-start", text: "Visitors" }),
+        main.length ? h("ul", {}, after(0, true)) : null));
+    el.append(tree);
+    head.append(restartBtn());
   });
-  // line the add-on trunk up under the Caddy node
-  const caddyNode = el.querySelector('.node[data-svc="caddy"]');
-  const ul = el.querySelector(".addons");
-  if (caddyNode && ul) {
-    const r = el.querySelector(".chain").getBoundingClientRect();
-    const c = caddyNode.getBoundingClientRect();
-    ul.style.setProperty("--trunk", `${Math.round(c.left - r.left + (window.innerWidth > 720 ? 22 : 14))}px`);
-  }
   for (const s of st.services) setText(el, `[data-up="${s.key}"]`, uptime(s));
 }
 

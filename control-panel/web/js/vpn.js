@@ -276,6 +276,37 @@ function dnsCell(d) {
   return cell("DNS", `Encrypted, ${d.via.join(" and ")}`, false, "ok");
 }
 
+// Which add-ons go through the VPN. AIOStreams always does; each add-on set up
+// here has a switch, off until someone chooses it. Nothing to choose, no card.
+function routesBox(v) {
+  const rows = v.routes || [];
+  const act = actFor("vpn.route");
+  if (!rows.length || !act) return null;
+  const off = v.mode === "off";
+  const busy = !!(st && st.busy);
+  const list = h("div", { class: "panel route-list" },
+    h("div", { class: "wd-opt" },
+      h("span", {}, h("span", { class: "wd-opt-title", text: "AIOStreams" }), h("span", { class: "dim wd-opt-text", text: "Always through the VPN" }))));
+  for (const r of rows) {
+    const input = h("input", { type: "checkbox", checked: r.on, disabled: busy });
+    input.addEventListener("change", async () => {
+      const on = input.checked;
+      input.checked = !on;   // the job decides; the page redraws when it's done
+      const yes = await ask(on
+        ? { title: `Send ${r.name} through the VPN?`, confirmLabel: "Send it through",
+            body: off ? "It moves when the VPN is next turned on." : "It and AIOStreams restart, so streams pause for a few seconds. If the VPN drops, it stops too, so nothing leaves from this server's own address." }
+        : { title: `Take ${r.name} off the VPN?`, confirmLabel: "Take it off",
+            body: off ? "It stays on this server's own address when the VPN is next turned on." : "It and AIOStreams restart, so streams pause for a few seconds. It then leaves from this server's own address." });
+      if (yes) runAction(act, { service: r.key, on });
+    });
+    list.append(h("label", { class: "wd-opt" },
+      h("span", {}, h("span", { class: "wd-opt-title", text: r.name }),
+        h("span", { class: "dim wd-opt-text", text: r.on ? (off ? "Through the VPN when it's on" : "Through the VPN") : "This server's own address" })),
+      h("span", { class: "sw" }, input, h("i", { "aria-hidden": "true" }))));
+  }
+  return h("div", {}, h("h3", { class: "conf-title", text: "Through the VPN" }), list);
+}
+
 function render(v) {
   const box = $("#vpn-root"), btn = $("#vpn-check");
   last = v;
@@ -315,6 +346,9 @@ function render(v) {
         title: "Pull the newest gluetun v3 release", onclick: () => runAction(upd) }) : null));
   }
   const confBox = h("div");
-  box.append(card, confBox);
+  box.append(card);
+  const routes = routesBox(v);
+  if (routes) box.append(routes);
+  box.append(confBox);
   showConfigs(confBox);
 }

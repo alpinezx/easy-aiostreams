@@ -260,6 +260,8 @@ remove_addons_on_uninstall() {
     if [[ -f /etc/systemd/system/aiostreams-vpn-boot.service ]]; then
         systemctl disable aiostreams-vpn-boot.service >/dev/null 2>&1 || true
         rm -f /etc/systemd/system/aiostreams-vpn-boot.service /usr/local/bin/aiostreams-vpn-boot.sh
+        systemctl disable --now aiostreams-vpn-routes.service >/dev/null 2>&1 || true
+        rm -f /etc/systemd/system/aiostreams-vpn-routes.service
         removed+=("VPN boot hook")
     fi
     if [[ -f "$INSTALL_DIR/webhook-relay-state/docker-compose.yml" ]]; then
