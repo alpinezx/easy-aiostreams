@@ -205,8 +205,8 @@ main { max-width: 1680px; margin: 0 auto; padding: 28px var(--gutter) 96px; }
 .btn.primary:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
 .btn.danger { color: var(--bad); }
 .btn.danger:hover:not(:disabled) { border-color: var(--bad); background: var(--bad-soft); }
-.btn.quiet { background: none; border-color: transparent; color: var(--dim); }
-.btn.quiet:hover:not(:disabled) { color: var(--text); background: var(--hover); border-color: transparent; }
+.btn.quiet { background: none; color: var(--dim); }
+.btn.quiet:hover:not(:disabled) { color: var(--text); background: var(--hover); }
 .btn.quiet.danger { color: var(--bad); }
 .btn.quiet.danger:hover:not(:disabled) { color: var(--bad); background: var(--bad-soft); }
 .btn.small { padding: 5px 10px; font-size: .88rem; border-radius: 8px; }
@@ -640,7 +640,7 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .conf-sum { position: relative; border: 1px solid var(--line-soft); border-radius: 9px; padding: 12px 14px; }
 .conf-grid { margin-top: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 18px; }
 .conf-grid > :first-child { grid-column: 1 / -1; }
-.btn.conf-again { margin: 10px 0 0 -10px; }
+.btn.conf-again { margin: 10px 0 0; }
 .conf-wrap .addr-list { margin: 0; }
 .conf-wrap + .btns, .dialog .conf-wrap { margin-bottom: 18px; }
 /* uninstall, at the foot of the VPN page */
@@ -1182,7 +1182,6 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 
 /* Update's confirm: the copy-instead link sits with the text */
 .upd-opts { justify-items: start; }
-.upd-opts .btn { margin-left: -10px; }
 
 /* Phones: the request flow on one line of small status pills, the add-ons on a line under
    it, uptimes left to Services. A tall chain of boxes used to fill a screen and a half. */
