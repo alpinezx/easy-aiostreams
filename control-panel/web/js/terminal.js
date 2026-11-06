@@ -208,6 +208,40 @@ function nativeScroll(box) {
   follow();
 }
 
+// ---- Ctrl for touch keyboards, which don't have one ----------
+// A letter, or one of @[\]^_, as its control character; anything else unchanged.
+function ctrlChar(ch) {
+  const code = ch.toUpperCase().charCodeAt(0);
+  return code >= 64 && code <= 95 ? String.fromCharCode(code - 64) : ch;
+}
+
+// Tap Ctrl, then a key: it applies to that one key, like Termius's. The button sits inside the
+// terminal's box because the box covers the bar above it while the keyboard is up.
+function ctrlKey(box, send) {
+  let on = false;
+  const set = (v) => { on = v; btn.setAttribute("aria-pressed", String(v)); };
+  const btn = h("button", { class: "btn small term-ctrl", type: "button", text: "Ctrl", "aria-pressed": "false",
+    onmousedown: (e) => e.preventDefault(),          // keeps the keyboard up
+    onclick: () => { set(!on); term.focus(); } });
+  box.append(btn);
+  // Phone keyboards can hold a letter back while they compose a word, so it's taken from the
+  // text box as it's typed, before xterm.js sees it.
+  term.textarea.addEventListener("input", (e) => {
+    if (!on || !e.data) return;
+    e.stopImmediatePropagation();
+    set(false);
+    send({ i: ctrlChar(e.data.slice(-1)) });
+    term.textarea.value = "";
+    term.textarea.blur();                            // ends the keyboard's composing
+    term.focus();
+  }, true);
+  return { apply(d) {                                // keys that skip that box, and pastes
+    if (!on) return d;
+    set(false);
+    return d.length === 1 ? ctrlChar(d) : d;
+  } };
+}
+
 // ---- long-press menu, paste, and a selectable copy of the text ----------
 function closeMenu() { const m = $("#term-menu"); if (m) m.remove(); }
 
@@ -325,6 +359,8 @@ function closeSocket() {
 
 function ended(msg, shellGone) {
   const bar = $("#term-bar");
+  const ctrlBtn = $("#xterm-box .term-ctrl");
+  if (ctrlBtn) ctrlBtn.remove();
   if (bar) {
     clear(bar);
     bar.append(h("span", { class: "dim", text: msg }),
@@ -383,7 +419,8 @@ function open(ticket, idle) {
     if (sock === ws) { sock = null; if (ev.code === 4403) { gate("That unlock expired or was refused. Enter the key again."); } else ended(remembered ? "Connection lost. The shell keeps running on the server." : "Connection lost. The shell keeps running on the server. Enter the key again to get back to it."); }
   };
   nativeScroll(box);
-  term.onData((d) => send({ i: d }));
+  const ctrl = TOUCH ? ctrlKey(box, send) : null;
+  term.onData((d) => send({ i: ctrl ? ctrl.apply(d) : d }));
   term.onResize(({ cols, rows }) => send({ r: [cols, rows] }));
   ro = new ResizeObserver(() => { if (!root().closest("[hidden]")) { try { fit.fit(); } catch (_) {} } });
   ro.observe(box);

@@ -1162,6 +1162,9 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .touch-scroll { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
   touch-action: pan-y; -webkit-overflow-scrolling: touch; z-index: 5; background: transparent; }
 .touch-spacer { width: 1px; }
+/* Inside the terminal, where a touch keyboard leaves it in reach; under the select-text view */
+.btn.term-ctrl { position: absolute; right: 8px; bottom: 8px; z-index: 7; }
+.btn.term-ctrl[aria-pressed="true"] { border-color: var(--ok); color: var(--ok); }
 .xterm-box.touch .xterm-scrollable-element > .scrollbar { display: none !important; }
 
 /* long-press menu and the selectable copy of the terminal text (touch screens) */
