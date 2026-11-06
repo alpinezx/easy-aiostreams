@@ -39,7 +39,6 @@ export async function loadPanelVersion(force) {
   verLoading = false;
   versionChip();
   if (last) render();
-  if (force) toast(ver.error ? `Couldn't check. ${ver.error}` : ver.newer ? `Control panel ${ver.latest} is available.` : "The control panel is up to date.", !!ver.error);
 }
 
 export function versionChip(current) {
@@ -54,33 +53,57 @@ export function versionChip(current) {
   chip.title = newer ? `Control panel ${ver.latest} is available. Update it on the Scripts tab.` : "The control panel's version. Updates are on the Scripts tab.";
 }
 
-function panelSection() {
+// The line at the top of the page: when GitHub was last asked, the panel's last update, and the
+// page's own buttons. One Check now covers the panel and the scripts.
+function statusLine() {
   const v = ver || {};
   const branch = v.branch && v.branch !== "main" ? ` (${v.branch} branch, for testing)` : "";
-  let state;
-  if (verLoading && !ver) state = h("span", { class: "chip", text: "Checking…" });
-  else if (v.running) state = h("span", { class: "chip warn", text: "Updating…" });
-  else if (v.newer) state = h("span", { class: "chip warn", text: `${v.latest} available` });
-  else if (v.latest) state = h("span", { class: "chip ok", text: "Up to date" });
-  else if (v.error) state = h("span", { class: "chip warn", title: v.error, text: "Couldn't check" });
-  const checked = v.checked_at ? `Checked against GitHub${branch} ${ago(v.checked_at)}.` : "";
+  const busy = verLoading || cmpLoading;
+  const times = [v.checked_at, cmp && !cmp.error ? cmp.checked_at : null].filter(Boolean);
+  const checked = busy ? "Checking GitHub…"
+    : cmp && cmp.error ? `Couldn't compare the scripts with GitHub: ${cmp.error}`
+    : times.length ? `Checked against GitHub${branch} ${ago(Math.min(...times))}.` : "";
   const lastLine = v.last
     ? h("details", {}, h("summary", { text: `Last update ${ago(v.last.at)}: ${v.last.ok ? "finished" : "didn't finish"}. Show its output` }),
         h("pre", { text: v.last.tail.join("\n") }))
     : null;
-  return h("section", { class: "panel panel-ver" },
-    h("div", { class: "panel-ver-head" },
-      h("h3", { text: "Control panel" }),
-      v.current ? h("span", { class: "chip", text: `v${v.current}` }) : null,
-      state,
-      h("span", { class: "btns" },
-        h("button", { class: "btn small", type: "button", text: "What's new", title: "The changes since this panel's version, from the project's changelog",
-          onclick: showChangelog }),
-        h("button", { class: "btn small", type: "button", text: verLoading ? "Checking…" : "Check now", disabled: verLoading,
-          onclick: () => loadPanelVersion(true) }),
-        v.newer && !v.running ? h("button", { class: "btn small primary", type: "button", text: `Update to ${v.latest}`, onclick: () => updatePanel(v) }) : null)),
-    checked ? h("p", { class: "dim", text: checked }) : null,
-    lastLine);
+  return h("div", { class: "scripts-status" },
+    h("div", { class: "scripts-status-text" }, checked ? h("p", { class: "dim", text: checked }) : null, lastLine),
+    h("span", { class: "btns" },
+      h("button", { class: "btn small", type: "button", text: "What's new", title: "The changes since this panel's version, from the project's changelog",
+        onclick: showChangelog }),
+      h("button", { class: "btn small", type: "button", text: busy ? "Checking…" : "Check now", disabled: busy,
+        title: "Check the panel's version and compare the scripts here with GitHub's copies now", onclick: checkAll })));
+}
+
+async function checkAll() {
+  await Promise.all([loadPanelVersion(true), loadCompare(true)]);
+  const problem = (ver && ver.error) || (cmp && cmp.error);
+  if (problem) { toast(`Couldn't check. ${problem}`, true); return; }
+  const n = ((last && last.status && last.status.scripts) || []).filter((x) => x.present && differs(x)).length;
+  const found = [ver && ver.newer ? `Control panel ${ver.latest} is available` : "",
+    n ? `${n === 1 ? "A script differs" : `${n} scripts differ`} from GitHub` : ""].filter(Boolean);
+  toast(found.length ? `${found.join(". ")}.` : "Everything matches GitHub.");
+}
+
+// The panel's own row. Its Update rebuilds the panel, so unlike a script's it only appears when
+// there's a newer version. setup-ui.sh refuses from the panel's terminal whatever would cut it off.
+function panelRow(cmd, termOn) {
+  const v = ver || {};
+  let state;
+  if (verLoading && !ver) state = h("span", { class: "chip small-chip", text: "Checking…" });
+  else if (v.running) state = h("span", { class: "chip warn small-chip", text: "Updating…" });
+  else if (v.newer) state = h("span", { class: "chip warn small-chip", text: `${v.latest} available` });
+  else if (v.latest) state = h("span", { class: "chip ok small-chip", text: "Up to date" });
+  else if (v.error) state = h("span", { class: "chip warn small-chip", title: v.error, text: "Couldn't check" });
+  return h("li", {},
+    h("span", { class: "cmd-label" }, "Control panel",
+      v.current ? h("span", { class: "chip small-chip", text: `v${v.current}` }) : null, state),
+    h("span", { class: "cmd-btns" }, runBtn(true, cmd, termOn),
+      copyBtn("Copy", cmd, "Copied. Paste it into an SSH session or the Terminal tab.", cmd),
+      v.newer && !v.running ? h("button", { class: "btn small primary", type: "button", text: "Update",
+          title: `Update the control panel to ${v.latest}`, onclick: () => updatePanel(v) }) : spacer("Update"),
+      spacer("Remove")));
 }
 
 // What's new: the project's changelog, entries since this panel's version marked
@@ -154,7 +177,6 @@ async function loadCompare(force) {
   cmpLoading = false;
   pill();
   if (last) render();
-  if (force) toast(cmp.error ? `Couldn't compare with GitHub. ${cmp.error}` : "Compared with GitHub.", !!cmp.error);
 }
 
 // The "Script updates" pill at the top: how many rows here differ from GitHub's copy.
@@ -200,6 +222,17 @@ function copyBtn(text, cmd, msg, title) {
   } });
 }
 
+// An invisible stand-in keeps the buttons lined up down the list.
+const spacer = (text) => h("span", { class: "btn small quiet btn-spacer", "aria-hidden": "true", text });
+
+function runBtn(present, cmd, termOn) {
+  return h("button", { class: "btn small", type: "button", text: present ? "Run in terminal" : "Get and run", disabled: !termOn,
+    title: !termOn ? "Needs the panel's web terminal, which is switched off (see the note above)."
+      : present ? "Types the command into the panel's terminal. Check it, then press Enter."
+      : "Types the command into the panel's terminal: it downloads the script, then runs it. Check it, then press Enter.",
+    onclick: () => runInTerminal(cmd) });
+}
+
 function row(x, cmd, updateCmd, termOn) {
   const tags = [x.present
     ? h("span", { class: "sdot-tag", "data-s": "ok", title: "On this server" }, h("i", { class: "sdot", "aria-hidden": "true" }), h("span", { class: "sr-only", text: "On this server" }))
@@ -210,23 +243,17 @@ function row(x, cmd, updateCmd, termOn) {
   }
   // An add-on's script that's still here once the add-on is uninstalled can go
   const removable = x.present && x.in_use === false && x.id !== "aiostreams";
-  const run = h("button", { class: "btn small", type: "button", text: x.present ? "Run in terminal" : "Get and run", disabled: !termOn,
-    title: !termOn ? "Needs the panel's web terminal, which is switched off (see the note above)."
-      : x.present ? "Types the command into the panel's terminal. Check it, then press Enter."
-      : "Types the command into the panel's terminal: it downloads the script, then runs it. Check it, then press Enter.",
-    onclick: () => runInTerminal(cmd) });
   // The command itself is on Copy's tooltip; spelt out, it crowded the row (and phones)
   return h("li", {},
     h("span", { class: "cmd-label" }, x.label, ...tags),
-    h("span", { class: "cmd-btns" }, run,
+    h("span", { class: "cmd-btns" }, runBtn(x.present, cmd, termOn),
       copyBtn("Copy", cmd, "Copied. Paste it into an SSH session or the Terminal tab.", cmd),
-      // An invisible stand-in keeps the buttons lined up down the list.
       updateCmd ? h("button", { class: "btn small quiet", type: "button", text: "Update",
           title: `Replace it with GitHub's newest copy (${(cmp && cmp.branch) || "main"} branch)`, onclick: () => updateScript(x, updateCmd) })
-        : h("span", { class: "btn small quiet btn-spacer", "aria-hidden": "true", text: "Update" }),
+        : spacer("Update"),
       removable ? h("button", { class: "btn small quiet danger", type: "button", text: "Remove",
         title: `Deletes ${x.file} from this server. ${x.label} isn't set up, so nothing else changes.`, onclick: () => removeScript(x) })
-        : h("span", { class: "btn small quiet btn-spacer", "aria-hidden": "true", text: "Remove" })));
+        : spacer("Remove")));
 }
 
 // Update replaces the script here with GitHub's main copy, checked before anything changes.
@@ -279,30 +306,23 @@ function render() {
   const rowOf = (x) => x.present
     ? row(x, `sudo bash ${dir}/${x.file}`, updateOf(x), terminalOn)
     : row(x, `${fetchTo(x.file)} && sudo bash ${dir}/${x.file}`, null, terminalOn);
-  // The AIOStreams script comes with every install; the rest are optional extras, kept apart
+  // The panel and the AIOStreams script come with every install; the rest are optional extras, kept apart
   // so the list doesn't read as a checklist to complete.
   const core = scripts.filter((x) => x.id === "aiostreams"), addons = scripts.filter((x) => x.id !== "aiostreams");
 
-  const checked = cmpLoading ? "Comparing with GitHub…"
-    : !cmp ? "" : cmp.error ? `Couldn't compare with GitHub: ${cmp.error}`
-    : `Compared with GitHub${cmp.branch && cmp.branch !== "main" ? ` (${cmp.branch} branch, for testing)` : ""} ${ago(cmp.checked_at)}.`;
-
-  box.append(panelSection());
+  box.append(statusLine());
   if (!terminalOn) {
     box.append(h("p", { class: "note" }, "Run in terminal needs the panel's web terminal, which is switched off. Switch it on with setup-ui.sh over SSH (see the ",
       h("a", { href: GUIDE, target: "_blank", rel: "noopener noreferrer", text: "control panel guide" }), "). Copy and Update work either way."));
   }
-  box.append(h("section", { class: "panel scripts-panel" },
-    h("ul", { class: "cmds" }, ...core.map(rowOf)),
-    addons.length ? h("h3", { class: "sub-head", text: "Optional add-ons" }) : null,
-    addons.length ? h("p", { class: "addons-note" }, h("b", { text: "These are optional. Most setups don't need any of them." }),
-      " Read what each one does before adding it: ",
-      h("a", { href: ADDONS_GUIDE, target: "_blank", rel: "noopener noreferrer", text: "Other scripts guide" }), ".") : null,
-    addons.length ? h("ul", { class: "cmds" }, ...addons.map(rowOf)) : null,
-    h("div", { class: "scripts-foot" },
-      h("span", { class: "dim", text: checked }),
-      cmp && !cmp.error && scripts.some((x) => x.present && differs(x))
-        ? h("button", { class: "btn small", type: "button", text: "What's new", title: "What the newer scripts change, from the project's changelog", onclick: showChangelog }) : null,
-      h("button", { class: "btn small", type: "button", text: cmpLoading ? "Checking…" : "Check now", disabled: cmpLoading,
-        title: "Compare the scripts here with GitHub's copies now", onclick: () => loadCompare(true) }))));
+  box.append(h("section", { class: "panel scripts-panel scripts-core" },
+    h("ul", { class: "cmds" }, panelRow(`sudo bash ${dir}/control-panel/setup-ui.sh`, terminalOn), ...core.map(rowOf))));
+  if (addons.length) {
+    box.append(h("section", { class: "panel scripts-panel" },
+      h("h3", { class: "sub-head", text: "Optional add-ons" }),
+      h("p", { class: "addons-note" }, h("b", { text: "These are optional. Most setups don't need any of them." }),
+        " Read what each one does before adding it: ",
+        h("a", { href: ADDONS_GUIDE, target: "_blank", rel: "noopener noreferrer", text: "Other scripts guide" }), "."),
+      h("ul", { class: "cmds" }, ...addons.map(rowOf))));
+  }
 }

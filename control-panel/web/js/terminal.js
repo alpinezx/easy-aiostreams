@@ -22,6 +22,7 @@ export async function restartPanel() {
 }
 
 let remembered = false;
+let lostTries = 0, lostTimer = null;
 let lastStatus = null;
 let pendingCmd = null;      // from Run in terminal: typed into the shell once it's open, never sent
 
@@ -208,6 +209,56 @@ function nativeScroll(box) {
   follow();
 }
 
+// ---- a row of keys for touch keyboards, which don't have these ----------
+// A letter, or one of @[\]^_, as its control character; anything else unchanged.
+function ctrlChar(ch) {
+  const code = ch.toUpperCase().charCodeAt(0);
+  return code >= 64 && code <= 95 ? String.fromCharCode(code - 64) : ch;
+}
+
+// Holding an arrow repeats it, so a thumb can walk along a command.
+const REPEAT_AFTER_MS = 400, REPEAT_EVERY_MS = 80;
+
+// Inside the terminal's box, because the box covers the bar above it while the keyboard is up.
+// Ctrl applies to the next key only, like Termius's.
+function keyRow(box, send) {
+  let on = false, held = null;
+  const set = (v) => { on = v; ctrl.setAttribute("aria-pressed", String(v)); };
+  const stay = (e) => e.preventDefault();            // keeps the keyboard up
+  const key = (text, label, attrs) => h("button", { class: "btn small", type: "button", text, "aria-label": label,
+    onmousedown: stay, oncontextmenu: stay, ...attrs });
+  const press = (seq) => { set(false); send({ i: seq }); };
+  const ctrl = key("Ctrl", "Ctrl, for the next key", { "aria-pressed": "false", onclick: () => { set(!on); term.focus(); } });
+  const once = (text, label, seq) => key(text, label, { onclick: () => { press(seq); term.focus(); } });
+  const release = () => { clearTimeout(held); clearInterval(held); held = null; };
+  // Full-screen programs such as nano switch the arrows to their other form
+  const arrow = (text, label, letter) => {
+    const go = () => press(`\x1b${term.modes.applicationCursorKeysMode ? "O" : "["}${letter}`);
+    return key(text, label, {
+      onpointerdown: () => { go(); held = setTimeout(() => { held = setInterval(go, REPEAT_EVERY_MS); }, REPEAT_AFTER_MS); },
+      onpointerup: release, onpointerleave: release, onpointercancel: release });
+  };
+  box.classList.add("has-keys");
+  box.append(h("div", { class: "term-keys" }, ctrl, once("Esc", "Escape", "\x1b"), once("Tab", "Tab", "\t"),
+    arrow("←", "Left", "D"), arrow("↑", "Up", "A"), arrow("↓", "Down", "B"), arrow("→", "Right", "C")));
+  try { fit.fit(); } catch (_) {}
+  // Phone keyboards can hold a letter back while they compose a word, so it's taken from the
+  // text box as it's typed, before xterm.js sees it.
+  term.textarea.addEventListener("input", (e) => {
+    if (!on || !e.data) return;
+    e.stopImmediatePropagation();
+    press(ctrlChar(e.data.slice(-1)));
+    term.textarea.value = "";
+    term.textarea.blur();                            // ends the keyboard's composing
+    term.focus();
+  }, true);
+  return { apply(d) {                                // keys that skip that box, and pastes
+    if (!on) return d;
+    set(false);
+    return d.length === 1 ? ctrlChar(d) : d;
+  } };
+}
+
 // ---- long-press menu, paste, and a selectable copy of the text ----------
 function closeMenu() { const m = $("#term-menu"); if (m) m.remove(); }
 
@@ -318,13 +369,37 @@ window.addEventListener("resize", () => { fitBox(); });
 window.addEventListener("orientationchange", () => setTimeout(fitBox, 300));
 
 function closeSocket() {
+  clearTimeout(lostTimer);
   if (sock) { try { sock.close(); } catch (_) {} sock = null; }
   if (ro) { ro.disconnect(); ro = null; }
   if (term) { term.dispose(); term = null; }
 }
 
+// Anything that restarts Caddy (a VPN switch, a restore) takes this page's connection with it, while
+// the shell carries on. So keep asking for a few minutes; the session then comes back with what it missed.
+const LOST_RETRY_MS = 3000, LOST_MAX_TRIES = 60;
+async function reconnect() {
+  if (!lostTries) {
+    const bar = $("#term-bar");
+    if (bar) { clear(bar); bar.append(h("span", { class: "dim", text: "Connection lost. Reconnecting…" })); }
+    if (term) term.write("\r\n\x1b[2m[Connection lost. Reconnecting...]\x1b[0m\r\n");
+  }
+  lostTries++;
+  try {
+    const r = await api("/api/terminal/ticket", { method: "POST", body: "{}" });
+    closeSocket();
+    open(r.ticket, r.idle_minutes);
+  } catch (e) {
+    if (e.status === 403) { lostTries = 0; remembered = false; gate("That unlock expired. Enter the key again to get back to the shell."); }
+    else if (lostTries >= LOST_MAX_TRIES) { lostTries = 0; ended("Couldn't reconnect. The shell keeps running on the server."); }
+    else lostTimer = setTimeout(reconnect, LOST_RETRY_MS);
+  }
+}
+
 function ended(msg, shellGone) {
   const bar = $("#term-bar");
+  const keys = $("#xterm-box .term-keys");
+  if (keys) keys.remove();
   if (bar) {
     clear(bar);
     bar.append(h("span", { class: "dim", text: msg }),
@@ -350,6 +425,8 @@ function open(ticket, idle) {
   const box = h("div", { class: "xterm-box", id: "xterm-box" });
   root().append(bar, box);
   fitBox();
+  document.documentElement.classList.remove("kb-open");   // a reconnect replaces the box the keyboard was sized on
+  kbFit();
 
   const css = getComputedStyle(document.documentElement);
   term = new window.Terminal({
@@ -371,7 +448,7 @@ function open(ticket, idle) {
   sock = ws;
   const send = (o) => { if (ws.readyState === 1) ws.send(JSON.stringify(o)); };
   // A fresh shell needs a moment to print its prompt before a command is typed in.
-  ws.onopen = () => { send({ r: [term.cols, term.rows] }); term.focus(); setTimeout(typePending, 700); };
+  ws.onopen = () => { lostTries = 0; send({ r: [term.cols, term.rows] }); term.focus(); setTimeout(typePending, 700); };
   ws.onmessage = (ev) => {
     if (typeof ev.data === "string") {
       let m = {}; try { m = JSON.parse(ev.data); } catch (_) {}
@@ -380,10 +457,11 @@ function open(ticket, idle) {
     } else term.write(new Uint8Array(ev.data));
   };
   ws.onclose = (ev) => {
-    if (sock === ws) { sock = null; if (ev.code === 4403) { gate("That unlock expired or was refused. Enter the key again."); } else ended(remembered ? "Connection lost. The shell keeps running on the server." : "Connection lost. The shell keeps running on the server. Enter the key again to get back to it."); }
+    if (sock === ws) { sock = null; if (ev.code === 4403) { gate("That unlock expired or was refused. Enter the key again."); } else if (remembered) reconnect(); else ended("Connection lost. The shell keeps running on the server. Enter the key again to get back to it."); }
   };
   nativeScroll(box);
-  term.onData((d) => send({ i: d }));
+  const keys = TOUCH ? keyRow(box, send) : null;
+  term.onData((d) => send({ i: keys ? keys.apply(d) : d }));
   term.onResize(({ cols, rows }) => send({ r: [cols, rows] }));
   ro = new ResizeObserver(() => { if (!root().closest("[hidden]")) { try { fit.fit(); } catch (_) {} } });
   ro.observe(box);

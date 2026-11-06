@@ -591,12 +591,12 @@ function rows(st, goLogs) {
       h("span", { class: "num", text: "CPU" }), h("span", { class: "num", text: "Memory" }), h("span", { class: "spark-cell", text: "Recent CPU" }), h("span")));
     for (const s of st.services) {
       const sx = stateOf(s);
-      // Three fixed slots (Logs, Restart, Start/Stop), left empty when a service lacks one, so the buttons line up down the table
+      // Three fixed slots (Logs, Start/Stop, Restart), left empty when a service lacks one, so the buttons line up down the table
       const slot = [h("span", { class: "slot" }), h("span", { class: "slot" }), h("span", { class: "slot" })];
       const acts = h("div", { class: "acts" }, ...slot);
       if (s.present) slot[0].append(h("button", { class: "btn small", type: "button", text: "Logs", onclick: () => goLogs(s.container) }));
       if (RESTARTABLE.has(s.key) && s.present) {
-        slot[1].append(h("button", { class: "btn small", type: "button", text: "Restart",
+        slot[2].append(h("button", { class: "btn small", type: "button", text: "Restart",
           disabled: !!st.busy || s.state !== "running",
           title: s.state === "running" ? `Restart only ${s.name}` : "Only available while it's running",
           onclick: () => restartService(s) }));
@@ -605,7 +605,7 @@ function rows(st, goLogs) {
       if (s.addon || s.key === "aiostreams") {
         const id = `${s.addon ? s.key : "stack"}.${s.state === "running" ? "stop" : "start"}`;
         const a = avail[id];
-        if (a && a.available) slot[2].append(h("button", { class: "btn small" + (s.state === "running" ? " danger" : ""), type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
+        if (a && a.available) slot[1].append(h("button", { class: "btn small" + (s.state === "running" ? " danger" : ""), type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
       }
       el.append(h("div", { class: "row", dataset: { svc: s.key } },
         // What the service does is on hover, keeping each row to the name
