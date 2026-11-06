@@ -391,6 +391,22 @@ def test_vpn_page_needs_login_and_shows_no_keys(client):
     assert not any("key" in k.lower() for k in v)
 
 
+def test_vpn_switches_take_only_a_listed_add_on(client):
+    assert client.post("/api/actions/vpn.route", json={"params": {"service": "mediaflow", "on": True}}).status_code == 401
+    login(client)
+    assert [r["key"] for r in client.get("/api/vpn").json()["routes"]] == list(actions.ROUTABLE)
+    for bad in ("", "aiostreams", "caddy", "aiometadata", "mediaflow; reboot", None):
+        assert client.post("/api/actions/vpn.route", json={"params": {"service": bad, "on": True}}).status_code == 400
+    assert actions.resolve("vpn.route", {"service": "mediaflow", "on": True}).args == ("route", "mediaflow", "on")
+    assert actions.resolve("vpn.route", {"service": "aiomanager", "on": "yes"}).args == ("route", "aiomanager", "off")
+
+
+def test_logs_hide_mediaflows_password():
+    from app.stack import LogStream
+    lines = list(LogStream([b'"GET /proxy/ip?api_password=abc123&x=1 HTTP/1.1" 200\n', b"GET /health api_password=tail"]))
+    assert lines == ['"GET /proxy/ip?api_password=[hidden]&x=1 HTTP/1.1" 200', "GET /health api_password=[hidden]"]
+
+
 def test_vpn_change_server_takes_only_an_ipv4_address(client):
     assert client.get("/api/vpn/addresses").status_code == 401
     assert client.post("/api/actions/vpn.use", json={"params": {"ip": "203.0.113.24"}}).status_code == 401

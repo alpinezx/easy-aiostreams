@@ -576,15 +576,42 @@ be on for VPN mode to have any effect on your actual stream playback.
 
 > ⚠️ **Using [MediaFlow Proxy](./mediaflow-proxy.md) instead of the
 > built-in proxy?** Everything above assumes the built-in proxy
-> specifically. MediaFlow runs as its own separate container, outside
-> gluetun's network entirely, structurally, always. Turning gluetun on
-> does **not** pull MediaFlow's video traffic into the tunnel the way it
-> does for the built-in proxy. Video would still exit on your VPS's real
-> IP even with VPN mode fully on, while everything else (scraping,
-> metadata, debrid API calls) exits via the VPN, two different IPs for
-> the same session. See [MediaFlow Proxy: which setup actually matches
-> your goal](./mediaflow-proxy.md#which-setup-actually-matches-your-goal)
-> before assuming VPN mode alone covers MediaFlow's traffic, it doesn't.
+> specifically. MediaFlow runs as its own separate container, so turning
+> gluetun on does **not** pull its video traffic into the tunnel by itself.
+> Video would still exit on your VPS's real IP, while everything else
+> (scraping, metadata, debrid API calls) exits via the VPN, two different
+> IPs for the same session. Send it through with its switch: see
+> [Add-ons through the VPN](#add-ons-through-the-vpn). For the other
+> options, see [MediaFlow Proxy: which setup actually matches your
+> goal](./mediaflow-proxy.md#which-setup-actually-matches-your-goal).
+
+### Add-ons through the VPN
+
+AIOStreams always uses the VPN. MediaFlow and AIOManager can join it, one
+switch each under **Through the VPN** on the control panel's VPN page, or
+from the command line:
+
+```bash
+sudo bash /opt/aiostreams/setup-vpn-gluetun.sh route mediaflow on
+sudo bash /opt/aiostreams/setup-vpn-gluetun.sh route mediaflow off
+```
+
+- **Off by default.** Flipping one restarts gluetun, AIOStreams and that
+  add-on, so streams pause for a few seconds.
+- **Same address either way.** The add-on keeps its name, so Caddy and
+  AIOStreams' settings don't change.
+- **Kill switch.** An add-on on the VPN stops if the tunnel drops, and its
+  site shows a 502, so nothing leaves from your server's own IP.
+- **VPN off.** With the VPN turned off, add-ons use your server's own IP,
+  as AIOStreams does, and go back through the VPN when it's turned on.
+
+How it works: `vpn-state/routed` lists them, and
+`docker-compose.override.yml`, which Compose reads by itself, opens each
+add-on's port and gives gluetun its name while the VPN is on. Docker ties
+an attached container to one gluetun container, so a small service,
+`aiostreams-vpn-routes`, watches for gluetun starting and re-attaches them,
+whatever restarted it. It only runs while a switch is on. Backups carry the
+switches, and a restore puts them back.
 
 That said, this only applies to the final video-data hop to your playback
 device. Every scraper addon call and debrid API call AIOStreams itself

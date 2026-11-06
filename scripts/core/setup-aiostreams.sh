@@ -665,7 +665,8 @@ restore_start_stack() {
             fi
         fi
         info "VPN layer detected in this backup, bringing the tunnel up before starting AIOStreams"
-        vpn_gated_start_aiostreams --remove-orphans || true
+        # --force-recreate: the running containers still have the folder that was just set aside
+        vpn_gated_start_aiostreams --force-recreate --remove-orphans || true
     else
         (cd "$INSTALL_DIR" && docker compose up -d --force-recreate --remove-orphans)
     fi

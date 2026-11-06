@@ -700,10 +700,15 @@ do_configure() {
     echo "this server's own IP. Give a proxy here and every one of them goes through"
     echo "it instead, so the source sees the proxy's IP, not this server's."
     echo "AIOStreams' Addon proxy setting doesn't reach MediaFlow; only this does."
-    # The VPN add-on routes AIOStreams, not MediaFlow (it isn't on gluetun's network)
+    # The VPN covers AIOStreams; MediaFlow joins it only by its switch on the VPN page
     if [[ "$(cat "$INSTALL_DIR/vpn-state/active" 2>/dev/null)" == "vpn" ]]; then
-        warn "The VPN is on, but MediaFlow isn't inside it. Without a proxy here, video"
-        warn "leaves from this server's real IP while everything else uses the VPN's."
+        if grep -qx mediaflow "$INSTALL_DIR/vpn-state/routed" 2>/dev/null; then
+            echo "MediaFlow is already going through the VPN, so this is best left blank."
+        else
+            warn "The VPN is on, but MediaFlow isn't inside it. Without a proxy here, video leaves from"
+            warn "this server's real IP while the rest uses the VPN's. The control panel's VPN page can"
+            warn "send MediaFlow through the VPN instead: its Through the VPN switch."
+        fi
     fi
     echo "Leave blank to use this server's own IP. More: docs/advanced/mediaflow-proxy.md"
     echo "Format: http://user:pass@host:port or socks5://user:pass@host:port"

@@ -213,6 +213,10 @@ def clean_line(line: str) -> str | None:
     return line
 
 
+# MediaFlow logs its password in the query string of some requests
+_LOG_SECRET = re.compile(r"(api_password=)[^&\s\"']+")
+
+
 class LogStream:
     """Iterates decoded log lines; close() ends it from another thread."""
 
@@ -225,9 +229,9 @@ class LogStream:
             buf += chunk
             while b"\n" in buf:
                 line, buf = buf.split(b"\n", 1)
-                yield line.decode("utf-8", "replace").rstrip("\r")
+                yield _LOG_SECRET.sub(r"\1[hidden]", line.decode("utf-8", "replace").rstrip("\r"))
         if buf:
-            yield buf.decode("utf-8", "replace")
+            yield _LOG_SECRET.sub(r"\1[hidden]", buf.decode("utf-8", "replace"))
 
     def close(self):
         try:
