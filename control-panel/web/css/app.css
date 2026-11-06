@@ -381,7 +381,7 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .row .num { font-variant-numeric: tabular-nums; font-size: .9rem; text-align: right; }
 .row-head .num { font-size: inherit; }
 .row .img { font-family: var(--mono); font-size: .8rem; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.row .acts { display: grid; grid-template-columns: 58px 74px 62px; gap: 6px; justify-content: end; }
+.row .acts { display: grid; grid-template-columns: 58px 62px 74px; gap: 6px; justify-content: end; }
 .row .acts .btn { width: 100%; }
 .spark { width: 96px; height: 28px; display: block; }
 .spark path.area { fill: var(--accent-soft); stroke: none; }
