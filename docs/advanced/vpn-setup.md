@@ -190,7 +190,8 @@ sudo bash /opt/aiostreams/setup-vpn-gluetun.sh
 5) Update gluetun
 6) Force cleanup (if a switch got stuck)
 7) Uninstall VPN layer
-8) Exit
+8) MediaFlow through the VPN: on/off (only with MediaFlow set up)
+9) Exit
 ```
 
 - **Status**: shows current mode, container health, and (in VPN mode)
@@ -576,15 +577,46 @@ be on for VPN mode to have any effect on your actual stream playback.
 
 > ⚠️ **Using [MediaFlow Proxy](./mediaflow-proxy.md) instead of the
 > built-in proxy?** Everything above assumes the built-in proxy
-> specifically. MediaFlow runs as its own separate container, outside
-> gluetun's network entirely, structurally, always. Turning gluetun on
-> does **not** pull MediaFlow's video traffic into the tunnel the way it
-> does for the built-in proxy. Video would still exit on your VPS's real
-> IP even with VPN mode fully on, while everything else (scraping,
-> metadata, debrid API calls) exits via the VPN, two different IPs for
-> the same session. See [MediaFlow Proxy: which setup actually matches
-> your goal](./mediaflow-proxy.md#which-setup-actually-matches-your-goal)
-> before assuming VPN mode alone covers MediaFlow's traffic, it doesn't.
+> specifically. MediaFlow runs as its own separate container, so turning
+> gluetun on does **not** pull its video traffic into the tunnel by itself.
+> Video would still exit on your VPS's real IP, while everything else
+> (scraping, metadata, debrid API calls) exits via the VPN, two different
+> IPs for the same session. Send it through with its switch: see
+> [Add-ons through the VPN](#add-ons-through-the-vpn). For the other
+> options, see [MediaFlow Proxy: which setup actually matches your
+> goal](./mediaflow-proxy.md#which-setup-actually-matches-your-goal).
+
+### Add-ons through the VPN
+
+AIOStreams always uses the VPN. MediaFlow can join it: option 8 in this
+script's menu, the switch under **Through the VPN** on the control panel's
+VPN page, or from the command line:
+
+```bash
+sudo bash /opt/aiostreams/setup-vpn-gluetun.sh route mediaflow on
+sudo bash /opt/aiostreams/setup-vpn-gluetun.sh route mediaflow off
+```
+
+The other add-ons don't handle video or debrid, so a VPN gains them very
+little and they have no switch.
+
+- **Off by default.** Flipping it restarts gluetun, AIOStreams and MediaFlow,
+  so streams pause for a few seconds.
+- **Same address either way.** MediaFlow keeps its name, so Caddy and
+  AIOStreams' settings don't change.
+- **Kill switch.** On the VPN, MediaFlow stops if the tunnel drops, so
+  nothing leaves from your server's own IP. Streams pause until it's back.
+- **VPN off.** With the VPN turned off, MediaFlow uses your server's own
+  IP, as AIOStreams does, and goes back through the VPN when it's turned on.
+
+How it works: `vpn-state/routed` lists it, and
+`docker-compose.override.yml`, which Compose reads by itself, opens its
+port and gives gluetun its name while the VPN is on. Docker ties an
+attached container to one gluetun, so a small service,
+`aiostreams-vpn-routes`, watches for gluetun starting and re-attaches
+whatever lost its network, whatever restarted gluetun. It runs while the
+VPN is on, and looks after AIOStreams too, so a gluetun crash no longer
+leaves your site down. Backups carry the switch, and a restore puts it back.
 
 That said, this only applies to the final video-data hop to your playback
 device. Every scraper addon call and debrid API call AIOStreams itself

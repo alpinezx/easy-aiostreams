@@ -23,7 +23,7 @@ from typing import Callable, Iterator
 import docker
 
 from . import config
-from .actions import ADDON_STATE, SCRIPTS, Action
+from .actions import ADDON_STATE, ROUTABLE, SCRIPTS, Action
 from .traffic import dev_counters, host_net
 from .wgconf import check_wireguard_conf
 
@@ -213,6 +213,10 @@ def clean_line(line: str) -> str | None:
     return line
 
 
+# MediaFlow logs its password in the query string of some requests
+_LOG_SECRET = re.compile(r"(api_password=)[^&\s\"']+")
+
+
 class LogStream:
     """Iterates decoded log lines; close() ends it from another thread."""
 
@@ -225,9 +229,9 @@ class LogStream:
             buf += chunk
             while b"\n" in buf:
                 line, buf = buf.split(b"\n", 1)
-                yield line.decode("utf-8", "replace").rstrip("\r")
+                yield _LOG_SECRET.sub(r"\1[hidden]", line.decode("utf-8", "replace").rstrip("\r"))
         if buf:
-            yield buf.decode("utf-8", "replace")
+            yield _LOG_SECRET.sub(r"\1[hidden]", buf.decode("utf-8", "replace"))
 
     def close(self):
         try:
@@ -507,6 +511,10 @@ class Backend:
             return None
         return dev_counters((r.output or b"").decode(errors="replace"), ["tun0", "wg0"])
 
+    def _routed(self) -> set[str]:
+        """Add-ons sent through the VPN, from setup-vpn-gluetun.sh's list."""
+        return set(_read(self.p("vpn-state/routed")).split())
+
     def vpn_info(self, fresh: bool = False) -> dict:
         compose = _read(self.p("docker-compose.yml"))
         mode = "on" if "container_name: gluetun" in compose else ("off" if self.p("vpn-state/active").exists() else "none")
@@ -519,6 +527,10 @@ class Backend:
                "connected": None, "exit_ip": None, "city": None, "region": None, "country": None, "org": None,
                "checked_at": None, "error": None, "previous": self._vpn_previous(),
                "has_config": "WIREGUARD_PRIVATE_KEY=" in saved}
+        # The VPN page's switches: add-ons set up here, on or off
+        names = {key: title for key, _, title, _, _ in SERVICES}
+        routed = self._routed()
+        out["routes"] = [{"key": k, "name": names[k], "on": k in routed} for k in ROUTABLE if self.addon_set_up(k)]
         if mode != "on":
             return out
         now = time.time()
@@ -622,6 +634,7 @@ class Backend:
             "aiomanager": self.p("aiomanager-state/stopped-on-purpose").exists(),
         }
 
+        routed = self._routed()
         services = []
         for key, cname, title, role, needs in SERVICES:
             if needs == "VPN" and not vpn_mode:
@@ -630,7 +643,8 @@ class Backend:
                 continue
             c = by_name.get(cname)
             svc = {"key": key, "container": cname, "name": title, "role": role,
-                   "addon": key in ADDONS, "present": c is not None}
+                   "addon": key in ADDONS, "present": c is not None,
+                   "via_vpn": vpn_mode and key in routed}
             if c is not None:
                 st = c.attrs.get("State", {})
                 health = (st.get("Health") or {}).get("Status")

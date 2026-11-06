@@ -106,6 +106,13 @@ function cpuTone(h, cpus) {
   return low >= 90 ? "bad" : low >= 75 ? "warn" : "";
 }
 
+// The last half minute's average, not one poll: a second's burst, such as the VPN's own
+// health check every 5s, would otherwise show as 3.5% one poll and 0% the next
+function cpuAvg(s) {
+  const h = (hist[s.key] || []).slice(-10);
+  return h.length ? Math.round((h.reduce((a, b) => a + b, 0) / h.length) * 10) / 10 : s.cpu;
+}
+
 function uptime(s) {
   if (s.state !== "running" || !s.started_at) return "";
   return fmtDur((Date.now() - Date.parse(s.started_at)) / 1000);
@@ -475,22 +482,13 @@ function versionCard(st, avail) {
 }
 
 // ---------------- signal path ----------------
-function node(s) {
-  const st = stateOf(s);
-  // On phones only the name shows, so the state is on its tooltip and for screen readers too
-  return h("div", { class: "node", dataset: { s: st, svc: s.key }, title: `${s.name}: ${STATE_WORD[st] || st}` },
-    h("div", { class: "node-name", text: s.name }),
-    h("div", { class: "node-state" }, h("span", { class: "word", text: STATE_WORD[st] || st }),
-      " ", h("span", { class: "dim", dataset: { up: s.key }, text: uptime(s) })));
-}
-
 // Folded until someone opens it (see folding above)
 function path(st) {
   const folded = isFolded("flow");
   const main = st.services.filter((s) => !s.addon);
   const addons = st.services.filter((s) => s.addon);
   const restart = st.installed && st.actions.find((a) => a.id === "stack.restart");
-  const key = st.services.map((s) => `${s.key}:${stateOf(s)}`).join(",") + st.docker_ok + !!st.busy + !!(restart && restart.available) + folded;
+  const key = st.services.map((s) => `${s.key}:${stateOf(s)}:${!!s.via_vpn}`).join(",") + st.docker_ok + !!st.busy + !!(restart && restart.available) + folded;
   const restartBtn = () => restart && restart.available ? h("button", { class: "btn small", type: "button", text: "Restart stack", disabled: !!st.busy,
     title: "Restart Caddy, AIOStreams and anything in between", onclick: () => runAction(restart) }) : null;
   const el = rebuild("#path", key, (el) => {
@@ -505,41 +503,37 @@ function path(st) {
       })), restartBtn());
       return;
     }
-    const chain = h("div", { class: "chain" });
-    chain.append(h("div", { class: "path-start" }, h("i"), "Visitors"));
-    let upstreamOk = true;   // everything before this point is running
-    main.forEach((s) => {
-      const ok = s.state === "running";
-      chain.append(h("span", { class: "link " + (upstreamOk && ok ? "live" : "broken") }));
-      chain.append(node(s));
-      upstreamOk = upstreamOk && ok;
-    });
-    el.append(chain);
-    if (addons.length) {
-      const caddy = main.find((s) => s.key === "caddy");
-      const wrap = h("div", { class: "addons-wrap" });
-      const ul = h("ul", { class: "addons" });
-      addons.forEach((s) => {
-        const ok = s.state === "running" && caddy && caddy.state === "running";
-        ul.append(h("li", { class: ok ? "live" : "broken" }, node(s)));
-      });
-      wrap.append(ul);
-      el.append(wrap);
-      el.dataset.hasAddons = "1";
-    }
-    // Buttons that do something substantial sit at the card's bottom right
-    el.append(h("div", { class: "card-foot path-foot" },
-      addons.length ? h("p", { class: "addon-note", text: "Add-ons hang off Caddy, each on its own subdomain." }) : null,
-      restartBtn()));
+    // One tree on every screen: who hands on to whom, a light for each service
+    const up = (s, upstreamOk) => upstreamOk && s.state === "running";
+    const row = (s, ok) => {
+      const sx = stateOf(s);
+      return h("li", { class: ok ? "live" : "broken" },
+        h("div", { class: "t-row", dataset: { s: sx, svc: s.key }, title: `${s.name}: ${STATE_WORD[sx] || sx}` },
+          h("span", { class: "t-name", text: s.name }),
+          h("span", { class: "t-state" }, h("span", { class: "word", text: STATE_WORD[sx] || sx }),
+            " ", h("span", { class: "dim", dataset: { up: s.key }, text: uptime(s) }))));
+    };
+    // What each service hands on to: the next in the main line, then its add-ons
+    const after = (i, ok) => {
+      const s = main[i];
+      const li = row(s, up(s, ok));
+      const here = up(s, ok);
+      const kids = [];
+      if (i + 1 < main.length) kids.push(after(i + 1, here));
+      const vpnKey = main.some((m) => m.key === "gluetun");
+      for (const a of addons) {
+        const via = vpnKey && a.via_vpn ? "gluetun" : "caddy";
+        if (via === s.key) kids.push(row(a, up(a, here)));
+      }
+      if (kids.length) li.append(h("ul", {}, ...kids));
+      return li;
+    };
+    const tree = h("ul", { class: "flow-tree" },
+      h("li", { class: "t-root" }, h("div", { class: "t-row t-start", text: "Visitors" }),
+        main.length ? h("ul", {}, after(0, true)) : null));
+    el.append(tree);
+    head.append(restartBtn());
   });
-  // line the add-on trunk up under the Caddy node
-  const caddyNode = el.querySelector('.node[data-svc="caddy"]');
-  const ul = el.querySelector(".addons");
-  if (caddyNode && ul) {
-    const r = el.querySelector(".chain").getBoundingClientRect();
-    const c = caddyNode.getBoundingClientRect();
-    ul.style.setProperty("--trunk", `${Math.round(c.left - r.left + (window.innerWidth > 720 ? 22 : 14))}px`);
-  }
   for (const s of st.services) setText(el, `[data-up="${s.key}"]`, uptime(s));
 }
 
@@ -555,7 +549,8 @@ function spark(values) {
 }
 function fillSpark(svg, values) {
   const v = values.length > 1 ? values : [0, 0];
-  const max = Math.max(5, ...v);
+  // Scaled to at least 50%, so a small burst stays small and a busy service still stands out
+  const max = Math.max(50, ...v);
   const pts = v.map((y, i) => [(i / (v.length - 1)) * 96, 26 - (y / max) * 22]);
   const d = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(" ");
   svg.querySelector(".line").setAttribute("d", d);
@@ -627,7 +622,7 @@ function rows(st, goLogs) {
     const word = sx === "running" && up ? `Up for ${up}` : (STATE_WORD[sx] || sx) + (up ? ` for ${up}` : "");
     setText(row, "[data-w]", word + (s.restarts ? `, restarted ${s.restarts}×` : ""));
     setText(row, "[data-img]", s.image || "");
-    setText(row, "[data-cpu]", s.state === "running" && s.cpu != null ? `${s.cpu}%` : "");
+    setText(row, "[data-cpu]", s.state === "running" && s.cpu != null ? `${cpuAvg(s)}%` : "");
     const cpuEl = row.querySelector("[data-cpu]");
     if (cpuEl) cpuEl.className = "num " + cpuTone(hist[s.key], (st.host && st.host.cpus) || 1);
     setText(row, "[data-mem]", s.state === "running" && s.mem != null ? fmtBytes(s.mem) : "");

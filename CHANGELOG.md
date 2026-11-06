@@ -4,6 +4,12 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 6 November 2026
 
+- **New:** MediaFlow can go through the VPN with one switch on the VPN page or in the VPN script's menu, so its video leaves from the same address as AIOStreams, with the same kill switch. It stays attached through restarts, updates, restores and reboots. (Panel 1.49.0, [#144](https://github.com/alpinezx/easy-aiostreams/pull/144))
+- **New:** the request flow is now a simple tree on desktop and phone, showing what sits behind the VPN at a glance. (Panel 1.49.0, [#144](https://github.com/alpinezx/easy-aiostreams/pull/144))
+- **Fixed:** a same-server restore with the VPN on left AIOStreams running from the folder it had just set aside, so it ignored the restored data until its next restart. (Panel 1.49.0, [#144](https://github.com/alpinezx/easy-aiostreams/pull/144))
+- **Fixed:** with the VPN on, AIOStreams now reconnects by itself if gluetun restarts or crashes, instead of staying down until Restart stack. (Panel 1.49.0, [#144](https://github.com/alpinezx/easy-aiostreams/pull/144))
+- **Fixed:** the Services CPU figure is a half-minute average and Recent CPU has a higher scale, so small bursts like the VPN's own health check no longer look alarming. (Panel 1.49.0, [#144](https://github.com/alpinezx/easy-aiostreams/pull/144))
+- **Fixed:** the Logs page hides MediaFlow's password, which it writes into some request lines. (Panel 1.49.0, [#144](https://github.com/alpinezx/easy-aiostreams/pull/144))
 - **Fixed:** the Logs page greys the VPN's clean shutdown line, which only means it was asked to stop, as a restart or reboot does. Hide noise hides it too. (Panel 1.48.19, [#143](https://github.com/alpinezx/easy-aiostreams/pull/143))
 - **Fixed:** the VPN's exit location no longer shows Unknown when ipinfo.io refuses a lookup, which can happen because a VPN's exit address is shared with other people. The panel now tries ifconfig.co and GeoJS next, one at a time through the tunnel. (Panel 1.48.18, [#142](https://github.com/alpinezx/easy-aiostreams/pull/142))
 - **Fixed:** the Logs page greys the VPN's harmless DNS reconnect lines that end in EOF, so Hide noise hides them too. Timeouts stay amber, as a run of those is worth seeing. (Panel 1.48.17, [#141](https://github.com/alpinezx/easy-aiostreams/pull/141))

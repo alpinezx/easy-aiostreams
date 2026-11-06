@@ -249,6 +249,12 @@ networks:
   ${SHARED_NET}:
     external: true
 EOF
+    # Switched to go through the VPN (the VPN page): stays attached to it
+    if grep -qx mediaflow "$INSTALL_DIR/vpn-state/routed" 2>/dev/null \
+        && [[ "$(cat "$INSTALL_DIR/vpn-state/active" 2>/dev/null || true)" == vpn ]]; then
+        sed -i '/^    networks:$/,$d' "$MEDIAFLOW_COMPOSE"
+        echo '    network_mode: "container:gluetun"' >> "$MEDIAFLOW_COMPOSE"
+    fi
 }
 
 write_caddy_snippet() {
@@ -694,10 +700,15 @@ do_configure() {
     echo "this server's own IP. Give a proxy here and every one of them goes through"
     echo "it instead, so the source sees the proxy's IP, not this server's."
     echo "AIOStreams' Addon proxy setting doesn't reach MediaFlow; only this does."
-    # The VPN add-on routes AIOStreams, not MediaFlow (it isn't on gluetun's network)
+    # The VPN covers AIOStreams; MediaFlow joins it only by its switch on the VPN page
     if [[ "$(cat "$INSTALL_DIR/vpn-state/active" 2>/dev/null)" == "vpn" ]]; then
-        warn "The VPN is on, but MediaFlow isn't inside it. Without a proxy here, video"
-        warn "leaves from this server's real IP while everything else uses the VPN's."
+        if grep -qx mediaflow "$INSTALL_DIR/vpn-state/routed" 2>/dev/null; then
+            echo "MediaFlow is already going through the VPN, so this is best left blank."
+        else
+            warn "The VPN is on, but MediaFlow isn't inside it. Without a proxy here, video leaves from"
+            warn "this server's real IP while the rest uses the VPN's. To send it through the VPN instead:"
+            warn "the control panel's VPN page, or option 8 in setup-vpn-gluetun.sh."
+        fi
     fi
     echo "Leave blank to use this server's own IP. More: docs/advanced/mediaflow-proxy.md"
     echo "Format: http://user:pass@host:port or socks5://user:pass@host:port"
@@ -974,6 +985,10 @@ do_uninstall() {
 # "uninstall" command (the control panel's) share it. $1 = yes also removes
 # the image.
 remove_mediaflow() {
+    # On the VPN page's list: off it first, while the VPN script can still see it
+    if grep -qx mediaflow "$INSTALL_DIR/vpn-state/routed" 2>/dev/null; then
+        bash "$INSTALL_DIR/setup-vpn-gluetun.sh" route mediaflow off < /dev/null || true
+    fi
     local images="${1:-no}" image=""
     [[ -f "$MEDIAFLOW_COMPOSE" ]] && image=$(compose_image_refs "$MEDIAFLOW_COMPOSE" | head -n1)
     # The jail first (it reads the config), then the config, then the

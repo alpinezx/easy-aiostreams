@@ -131,6 +131,7 @@ one IP, and it isn't your real one.
 | Built-in Proxy + Addon proxy config (`* = 0` or scoped, static IP) | Proxy's IP | Proxy's IP (same request path) | ✅ | ✅ |
 | MediaFlow, no outbound proxy, no VPN | Your VPS's real IP | Your VPS's real IP (routed through MediaFlow, but MediaFlow has no proxy set, so still the VPS's own) | ✅ | ❌ |
 | **MediaFlow + VPN (gluetun), MediaFlow's own proxy left unset** | VPN exit IP | **Your VPS's real IP**: MediaFlow's container isn't on gluetun's network, gluetun being on doesn't change this | ❌ **split IP, breaks consistency too** | ❌ |
+| MediaFlow switched on under **Through the VPN** (control panel's VPN page) | VPN exit IP | VPN exit IP (MediaFlow shares gluetun's network, as AIOStreams does) | ✅ | ✅ |
 | MediaFlow + matching outbound proxy set on both Addon proxy config and MediaFlow's `PROXY_URL` | Proxy's IP | Proxy's IP (deliberately pointed at the same provider) | ✅ | ✅ |
 
 The row to actually watch out for is the VPN+MediaFlow one. It's the
@@ -138,8 +139,10 @@ only combination on this list that's worse than doing nothing: not only
 does it fail to hide your IP, it doesn't even keep a single consistent
 identity, since video and everything else end up on two different IPs
 in the same session. If you're running gluetun and want MediaFlow's
-scrub/seek speed too, you need to explicitly set MediaFlow's own proxy
-to close that gap, gluetun being on doesn't do it for you.
+scrub/seek speed too, turn on MediaFlow's switch under **Through the VPN**
+on the control panel's VPN page, or set MediaFlow's own proxy. gluetun
+being on doesn't close that gap by itself. Don't do both: with the switch
+on, MediaFlow's proxy would add a second hop for nothing.
 
 If Goal A is genuinely all you need (a private setup for your own
 household, or one where you've separately confirmed your debrid provider

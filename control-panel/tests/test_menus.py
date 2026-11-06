@@ -71,10 +71,14 @@ def test_addon_menu_numbers_the_panel_types():
 
 
 def test_exit_is_last_in_every_menu():
-    for script in ("setup-aiometadata.sh", "setup-aiomanager.sh", "setup-mediaflow.sh", "setup-vpn-gluetun.sh",
-                   "control-panel/setup-ui.sh"):
+    for script in ("setup-aiometadata.sh", "setup-aiomanager.sh", "setup-mediaflow.sh", "control-panel/setup-ui.sh"):
         m = menu(script)
         assert m[max(m, key=int)] == "Exit", script
+    # The VPN's Exit is numbered in the script: after MediaFlow's option, with MediaFlow set up
+    vpn = script_path("setup-vpn-gluetun.sh").read_text(encoding="utf-8")
+    vpn = vpn[vpn.rindex("while true; do"):]
+    assert vpn.index('echo "8) MediaFlow through the VPN') < vpn.index('echo "$EXIT_OPT) Exit"')
+    assert menu("setup-vpn-gluetun.sh")["7"] == "Uninstall VPN layer"
 
 
 def test_the_panel_runs_named_commands_the_scripts_know():
