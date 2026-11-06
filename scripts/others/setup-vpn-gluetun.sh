@@ -449,8 +449,8 @@ remove_vpn_boot_hook() {
     systemctl daemon-reload >/dev/null 2>&1
 }
 
-# Add-ons sent through the VPN (the switches on the panel's VPN page, listed in
-# vpn-state/routed). One attaches to gluetun's network as AIOStreams does, so
+# Add-ons sent through the VPN (the switch on the panel's VPN page, listed in
+# vpn-state/routed). Just MediaFlow for now: it fetches video. One attaches to gluetun's network as AIOStreams does, so
 # nothing it sends can leave any other way. What keeps that working:
 # - docker-compose.override.yml, which Compose merges with the main file by
 #   itself, opens the add-on's port in gluetun's firewall and gives gluetun the
@@ -464,13 +464,12 @@ remove_vpn_boot_hook() {
 ROUTES_FILE="$STATE_DIR/routed"
 ROUTES_OVERRIDE="$INSTALL_DIR/docker-compose.override.yml"
 ROUTES_UNIT="/etc/systemd/system/aiostreams-vpn-routes.service"
-ROUTABLE=(mediaflow aiomanager)
+ROUTABLE=(mediaflow)
 
 # Container, port and state folder of an add-on that can go through the VPN
 route_info() {
     case "$1" in
         mediaflow) echo "mediaflow-proxy-light 8888 mediaflow-state" ;;
-        aiomanager) echo "aiomanager 1610 aiomanager-state" ;;
     esac
 }
 

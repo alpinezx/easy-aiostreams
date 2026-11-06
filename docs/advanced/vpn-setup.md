@@ -587,31 +587,34 @@ be on for VPN mode to have any effect on your actual stream playback.
 
 ### Add-ons through the VPN
 
-AIOStreams always uses the VPN. MediaFlow and AIOManager can join it, one
-switch each under **Through the VPN** on the control panel's VPN page, or
-from the command line:
+AIOStreams always uses the VPN. MediaFlow can join it, with its switch
+under **Through the VPN** on the control panel's VPN page, or from the
+command line:
 
 ```bash
 sudo bash /opt/aiostreams/setup-vpn-gluetun.sh route mediaflow on
 sudo bash /opt/aiostreams/setup-vpn-gluetun.sh route mediaflow off
 ```
 
-- **Off by default.** Flipping one restarts gluetun, AIOStreams and that
-  add-on, so streams pause for a few seconds.
-- **Same address either way.** The add-on keeps its name, so Caddy and
-  AIOStreams' settings don't change.
-- **Kill switch.** An add-on on the VPN stops if the tunnel drops, and its
-  site shows a 502, so nothing leaves from your server's own IP.
-- **VPN off.** With the VPN turned off, add-ons use your server's own IP,
-  as AIOStreams does, and go back through the VPN when it's turned on.
+The other add-ons don't handle video or debrid, so a VPN gains them very
+little and they have no switch.
 
-How it works: `vpn-state/routed` lists them, and
-`docker-compose.override.yml`, which Compose reads by itself, opens each
-add-on's port and gives gluetun its name while the VPN is on. Docker ties
-an attached container to one gluetun container, so a small service,
-`aiostreams-vpn-routes`, watches for gluetun starting and re-attaches them,
-whatever restarted it. It only runs while a switch is on. Backups carry the
-switches, and a restore puts them back.
+- **Off by default.** Flipping it restarts gluetun, AIOStreams and MediaFlow,
+  so streams pause for a few seconds.
+- **Same address either way.** MediaFlow keeps its name, so Caddy and
+  AIOStreams' settings don't change.
+- **Kill switch.** On the VPN, MediaFlow stops if the tunnel drops, so
+  nothing leaves from your server's own IP. Streams pause until it's back.
+- **VPN off.** With the VPN turned off, MediaFlow uses your server's own
+  IP, as AIOStreams does, and goes back through the VPN when it's turned on.
+
+How it works: `vpn-state/routed` lists it, and
+`docker-compose.override.yml`, which Compose reads by itself, opens its
+port and gives gluetun its name while the VPN is on. Docker ties an
+attached container to one gluetun container, so a small service,
+`aiostreams-vpn-routes`, watches for gluetun starting and re-attaches it,
+whatever restarted it. It only runs while the switch is on. Backups carry
+the switch, and a restore puts it back.
 
 That said, this only applies to the final video-data hop to your playback
 device. Every scraper addon call and debrid API call AIOStreams itself

@@ -395,10 +395,10 @@ def test_vpn_switches_take_only_a_listed_add_on(client):
     assert client.post("/api/actions/vpn.route", json={"params": {"service": "mediaflow", "on": True}}).status_code == 401
     login(client)
     assert [r["key"] for r in client.get("/api/vpn").json()["routes"]] == list(actions.ROUTABLE)
-    for bad in ("", "aiostreams", "caddy", "aiometadata", "mediaflow; reboot", None):
+    for bad in ("", "aiostreams", "caddy", "aiometadata", "aiomanager", "mediaflow; reboot", None):
         assert client.post("/api/actions/vpn.route", json={"params": {"service": bad, "on": True}}).status_code == 400
     assert actions.resolve("vpn.route", {"service": "mediaflow", "on": True}).args == ("route", "mediaflow", "on")
-    assert actions.resolve("vpn.route", {"service": "aiomanager", "on": "yes"}).args == ("route", "aiomanager", "off")
+    assert actions.resolve("vpn.route", {"service": "mediaflow", "on": "yes"}).args == ("route", "mediaflow", "off")
 
 
 def test_logs_hide_mediaflows_password():

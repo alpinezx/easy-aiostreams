@@ -45,8 +45,9 @@ _PAD = "N\n"
 
 AIO = "setup-aiostreams.sh"
 
-# Add-ons a VPN page switch can send through the VPN, in the page's order
-ROUTABLE = ("mediaflow", "aiomanager")
+# Add-ons a VPN page switch can send through the VPN, in the page's order. MediaFlow
+# fetches video, so it's the one that matters; another needs a line in setup-vpn-gluetun.sh too.
+ROUTABLE = ("mediaflow",)
 
 _STATIC: dict[str, Action] = {a.id: a for a in [
     # Each runs the script's own command; the typed menu answers after it are
