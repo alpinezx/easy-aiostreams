@@ -190,7 +190,8 @@ sudo bash /opt/aiostreams/setup-vpn-gluetun.sh
 5) Update gluetun
 6) Force cleanup (if a switch got stuck)
 7) Uninstall VPN layer
-8) Exit
+8) MediaFlow through the VPN: on/off (only with MediaFlow set up)
+9) Exit
 ```
 
 - **Status**: shows current mode, container health, and (in VPN mode)
@@ -587,9 +588,9 @@ be on for VPN mode to have any effect on your actual stream playback.
 
 ### Add-ons through the VPN
 
-AIOStreams always uses the VPN. MediaFlow can join it, with its switch
-under **Through the VPN** on the control panel's VPN page, or from the
-command line:
+AIOStreams always uses the VPN. MediaFlow can join it: option 8 in this
+script's menu, the switch under **Through the VPN** on the control panel's
+VPN page, or from the command line:
 
 ```bash
 sudo bash /opt/aiostreams/setup-vpn-gluetun.sh route mediaflow on

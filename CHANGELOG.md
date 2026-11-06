@@ -4,7 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 6 November 2026
 
-- **New:** MediaFlow can go through the VPN with one switch on the VPN page, so its video leaves from the same address as AIOStreams, with the same kill switch. It stays attached through restarts, updates, restores and reboots. (Panel 1.49.0, [#144](https://github.com/alpinezx/easy-aiostreams/pull/144))
+- **New:** MediaFlow can go through the VPN with one switch on the VPN page or in the VPN script's menu, so its video leaves from the same address as AIOStreams, with the same kill switch. It stays attached through restarts, updates, restores and reboots. (Panel 1.49.0, [#144](https://github.com/alpinezx/easy-aiostreams/pull/144))
 - **New:** the request flow is now a simple tree on desktop and phone, showing what sits behind the VPN at a glance. (Panel 1.49.0, [#144](https://github.com/alpinezx/easy-aiostreams/pull/144))
 - **Fixed:** a same-server restore with the VPN on left AIOStreams running from the folder it had just set aside, so it ignored the restored data until its next restart. (Panel 1.49.0, [#144](https://github.com/alpinezx/easy-aiostreams/pull/144))
 - **Fixed:** the Services CPU figure is a half-minute average and Recent CPU has a higher scale, so small bursts like the VPN's own health check no longer look alarming. (Panel 1.49.0, [#144](https://github.com/alpinezx/easy-aiostreams/pull/144))

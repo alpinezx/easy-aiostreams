@@ -586,6 +586,24 @@ watch_routes() {
         done
 }
 
+# The menu's way to the same switch
+route_mediaflow_menu() {
+    local word=on
+    is_routed mediaflow && word=off
+    echo ""
+    if [[ "$word" == on ]]; then
+        echo "MediaFlow's video would leave through the VPN, from the same address as AIOStreams."
+        echo "If the VPN drops, MediaFlow stops too, so nothing leaves from this server's own IP."
+    else
+        echo "MediaFlow's video would leave from this server's own IP, not the VPN's."
+    fi
+    echo "AIOStreams and MediaFlow restart, so streams pause for a few seconds."
+    local confirm
+    read -rp "Turn it $word? [y/N]: " confirm
+    [[ "$confirm" =~ ^[Yy]$ ]] || { echo "Nothing changed."; return 0; }
+    route_addon mediaflow "$word"
+}
+
 # route <add-on> on|off, the VPN page's switch
 route_addon() {
     local key="${1:-}" word="${2:-}" name port state mode aio
@@ -1828,8 +1846,14 @@ while true; do
     echo "5) Update gluetun"
     echo "6) Force cleanup (if a switch got stuck)"
     echo "7) Uninstall VPN layer"
-    echo "8) Exit"
-    read -rp "Choose an option [1-8]: " CHOICE
+    # Only with MediaFlow set up; Exit stays last either way
+    EXIT_OPT=8
+    if [[ -f "$INSTALL_DIR/mediaflow-state/docker-compose.yml" ]]; then
+        echo "8) MediaFlow through the VPN: $(is_routed mediaflow && echo on || echo off)"
+        EXIT_OPT=9
+    fi
+    echo "$EXIT_OPT) Exit"
+    read -rp "Choose an option [1-$EXIT_OPT]: " CHOICE
 
     case "$CHOICE" in
         1) do_status ;;
@@ -1845,7 +1869,8 @@ while true; do
         5) do_update_gluetun ;;
         6) do_force_cleanup ;;
         7) do_uninstall_vpn ;;
-        8) exit 0 ;;
+        "$EXIT_OPT") exit 0 ;;
+        8) route_mediaflow_menu ;;
         *) warn "Not a valid option." ;;
     esac
 done

@@ -706,8 +706,8 @@ do_configure() {
             echo "MediaFlow is already going through the VPN, so this is best left blank."
         else
             warn "The VPN is on, but MediaFlow isn't inside it. Without a proxy here, video leaves from"
-            warn "this server's real IP while the rest uses the VPN's. The control panel's VPN page can"
-            warn "send MediaFlow through the VPN instead: its Through the VPN switch."
+            warn "this server's real IP while the rest uses the VPN's. To send it through the VPN instead:"
+            warn "the control panel's VPN page, or option 8 in setup-vpn-gluetun.sh."
         fi
     fi
     echo "Leave blank to use this server's own IP. More: docs/advanced/mediaflow-proxy.md"
