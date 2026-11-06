@@ -612,10 +612,11 @@ little and they have no switch.
 How it works: `vpn-state/routed` lists it, and
 `docker-compose.override.yml`, which Compose reads by itself, opens its
 port and gives gluetun its name while the VPN is on. Docker ties an
-attached container to one gluetun container, so a small service,
-`aiostreams-vpn-routes`, watches for gluetun starting and re-attaches it,
-whatever restarted it. It only runs while the switch is on. Backups carry
-the switch, and a restore puts it back.
+attached container to one gluetun, so a small service,
+`aiostreams-vpn-routes`, watches for gluetun starting and re-attaches
+whatever lost its network, whatever restarted gluetun. It runs while the
+VPN is on, and looks after AIOStreams too, so a gluetun crash no longer
+leaves your site down. Backups carry the switch, and a restore puts it back.
 
 That said, this only applies to the final video-data hop to your playback
 device. Every scraper addon call and debrid API call AIOStreams itself

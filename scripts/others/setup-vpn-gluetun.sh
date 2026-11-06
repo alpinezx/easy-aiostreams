@@ -437,7 +437,7 @@ EOF
 
     systemctl daemon-reload >/dev/null 2>&1
     systemctl enable aiostreams-vpn-boot.service >/dev/null 2>&1
-    if [[ -s "$ROUTES_FILE" ]]; then install_routes_watch; fi
+    install_routes_watch
     info "Boot-safety hook installed: aiostreams will wait for a confirmed tunnel on every reboot, instead of Docker restarting it blindly."
 }
 
@@ -457,9 +457,10 @@ remove_vpn_boot_hook() {
 #   add-on's name on aios_shared, so Caddy and AIOStreams use the same address
 #   on or off the VPN. It exists only while the VPN is on (it names gluetun),
 #   and the scripts that rewrite the main file leave it alone.
-# - Docker ties an attached container to one gluetun container, so a restart or
-#   a new gluetun leaves it with no network. The aiostreams-vpn-routes service
-#   watches for gluetun starting and re-attaches, whatever started it.
+# - An attached container shares one gluetun's network, so a restart or a new
+#   gluetun leaves it with none, AIOStreams included. While the VPN is on, the
+#   aiostreams-vpn-routes service watches for gluetun starting and re-attaches
+#   whatever lost it, whatever started gluetun: a script, a crash, a hand.
 # - With the VPN off they use this server's own address, as AIOStreams does.
 ROUTES_FILE="$STATE_DIR/routed"
 ROUTES_OVERRIDE="$INSTALL_DIR/docker-compose.override.yml"
@@ -514,16 +515,31 @@ set_addon_network() {
     fi
 }
 
-# Puts each add-on on the network it should be on, recreating only the ones that
-# are wrong and running. "force": gluetun has just started, so even one attached
-# to the right container has lost its network.
+# Whether a running container really shares gluetun's network. Comparing the
+# kernel's own namespaces also catches a gluetun restarted in place, which keeps
+# its ID but gets a new network.
+on_gluetun_network() {
+    local a b
+    a=$(docker inspect -f '{{.State.Pid}}' "$1" 2>/dev/null || echo 0)
+    b=$(docker inspect -f '{{.State.Pid}}' gluetun 2>/dev/null || echo 0)
+    [[ "$a" != 0 && "$b" != 0 ]] || return 1
+    [[ "$(readlink "/proc/$a/ns/net")" == "$(readlink "/proc/$b/ns/net")" ]]
+}
+
+# Puts AIOStreams and each add-on on the network they should be on, recreating
+# only what's wrong and running: something stopped on purpose stays stopped.
 sync_routes() {
-    local force="${1:-}"
     (
         flock 9
         local mode gluetun key name port state compose want now status
         mode=$(cat "$ACTIVE_MARKER" 2>/dev/null || true)
-        gluetun=$(docker inspect -f '{{.Id}}' gluetun 2>/dev/null || true)
+        gluetun=$(docker inspect -f '{{if .State.Running}}{{.Id}}{{end}}' gluetun 2>/dev/null || true)
+        if [[ "$mode" == vpn && -n "$gluetun" && "$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || true)" == true ]] \
+            && ! on_gluetun_network aiostreams; then
+            echo "Attaching aiostreams: gluetun has restarted"
+            (cd "$INSTALL_DIR" && docker compose up -d --no-deps --force-recreate aiostreams) \
+                || warn "Couldn't recreate aiostreams. Use Restart stack."
+        fi
         for key in "${ROUTABLE[@]}"; do
             read -r name port state <<< "$(route_info "$key")"
             compose="$INSTALL_DIR/$state/docker-compose.yml"
@@ -534,7 +550,8 @@ sync_routes() {
             now=$(docker inspect -f '{{.HostConfig.NetworkMode}}' "$name" 2>/dev/null || true)
             status=$(docker inspect -f '{{.State.Status}}' "$name" 2>/dev/null || true)
             if [[ "$want" == vpn ]]; then
-                [[ "$now" == "container:$gluetun" && "$force" != force && "$status" != created ]] && continue
+                [[ "$now" == "container:$gluetun" && "$status" == running ]] && on_gluetun_network "$name" && continue
+                [[ "$now" == "container:$gluetun" && "$status" == exited ]] && continue
             else
                 [[ "$now" != container:* ]] && grep -q '^    networks:$' "$compose" && continue
             fi
@@ -552,7 +569,7 @@ install_routes_watch() {
     command -v systemctl >/dev/null 2>&1 || return 0
     cat > "$ROUTES_UNIT" << EOF
 [Unit]
-Description=AIOStreams: keep add-ons attached to the VPN
+Description=AIOStreams: keep it and its add-ons attached to the VPN
 After=docker.service
 Requires=docker.service
 
@@ -582,7 +599,7 @@ watch_routes() {
     docker events --filter type=container --filter container=gluetun --filter event=start --format '{{.Action}}' |
         while read -r _; do
             sleep 2
-            bash "$SELF_PATH" sync-routes force || true
+            bash "$SELF_PATH" sync-routes || true
         done
 }
 
@@ -637,7 +654,7 @@ route_addon() {
         (cd "$INSTALL_DIR" && docker compose up -d --no-deps --force-recreate aiostreams)
     fi
     sync_routes
-    if [[ -s "$ROUTES_FILE" ]]; then install_routes_watch; fi
+    install_routes_watch
     echo "Done."
 }
 
@@ -1651,7 +1668,7 @@ deletable_config() {
 # in use (or is, while the VPN is off: then none is left). "use-file <path>
 # <ip> [on]": switch to a listed .conf file, as use-config does with a
 # pasted one.
-# "route <add-on> on|off": the VPN page's switch. "sync-routes [force]" and
+# "route <add-on> on|off": the VPN page's switch. "sync-routes" and
 # "watch-routes": see sync_routes and watch_routes.
 # "uninstall [remove-image] [delete-confs]": Uninstall VPN layer (option 7)
 # without questions; delete-confs deletes the .conf files list-configs finds
@@ -1661,7 +1678,7 @@ if [[ "${1:-}" =~ ^(update|addresses|use-address|use-config|revert-config|forget
     case "$1" in
         update) do_update_gluetun ;;
         route) route_addon "${2:-}" "${3:-}" ;;
-        sync-routes) sync_routes "${2:-}" ;;
+        sync-routes) sync_routes ;;
         watch-routes) watch_routes ;;
         addresses)
             EP_QUIET=1
