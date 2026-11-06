@@ -1162,9 +1162,12 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .touch-scroll { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
   touch-action: pan-y; -webkit-overflow-scrolling: touch; z-index: 5; background: transparent; }
 .touch-spacer { width: 1px; }
-/* Inside the terminal, where a touch keyboard leaves it in reach; under the select-text view */
-.btn.term-ctrl { position: absolute; right: 8px; bottom: 8px; z-index: 7; }
-.btn.term-ctrl[aria-pressed="true"] { border-color: var(--ok); color: var(--ok); }
+/* Keys a touch keyboard lacks, under the text; above the scroll layer, under the select-text view */
+.xterm-box.has-keys { display: flex; flex-direction: column; }
+.xterm-box.has-keys .xterm-host { flex: 1; min-height: 0; height: auto; }
+.term-keys { flex: none; position: relative; z-index: 7; display: flex; gap: 4px; padding-top: 6px; touch-action: none; user-select: none; -webkit-user-select: none; }
+.term-keys .btn { flex: 1 1 0; min-width: 0; padding: 8px 0; }
+.term-keys .btn[aria-pressed="true"] { border-color: var(--ok); color: var(--ok); }
 .xterm-box.touch .xterm-scrollable-element > .scrollbar { display: none !important; }
 
 /* long-press menu and the selectable copy of the terminal text (touch screens) */

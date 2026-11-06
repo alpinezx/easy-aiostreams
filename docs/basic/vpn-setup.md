@@ -40,7 +40,7 @@ It asks how you'd like to give it your config. Press **Enter** to paste it:
 
 1. Open the `.conf` file on your computer in a text editor (Notepad is fine), select everything and copy it.
 2. Paste it into the SSH window. **Nothing shows on screen**, since it holds your private key. That's expected.
-3. Press **Enter**, then **Ctrl+D**. In the panel's terminal on a phone, tap **Ctrl** at the bottom right, then **D**.
+3. Press **Enter**, then **Ctrl+D**. In the panel's terminal on a phone, tap **Ctrl** in the row of keys under the text, then **D**.
 
 If the file's `Endpoint =` line has a name rather than an IP (like `new-york.us.wg.someprovider.net:51820`), the script looks the name up for you and lists the server addresses it found, fastest first. Press **Enter** for the recommended one. There's no need to edit the file first.
 

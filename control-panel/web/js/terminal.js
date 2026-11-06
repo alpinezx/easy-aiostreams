@@ -209,29 +209,45 @@ function nativeScroll(box) {
   follow();
 }
 
-// ---- Ctrl for touch keyboards, which don't have one ----------
+// ---- a row of keys for touch keyboards, which don't have these ----------
 // A letter, or one of @[\]^_, as its control character; anything else unchanged.
 function ctrlChar(ch) {
   const code = ch.toUpperCase().charCodeAt(0);
   return code >= 64 && code <= 95 ? String.fromCharCode(code - 64) : ch;
 }
 
-// Tap Ctrl, then a key: it applies to that one key, like Termius's. The button sits inside the
-// terminal's box because the box covers the bar above it while the keyboard is up.
-function ctrlKey(box, send) {
-  let on = false;
-  const set = (v) => { on = v; btn.setAttribute("aria-pressed", String(v)); };
-  const btn = h("button", { class: "btn small term-ctrl", type: "button", text: "Ctrl", "aria-pressed": "false",
-    onmousedown: (e) => e.preventDefault(),          // keeps the keyboard up
-    onclick: () => { set(!on); term.focus(); } });
-  box.append(btn);
+// Holding an arrow repeats it, so a thumb can walk along a command.
+const REPEAT_AFTER_MS = 400, REPEAT_EVERY_MS = 80;
+
+// Inside the terminal's box, because the box covers the bar above it while the keyboard is up.
+// Ctrl applies to the next key only, like Termius's.
+function keyRow(box, send) {
+  let on = false, held = null;
+  const set = (v) => { on = v; ctrl.setAttribute("aria-pressed", String(v)); };
+  const stay = (e) => e.preventDefault();            // keeps the keyboard up
+  const key = (text, label, attrs) => h("button", { class: "btn small", type: "button", text, "aria-label": label,
+    onmousedown: stay, oncontextmenu: stay, ...attrs });
+  const press = (seq) => { set(false); send({ i: seq }); };
+  const ctrl = key("Ctrl", "Ctrl, for the next key", { "aria-pressed": "false", onclick: () => { set(!on); term.focus(); } });
+  const once = (text, label, seq) => key(text, label, { onclick: () => { press(seq); term.focus(); } });
+  const release = () => { clearTimeout(held); clearInterval(held); held = null; };
+  // Full-screen programs such as nano switch the arrows to their other form
+  const arrow = (text, label, letter) => {
+    const go = () => press(`\x1b${term.modes.applicationCursorKeysMode ? "O" : "["}${letter}`);
+    return key(text, label, {
+      onpointerdown: () => { go(); held = setTimeout(() => { held = setInterval(go, REPEAT_EVERY_MS); }, REPEAT_AFTER_MS); },
+      onpointerup: release, onpointerleave: release, onpointercancel: release });
+  };
+  box.classList.add("has-keys");
+  box.append(h("div", { class: "term-keys" }, ctrl, once("Esc", "Escape", "\x1b"), once("Tab", "Tab", "\t"),
+    arrow("←", "Left", "D"), arrow("↑", "Up", "A"), arrow("↓", "Down", "B"), arrow("→", "Right", "C")));
+  try { fit.fit(); } catch (_) {}
   // Phone keyboards can hold a letter back while they compose a word, so it's taken from the
   // text box as it's typed, before xterm.js sees it.
   term.textarea.addEventListener("input", (e) => {
     if (!on || !e.data) return;
     e.stopImmediatePropagation();
-    set(false);
-    send({ i: ctrlChar(e.data.slice(-1)) });
+    press(ctrlChar(e.data.slice(-1)));
     term.textarea.value = "";
     term.textarea.blur();                            // ends the keyboard's composing
     term.focus();
@@ -382,8 +398,8 @@ async function reconnect() {
 
 function ended(msg, shellGone) {
   const bar = $("#term-bar");
-  const ctrlBtn = $("#xterm-box .term-ctrl");
-  if (ctrlBtn) ctrlBtn.remove();
+  const keys = $("#xterm-box .term-keys");
+  if (keys) keys.remove();
   if (bar) {
     clear(bar);
     bar.append(h("span", { class: "dim", text: msg }),
@@ -444,8 +460,8 @@ function open(ticket, idle) {
     if (sock === ws) { sock = null; if (ev.code === 4403) { gate("That unlock expired or was refused. Enter the key again."); } else if (remembered) reconnect(); else ended("Connection lost. The shell keeps running on the server. Enter the key again to get back to it."); }
   };
   nativeScroll(box);
-  const ctrl = TOUCH ? ctrlKey(box, send) : null;
-  term.onData((d) => send({ i: ctrl ? ctrl.apply(d) : d }));
+  const keys = TOUCH ? keyRow(box, send) : null;
+  term.onData((d) => send({ i: keys ? keys.apply(d) : d }));
   term.onResize(({ cols, rows }) => send({ r: [cols, rows] }));
   ro = new ResizeObserver(() => { if (!root().closest("[hidden]")) { try { fit.fit(); } catch (_) {} } });
   ro.observe(box);
