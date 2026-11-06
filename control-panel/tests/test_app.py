@@ -896,7 +896,7 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
     js = (Path(__file__).resolve().parents[1] / "web" / "js" / "logs.js").read_text(encoding="utf-8")
     block = re.search(r"const QUIET = \[(.*?)\n\];", js, re.S).group(1)
     quiet = [re.compile(p) for p in re.findall(r"^\s*/(.+)/,", block, re.M)]
-    assert len(quiet) == 4
+    assert len(quiet) == 5
     grey = [
         'ERR  error="unexpected EOF" connIndex=3 event=1 ingressRule=0 originService=http://caddy:80',
         'ERR Request failed error="unexpected EOF" connIndex=3 dest=https://aio.example.com/api/v1/dashboard/streams/live/stream event=0 type=http',
