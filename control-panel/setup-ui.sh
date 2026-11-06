@@ -274,6 +274,9 @@ do_install() {
 # there would kill the very command doing it.
 in_panel_terminal() {
     [[ "${AIOS_UI_TERMINAL:-}" == "1" ]] && return 0
+    # The terminal joins the host's namespaces but not its cgroup namespace. A login
+    # shell or sudo drops AIOS_UI_TERMINAL, so this is the check that survives them.
+    [[ "$(readlink /proc/self/ns/cgroup)" != "$(readlink /proc/1/ns/cgroup)" ]] && return 0
     local id
     id=$(docker inspect -f '{{.Id}}' "$CONTAINER_NAME" 2>/dev/null) || return 1
     [[ -n "$id" ]] && grep -q "$id" /proc/self/cgroup 2>/dev/null

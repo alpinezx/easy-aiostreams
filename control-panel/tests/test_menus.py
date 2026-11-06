@@ -144,6 +144,13 @@ def test_scripts_sit_in_their_folders():
     assert all(f'"{f}"' in js[js.index("const UPDATE_WITH"):js.index("const CORE")] for f in WITH_MAIN)
 
 
+def test_panel_terminal_is_spotted_in_a_login_shell():
+    """AIOS_UI_TERMINAL doesn't survive runuser or sudo, so each guard needs the namespace check too."""
+    for name in ("control-panel/setup-ui.sh", "setup-backup.sh", "setup-aiostreams.sh"):
+        text = script_path(name).read_text(encoding="utf-8")
+        assert '"$(readlink /proc/self/ns/cgroup)" != "$(readlink /proc/1/ns/cgroup)"' in text, name
+
+
 def test_only_the_redirect_is_left_in_the_root():
     """Old links land on it, so it must go on fetching the real script from scripts/core."""
     assert [p.name for p in ROOT.glob("*.sh")] == ["setup-aiostreams.sh"]

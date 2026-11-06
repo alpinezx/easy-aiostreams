@@ -22,6 +22,7 @@ export async function restartPanel() {
 }
 
 let remembered = false;
+let lostTries = 0, lostTimer = null;
 let lastStatus = null;
 let pendingCmd = null;      // from Run in terminal: typed into the shell once it's open, never sent
 
@@ -352,9 +353,31 @@ window.addEventListener("resize", () => { fitBox(); });
 window.addEventListener("orientationchange", () => setTimeout(fitBox, 300));
 
 function closeSocket() {
+  clearTimeout(lostTimer);
   if (sock) { try { sock.close(); } catch (_) {} sock = null; }
   if (ro) { ro.disconnect(); ro = null; }
   if (term) { term.dispose(); term = null; }
+}
+
+// Anything that restarts Caddy (a VPN switch, a restore) takes this page's connection with it, while
+// the shell carries on. So keep asking for a few minutes; the session then comes back with what it missed.
+const LOST_RETRY_MS = 3000, LOST_MAX_TRIES = 60;
+async function reconnect() {
+  if (!lostTries) {
+    const bar = $("#term-bar");
+    if (bar) { clear(bar); bar.append(h("span", { class: "dim", text: "Connection lost. Reconnecting…" })); }
+    if (term) term.write("\r\n\x1b[2m[Connection lost. Reconnecting...]\x1b[0m\r\n");
+  }
+  lostTries++;
+  try {
+    const r = await api("/api/terminal/ticket", { method: "POST", body: "{}" });
+    closeSocket();
+    open(r.ticket, r.idle_minutes);
+  } catch (e) {
+    if (e.status === 403) { lostTries = 0; remembered = false; gate("That unlock expired. Enter the key again to get back to the shell."); }
+    else if (lostTries >= LOST_MAX_TRIES) { lostTries = 0; ended("Couldn't reconnect. The shell keeps running on the server."); }
+    else lostTimer = setTimeout(reconnect, LOST_RETRY_MS);
+  }
 }
 
 function ended(msg, shellGone) {
@@ -386,6 +409,8 @@ function open(ticket, idle) {
   const box = h("div", { class: "xterm-box", id: "xterm-box" });
   root().append(bar, box);
   fitBox();
+  document.documentElement.classList.remove("kb-open");   // a reconnect replaces the box the keyboard was sized on
+  kbFit();
 
   const css = getComputedStyle(document.documentElement);
   term = new window.Terminal({
@@ -407,7 +432,7 @@ function open(ticket, idle) {
   sock = ws;
   const send = (o) => { if (ws.readyState === 1) ws.send(JSON.stringify(o)); };
   // A fresh shell needs a moment to print its prompt before a command is typed in.
-  ws.onopen = () => { send({ r: [term.cols, term.rows] }); term.focus(); setTimeout(typePending, 700); };
+  ws.onopen = () => { lostTries = 0; send({ r: [term.cols, term.rows] }); term.focus(); setTimeout(typePending, 700); };
   ws.onmessage = (ev) => {
     if (typeof ev.data === "string") {
       let m = {}; try { m = JSON.parse(ev.data); } catch (_) {}
@@ -416,7 +441,7 @@ function open(ticket, idle) {
     } else term.write(new Uint8Array(ev.data));
   };
   ws.onclose = (ev) => {
-    if (sock === ws) { sock = null; if (ev.code === 4403) { gate("That unlock expired or was refused. Enter the key again."); } else ended(remembered ? "Connection lost. The shell keeps running on the server." : "Connection lost. The shell keeps running on the server. Enter the key again to get back to it."); }
+    if (sock === ws) { sock = null; if (ev.code === 4403) { gate("That unlock expired or was refused. Enter the key again."); } else if (remembered) reconnect(); else ended("Connection lost. The shell keeps running on the server. Enter the key again to get back to it."); }
   };
   nativeScroll(box);
   const ctrl = TOUCH ? ctrlKey(box, send) : null;
