@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 6 November 2026
 
+- **Fixed:** the Logs page greys the VPN's clean shutdown line, which only means it was asked to stop, as a restart or reboot does. Hide noise hides it too. (Panel 1.48.19, [#143](https://github.com/alpinezx/easy-aiostreams/pull/143))
 - **Fixed:** the VPN's exit location no longer shows Unknown when ipinfo.io refuses a lookup, which can happen because a VPN's exit address is shared with other people. The panel now tries ifconfig.co and GeoJS next, one at a time through the tunnel. (Panel 1.48.18, [#142](https://github.com/alpinezx/easy-aiostreams/pull/142))
 - **Fixed:** the Logs page greys the VPN's harmless DNS reconnect lines that end in EOF, so Hide noise hides them too. Timeouts stay amber, as a run of those is worth seeing. (Panel 1.48.17, [#141](https://github.com/alpinezx/easy-aiostreams/pull/141))
 - **New:** clearer VPN labels: Exit location for where traffic comes out, and VPN server so it can't be mistaken for your own server. (Panel 1.48.16, [#140](https://github.com/alpinezx/easy-aiostreams/pull/140))
