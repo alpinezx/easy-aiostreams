@@ -412,6 +412,68 @@ def test_vpn_info_on_asks_gluetun_where_traffic_leaves(tmp_path, monkeypatch):
     assert len(asked) == 2
 
 
+def vpn_with(tmp_path, monkeypatch, answers):
+    """gluetun where each URL in answers gives that text, and every other wget fails (as a 429 does)."""
+    compose = "services:\n  gluetun:\n    container_name: gluetun\n"
+    asked = []
+
+    def exec_run(cmd):
+        if cmd[0] != "wget":
+            return SimpleNamespace(exit_code=0, output=b"")
+        asked.append(cmd[-1])
+        out = answers.get(cmd[-1])
+        return SimpleNamespace(exit_code=0 if out else 8, output=out or b"")
+    g = container("gluetun")
+    g.exec_run = exec_run
+    b = make_backend(tmp_path, monkeypatch, [g], compose=compose, extra_files=["vpn-state/active"])
+    b._client.containers.get = lambda name: g
+    (config.INSTALL_DIR / "vpn-state/docker-compose.vpn.yml").write_text(VPN_SAVED)
+    return b, asked
+
+
+IFCONFIG_CO = "https://ifconfig.co/json"
+GEOJS = "https://get.geojs.io/v1/ip/geo.json"
+
+
+def test_vpn_info_moves_to_the_next_service_when_one_refuses(tmp_path, monkeypatch):
+    b, asked = vpn_with(tmp_path, monkeypatch, {IFCONFIG_CO: (
+        b'{"ip": "203.0.113.17", "country": "The Netherlands", "country_iso": "NL", "region_name": "North Holland", '
+        b'"city": "Amsterdam", "asn": "AS64500", "asn_org": "Example VPN"}')})
+    v = b.vpn_info()
+    assert v["connected"] is True and v["exit_ip"] == "203.0.113.17"
+    assert (v["city"], v["region"], v["country"], v["org"]) == ("Amsterdam", "North Holland", "NL", "AS64500 Example VPN")
+    assert asked == ["http://ipinfo.io/json", IFCONFIG_CO]     # stops at the first good answer
+
+
+def test_vpn_info_reads_the_last_location_service_too(tmp_path, monkeypatch):
+    b, asked = vpn_with(tmp_path, monkeypatch, {GEOJS: (
+        b'{"ip": "203.0.113.17", "city": "New York", "region": "New York", "country": "United States", '
+        b'"country_code": "US", "organization": "AS64500 Example VPN", "organization_name": "Example VPN"}')})
+    v = b.vpn_info()
+    assert (v["city"], v["region"], v["country"], v["org"]) == ("New York", "New York", "US", "AS64500 Example VPN")
+    assert asked[-1] == GEOJS
+
+
+def test_vpn_info_shows_the_ip_alone_when_no_service_can_say_where(tmp_path, monkeypatch):
+    b, asked = vpn_with(tmp_path, monkeypatch, {"http://ifconfig.me/ip": b"203.0.113.17\n"})
+    v = b.vpn_info()
+    assert v["connected"] is True and v["exit_ip"] == "203.0.113.17" and v["city"] is None and v["country"] is None
+
+
+def test_vpn_info_tries_on_when_an_answer_has_no_place(tmp_path, monkeypatch):
+    b, asked = vpn_with(tmp_path, monkeypatch, {
+        "http://ipinfo.io/json": b'{"ip": "203.0.113.17"}',
+        IFCONFIG_CO: b'{"ip": "203.0.113.17", "city": "Amsterdam", "country_iso": "NL"}'})
+    v = b.vpn_info()
+    assert (v["exit_ip"], v["city"], v["country"]) == ("203.0.113.17", "Amsterdam", "NL") and len(asked) == 2
+
+
+def test_vpn_info_nothing_answers_means_not_connected(tmp_path, monkeypatch):
+    b, asked = vpn_with(tmp_path, monkeypatch, {})
+    v = b.vpn_info()
+    assert v["connected"] is False and v["error"] and len(asked) == 5
+
+
 def test_parse_vpn_addresses():
     out = "192.0.2.10 0.8 in-use recommended\n203.0.113.9 -\n198.51.100.4 1.1\n"
     got = stack.parse_vpn_addresses(out, 0)

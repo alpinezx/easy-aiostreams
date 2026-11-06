@@ -236,6 +236,14 @@ class LogStream:
             pass
 
 
+def _vpn_place(j: dict) -> dict:
+    """An exit IP's details, whichever lookup service answered: each names its fields its own way."""
+    asn = " ".join(str(x) for x in (j.get("asn"), j.get("asn_org")) if x) if j.get("asn_org") else None
+    return {"exit_ip": str(j["ip"]), "city": j.get("city"), "region": j.get("region") or j.get("region_name"),
+            "country": j.get("country_iso") or j.get("country_code") or j.get("country"),
+            "org": j.get("org") or j.get("organization") or asn}
+
+
 class Backend:
     def __init__(self):
         self._client = None
@@ -477,6 +485,11 @@ class Backend:
     # at most once a minute unless asked to check now.
     _VPN_FRESH = 60
     _vpn_cache: dict | None = None
+    # Asked one at a time through the tunnel, stopping at the first good answer. A VPN's exit
+    # address is shared, so a free service's limit can run out on it (429): the next one covers
+    # that, and the last two give the IP alone if none can say where it is.
+    _VPN_LOOKUPS = ("http://ipinfo.io/json", "https://ifconfig.co/json", "https://get.geojs.io/v1/ip/geo.json",
+                    "http://ifconfig.me/ip", "http://icanhazip.com")
 
     def host_counters(self) -> tuple[int, int] | None:
         """The server's own bytes down and up since boot, on the network card its internet
@@ -519,7 +532,7 @@ class Backend:
             if not (c.attrs.get("State") or {}).get("Running"):
                 got["error"] = "The VPN container isn't running."
             else:
-                for url in ("http://ipinfo.io/json", "http://ifconfig.me/ip", "http://icanhazip.com"):
+                for url in self._VPN_LOOKUPS:
                     r = c.exec_run(["wget", "-qO-", "-T", "6", url])
                     text = (r.output or b"").decode(errors="replace").strip() if r.exit_code == 0 else ""
                     if not text:
@@ -531,8 +544,11 @@ class Backend:
                             continue
                         if not isinstance(j, dict) or not j.get("ip"):
                             continue
-                        got.update(exit_ip=str(j["ip"]), city=j.get("city"), region=j.get("region"),
-                                   country=j.get("country"), org=j.get("org"))
+                        got.update(_vpn_place(j))
+                        got["connected"] = True
+                        if not got.get("city") and not got.get("country"):
+                            continue               # it knows the IP but not the place: try the next
+                        break
                     elif re.fullmatch(r"[0-9a-fA-F.:]+", text):
                         got["exit_ip"] = text
                     else:
