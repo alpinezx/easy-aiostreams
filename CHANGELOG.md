@@ -2,6 +2,11 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 6 November 2026
+
+- **Fixed:** the panel's terminal now spots itself in its default shell, so Stop, Update and Uninstall are refused there, as they were always meant to be, rather than cutting the terminal off halfway. A restore run from it leaves the panel running too. (Panel 1.48.15, [#139](https://github.com/alpinezx/easy-aiostreams/pull/139))
+- **New:** on phones and tablets the panel's terminal has a row of the keys a phone keyboard lacks: Ctrl, Esc, Tab and the arrows. When a VPN switch or restore restarts Caddy, the terminal now reconnects by itself and shows what it missed. The Scripts tab is tidier, with one Check now and Control panel beside AIOStreams, Restart sits furthest right in Services, and quieter buttons always show their border. (Panel 1.48.15, [#139](https://github.com/alpinezx/easy-aiostreams/pull/139))
+
 ## 5 November 2026
 
 - **Tidied:** the scripts moved to `scripts/core` (the main script and the three it uses) and `scripts/others` (the add-ons). Servers still keep them all in `/opt/aiostreams`, and the old link for `setup-aiostreams.sh` still works. Update the control panel first, then any scripts it shows as differing. (Panel 1.48.14, [#138](https://github.com/alpinezx/easy-aiostreams/pull/138))
