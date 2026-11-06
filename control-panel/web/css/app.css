@@ -615,21 +615,24 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .flow-tree ul > li:last-child::before { bottom: auto; height: 17px; }
 .flow-tree ul > li::after { content: ""; position: absolute; left: 0; top: 16px; width: 14px; height: 2px; background: var(--accent); }
 .flow-tree ul > li.broken::after { background: var(--bad); }
-.t-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 34px; }
-.t-name { font-weight: 600; font-size: .95rem; white-space: nowrap; display: inline-flex; align-items: center; gap: 8px; }
+.t-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 34px; min-width: 0; }
+.t-name { font-weight: 600; font-size: .95rem; white-space: nowrap; min-width: 0; display: inline-flex; align-items: center; gap: 8px; }
 .t-name::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--faint); flex: none; }
 .t-row[data-s="running"] .t-name::before { background: var(--ok); }
 .t-row[data-s="starting"] .t-name::before, .t-row[data-s="paused"] .t-name::before { background: var(--warn); }
 .t-row[data-s="stopped"] .t-name::before, .t-row[data-s="missing"] .t-name::before, .t-row[data-s="unhealthy"] .t-name::before, .t-row[data-s="restarting"] .t-name::before { background: var(--bad); }
-.t-state { font-size: .86rem; color: var(--dim); white-space: nowrap; }
+.t-state { font-size: .86rem; color: var(--dim); white-space: nowrap; flex: none; }
 .t-row[data-s="running"] .t-state .word { color: var(--ok); }
 .t-row[data-s="stopped"] .t-state .word, .t-row[data-s="missing"] .t-state .word, .t-row[data-s="unhealthy"] .t-state .word, .t-row[data-s="restarting"] .t-state .word { color: var(--bad); }
 .t-row[data-s="starting"] .t-state .word, .t-row[data-s="paused"] .t-state .word { color: var(--warn); }
 .t-start { color: var(--dim); font-size: .9rem; justify-content: flex-start; min-height: 26px; }
 .path-head .btn { margin-left: auto; }
 @media (max-width: 720px) {
-  .flow-tree ul > li { padding-left: 16px; }
-  .flow-tree ul > li::after { width: 11px; }
+  .flow-tree ul { padding-left: 5px; }
+  .flow-tree ul > li { padding-left: 12px; }
+  .flow-tree ul > li::after { width: 8px; }
+  .t-row { gap: 10px; }
+  .t-name { gap: 6px; font-size: .92rem; }
   .t-row[data-s="running"] .t-state .word { display: none; }
 }
 .route-list .wd-opt { border-top: 1px solid var(--line-soft); }
