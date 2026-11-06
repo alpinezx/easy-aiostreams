@@ -481,7 +481,7 @@ function path(st) {
   const main = st.services.filter((s) => !s.addon);
   const addons = st.services.filter((s) => s.addon);
   const restart = st.installed && st.actions.find((a) => a.id === "stack.restart");
-  const key = st.services.map((s) => `${s.key}:${stateOf(s)}`).join(",") + st.docker_ok + !!st.busy + !!(restart && restart.available) + folded;
+  const key = st.services.map((s) => `${s.key}:${stateOf(s)}:${!!s.via_vpn}`).join(",") + st.docker_ok + !!st.busy + !!(restart && restart.available) + folded;
   const restartBtn = () => restart && restart.available ? h("button", { class: "btn small", type: "button", text: "Restart stack", disabled: !!st.busy,
     title: "Restart Caddy, AIOStreams and anything in between", onclick: () => runAction(restart) }) : null;
   const el = rebuild("#path", key, (el) => {
