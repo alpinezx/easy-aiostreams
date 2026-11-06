@@ -860,13 +860,13 @@ function vpnCard(el, st, avail) {
   // the server's address with its name under it (that can break at its dots, never mid-word)
   let server = null;
   if (v && (v.endpoint_ip || v.endpoint_host)) {
-    server = stat("Server", v.endpoint_ip || v.endpoint_host, "");
+    server = stat("VPN server", v.endpoint_ip || v.endpoint_host, "");
     const host = v.endpoint_ip && v.endpoint_host;
     if (host) server.lastChild.append(...host.split(".").flatMap((p, i) => i ? [".", h("wbr"), p] : [p]));
   }
   card.append(h("div", { class: "stat-grid" },
     stat("Tunnel", word, sub, tn),
-    up ? stat("Leaves from", where || "Unknown", [where !== country ? country : "", v.exit_ip].filter(Boolean).join(", ")) : null,
+    up ? stat("Exit location", where || "Unknown", [where !== country ? country : "", v.exit_ip].filter(Boolean).join(", ")) : null,
     server));
   // What's going through it now and today, quietly at the left; the graph is on the VPN page
   if (mode === "on" && trafficStale()) loadTraffic().then(() => { if (lastSt) side(lastSt); }).catch(() => {});

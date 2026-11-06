@@ -291,12 +291,12 @@ function render(v) {
   const up = v.mode === "on" && v.connected;
   const where = h("div", { class: "vpn-grid" },
     up ? cell("Exit IP", v.exit_ip, true) : null,
-    up ? cell("Location", [v.city, countryName(v.country)].filter(Boolean).join(", ")) : null,
+    up ? cell("Exit location", [v.city, countryName(v.country)].filter(Boolean).join(", ")) : null,
     up ? cell("Network", v.org) : null,
     up ? dnsCell(v.dns) : null);
   const server = h("div", { class: "vpn-grid" },
     cell("Endpoint", v.endpoint_host, true),
-    cell("Server address", v.endpoint_ip ? `${v.endpoint_ip}${v.endpoint_port ? ":" + v.endpoint_port : ""}` : "", true));
+    cell("VPN server address", v.endpoint_ip ? `${v.endpoint_ip}${v.endpoint_port ? ":" + v.endpoint_port : ""}` : "", true));
   for (const g of [where, server]) if (g.childElementCount) card.append(g);
   if (v.mode === "on" && !v.connected && v.error) card.append(h("p", { class: "vpn-note", text: v.error }));
   if (v.mode === "off") {
