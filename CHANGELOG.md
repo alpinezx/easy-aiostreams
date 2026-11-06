@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 6 November 2026
 
+- **Fixed:** the Logs page greys the VPN's harmless DNS reconnect lines that end in EOF, so Hide noise hides them too. Timeouts stay amber, as a run of those is worth seeing. (Panel 1.48.17, [#141](https://github.com/alpinezx/easy-aiostreams/pull/141))
 - **New:** clearer VPN labels: Exit location for where traffic comes out, and VPN server so it can't be mistaken for your own server. (Panel 1.48.16, [#140](https://github.com/alpinezx/easy-aiostreams/pull/140))
 - **Fixed:** the panel's terminal now spots itself in its default shell, so Stop, Update and Uninstall are refused there, as they were always meant to be, rather than cutting the terminal off halfway. A restore run from it leaves the panel running too. (Panel 1.48.15, [#139](https://github.com/alpinezx/easy-aiostreams/pull/139))
 - **New:** on phones and tablets the panel's terminal has a row of the keys a phone keyboard lacks: Ctrl, Esc, Tab and the arrows. When a VPN switch or restore restarts Caddy, the terminal now reconnects by itself and shows what it missed. The Scripts tab is tidier, with one Check now and Control panel beside AIOStreams, Restart sits furthest right in Services, and quieter buttons always show their border. (Panel 1.48.15, [#139](https://github.com/alpinezx/easy-aiostreams/pull/139))
