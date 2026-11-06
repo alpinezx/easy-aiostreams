@@ -607,7 +607,7 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .conf-list { padding: 0; }
 .route-list { padding: 4px 20px; }
 .flow-tree, .flow-tree ul { list-style: none; margin: 0; padding: 0; }
-.flow-tree { margin-top: 10px; max-width: 560px; }
+.flow-tree { margin-top: 10px; }
 .flow-tree ul { padding-left: 11px; }
 .flow-tree ul > li { position: relative; padding-left: 20px; }
 .flow-tree ul > li::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--accent); }
