@@ -560,7 +560,7 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 }
 .wd-mini { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-soft); display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 16px; }
 .wd-mini-main { display: grid; gap: 6px; margin-right: auto; }
-.wd-mini .card-foot { padding-top: 0; }
+.wd-mini .card-foot { padding-top: 0; margin-left: auto; }
 /* a button in a stat grid's last row, at its right */
 .stat-grid .grid-btn { grid-column: -2 / -1; justify-self: end; align-self: end; display: flex; gap: 8px; }
 /* This server's Reboot: a line of its own, after the values and any opened certificates */
