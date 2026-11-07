@@ -108,7 +108,7 @@ function panelRow(cmd, termOn) {
 
 // What's new: the project's changelog, entries since this panel's version marked
 let logLoading = false;
-async function showChangelog(e) {
+export async function showChangelog(e) {
   if (logLoading) return;
   logLoading = true;
   // GitHub can take up to 10s to fail; say so on the button meanwhile
