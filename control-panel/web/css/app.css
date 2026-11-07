@@ -261,6 +261,10 @@ button.chip:hover { text-decoration: underline; }
 /* a newer release that isn't a to-do (AIOMetadata's come up to twice a day): plain, not amber */
 .ver-value .quiet, .fold-sum .quiet { color: var(--text); }
 .ver-value .quiet { font-weight: 600; }
+/* The middle status (Up to date, or a newer release) at the size of the lines under it, so a
+   card where nothing needs doing stays calm; a newer release is amber on every card */
+.ver-right > :first-child .ver-value { font-size: .95rem; font-weight: 600; letter-spacing: 0; }
+.ver-right > :first-child .ver-value .quiet { color: var(--warn); }
 .ver-sub { font-size: .84rem; color: var(--faint); margin-top: 2px; min-height: 1.2em; }
 .ver-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 @media (max-width: 720px) {
