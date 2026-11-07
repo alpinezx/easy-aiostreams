@@ -118,8 +118,8 @@ def parse_changelog(text: str, current: str) -> list[dict]:
 
 def changelog() -> dict:
     """The update branch's CHANGELOG.md, fetched as often as the version, and
-    again whenever the version was checked since, so a newer panel found by
-    Check now has its entries here before it's installed.
+    again whenever the version was checked since, or while a newer panel is
+    known that this copy doesn't name, so its entries show before it's installed.
     Its own lock, so a slow GitHub here never holds up the version check."""
     branch = config.UPDATE_BRANCH
     with _log_lock:
@@ -127,6 +127,12 @@ def changelog() -> dict:
         if _log_cache["branch"] != branch:
             _log_cache.update(at=0.0, text=None, error=None, branch=branch)
         stale = _log_cache.get("seen") != _checks
+        # A newer panel is known but this copy doesn't name it yet: GitHub may
+        # have it now (asked at most once a minute)
+        new = _cache["latest"] if _cache["branch"] == branch else None
+        if new and _log_cache["text"] and key(new) > key(config.VERSION) and now - _log_cache["at"] > FORCE_GAP:
+            named = [v for p in _PANEL.findall(_log_cache["text"]) for v in _VER.findall(p)]
+            stale = stale or not named or max(_vkey(v) for v in named) < _vkey(new)
         if stale or now - _log_cache["at"] > (RETRY if _log_cache["error"] else FRESH):
             try:
                 r = requests.get(CHANGELOG_RAW.format(branch=branch), timeout=10, headers={"User-Agent": "easy-aiostreams-panel"})
