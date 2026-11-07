@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 7 November 2026
 
+- **Fixed:** the scp command printed after a backup over SSH uses the server's public address on a VPS behind NAT (Oracle, AWS), where it used to print a private one. At home it keeps the local address. ([#151](https://github.com/alpinezx/easy-aiostreams/pull/151))
 - **Fixed:** **What's new** lists a newer panel's changes as soon as Check now finds it, before you update, instead of up to 3 hours later. (Panel 1.49.7, [#150](https://github.com/alpinezx/easy-aiostreams/pull/150))
 - **Fixed:** on a server at home through a Cloudflare Tunnel, Backup & Restore's **Copy scp command** uses the server's local address, so it no longer times out. (Panel 1.49.6, [#149](https://github.com/alpinezx/easy-aiostreams/pull/149))
 - **New:** **What's new** sits beside Edit on the Overview too, opening the same list of changes as the Scripts tab. (Panel 1.49.5, [#148](https://github.com/alpinezx/easy-aiostreams/pull/148))
