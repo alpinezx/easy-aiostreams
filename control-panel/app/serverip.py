@@ -5,7 +5,9 @@ enough: on hosts behind NAT (Oracle, AWS) it only has a private address.
 
 With a public-ip file in the install folder (setup-backup.sh reads it too), the
 domains point at an address that isn't this server's own, and neither that nor
-the looked-up one reaches it over SSH. The server's LAN address is used then."""
+the looked-up one reaches it over SSH. The server's LAN address is used then.
+The same goes for a server at home behind a Cloudflare Tunnel: its public address
+is the router's, which doesn't forward SSH."""
 from __future__ import annotations
 
 import ipaddress
@@ -20,6 +22,7 @@ from . import config
 
 URL = "https://ifconfig.me/ip"
 OVERRIDE = config.INSTALL_DIR / "public-ip"
+TUNNEL = config.INSTALL_DIR / "tunnel-state" / "token.env"
 NSENTER = ["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--"]
 FRESH = 24 * 3600
 RETRY = 10 * 60
@@ -50,7 +53,7 @@ def address() -> str | None:
     """The public IP, or None when it couldn't be found (the page then shows a placeholder)."""
     if config.DEMO:
         return DEMO_IP
-    if OVERRIDE.is_file():
+    if OVERRIDE.is_file() or TUNNEL.is_file():
         lan = _lan()
         if lan:
             return lan

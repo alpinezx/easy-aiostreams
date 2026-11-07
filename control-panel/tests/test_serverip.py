@@ -12,6 +12,7 @@ from app import config, serverip  # noqa: E402
 def fresh(monkeypatch, tmp_path):
     monkeypatch.setattr(serverip, "_cache", {"at": 0.0, "ip": None, "failed": False})
     monkeypatch.setattr(serverip, "OVERRIDE", tmp_path / "no-public-ip")
+    monkeypatch.setattr(serverip, "TUNNEL", tmp_path / "no-tunnel")
     monkeypatch.setattr(config, "DEMO", False)
 
 
@@ -54,6 +55,15 @@ def test_a_failed_lookup_keeps_the_last_good_address(monkeypatch):
 def test_with_a_public_ip_file_it_uses_the_lan_address(monkeypatch, tmp_path):
     (tmp_path / "public-ip").write_text("203.0.113.50\n")
     monkeypatch.setattr(serverip, "OVERRIDE", tmp_path / "public-ip")
+    route = "1.1.1.1 via 192.168.1.1 dev eth0 src 192.168.1.20 uid 0 \n    cache \n"
+    monkeypatch.setattr(serverip.subprocess, "run", lambda *a, **kw: SimpleNamespace(stdout=route))
+    monkeypatch.setattr(serverip.requests, "get", lambda *a, **kw: pytest.fail("looked up the public address"))
+    assert serverip.address() == "192.168.1.20"
+
+
+def test_through_a_tunnel_it_uses_the_lan_address(monkeypatch, tmp_path):
+    (tmp_path / "token.env").write_text("TUNNEL_TOKEN=demo-token\n")
+    monkeypatch.setattr(serverip, "TUNNEL", tmp_path / "token.env")
     route = "1.1.1.1 via 192.168.1.1 dev eth0 src 192.168.1.20 uid 0 \n    cache \n"
     monkeypatch.setattr(serverip.subprocess, "run", lambda *a, **kw: SimpleNamespace(stdout=route))
     monkeypatch.setattr(serverip.requests, "get", lambda *a, **kw: pytest.fail("looked up the public address"))
