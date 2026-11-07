@@ -124,3 +124,17 @@ def test_changelog_survives_github_being_down(monkeypatch):
     panelupdate._log_cache.update(at=0.0, text=LOG)
     r = panelupdate.changelog()
     assert r["entries"] and r["error"] is None
+
+
+def test_changelog_is_fetched_again_after_a_version_check(monkeypatch):
+    monkeypatch.setattr(panelupdate, "_log_cache", {"at": 0.0, "text": None, "error": None, "branch": None})
+    monkeypatch.setattr(config, "VERSION", "1.46.1")
+    texts = [LOG.replace("1.47.0", "1.46.1"), LOG]
+    monkeypatch.setattr(panelupdate.requests, "get", lambda *a, **kw: SimpleNamespace(ok=True, text=texts.pop(0)))
+    assert not panelupdate.changelog()["entries"][0]["new"]      # GitHub hasn't the new entry yet
+    panelupdate.changelog()                                        # nothing checked since: the copy is kept
+    assert len(texts) == 1
+    # Check now finds 1.47.0; What's new then lists it before the update
+    monkeypatch.setattr(panelupdate, "_fetch", lambda branch: "1.47.0")
+    assert panelupdate.latest(force=True)["newer"]
+    assert panelupdate.changelog()["entries"][0]["new"] and not texts
