@@ -2,6 +2,11 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 7 November 2026
+
+- **New:** every service's speed is in one list under This server's **Network** on the Overview, opened with its arrow, instead of spread across the cards. This server's values are reordered so CPU, Memory and Disk come first. (Panel 1.49.1, [#145](https://github.com/alpinezx/easy-aiostreams/pull/145))
+- **Fixed:** the Logs page greys gluetun's start-up version check failing with GitHub's 403, which is harmless. (Panel 1.49.1, [#145](https://github.com/alpinezx/easy-aiostreams/pull/145))
+
 ## 6 November 2026
 
 - **New:** MediaFlow can go through the VPN with one switch on the VPN page or in the VPN script's menu, so its video leaves from the same address as AIOStreams, with the same kill switch. It stays attached through restarts, updates, restores and reboots. (Panel 1.49.0, [#144](https://github.com/alpinezx/easy-aiostreams/pull/144))
