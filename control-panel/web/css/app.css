@@ -1080,6 +1080,7 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 
 /* What's new and Edit, beside the headline (on phones they drop below it, on the right) */
 .hero-btns { display: flex; gap: 8px; margin-left: auto; }
+@media (max-width: 720px) { .hero-head { row-gap: 22px; } }
 .hero-edit { gap: 6px; }
 .hero-edit svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
