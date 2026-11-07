@@ -124,3 +124,34 @@ def test_changelog_survives_github_being_down(monkeypatch):
     panelupdate._log_cache.update(at=0.0, text=LOG)
     r = panelupdate.changelog()
     assert r["entries"] and r["error"] is None
+
+
+def test_changelog_is_fetched_again_after_a_version_check(monkeypatch):
+    monkeypatch.setattr(panelupdate, "_log_cache", {"at": 0.0, "text": None, "error": None, "branch": None})
+    monkeypatch.setattr(config, "VERSION", "1.46.1")
+    texts = [LOG.replace("1.47.0", "1.46.1"), LOG]
+    monkeypatch.setattr(panelupdate.requests, "get", lambda *a, **kw: SimpleNamespace(ok=True, text=texts.pop(0)))
+    assert not panelupdate.changelog()["entries"][0]["new"]      # GitHub hasn't the new entry yet
+    panelupdate.changelog()                                        # nothing checked since: the copy is kept
+    assert len(texts) == 1
+    # Check now finds 1.47.0; What's new then lists it before the update
+    monkeypatch.setattr(panelupdate, "_fetch", lambda branch: "1.47.0")
+    assert panelupdate.latest(force=True)["newer"]
+    assert panelupdate.changelog()["entries"][0]["new"] and not texts
+
+
+def test_changelog_catches_up_with_a_newer_panel_it_doesnt_name(monkeypatch):
+    # The version was found before the changelog line reached GitHub
+    monkeypatch.setattr(config, "VERSION", "1.46.1")
+    monkeypatch.setattr(panelupdate, "_cache", {"at": 1.0, "latest": "1.47.0", "error": None, "branch": "main"})
+    old = LOG.replace("1.47.0", "1.46.1")
+    monkeypatch.setattr(panelupdate, "_log_cache", {"at": panelupdate.time.time(), "text": old, "error": None,
+                                                    "branch": "main", "seen": panelupdate._checks})
+    asked = []
+    monkeypatch.setattr(panelupdate.requests, "get", lambda *a, **kw: asked.append(1) or SimpleNamespace(ok=True, text=LOG))
+    assert not panelupdate.changelog()["entries"][0]["new"] and not asked     # asked under a minute ago
+    panelupdate._log_cache["at"] -= panelupdate.FORCE_GAP + 1
+    assert panelupdate.changelog()["entries"][0]["new"] and asked == [1]
+    panelupdate._log_cache["at"] -= panelupdate.FORCE_GAP + 1
+    panelupdate.changelog()                                                  # it names 1.47.0 now: kept
+    assert asked == [1]

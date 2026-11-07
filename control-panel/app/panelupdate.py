@@ -25,6 +25,7 @@ NSENTER = ["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--"]
 
 _lock = threading.Lock()
 _cache: dict = {"at": 0.0, "latest": None, "error": None, "branch": None}
+_checks = 0   # how many times the version was fetched; the changelog follows it
 
 
 def key(v: str) -> tuple:
@@ -51,6 +52,8 @@ def latest(force: bool = False) -> dict:
         never = _cache["latest"] is None and _cache["error"] is None
         due = age > (RETRY if _cache["error"] else FRESH)
         if never or due or (force and age > FORCE_GAP):
+            global _checks
+            _checks += 1
             try:
                 _cache["latest"], _cache["error"] = _fetch(branch), None
             except RuntimeError as e:
@@ -114,14 +117,23 @@ def parse_changelog(text: str, current: str) -> list[dict]:
 
 
 def changelog() -> dict:
-    """The update branch's CHANGELOG.md, fetched as often as the version.
+    """The update branch's CHANGELOG.md, fetched as often as the version, and
+    again whenever the version was checked since, or while a newer panel is
+    known that this copy doesn't name, so its entries show before it's installed.
     Its own lock, so a slow GitHub here never holds up the version check."""
     branch = config.UPDATE_BRANCH
     with _log_lock:
         now = time.time()
         if _log_cache["branch"] != branch:
             _log_cache.update(at=0.0, text=None, error=None, branch=branch)
-        if now - _log_cache["at"] > (RETRY if _log_cache["error"] else FRESH):
+        stale = _log_cache.get("seen") != _checks
+        # A newer panel is known but this copy doesn't name it yet: GitHub may
+        # have it now (asked at most once a minute)
+        new = _cache["latest"] if _cache["branch"] == branch else None
+        if new and _log_cache["text"] and key(new) > key(config.VERSION) and now - _log_cache["at"] > FORCE_GAP:
+            named = [v for p in _PANEL.findall(_log_cache["text"]) for v in _VER.findall(p)]
+            stale = stale or not named or max(_vkey(v) for v in named) < _vkey(new)
+        if stale or now - _log_cache["at"] > (RETRY if _log_cache["error"] else FRESH):
             try:
                 r = requests.get(CHANGELOG_RAW.format(branch=branch), timeout=10, headers={"User-Agent": "easy-aiostreams-panel"})
                 if not r.ok:
@@ -131,7 +143,7 @@ def changelog() -> dict:
                 _log_cache["error"] = str(e)
             except Exception:
                 _log_cache["error"] = "Couldn't reach GitHub."
-            _log_cache["at"] = now
+            _log_cache["at"], _log_cache["seen"] = now, _checks
         text, err = _log_cache["text"], _log_cache["error"]
     entries = parse_changelog(text, config.VERSION) if text else []
     return {"current": config.VERSION, "entries": entries, "page": CHANGELOG_PAGE.format(branch=branch),
