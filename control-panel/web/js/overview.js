@@ -708,7 +708,7 @@ function certTiles(grid, st) {
 
 // Network, opened: each running service's speed now, down and up in one column each, so
 // they read top to bottom. Whatever shares the VPN's network is counted once, under it.
-function netSec(st) {
+function netSec(st, n) {
   const onVpn = st.vpn === "on";
   const run = (st.services || []).filter((s) => s.state === "running");
   const shared = run.filter((s) => onVpn && (s.key === "aiostreams" || s.via_vpn)).map((s) => s.name);
@@ -719,7 +719,10 @@ function netSec(st) {
       h("span", { class: "num", text: s.rx != null ? `↓ ${fmtRate(s.rx)}` : "" }),
       h("span", { class: "num", text: s.tx != null ? `↑ ${fmtRate(s.tx)}` : "" }));
   });
-  return h("div", { class: "net-sec" }, ...rows,
+  // All traffic first, so the total and each service are read in one column
+  const whole = h("div", { class: "nsv-row nsv-whole" }, h("span", { class: "nsv-name", text: "All traffic" }),
+    h("span", { class: "num", text: n ? `↓ ${fmtRate(n[0])}` : "" }), h("span", { class: "num", text: n ? `↑ ${fmtRate(n[1])}` : "" }));
+  return h("div", { class: "net-sec" }, whole, ...rows,
     h("a", { class: "nsv-go dim", href: "#net", text: "Graphs on the Network page" }));
 }
 
@@ -782,7 +785,7 @@ function side(st) {
     // Down and up on a line each, so the value keeps its height however long the numbers are
     if (n) net.children[1].append(h("span", { class: "nowrap", text: `↓ ${fmtRate(n[0])}` }), h("span", { class: "nowrap", text: `↑ ${fmtRate(n[1])}` }));
     grid.append(net);
-    if (!isFolded("netsvc")) grid.append(netSec(st));
+    if (!isFolded("netsvc")) grid.append(netSec(st, n));
   }
   // Last among the values, right above the section its chevron opens
   const certList = certTiles(grid, st);

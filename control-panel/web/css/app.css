@@ -494,6 +494,8 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .stat-grid > .net-sec { grid-column: 1 / -1; order: 2; border-top: 1px solid var(--line-soft); padding-top: 6px; }
 .nsv-row { display: grid; max-width: 560px; grid-template-columns: minmax(0, 1fr) 110px 110px; gap: 12px; align-items: baseline; padding: 7px 0; font-size: .92rem; }
 .nsv-row + .nsv-row { border-top: 1px solid var(--line-soft); }
+/* The total on top, set apart from the services under it */
+.nsv-whole + .nsv-row { border-top-color: var(--line); }
 .nsv-row .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .nsv-name { font-weight: 600; min-width: 0; }
 .nsv-sub { display: block; font-weight: 400; font-size: .8rem; }
