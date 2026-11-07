@@ -11,13 +11,13 @@ try { source = localStorage.getItem("aios.netSource") === "vpn" ? "vpn" : "host"
 const hasVpn = () => !!st && (st.vpn === "on" || st.vpn === "off");
 const kind = () => (source === "vpn" && hasVpn() ? "vpn" : "host");
 
-// Whole server / VPN tunnel, in the page heading; only once the VPN is set up
+// All traffic / VPN tunnel, in the page heading; only once the VPN is set up
 function sourceSwitch() {
   const acts = $("#net-acts");
   clear(acts);
   if (!hasVpn()) return;
   acts.append(h("div", { class: "tr-ranges", role: "group", "aria-label": "Show" },
-    ...[["host", "Whole server"], ["vpn", "VPN tunnel"]].map(([k, label]) => h("button", { class: "btn small", type: "button", text: label,
+    ...[["host", "All traffic"], ["vpn", "VPN tunnel"]].map(([k, label]) => h("button", { class: "btn small", type: "button", text: label,
       "aria-pressed": String(kind() === k), onclick: () => {
         source = k;
         try { localStorage.setItem("aios.netSource", k); } catch (_) {}
@@ -48,7 +48,7 @@ function services(box) {
               h("span", { class: "num", text: s.tx != null ? fmtRate(s.tx) : "" })]);
       })),
     h("p", { class: "vpn-note dim ns-note", text: "Includes traffic between containers. A stream passes through "
-      + (onVpn ? "the VPN tunnel" : "AIOStreams") + ", then Caddy, so it's counted on both. That's why these add up to more than the whole server." })));
+      + (onVpn ? "the VPN tunnel" : "AIOStreams") + ", then Caddy, so it's counted on both. That's why these add up to more than All traffic." })));
 }
 
 export function show(status) {
