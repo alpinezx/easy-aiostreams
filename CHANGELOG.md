@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 7 November 2026
 
+- **Fixed:** **What's new** lists a newer panel's changes as soon as Check now finds it, before you update, instead of up to 3 hours later. (Panel 1.49.7, [#150](https://github.com/alpinezx/easy-aiostreams/pull/150))
 - **Fixed:** on a server at home through a Cloudflare Tunnel, Backup & Restore's **Copy scp command** uses the server's local address, so it no longer times out. (Panel 1.49.6, [#149](https://github.com/alpinezx/easy-aiostreams/pull/149))
 - **New:** **What's new** sits beside Edit on the Overview too, opening the same list of changes as the Scripts tab. (Panel 1.49.5, [#148](https://github.com/alpinezx/easy-aiostreams/pull/148))
 - **New:** the Overview's Network list starts with All traffic, the server's own speed, above each service. The Network page's Whole server is now called All traffic too. (Panel 1.49.3, [#147](https://github.com/alpinezx/easy-aiostreams/pull/147))
