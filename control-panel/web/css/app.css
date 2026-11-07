@@ -914,7 +914,8 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   .cols { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 1010px) {
-  .row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; }
+  /* the name and status at the top, the buttons below with room between, so they never crowd the text */
+  .row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 18px; }
   .row .img, .row .spark-cell, .row.row-head, .row .num { display: none; }
   /* Logs on the left, Restart and Stop/Start on the right */
   .row .acts { grid-column: 1 / -1; display: flex; }
