@@ -113,7 +113,7 @@ Once a minute, whether or not the panel is open, it reads two sets of byte count
 
 [Through a Cloudflare Tunnel](./home-hosting.md#phone-alerts-and-the-control-panel), the tunnel comes first in the Request flow and Services, and its certificate tile shows Cloudflare's certificates.
 
-The Overview's **This server** shows the server's speed now and today's totals as its **Network** value, the VPN's card shows the tunnel's, and MediaFlow's card shows what's passing through MediaFlow now; all three link here.
+The Overview's **This server** shows the server's speed now and today's totals as its **Network** value. Its arrow opens each service's speed in one list, the same as By service, with a link here.
 
 Its figures are worked out the way AIOStreams' own dashboard does them, so the two pages agree: **CPU** is how busy all the cores were over the last few seconds, with Linux's load average under it, and every size and speed in the panel counts KB, MB and GB in thousands. On desktop, This server is two rows of four values, ending with Last backup, **Next reboot** (the [scheduled server reboot](#maintenance-page), its label a link to Maintenance) and HTTPS certificates, then **Reboot server** on a line of its own. The certificates open in a section of their own below the values, folded to the soonest one unless one needs a look. On phones the values are one per line, the certificates last so their list opens straight under them.
 
@@ -121,7 +121,7 @@ Its figures are worked out the way AIOStreams' own dashboard does them, so the t
 
 ![The VPN page, with the configs on this server](../images/control-panel/vpn.png)
 
-The VPN also gets a card on the Overview once it's set up, listed in Edit's drawer: whether the tunnel is connected, where traffic leaves, the server, and with the VPN on, its speed now and today's totals, with **Turn VPN off** (or on) and **Check now**. Turning it on with no config saved goes through this page, which asks for one.
+The VPN also gets a card on the Overview once it's set up, listed in Edit's drawer: whether the tunnel is connected, where traffic leaves and the server, with **Turn VPN off** (or on) and **Check now**. Turning it on with no config saved goes through this page, which asks for one.
 
 AIOMetadata, AIOManager and MediaFlow each get a version card on the Overview once installed, like AIOStreams': the release they run, the newest, **Update** (with **Back up first**, and the previous release put back by itself if the new one doesn't start), **Check now** and **All releases**. AIOMetadata's and AIOManager's have links to their own pages beside the title; AIOManager's corner shows its logins, or **Sign-ups open** in amber, and MediaFlow's shows what's passing through it now. See each add-on's guide for the details.
 

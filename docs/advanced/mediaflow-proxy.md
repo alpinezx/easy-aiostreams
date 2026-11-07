@@ -208,7 +208,7 @@ sudo bash /opt/aiostreams/setup-mediaflow.sh update-mediaflow [--backup] [--vers
 
 It downloads the release first (a version that doesn't exist changes nothing), restarts MediaFlow and waits up to a minute for it to answer `/health`. The image has no shell of its own, so it's asked through the Caddy container, as the watchdog does. If it doesn't answer, it shows the last log lines, puts the previous release back and removes the one that failed. MediaFlow keeps no data of its own, so going back to an older release is safe.
 
-With the [control panel](./control-panel.md), MediaFlow's Overview card shows the release it runs, the newest one, **Update**, **Check now** and **All releases**, and in its corner what's passing through it right now (it links to the Network page). With the [watchdog](./watchdog.md), you can switch on an alert for new releases (option 10 in its Extra alerts, or the Phone alerts page): one per release, checked every 6 hours.
+With the [control panel](./control-panel.md), MediaFlow's Overview card shows the release it runs, the newest one, **Update**, **Check now** and **All releases**. What's passing through it now is under This server's **Network**, with the other services. With the [watchdog](./watchdog.md), you can switch on an alert for new releases (option 10 in its Extra alerts, or the Phone alerts page): one per release, checked every 6 hours.
 
 ---
 
