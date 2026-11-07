@@ -1078,8 +1078,10 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   #view-overview .panel.host .stat-value .nowrap + .nowrap { margin-left: .6em; }
 }
 
-/* Edit, beside the headline */
-.hero-edit { margin-left: auto; gap: 6px; }
+/* What's new and Edit, beside the headline (on phones they drop below it, on the right) */
+.hero-btns { display: flex; gap: 8px; margin-left: auto; }
+@media (max-width: 720px) { .hero-head { row-gap: 22px; } }
+.hero-edit { gap: 6px; }
 .hero-edit svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
 /* Edit's drawer: a card per row, its switch, and ≡ to drag it */

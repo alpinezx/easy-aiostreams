@@ -2,7 +2,7 @@ import { $, h, clear, setText, fmtDur, fmtBytes, api, toast, ago, extIcon } from
 import { runAction, openJob, rebootServer, restartService } from "./actions.js";
 import { openReleases, remember, behind } from "./releases.js";
 import { days, todayLine, parseCheck } from "./alerts.js";
-import { pill as scriptsPill } from "./scripts.js";
+import { pill as scriptsPill, showChangelog } from "./scripts.js";
 import { scheduleText } from "./activity.js";
 import { applyLayout, openLayout } from "./layout.js";
 import { countryName } from "./vpn.js";
@@ -241,7 +241,10 @@ function hero(st) {
       h("span", { class: "lamp", dataset: { s: st.overall }, "aria-hidden": "true" }),
       h("h1", { class: "headline", "aria-live": "polite", text: st.headline }),
       h("a", { class: "chip warn scripts-pill", id: "scripts-pill", href: "#scripts", hidden: true }),
-      st.installed ? editBtn() : null));
+      st.installed ? h("span", { class: "hero-btns" },
+        h("button", { class: "btn small quiet", type: "button", text: "What's new",
+          title: "The changes since this panel's version, from the project's changelog", onclick: showChangelog }),
+        editBtn()) : null));
     scriptsPill();
     // The certificate lives in This server; it comes up here only when it needs attention.
     const wc = worstCert(st);
