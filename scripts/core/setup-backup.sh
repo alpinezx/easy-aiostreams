@@ -282,12 +282,21 @@ do_backup() {
     fi
     chmod 600 "$out"
     size=$(du -h "$out" | cut -f1)
-    ip=$(hostname -I 2>/dev/null | awk '{print $1}')
 
     echo -e "Backup written: \033[1;36m$out\033[0m (${size})"
     BACKUP_WRITTEN="$out"
     # A scheduled one runs unattended: one copy, in root's home, and none of the advice below
     $SCHEDULED_RUN && return 0
+
+    # The address to scp from. At home (a tunnel, or a public-ip file) it's the
+    # network card's own: the public address is the router's, which doesn't
+    # forward SSH. On a VPS it's the public one, as the card may only have a
+    # private address behind NAT (Oracle, AWS).
+    ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+    if [[ ! -f "$INSTALL_DIR/tunnel-state/token.env" && ! -f "$PUBLIC_IP_FILE" ]]; then
+        find_public_ip
+        [[ -n "$PUBLIC_IP" ]] && ip=$PUBLIC_IP
+    fi
 
     # Under sudo, $REAL_HOME differs from root's home, also drop a copy
     # there so the invoking user can access it directly.
