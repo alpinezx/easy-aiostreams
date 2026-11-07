@@ -4,6 +4,8 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 7 November 2026
 
+- **New:** the version cards' Up to date, or newer release, is smaller and sits quietly in the middle, and a newer release is amber on every card. (Panel 1.49.2, [#146](https://github.com/alpinezx/easy-aiostreams/pull/146))
+- **New:** on phones, Services has more room between each service's name and its buttons. (Panel 1.49.2, [#146](https://github.com/alpinezx/easy-aiostreams/pull/146))
 - **New:** every service's speed is in one list under This server's **Network** on the Overview, opened with its arrow, instead of spread across the cards. This server's values are reordered so CPU, Memory and Disk come first. (Panel 1.49.1, [#145](https://github.com/alpinezx/easy-aiostreams/pull/145))
 - **Fixed:** the Logs page greys gluetun's start-up version check failing with GitHub's 403, which is harmless. (Panel 1.49.1, [#145](https://github.com/alpinezx/easy-aiostreams/pull/145))
 
