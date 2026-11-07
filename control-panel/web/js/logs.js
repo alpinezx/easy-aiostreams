@@ -28,6 +28,8 @@ const QUIET = [
   /WARN \[dns\] exchanging over tls connection .*: EOF$/,   // gluetun: the DNS server closed an idle connection; retried at once
   /WARN \[dns\] renewing tls connection for request .*: running TLS handshake with .*: EOF$/,   // gluetun: the same, while it opens a new connection
   /WARN Caught OS signal terminated, shutting down$/,   // gluetun: asked to stop, as a restart or reboot does
+  // gluetun: its start-up release check hit GitHub's hourly limit, common on a shared exit address; the VPN is fine
+  /ERROR \[vpn\] cannot get version information: bad response HTTP status code: 403 403 Forbidden$/,
   /canceled by remote with error code 0\b/,   // a visitor closed a connection still open (left a live page, stopped a video)
   /ERR {2}error="unexpected EOF" .*originService=/,   // a cut connection's first half; its Request failed line says what it was
   // A restart cut a live page: AIOStreams' dashboard, or this panel's own Logs.

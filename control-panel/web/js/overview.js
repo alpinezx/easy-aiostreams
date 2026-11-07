@@ -6,7 +6,7 @@ import { pill as scriptsPill } from "./scripts.js";
 import { scheduleText } from "./activity.js";
 import { applyLayout, openLayout } from "./layout.js";
 import { countryName } from "./vpn.js";
-import { loadTraffic, trafficData, trafficStale, summaryLine, feedNet, nowRate, today, fmtRate, fmtPair } from "./traffic.js";
+import { loadTraffic, trafficData, trafficStale, feedNet, nowRate, today, fmtRate } from "./traffic.js";
 
 // ---------------- update check ----------------
 let rel = null, relLoading = false, relFor = null, lastSt = null;
@@ -141,7 +141,7 @@ export function record(st) {
 // stays on that line. Remembered per browser, so a phone can keep cards folded and a
 // desktop open. Only the request flow and the list of certificates start folded.
 const FOLD_KEYS = { flow: "aios.flowFolded" };
-const DEFAULT_FOLDED = new Set(["flow", "certs"]);
+const DEFAULT_FOLDED = new Set(["flow", "certs", "netsvc"]);
 const foldKey = (id) => FOLD_KEYS[id] || `aios.fold.${id}`;
 const folds = {};
 function isFolded(id) {
@@ -273,8 +273,6 @@ function hero(st) {
         h("button", { class: "btn small", type: "button", text: "View output", onclick: () => openJob(st.busy) }))));
     }
   });
-  // MediaFlow's speed changes with every status, so it's set here, not part of the card's key
-  mfNow(st);
 }
 
 // Edit: which cards the Overview shows, and their order, in a drawer
@@ -432,23 +430,12 @@ function mgrCard(st, avail) {
     pages: m.domain ? cardPages(m.domain, [["Dashboard", "/"]]) : null, corner, foldCorner: open ? corner : null });
 }
 
-// MediaFlow's card. It has no pages of its own to open; its corner shows what's
-// passing through it right now, quietly like the VPN card's traffic line (and like
-// it, a link to the Network page), kept up to date without redrawing the card.
+// MediaFlow's card. It has no pages of its own to open; Details opens its row on the
+// Add-ons page. Its speed is with the others, under This server's Network.
 function mfCard(st, avail) {
   const m = st.mediaflow;
   return addonVerCard(st, avail, { id: "mediaflow", name: "MediaFlow Proxy", rel: mfRel, version: m.version,
-    corner: h("a", { class: "ver-now dim", id: "mf-now", href: "#net", hidden: true,
-      title: "Passing through MediaFlow right now. Its graph is on the Network page, under By service." }) });
-}
-
-function mfNow(st) {
-  const el = $("#mf-now");
-  if (!el) return;
-  const s = st.services.find((x) => x.key === "mediaflow");
-  const on = s && s.state === "running" && s.rx != null;
-  el.hidden = !on;
-  if (on) el.textContent = `Now ${fmtPair([s.rx, s.tx])}`;
+    corner: h("a", { href: "#addons", class: "dim card-link", text: "Details" }) });
 }
 
 function versionCard(st, avail) {
@@ -719,6 +706,23 @@ function certTiles(grid, st) {
   }));
 }
 
+// Network, opened: each running service's speed now, down and up in one column each, so
+// they read top to bottom. Whatever shares the VPN's network is counted once, under it.
+function netSec(st) {
+  const onVpn = st.vpn === "on";
+  const run = (st.services || []).filter((s) => s.state === "running");
+  const shared = run.filter((s) => onVpn && (s.key === "aiostreams" || s.via_vpn)).map((s) => s.name);
+  const rows = run.filter((s) => !shared.includes(s.name)).map((s) => {
+    const sub = s.key === "gluetun" && shared.length ? shared.join(", ") : "";
+    return h("div", { class: "nsv-row" },
+      h("span", { class: "nsv-name" }, s.name, sub ? h("span", { class: "nsv-sub dim", text: sub }) : null),
+      h("span", { class: "num", text: s.rx != null ? `↓ ${fmtRate(s.rx)}` : "" }),
+      h("span", { class: "num", text: s.tx != null ? `↑ ${fmtRate(s.tx)}` : "" }));
+  });
+  return h("div", { class: "net-sec" }, ...rows,
+    h("a", { class: "nsv-go dim", href: "#net", text: "Graphs on the Network page" }));
+}
+
 function side(st) {
   const el = $("#side");
   const w = st.watchdog || {};
@@ -730,22 +734,8 @@ function side(st) {
     h("div", { class: "card-head" }, h("h3", {}, foldTitle("server", "This server"))));
   if (hostFolded) host.firstChild.append(hostSum(st));
   const grid = h("div", { class: "stat-grid" });
-  if (hs.uptime != null) grid.append(stat("Up for", fmtDur(hs.uptime), `since ${dayMonth(Date.now() - hs.uptime * 1000)}`));
-  // The server's own network card, everything in and out (the VPN's tunnel travels through it
-  // too): the speed now and today's totals
-  if (st.net && st.net.host) {
-    if (trafficStale("host")) loadTraffic(false, "host").then(() => { if (lastSt) side(lastSt); }).catch(() => {});
-    const n = nowRate(trafficData("host"), "host"), t = today(trafficData("host"));
-    const net = stat("Network", n ? "" : "Measuring…", t && (t[0] || t[1]) ? `Today ↓ ${fmtBytes(t[0])} ↑ ${fmtBytes(t[1])}` : "");
-    // Its label opens the Network page, with a chevron like HTTPS certificates'
-    const go = chev();
-    go.classList.add("go-chev");
-    net.firstChild.textContent = "";
-    net.firstChild.append(h("a", { class: "stat-link", href: "#net", title: "Graphs and each service's traffic on the Network page" }, "Network", go));
-    // Down and up on a line each, so the value keeps its height however long the numbers are
-    if (n) net.children[1].append(h("span", { class: "nowrap", text: `↓ ${fmtRate(n[0])}` }), h("span", { class: "nowrap", text: `↑ ${fmtRate(n[1])}` }));
-    grid.append(net);
-  }
+  // Top row: what you look at first. What folds out (Network, certificates) is on the
+  // bottom row, so it opens under the values
   // CPU busy as a percentage, as AIOStreams' dashboard shows it, with Linux's load average under it
   const cpus = `${hs.cpus} CPU${hs.cpus > 1 ? "s" : ""}`;
   if (hs.cpu_pct != null) {
@@ -759,13 +749,7 @@ function side(st) {
     const pct = (used / total) * 100;
     grid.append(stat(label, `${fmtBytes(used)} of ${fmtBytes(total)}`, `${Math.round(pct)}% used, ${fmtBytes(total - used)} free`, tone(pct, warn, 90)));
   }
-  // The newest backup, any kind, and the schedule; amber when the last scheduled one failed or was skipped
-  const bk = st.backup;
-  if (bk) {
-    const bad = bk.every !== "off" && bk.last && (bk.last.status === "failed" || bk.last.status === "skipped");
-    grid.append(stat("Last backup", bk.newest ? ago(bk.newest) : "None yet",
-      bad ? `The last scheduled one ${bk.last.status === "skipped" ? "was skipped" : "failed"}` : scheduleText(bk), bad ? "warn" : ""));
-  }
+  if (hs.uptime != null) grid.append(stat("Up for", fmtDur(hs.uptime), `since ${dayMonth(Date.now() - hs.uptime * 1000)}`));
   // Maintenance's scheduled server reboot; its label opens Maintenance. Off is plain, never a to-do
   const rb = st.reboot;
   if (rb) {
@@ -777,6 +761,28 @@ function side(st) {
     next.firstChild.textContent = "";
     next.firstChild.append(h("a", { class: "stat-link", href: "#maint", title: "Scheduled server reboot, on the Maintenance page" }, "Next reboot", go));
     grid.append(next);
+  }
+  // The newest backup, any kind, and the schedule; amber when the last scheduled one failed or was skipped
+  const bk = st.backup;
+  if (bk) {
+    const bad = bk.every !== "off" && bk.last && (bk.last.status === "failed" || bk.last.status === "skipped");
+    grid.append(stat("Last backup", bk.newest ? ago(bk.newest) : "None yet",
+      bad ? `The last scheduled one ${bk.last.status === "skipped" ? "was skipped" : "failed"}` : scheduleText(bk), bad ? "warn" : ""));
+  }
+  // The server's own network card, everything in and out (the VPN's tunnel travels through it
+  // too): the speed now and today's totals
+  if (st.net && st.net.host) {
+    if (trafficStale("host")) loadTraffic(false, "host").then(() => { if (lastSt) side(lastSt); }).catch(() => {});
+    const n = nowRate(trafficData("host"), "host"), t = today(trafficData("host"));
+    const net = stat("Network", n ? "" : "Measuring…", t && (t[0] || t[1]) ? `Today ↓ ${fmtBytes(t[0])} ↑ ${fmtBytes(t[1])}` : "");
+    // Its label folds out each service's speed, like HTTPS certificates
+    net.firstChild.textContent = "";
+    net.firstChild.classList.add("cert-fold");
+    net.firstChild.append(foldTitle("netsvc", "Network"));
+    // Down and up on a line each, so the value keeps its height however long the numbers are
+    if (n) net.children[1].append(h("span", { class: "nowrap", text: `↓ ${fmtRate(n[0])}` }), h("span", { class: "nowrap", text: `↑ ${fmtRate(n[1])}` }));
+    grid.append(net);
+    if (!isFolded("netsvc")) grid.append(netSec(st));
   }
   // Last among the values, right above the section its chevron opens
   const certList = certTiles(grid, st);
@@ -863,12 +869,8 @@ function vpnCard(el, st, avail) {
     stat("Tunnel", word, sub, tn),
     up ? stat("Exit location", where || "Unknown", [where !== country ? country : "", v.exit_ip].filter(Boolean).join(", ")) : null,
     server));
-  // What's going through it now and today, quietly at the left; the graph is on the VPN page
-  if (mode === "on" && trafficStale()) loadTraffic().then(() => { if (lastSt) side(lastSt); }).catch(() => {});
-  const line = mode === "on" ? summaryLine(trafficData()) : [];
   // Turning it on with no config saved asks for one, which only the VPN page does
-  const btns = h("div", { class: "card-foot vpnc-foot" }, line.length ? h("a", { class: "vpnc-traffic dim", href: "#net/vpn",
-    title: "The VPN's traffic graph is on the Network page" }, ...line.map((t) => h("span", { text: t }))) : null);
+  const btns = h("div", { class: "card-foot vpnc-foot" });
   const a = avail[mode === "on" ? "vpn.off" : "vpn.on"];
   if (a && a.available && !(mode === "off" && v && v.has_config === false)) {
     btns.append(h("button", { class: "btn small", type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
