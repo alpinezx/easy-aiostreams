@@ -128,7 +128,7 @@ SERVICES = [
     ("aiomanager", "aiomanager", "AIOManager", "Manages Stremio accounts", "aiomanager-state/docker-compose.yml"),
 ]
 ADDONS = {"mediaflow", "webhook", "aiometadata", "aiomanager"}
-# This panel's own container: last in Services, for its CPU, memory and logs. Not part of the
+# This panel's own container: first in Services, for its CPU, memory and logs. Not part of the
 # stack, so the request flow and Restart stack leave it out; it restarts through /api/panel/restart.
 PANEL = ("panel", "aios-ui", "Control panel", "This panel", None)
 # Services the panel may restart on their own. Caddy has the stack-wide Restart,
@@ -639,7 +639,7 @@ class Backend:
 
         routed = self._routed()
         services = []
-        for key, cname, title, role, needs in SERVICES + [PANEL]:
+        for key, cname, title, role, needs in [PANEL] + SERVICES:
             if needs == "VPN" and not vpn_mode:
                 continue
             if needs and needs != "VPN" and not self.p(needs).exists():

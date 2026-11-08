@@ -730,7 +730,8 @@ function certTiles(grid, st) {
 // they read top to bottom. Whatever shares the VPN's network is counted once, under it.
 function netSec(st, n) {
   const onVpn = st.vpn === "on";
-  const run = (st.services || []).filter((s) => s.state === "running");
+  // The panel first in Services, but last here: the services a stream passes through come first
+  const run = (st.services || []).filter((s) => s.state === "running").sort((a, b) => !!a.panel - !!b.panel);
   const shared = run.filter((s) => onVpn && (s.key === "aiostreams" || s.via_vpn)).map((s) => s.name);
   // The arrow keeps to the column's left edge and the speed to its right, so arrows stay in
   // one line down the list however long each speed is

@@ -301,14 +301,14 @@ class DemoBackend:
             {"ip": ip, "ms": ms, "in_use": ip == self.vpn_ip, "recommended": n == 0} for n, (ip, ms) in enumerate(ips)]}
 
     def status(self) -> dict:
-        defs = [("tunnel", "cloudflared", "Cloudflare Tunnel", "The way in, from Cloudflare", False, "cloudflare/cloudflared:latest"),
+        defs = [("panel", "aios-ui", "Control panel", "This panel", False, "aios-ui:local"),
+                ("tunnel", "cloudflared", "Cloudflare Tunnel", "The way in, from Cloudflare", False, "cloudflare/cloudflared:latest"),
                 ("caddy", "caddy", "Caddy", "HTTPS front door", False, "caddy:2"),
                 ("gluetun", "gluetun", "VPN tunnel", "gluetun, WireGuard", False, "qmcgaw/gluetun:v3"),
                 ("aiostreams", "aiostreams", "AIOStreams", "Addon aggregator", False, "viren070/aiostreams:latest"),
                 ("mediaflow", "mediaflow-proxy-light", "MediaFlow Proxy", "Faster video proxy", True, f"ghcr.io/mhdzumair/mediaflow-proxy-light:{self.mf_version}"),
                 ("aiometadata", "aiometadata", "AIOMetadata", "Catalogs and metadata", True, "ghcr.io/cedya77/aiometadata:3.6.1"),
-                ("aiomanager", "aiomanager", "AIOManager", "Manages Stremio accounts", True, "ghcr.io/sonicx161/aiomanager:2.0.0"),
-                ("panel", "aios-ui", "Control panel", "This panel", False, "aios-ui:local")]
+                ("aiomanager", "aiomanager", "AIOManager", "Manages Stremio accounts", True, "ghcr.io/sonicx161/aiomanager:2.0.0")]
         if self.vpn != "on":
             defs = [x for x in defs if x[0] != "gluetun"]
         # UI_DEMO_TUNNEL=1: hosted at home through a Cloudflare Tunnel

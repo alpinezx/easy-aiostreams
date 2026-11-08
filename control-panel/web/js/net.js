@@ -30,7 +30,8 @@ function sourceSwitch() {
 // through several on its way, so the rows add up to more than the server's total.
 function services(box) {
   clear(box);
-  const rows = (st && st.services || []).filter((s) => s.state === "running");
+  // The panel last, after the services a stream passes through (it's first in Services)
+  const rows = (st && st.services || []).filter((s) => s.state === "running").sort((a, b) => !!a.panel - !!b.panel);
   if (!rows.length) return;
   const onVpn = st.vpn === "on";
   const measured = rows.some((s) => s.rx != null);

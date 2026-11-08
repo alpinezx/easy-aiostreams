@@ -943,8 +943,8 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
         assert not any(r.search(line) for r in quiet), line
 
 
-def test_control_panel_row_is_last_loggable_and_not_in_the_flow(client):
-    """Services ends with the panel's own container: its logs open, it isn't one of the stack's
+def test_control_panel_row_is_first_loggable_and_not_in_the_flow(client):
+    """Services starts with the panel's own container: its logs open, it isn't one of the stack's
     services (Restart stack, the request flow), and it has no Stop (nothing could start it again)."""
     from pathlib import Path
     from app import main, stack
@@ -952,7 +952,7 @@ def test_control_panel_row_is_last_loggable_and_not_in_the_flow(client):
     assert stack.PANEL[1] == "aios-ui" and stack.PANEL[1] in main.LOGGABLE
     assert stack.PANEL[0] not in {k for k, *_ in stack.SERVICES} and stack.PANEL[0] not in stack.RESTARTABLE
     svcs = client.get("/api/status").json()["services"]
-    assert svcs[-1]["key"] == "panel" and svcs[-1]["panel"] and not svcs[-1]["addon"]
+    assert svcs[0]["key"] == "panel" and svcs[0]["panel"] and not svcs[0]["addon"]
     js = (Path(__file__).resolve().parents[1] / "web" / "js" / "overview.js").read_text(encoding="utf-8")
     assert "st.services.filter((s) => !s.panel)" in js     # the request flow leaves it out
 
