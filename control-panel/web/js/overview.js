@@ -107,13 +107,6 @@ function cpuTone(h, cpus) {
   return low >= 90 ? "bad" : low >= 75 ? "warn" : "";
 }
 
-// The last half minute's average, not one poll: a second's burst, such as the VPN's own
-// health check every 5s, would otherwise show as 3.5% one poll and 0% the next
-function cpuAvg(s) {
-  const h = (hist[s.key] || []).slice(-10);
-  return h.length ? Math.round((h.reduce((a, b) => a + b, 0) / h.length) * 10) / 10 : s.cpu;
-}
-
 function uptime(s) {
   if (s.state !== "running" || !s.started_at) return "";
   return fmtDur((Date.now() - Date.parse(s.started_at)) / 1000);
@@ -629,7 +622,9 @@ function rows(st, goLogs) {
     const word = sx === "running" && up ? `Up for ${up}` : (STATE_WORD[sx] || sx) + (up ? ` for ${up}` : "");
     setText(row, "[data-w]", word + (s.restarts ? `, restarted ${s.restarts}×` : ""));
     setText(row, "[data-img]", s.image || "");
-    setText(row, "[data-cpu]", s.state === "running" && s.cpu != null ? `${cpuAvg(s)}%` : "");
+    // Docker's figure from the last look (about every 3s), not an average, so a burst settles
+    // as quickly here as it does in This server's CPU
+    setText(row, "[data-cpu]", s.state === "running" && s.cpu != null ? `${s.cpu}%` : "");
     const cpuEl = row.querySelector("[data-cpu]");
     if (cpuEl) cpuEl.className = "num " + cpuTone(hist[s.key], (st.host && st.host.cpus) || 1);
     setText(row, "[data-mem]", s.state === "running" && s.mem != null ? fmtBytes(s.mem) : "");
