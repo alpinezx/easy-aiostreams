@@ -160,10 +160,17 @@ window.addEventListener("layout-reset", () => {
   }
   if (lastSt) render(lastSt, lastGoLogs);
 });
+// The title tapped stays where it was on screen, so a section opens downwards. Left alone, the
+// browser's scroll anchoring keeps a card below it still instead, near the page's foot, and
+// everything above shoots up.
 function setFold(id) {
   folds[id] = !isFolded(id);
   try { localStorage.setItem(foldKey(id), folds[id] ? "1" : "0"); } catch (_) {}
+  const at = (el) => (el ? el.getBoundingClientRect().top : null);
+  const before = at(document.querySelector(`.fold-toggle[data-fold="${id}"]`));
   if (lastSt) render(lastSt, lastGoLogs);
+  const after = at(document.querySelector(`.fold-toggle[data-fold="${id}"]`));
+  if (before != null && after != null && after !== before) window.scrollBy(0, after - before);
 }
 function chev() {
   const c = h("span", { class: "path-chev", "aria-hidden": "true" });
@@ -173,7 +180,7 @@ function chev() {
 // The title as the fold button, as on the request flow
 function foldTitle(id, label) {
   const f = isFolded(id);
-  return h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(!f),
+  return h("button", { class: "path-toggle fold-toggle", type: "button", "data-fold": id, "aria-expanded": String(!f),
     title: f ? `Show all of ${label}` : `Fold ${label} to one line`, onclick: () => setFold(id) }, label, chev());
 }
 // The folded line: [text or element, tone, tooltip], empty ones left out
