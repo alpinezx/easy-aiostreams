@@ -117,6 +117,8 @@ The Overview's **This server** shows the server's speed now and today's totals a
 
 Its figures are worked out the way AIOStreams' own dashboard does them, so the two pages agree: **CPU** is how busy all the cores were over the last few seconds, with Linux's load average under it, and every size and speed in the panel counts KB, MB and GB in thousands. On desktop, This server is two rows of four values, ending with Last backup, **Next reboot** (the [scheduled server reboot](#maintenance-page), its label a link to Maintenance) and HTTPS certificates, then **Reboot server** on a line of its own. The certificates open in a section of their own below the values, folded to the soonest one unless one needs a look. On phones the values are one per line, the certificates last so their list opens straight under them.
 
+In **Services**, each service's **CPU** is on the same scale: its share of the whole server, from the panel's last look a few seconds ago. So 100% is the whole machine, and the rows add up to roughly This server's CPU. (Docker itself counts 100% per core, where a busy service can read over 100%.) A service's CPU turns amber at 75% and red at 90%, only after three readings in a row, so a short burst such as skipping through a video never colours it. **Recent CPU** draws the last couple of minutes.
+
 ## VPN page
 
 ![The VPN page, with the configs on this server](../images/control-panel/vpn.png)
