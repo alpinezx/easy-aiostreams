@@ -912,8 +912,10 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
     js = (Path(__file__).resolve().parents[1] / "web" / "js" / "logs.js").read_text(encoding="utf-8")
     block = re.search(r"const QUIET = \[(.*?)\n\];", js, re.S).group(1)
     quiet = [re.compile(p) for p in re.findall(r"^\s*/(.+)/,", block, re.M)]
-    assert len(quiet) == 7
+    assert len(quiet) == 8
     grey = [
+        'ERR  error="Incoming request ended abruptly: context canceled" connIndex=3 event=1 ingressRule=1 originService=http://caddy:80',
+        'ERR Request failed error="Incoming request ended abruptly: context canceled" connIndex=3 dest=https://cp.example.com/api/status event=0 type=http',
         'ERR  error="unexpected EOF" connIndex=3 event=1 ingressRule=0 originService=http://caddy:80',
         'ERR Request failed error="unexpected EOF" connIndex=3 dest=https://aio.example.com/api/v1/dashboard/streams/live/stream event=0 type=http',
         'ERR Request failed error="unexpected EOF" connIndex=3 dest=https://aio.example.com/api/v1/dashboard/system/stream event=0 type=http',
@@ -939,6 +941,20 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
         assert any(r.search(line) for r in quiet), line
     for line in red:
         assert not any(r.search(line) for r in quiet), line
+
+
+def test_control_panel_row_is_first_loggable_and_not_in_the_flow(client):
+    """Services starts with the panel's own container: its logs open, it isn't one of the stack's
+    services (Restart stack, the request flow), and it has no Stop (nothing could start it again)."""
+    from pathlib import Path
+    from app import main, stack
+    assert login(client).status_code == 200
+    assert stack.PANEL[1] == "aios-ui" and stack.PANEL[1] in main.LOGGABLE
+    assert stack.PANEL[0] not in {k for k, *_ in stack.SERVICES} and stack.PANEL[0] not in stack.RESTARTABLE
+    svcs = client.get("/api/status").json()["services"]
+    assert svcs[0]["key"] == "panel" and svcs[0]["panel"] and not svcs[0]["addon"]
+    js = (Path(__file__).resolve().parents[1] / "web" / "js" / "overview.js").read_text(encoding="utf-8")
+    assert "st.services.filter((s) => !s.panel)" in js     # the request flow leaves it out
 
 
 def test_light_colours_match_whether_followed_or_picked():
