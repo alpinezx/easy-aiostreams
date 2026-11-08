@@ -2,6 +2,9 @@
 
 For getting ports 80 and 443 open, and confirming they're actually reachable, so the HTTPS certificate step doesn't get stuck. Steps 1-2 (opening the ports) are fine to do before running the installer. Step 3 (confirming they're reachable) only works after the installer's already running, see the warning there.
 
+> [!NOTE]
+> **Hosting from home through a Cloudflare Tunnel?** None of this applies: the tunnel connects out to Cloudflare, so nothing comes in on ports 80 or 443 and there's nothing to open or forward. Cloudflare provides the HTTPS certificate.
+
 > Want the full explanation of why this happens, or hit a snag? → [Advanced guide](../advanced/firewall-ports.md)
 
 ---

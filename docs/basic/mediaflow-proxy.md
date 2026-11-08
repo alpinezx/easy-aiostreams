@@ -18,6 +18,8 @@ dig +short mediaflow.yourdomain.com
 
 Should print this server's IP.
 
+**Hosting from home through a Cloudflare Tunnel?** Skip the A record and the `dig` check: add a **route** for the subdomain on your tunnel instead (Service URL `http://caddy:80`), as in [step 4 of the home guide](./home-hosting.md#4-add-a-route-for-each-subdomain). Add it before installing; the script reminds you about the route instead of checking DNS.
+
 ---
 
 ## 2. Install and run the script
@@ -47,7 +49,7 @@ Refresh the stream list in your Stremio-based client (or just reopen the title) 
 
 > 💡 Want MediaFlow's video traffic to go through a proxy too (e.g. Webshare, TorGuard)? That's a separate setting from anything in AIOStreams' Addon proxy config, see [Routing its traffic through a proxy](../advanced/mediaflow-proxy.md#routing-its-traffic-through-a-proxy) in the advanced guide. The script's Reconfigure option will ask for it.
 
-> ⚠️ **Running gluetun VPN mode too?** Turning gluetun on does **not** route MediaFlow's video through the VPN, MediaFlow's container sits outside it structurally, always. If you want one consistent identity across everything (whether that's for privacy, or so multiple households can share one debrid API key without tripping its IP lock), see [Which setup actually matches your goal](../advanced/mediaflow-proxy.md#which-setup-actually-matches-your-goal) before assuming gluetun alone covers it.
+> ⚠️ **Running gluetun VPN mode too?** Turning gluetun on doesn't route MediaFlow's video through the VPN by itself: turn on MediaFlow's switch under **Through the VPN** on the control panel's VPN page, or option **8** in `setup-vpn-gluetun.sh`. If you want one consistent identity across everything (whether that's for privacy, or so multiple households can share one debrid API key without tripping its IP lock), see [Which setup actually matches your goal](../advanced/mediaflow-proxy.md#which-setup-actually-matches-your-goal) before assuming gluetun alone covers it.
 
 ---
 
