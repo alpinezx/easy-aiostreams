@@ -72,7 +72,7 @@ CHANGELOG_PAGE = "https://github.com/alpinezx/easy-aiostreams/blob/{branch}/CHAN
 CHANGELOG_KEEP = 40
 _log_lock = threading.Lock()
 _log_cache: dict = {"at": 0.0, "text": None, "error": None, "branch": None}
-_LEAD = re.compile(r"\*\*(Fixed|Docs|README|Changelog)\b[^*]*\*\*\s*")
+_LEAD = re.compile(r"\*\*(New|Fixed|Docs|README|Changelog)\b[^*]*\*\*\s*")
 _PANEL = re.compile(r"\(Panel ([^)]*)")
 _VER = re.compile(r"\d+\.\d+(?:\.\d+)?")
 
@@ -99,8 +99,9 @@ def parse_changelog(text: str, current: str) -> list[dict]:
         m = _LEAD.match(body)
         kind = "new"
         if m:
-            kind = "fixed" if m.group(1) == "Fixed" else "docs"
-            if kind == "fixed" or m.group(1) == "Docs":
+            # the drawer's badge says New, Fixed or Docs, so that lead isn't repeated in the text
+            kind = {"New": "new", "Fixed": "fixed"}.get(m.group(1), "docs")
+            if m.group(1) in ("New", "Fixed", "Docs"):
                 body = body[m.end():]
                 body = body[:1].upper() + body[1:]
         panel = None

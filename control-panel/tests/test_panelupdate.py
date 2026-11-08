@@ -91,6 +91,7 @@ LOG = """# Changelog
 ## 29 October 2026
 
 - **Docs:** a guide line.
+- **New:** a fresh thing.
 - **Earlier:** something already here. (Panel 1.46.0 and 1.46.1, [#105](https://example.com))
 - **Fixed:** older fix. ([#104](https://example.com))
 """
@@ -98,10 +99,11 @@ LOG = """# Changelog
 
 def test_changelog_marks_what_came_after_this_panel():
     e = panelupdate.parse_changelog(LOG, "1.46.1")
-    assert [x["kind"] for x in e] == ["new", "fixed", "docs", "new", "fixed"]
+    assert [x["kind"] for x in e] == ["new", "fixed", "docs", "new", "new", "fixed"]
     # every entry above the first one this panel has is new, script-only ones included
-    assert [x["new"] for x in e] == [True, True, True, False, False]
-    assert e[0]["panel"] == "1.47.0" and e[3]["panel"] == "1.46.1"
+    assert [x["new"] for x in e] == [True, True, True, True, False, False]
+    assert e[3]["text"] == "A fresh thing."                     # the badge says New, so the lead goes
+    assert e[0]["panel"] == "1.47.0" and e[4]["panel"] == "1.46.1"
     assert e[1]["text"].startswith("The reboot menu") and e[2]["text"] == "A guide line."
     assert e[0]["date"] == "30 October 2026"
     assert not any(x["new"] for x in panelupdate.parse_changelog(LOG, "1.47.0")[1:])
