@@ -503,13 +503,18 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 /* The total on top, set apart from the services under it */
 .nsv-whole + .nsv-row { border-top-color: var(--line); }
 .nsv-row .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Arrow on the left, speed on the right, wide enough for "15.8 MB/s" so the columns hold still
+   (phones: for "999 KB/s", leaving the names room) */
+.nsv-speed { display: flex; justify-content: space-between; gap: .4em; min-width: 6.2em; }
 .nsv-name { font-weight: 600; min-width: 0; }
 .nsv-sub { display: block; font-weight: 400; font-size: .8rem; }
 .nsv-go { grid-column: 1 / -1; justify-self: start; margin-top: 4px; font-size: .84rem; text-decoration: none; }
 .nsv-go:hover { color: var(--text); text-decoration: underline; }
 @media (max-width: 720px) {
   .stat-grid > .net-sec { order: 0; padding-top: 2px; margin-bottom: 4px; }
-  .stat-grid > .net-sec { column-gap: 14px; }
+  .stat-grid > .net-sec { column-gap: 8px; }
+  .nsv-speed { min-width: 5.5em; gap: .25em; }
+  .nsv-name { overflow-wrap: break-word; }
 }
 /* Phones: the certificates come last among the values, their list right under them, Reboot at the end */
 @media (max-width: 720px) {
