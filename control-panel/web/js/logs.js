@@ -27,7 +27,7 @@ const CUT_BY_AIOS = /aborting with incomplete response.*"error":"reading: [^"]*(
 const QUIET = [
   /WARN \[dns\] exchanging over tls connection .*: EOF$/,   // gluetun: the DNS server closed an idle connection; retried at once
   /WARN \[dns\] renewing tls connection for request .*: running TLS handshake with .*: EOF$/,   // gluetun: the same, while it opens a new connection
-  /WARN \[dns\] getting tls connection for request .*: renewing dead connection: running TLS handshake with .*: EOF$/,   // gluetun: the same, newer wording
+  /WARN \[dns\] getting tls connection for request .*: (renewing dead|creating) connection: running TLS handshake with .*: EOF$/,   // gluetun: the same, newer wording; "creating" right as the VPN comes up
   /WARN Caught OS signal terminated, shutting down$/,   // gluetun: asked to stop, as a restart or reboot does
   // gluetun: its start-up release check hit GitHub's hourly limit, common on a shared exit address; the VPN is fine
   /ERROR \[vpn\] cannot get version information: bad response HTTP status code: 403 403 Forbidden$/,

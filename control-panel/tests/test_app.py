@@ -924,6 +924,7 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
         '2026-11-02T18:49:08Z WARN [dns] exchanging over tls connection (13ms) for request IN A ipinfo.io.: EOF',
         '2026-11-06T15:39:05Z WARN [dns] renewing tls connection for request IN AAAA ipinfo.io.: running TLS handshake with 9.9.9.9:853 (dns.quad9.net): EOF',
         '2026-11-08T14:04:01Z WARN [dns] getting tls connection for request IN AAAA example.com.: renewing dead connection: running TLS handshake with 9.9.9.9:853 (dns.quad9.net): EOF',
+        '2026-11-08T14:49:03Z WARN [dns] getting tls connection for request IN A ipinfo.io.: creating connection: running TLS handshake with 149.112.112.112:853 (dns.quad9.net): EOF',
         '2026-11-06T17:06:48Z WARN Caught OS signal terminated, shutting down',
         '2026-11-06T21:12:30Z ERROR [vpn] cannot get version information: bad response HTTP status code: 403 403 Forbidden',
     ]
@@ -936,6 +937,7 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
         '2026-11-02T18:49:08Z WARN [dns] exchanging over tls connection (5000ms) for request IN A ipinfo.io.: i/o timeout',
         '2026-11-06T16:16:45Z WARN [dns] renewing tls connection for request IN A example.com.: running TLS handshake with 9.9.9.9:853 (dns.quad9.net): read tcp 172.16.0.2:52192->9.9.9.9:853: read: connection timed out',
         '2026-11-08T14:04:01Z WARN [dns] getting tls connection for request IN A example.com.: renewing dead connection: running TLS handshake with 9.9.9.9:853 (dns.quad9.net): i/o timeout',
+        '2026-11-08T14:49:03Z WARN [dns] getting tls connection for request IN A example.com.: creating connection: running TLS handshake with 9.9.9.9:853 (dns.quad9.net): i/o timeout',
         '2026-11-06T17:06:48Z ERROR Caught OS signal terminated, but the VPN failed to stop',
         '2026-11-06T21:12:30Z ERROR [vpn] cannot get version information: bad response HTTP status code: 500 500 Internal Server Error',
     ]
