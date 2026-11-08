@@ -410,14 +410,16 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .tr-since { margin-right: auto; font-size: .84rem; }
 /* The Network page: the Traffic card, then each service's speed now */
 .ns-card { margin-top: 18px; }
-.ns-list { margin-top: 12px; }
-.ns-row { display: grid; grid-template-columns: minmax(0, 1fr) 130px 130px; gap: 12px; align-items: baseline; padding: 9px 0; border-top: 1px solid var(--line-soft); font-size: .92rem; }
-.ns-row .num { text-align: right; font-variant-numeric: tabular-nums; }
+/* Down and Up as wide as their widest value (rows share them through subgrid) and never narrower
+   than "15.8 MB/s", so they hold still and larger text can't push them past the card's edge */
+.ns-list { margin-top: 12px; display: grid; grid-template-columns: minmax(0, 1fr) max-content max-content; column-gap: 40px; }
+.ns-row { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: baseline; padding: 9px 0; border-top: 1px solid var(--line-soft); font-size: .92rem; }
+.ns-row .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 5em; }
 .ns-head { border-top: 0; padding-top: 0; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--faint); }
 .ns-name { font-weight: 600; }
 .ns-shared { grid-column: 2 / -1; text-align: right; font-size: .86rem; }
 .ns-note { font-size: .84rem; }
-@media (max-width: 720px) { .ns-row { grid-template-columns: minmax(0, 1fr) 96px 96px; gap: 8px; } }
+@media (max-width: 720px) { .ns-list { column-gap: 16px; } }
 /* This server's Network: down and up a line each, always, so the row doesn't change height as the speeds change */
 .stat-value .nowrap { display: block; white-space: nowrap; }
 @media (max-width: 720px) {
