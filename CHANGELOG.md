@@ -4,6 +4,8 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 8 November 2026
 
+- **New:** the control panel has its own row at the top of Services, with its CPU, memory, **Logs** and **Restart**. The Network lists show it first and keep the VPN tunnel, with whatever it carries, together at the bottom. (Panel 1.50.0, [#153](https://github.com/alpinezx/easy-aiostreams/pull/153))
+- **Fixed:** the Logs page greys the tunnel's "Incoming request ended abruptly: context canceled" lines, left by a reload or a closed tab, and **Hide noise** hides them. (Panel 1.50.0, [#153](https://github.com/alpinezx/easy-aiostreams/pull/153))
 - **New:** lines and separators stand out more in every theme, and Light's cards have a visible edge, so each part of a page is easier to tell apart. (Panel 1.49.8, [#152](https://github.com/alpinezx/easy-aiostreams/pull/152))
 - **New:** speeds from 10 KB/s up show whole numbers ("852 KB/s"). In This server's Network list and on the Network page (Last 7 days, By service) the arrows keep to one line and every figure starts right after its arrow; on phones each service's speeds sit under its name. (Panel 1.49.8, [#152](https://github.com/alpinezx/easy-aiostreams/pull/152))
 - **Fixed:** opening a folded part of the Overview, such as Network or HTTPS certificates, opens it downwards instead of pushing the page up. Speeds no longer run past the card's edge with larger text on phones, on the Overview or the Network page. (Panel 1.49.8, [#152](https://github.com/alpinezx/easy-aiostreams/pull/152))
