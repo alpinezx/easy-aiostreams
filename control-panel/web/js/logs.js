@@ -1,4 +1,5 @@
 import { $, h, clear, api, toast } from "./util.js";
+import { ask } from "./actions.js";
 
 const MAX = 2000;
 let current = null, es = null, lines = [], follow = true, filter = "", regex = false, svcs = [];
@@ -332,12 +333,19 @@ export function init() {
   more.addEventListener("click", (e) => { e.stopPropagation(); openMore(!tog.classList.contains("open")); });
   document.addEventListener("click", (e) => { if (!tog.contains(e.target) && !more.contains(e.target)) openMore(false); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") openMore(false); });
+  // The bin asks first: this log, or every service's at once
   $("#log-clear").addEventListener("click", async () => {
     if (!current) return;
+    const name = (svcs.find((s) => s.container === current) || {}).name || "This log";
+    const pick = await ask({ title: "Clear logs?", confirmLabel: name, alt: { label: "All logs", value: "all" },
+      body: "Hides everything logged so far, here and on the Overview's Recent warnings. Docker's own log files are kept." });
+    if (!pick) return;
     // Close the live stream first, then reconnect once the clear is recorded.
     if (es) { es.close(); es = null; setConn("retry", "clearing"); await new Promise((r) => setTimeout(r, 1500)); }
-    try { await api(`/api/logs/${encodeURIComponent(current)}/clear`, { method: "POST" }); }
-    catch (e) { toast(e.message || "Couldn't clear that log.", true); connect(); return; }
+    const url = pick === "all" ? "/api/logs/clear-all" : `/api/logs/${encodeURIComponent(current)}/clear`;
+    try { await api(url, { method: "POST" }); }
+    catch (e) { toast(e.message || "Couldn't clear the logs.", true); connect(); return; }
+    if (pick === "all") toast("Every log cleared.");
     connect();       // reconnect so the stream starts from the now-empty log
   });
   $("#log-copy").addEventListener("click", async () => {

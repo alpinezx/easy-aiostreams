@@ -854,6 +854,20 @@ async def log_warnings(user: str = Depends(current_user)):
     return {"services": _warn_cache["data"]}
 
 
+@app.post("/api/logs/clear-all")
+async def clear_all_logs(user: str = Depends(current_user)):
+    """The bin's All logs: every service's log, the ones not installed here skipped."""
+    done = []
+    for c in sorted(LOGGABLE):
+        try:
+            await asyncio.to_thread(backend.clear_logs, c)
+            done.append(c)
+        except Exception:
+            pass                       # not on this server
+    _warn_cache["data"] = None
+    return {"ok": True, "cleared": done}
+
+
 @app.post("/api/logs/{container}/clear")
 async def clear_logs(container: str, user: str = Depends(current_user)):
     if container not in LOGGABLE:

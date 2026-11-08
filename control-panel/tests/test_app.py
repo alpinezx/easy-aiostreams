@@ -636,6 +636,10 @@ def test_log_warnings(client):
     one = r[0]["container"]                     # (another test may have cleared some already)
     assert client.post(f"/api/logs/{one}/clear").status_code == 200
     assert one not in {s["container"] for s in client.get("/api/log-warnings").json()["services"]}
+    # All logs clears every service's, so the card has nothing left
+    r = client.post("/api/logs/clear-all").json()
+    assert r["ok"] and "caddy" in r["cleared"]
+    assert client.get("/api/log-warnings").json()["services"] == []
 
 
 def test_rail_layout(client):
