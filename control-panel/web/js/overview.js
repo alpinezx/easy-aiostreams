@@ -874,7 +874,9 @@ async function loadWarnings() {
     for (const s of r.services || []) {
       for (const l of scan(s.lines || [])) {
         if (l.noise || (l.cls !== "warn" && l.cls !== "error") || isNaN(l.at)) continue;
-        const text = [l.mod ? `[${l.mod}]` : "", l.msg, l.extra].filter(Boolean).join(" ").trim() || l.text;
+        // cloudflared's own time and INF / WRN / ERR lead its lines: the dot and "ago" say both already
+        const text = ([l.mod ? `[${l.mod}]` : "", l.msg, l.extra].filter(Boolean).join(" ").trim() || l.text)
+          .replace(/^\d{4}-\d\d-\d\dT[\d:.]+Z?\s+(?:(?:DBG|INF|WRN|ERR)\s+)?/, "");
         const key = [s.container, l.cls, text].join("|");
         const row = rows.get(key);
         if (row) { row.n++; row.at = Math.max(row.at, l.at); }
