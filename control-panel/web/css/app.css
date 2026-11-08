@@ -1099,12 +1099,13 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 #view-overview .panel.wd { order: var(--o-alerts, 6); margin: 0 0 30px; }
 #view-overview .panel.vpnc { order: var(--o-vpn, 7); margin: 0 0 30px; }
 #view-overview .panel.host { order: var(--o-server, 8); margin: 0 0 30px; }
-#view-overview .cols > div { order: var(--o-services, 9); margin: 0 0 30px; }
+#view-overview .panel.warnc { order: var(--o-warn, 9); margin: 0 0 30px; }
+#view-overview .cols > div { order: var(--o-services, 10); margin: 0 0 30px; }
 #view-overview[data-hide~="flow"] .path, #view-overview[data-hide~="aiostreams"] .ver-slot:not(.meta-slot):not(.mgr-slot):not(.mf-slot),
 #view-overview[data-hide~="aiometadata"] .meta-slot, #view-overview[data-hide~="aiomanager"] .mgr-slot,
 #view-overview[data-hide~="mediaflow"] .mf-slot,
 #view-overview[data-hide~="server"] .panel.host, #view-overview[data-hide~="alerts"] .panel.wd,
-#view-overview[data-hide~="vpn"] .panel.vpnc,
+#view-overview[data-hide~="vpn"] .panel.vpnc, #view-overview[data-hide~="warn"] .panel.warnc,
 #view-overview[data-hide~="services"] .cols > div { display: none; }
 
 /* Wide screens: each card a full row, like AIOStreams' own dashboard; This server four values
@@ -1247,7 +1248,7 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 
 /* Phones */
 @media (max-width: 720px) {
-  #view-overview .ver-slot, #view-overview .panel.host, #view-overview .panel.wd, #view-overview .panel.vpnc, #view-overview .cols > div { margin-bottom: 22px; }
+  #view-overview .ver-slot, #view-overview .panel.host, #view-overview .panel.wd, #view-overview .panel.warnc, #view-overview .panel.vpnc, #view-overview .cols > div { margin-bottom: 22px; }
   .path { margin: 0 0 22px; padding: 16px 16px 14px; }
   .path-head { margin: 0 0 12px; }
   /* folded: the title and Restart stack on top, the dots on a line of their own */
@@ -1289,3 +1290,24 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .ao-head-r .dim { font-size: .86rem; }
 .ao-btn-cell { grid-column: -2 / -1; justify-self: end; align-self: end; }
 @media (max-width: 720px) { .ao-note:empty { display: none; } }
+
+/* Recent warnings & errors: one line per row on desktop; on phones the service and
+   time on top, the message under them */
+.warn-list { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; column-gap: 14px; margin-top: 6px; }
+.warn-row { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; align-items: center; padding: 9px 0; color: var(--text); text-decoration: none; border-top: 1px solid var(--line-soft); }
+.warn-row:first-child { border-top: 0; }
+.warn-row:hover .warn-msg { text-decoration: underline; }
+.warn-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); }
+.warn-row.error .warn-dot { background: var(--bad); }
+.warn-svc { font-weight: 600; white-space: nowrap; }
+.warn-msg { font-family: var(--mono, ui-monospace, monospace); font-size: .82rem; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.warn-ago { white-space: nowrap; font-size: .82rem; text-align: right; }
+.warn-none { margin: 6px 0 0; font-size: .86rem; }
+.warn-more { margin: 8px 0 0; padding: 4px 0; font: inherit; font-size: .86rem; color: var(--dim); background: none; border: 0; cursor: pointer; }
+.warn-more:hover { color: var(--text); text-decoration: underline; }
+@media (max-width: 720px) {
+  .warn-list { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .warn-row { grid-template-columns: subgrid; row-gap: 4px; }
+  .warn-msg { grid-column: 2 / -1; grid-row: 2; white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .warn-ago { grid-column: 3; grid-row: 1; }
+}

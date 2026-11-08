@@ -27,7 +27,7 @@ document.addEventListener("keydown", (e) => {
 });
 $("#scrim").addEventListener("click", () => { if (!$("#dialog").hidden) closeDialog(); else closeDrawer(); });
 
-export function ask({ title, body, confirmLabel, danger, options }) {
+export function ask({ title, body, confirmLabel, danger, options, alt }) {
   return new Promise((resolve) => {
     const done = (v) => { closeDialog(); resolve(v); };
     openDialog([
@@ -36,6 +36,7 @@ export function ask({ title, body, confirmLabel, danger, options }) {
       options ? options.el : null,
       h("div", { class: "btns" },
         h("button", { class: "btn", type: "button", text: "Cancel", onclick: () => done(null) }),
+        alt ? h("button", { class: "btn", type: "button", text: alt.label, onclick: () => done(alt.value) }) : null,
         h("button", { class: "btn primary" + (danger ? " danger" : ""), type: "button", text: confirmLabel,
           disabled: !!(options && options.gate),
           onclick: () => done(options ? options.read() : true) })),

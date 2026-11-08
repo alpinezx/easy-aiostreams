@@ -1,4 +1,5 @@
 import { $, h, clear, api, toast } from "./util.js";
+import { ask } from "./actions.js";
 
 const MAX = 2000;
 let current = null, es = null, lines = [], follow = true, filter = "", regex = false, svcs = [];
@@ -112,6 +113,34 @@ function markRestart(stop) {
     if (l.cut && !l.noise) { l.noise = true; changed = true; }
   }
   return changed;
+}
+
+// The Overview's Recent warnings & errors: a log's lines sorted with this page's own rules, so
+// the card and Logs always agree on what is a warning, an error or noise. Oldest first, as sent.
+// Each comes back with `at` (when Docker got it, in seconds) for the card's "4 min ago".
+export function scan(raws) {
+  const saved = lastStop;
+  lastStop = -Infinity;
+  const out = [];
+  for (const raw of raws) {
+    const l = parse(raw);
+    const m = TS.exec(raw);
+    l.at = m ? Date.parse(m[1].slice(0, 23) + "Z") / 1000 : NaN;
+    if (!isNaN(l.ts) && CADDY_STOP.test(raw)) {
+      lastStop = l.ts;
+      for (let i = out.length - 1; i >= 0 && !(out[i].ts < l.ts - RESTART_WINDOW); i--) if (out[i].cut) out[i].noise = true;
+    }
+    out.push(l);
+  }
+  lastStop = saved;
+  return out;
+}
+
+// A row on that card opens Logs with WARN and ERROR picked, for this visit (not saved)
+export function pickLevels(list) {
+  levels = new Set(list);
+  syncControls();
+  paint();
 }
 
 const isCaddy = () => current === "caddy";
@@ -304,12 +333,20 @@ export function init() {
   more.addEventListener("click", (e) => { e.stopPropagation(); openMore(!tog.classList.contains("open")); });
   document.addEventListener("click", (e) => { if (!tog.contains(e.target) && !more.contains(e.target)) openMore(false); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") openMore(false); });
+  // The bin asks first: this log, or every service's at once
   $("#log-clear").addEventListener("click", async () => {
     if (!current) return;
+    const name = (svcs.find((s) => s.container === current) || {}).name || "This log";
+    const pick = await ask({ title: "Clear logs?", confirmLabel: name, alt: { label: "All logs", value: "all" },
+      body: "Hides everything logged so far, here and on the Overview's Recent warnings. Docker's own log files are kept." });
+    if (!pick) return;
     // Close the live stream first, then reconnect once the clear is recorded.
     if (es) { es.close(); es = null; setConn("retry", "clearing"); await new Promise((r) => setTimeout(r, 1500)); }
-    try { await api(`/api/logs/${encodeURIComponent(current)}/clear`, { method: "POST" }); }
-    catch (e) { toast(e.message || "Couldn't clear that log.", true); connect(); return; }
+    const url = pick === "all" ? "/api/logs/clear-all" : `/api/logs/${encodeURIComponent(current)}/clear`;
+    try { await api(url, { method: "POST" }); }
+    catch (e) { toast(e.message || "Couldn't clear the logs.", true); connect(); return; }
+    if (pick === "all") toast("Every log cleared.");
+    window.dispatchEvent(new Event("logs-cleared"));   // the Overview's Recent warnings reads again
     connect();       // reconnect so the stream starts from the now-empty log
   });
   $("#log-copy").addEventListener("click", async () => {
