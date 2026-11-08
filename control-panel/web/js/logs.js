@@ -346,6 +346,7 @@ export function init() {
     try { await api(url, { method: "POST" }); }
     catch (e) { toast(e.message || "Couldn't clear the logs.", true); connect(); return; }
     if (pick === "all") toast("Every log cleared.");
+    window.dispatchEvent(new Event("logs-cleared"));   // the Overview's Recent warnings reads again
     connect();       // reconnect so the stream starts from the now-empty log
   });
   $("#log-copy").addEventListener("click", async () => {

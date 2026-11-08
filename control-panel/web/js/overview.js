@@ -890,6 +890,8 @@ async function loadWarnings() {
 }
 // Five rows, and up to five more behind Show more (opened in place: no scrolling box inside
 // the page, which phones handle badly). Open for this visit only.
+// A Clear on the Logs page makes the card read again, rather than show the cleared rows for a minute
+window.addEventListener("logs-cleared", () => { warnAt = 0; warnData = null; });
 const WARN_SHOWN = 5, WARN_MAX = 10;
 let warnMore = false;
 function warnCard(el) {
