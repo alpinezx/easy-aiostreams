@@ -39,7 +39,7 @@ const railTab = (id) => document.querySelector(`.rail-links .tab[data-view="${id
 const MODES = {
   overview: {
     items: CARDS, url: "/api/overview-layout", title: "Edit the Overview",
-    hint: "Show or hide each card, and drag ≡ to move it.",
+    hint: "≡ changes the order of the cards.",
     listed: (id) => !((id === "alerts" && !hasAlerts) || (id === "aiometadata" && !hasMeta) || (id === "aiomanager" && !hasMgr) || (id === "mediaflow" && !hasMf) || (id === "vpn" && !hasVpn)),
     // Order and visibility are CSS on the view, so the cards' own repaints don't touch them.
     // Each card takes a full row of its own.
@@ -51,7 +51,7 @@ const MODES = {
   },
   rail: {
     items: PAGES, url: "/api/rail-layout", title: "Edit the menu",
-    hint: "Show or hide each page, and drag ≡ to move it. Overview stays first.",
+    hint: "≡ changes the order. Overview stays first.",
     listed: (id) => { const t = railTab(id); return !!t && !t.hidden; },
     apply(cards) {
       cards.forEach((c, i) => {
