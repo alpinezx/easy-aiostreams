@@ -124,8 +124,8 @@ export function openChangelog(log) {
   const news = log.entries.filter((e) => e.new).length;
   $("#rel-title").textContent = "What's new";
   $("#rel-sub").textContent = news
-    ? `${news === 1 ? "One change" : `${news} changes`} since your control panel's v${log.current}, newest first.`
-    : `Nothing newer than your control panel's v${log.current}. The latest changes, newest first.`;
+    ? `${news === 1 ? "One new repo change" : `${news} new repo changes`}, newest first.`
+    : "Latest repo changes, newest first.";
   const foot = $("#rel-foot");
   foot.href = log.page;
   foot.firstChild.textContent = "The full changelog on GitHub ";
