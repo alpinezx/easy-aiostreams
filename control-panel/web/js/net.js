@@ -1,5 +1,5 @@
 import { $, h, clear } from "./util.js";
-import { trafficCard, updateNow, fmtRate } from "./traffic.js";
+import { trafficCard, updateNow, fmtRate, arrowed } from "./traffic.js";
 
 // The Network page: the server's traffic, or the VPN tunnel's once the VPN is set up, as the
 // same Traffic card the VPN page has; and each service's speed right now.
@@ -36,16 +36,16 @@ function services(box) {
   const measured = rows.some((s) => s.rx != null);
   box.append(h("div", { class: "panel vpn-card ns-card" },
     h("div", { class: "vpn-head" }, h("h3", { class: "tr-title", text: "By service" }), h("span", { class: "vpn-checked", text: "Right now" })),
+    // Laid out as the Overview's Network list: arrows in one line, each speed right after its arrow
     h("div", { class: "ns-list" },
-      h("div", { class: "ns-row ns-head" }, h("span", { text: "Service" }), h("span", { class: "num", text: "Down" }), h("span", { class: "num", text: "Up" })),
       ...rows.map((s) => {
         // On the VPN's network, Docker reports gluetun's counters for these too: one count, under the tunnel
         const shared = (s.key === "aiostreams" || s.via_vpn) && onVpn;
         return h("div", { class: "ns-row" },
           h("span", { class: "ns-name", text: s.name }),
           shared ? h("span", { class: "ns-shared dim", text: "Counted under VPN tunnel" })
-            : [h("span", { class: "num", text: s.rx != null ? fmtRate(s.rx) : measured ? "" : "Measuring…" }),
-              h("span", { class: "num", text: s.tx != null ? fmtRate(s.tx) : "" })]);
+            : s.rx == null ? h("span", { class: "ns-shared dim", text: measured ? "" : "Measuring…" })
+            : [arrowed("↓", fmtRate(s.rx)), arrowed("↑", fmtRate(s.tx))]);
       })),
     h("p", { class: "vpn-note dim ns-note", text: "Includes traffic between containers. A stream passes through "
       + (onVpn ? "the VPN tunnel" : "AIOStreams") + ", then Caddy, so it's counted on both. That's why these add up to more than All traffic." })));

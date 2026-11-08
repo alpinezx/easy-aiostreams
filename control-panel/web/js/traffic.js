@@ -93,6 +93,10 @@ export function today(d) {
 }
 
 // Down and up speeds, each with its own unit: "↓ 387 KB/s ↑ 1.4 KB/s"
+// An arrow and a figure in a column of their own: the arrow at the column's left, the figure right
+// after it, the column wide enough that arrows stay in one line down a list (.nsv-speed)
+export const arrowed = (arrow, text) => h("span", { class: "num nsv-speed" },
+  h("span", { class: "nsv-arrow", text: arrow }), h("span", { text }));
 export const fmtPair = ([d, u]) => `↓ ${fmtRate(d)} ↑ ${fmtRate(u)}`;
 
 // The Overview's VPN line, in two halves that each stay whole: "Now ↓ 3.2 MB/s ↑ 48 KB/s", "Today ↓ 3.2 GB ↑ 48 MB"
@@ -239,8 +243,8 @@ function days(d) {
       return h("div", { class: "tr-day" },
         h("span", { class: "tr-day-name", text: dayName(r[0]) }),
         h("span", { class: "tr-bar" }, bar),
-        h("span", { class: "tr-day-tot" + (r[1] == null ? " dim" : ""),
-          text: r[1] == null ? "No data" : `↓ ${fmtBytes(r[1])}   ↑ ${fmtBytes(r[2])}` }));
+        r[1] == null ? h("span", { class: "tr-day-tot dim", text: "No data" })
+          : h("span", { class: "tr-day-tot" }, arrowed("↓", fmtBytes(r[1])), arrowed("↑", fmtBytes(r[2]))));
     }));
 }
 
