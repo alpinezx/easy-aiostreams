@@ -792,6 +792,10 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
   .lg-toggles.open { display: flex; }
   .lg-toggles .sw { justify-content: space-between; }
   .lg-list { height: 60vh; }
+  /* Wrap on a phone: the message starts on its own line under the time, using the row's full width */
+  .lg-list.wrap .lg-ln { flex-wrap: wrap; row-gap: 6px; }
+  .lg-list.wrap .lg-time + .lg-dot { margin-top: 0; align-self: center; }
+  .lg-list.wrap .lg-time + .lg-dot + .lg-msg { flex-basis: 100%; }
 }
 
 /* ---------- activity + backups ---------- */
