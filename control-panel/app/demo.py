@@ -468,6 +468,9 @@ class DemoBackend:
                 (2 * 3600 + 600, "warn: [Knightcrawler] Request timed out after 5000ms, skipping"),
                 (52 * 60, "warn: [Knightcrawler] Request timed out after 5000ms, skipping"),
                 (21 * 60, "error: [Orionoid] 429 Too Many Requests, backing off 30s"),
+                (95 * 60, "warn: [Torrentio] Responded with 0 streams in 8120ms"),
+                (4 * 3600, "error: [MediaFusion] Request failed: 502 Bad Gateway"),
+                (7 * 3600, "warn: [Cache] Redis not reachable, using memory"),
             ]),
             "caddy": ("Caddy", [
                 (70 * 60, '{"level":"warn","ts":%f,"logger":"http","msg":"HTTP/3 skipped because it requires TLS","network":"tcp","addr":":80"}'),

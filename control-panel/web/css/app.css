@@ -1302,7 +1302,9 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .warn-svc { font-weight: 600; white-space: nowrap; }
 .warn-msg { font-family: var(--mono, ui-monospace, monospace); font-size: .82rem; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .warn-ago { white-space: nowrap; font-size: .82rem; text-align: right; }
-.warn-none, .warn-more { margin: 6px 0 0; font-size: .86rem; }
+.warn-none { margin: 6px 0 0; font-size: .86rem; }
+.warn-more { margin: 8px 0 0; padding: 4px 0; font: inherit; font-size: .86rem; color: var(--dim); background: none; border: 0; cursor: pointer; }
+.warn-more:hover { color: var(--text); text-decoration: underline; }
 @media (max-width: 720px) {
   .warn-list { grid-template-columns: auto minmax(0, 1fr) auto; }
   .warn-row { grid-template-columns: subgrid; row-gap: 4px; }

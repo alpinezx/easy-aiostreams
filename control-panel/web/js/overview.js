@@ -888,7 +888,10 @@ async function loadWarnings() {
   warnAt = Date.now(); warnLoading = false;
   if (lastSt) side(lastSt);
 }
-const WARN_SHOWN = 5;
+// Five rows, and up to five more behind Show more (opened in place: no scrolling box inside
+// the page, which phones handle badly). Open for this visit only.
+const WARN_SHOWN = 5, WARN_MAX = 10;
+let warnMore = false;
 function warnCard(el) {
   loadWarnings();
   const folded = isFolded("warn");
@@ -905,14 +908,18 @@ function warnCard(el) {
   if (!warnData) { card.append(h("p", { class: "dim warn-none", text: warnLoading ? "Reading the logs…" : "Couldn't read the logs." })); return; }
   if (!rows.length) { card.append(h("p", { class: "dim warn-none", text: "No warnings or errors in the last day." })); return; }
   const now = Date.now() / 1000;
-  card.append(h("div", { class: "warn-list" }, ...rows.slice(0, WARN_SHOWN).map((r) =>
+  card.append(h("div", { class: "warn-list" }, ...rows.slice(0, warnMore ? WARN_MAX : WARN_SHOWN).map((r) =>
     h("a", { class: `warn-row ${r.cls}`, href: "#logs", title: r.text,
       onclick: (e) => { e.preventDefault(); pickLevels(["warn", "error"]); if (lastGoLogs) lastGoLogs(r.container); } },
       h("i", { class: "warn-dot", "aria-label": r.cls === "error" ? "Error" : "Warning" }),
       h("span", { class: "warn-svc", text: r.name }),
       h("span", { class: "warn-msg", text: r.text }),
       h("span", { class: "warn-ago dim", text: (r.n > 1 ? `${r.n}× · ` : "") + ago(Math.min(r.at, now)) })))));
-  if (rows.length > WARN_SHOWN) card.append(h("p", { class: "dim warn-more", text: `${rows.length - WARN_SHOWN} more in Logs` }));
+  if (rows.length > WARN_SHOWN) {
+    const extra = Math.min(rows.length, WARN_MAX) - WARN_SHOWN;
+    card.append(h("button", { class: "linkish warn-more", type: "button", "aria-expanded": String(warnMore),
+      text: warnMore ? "Show fewer" : `Show ${extra} more`, onclick: () => { warnMore = !warnMore; if (lastSt) side(lastSt); } }));
+  }
 }
 
 // The VPN, once it's set up (on or off), like Phone alerts: whether it's connected, where
