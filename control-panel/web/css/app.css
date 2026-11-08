@@ -1141,6 +1141,7 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 /* Phones: tighter rows with one-line descriptions, so every card fits on one screen */
 @media (max-width: 720px) {
   .lay-drawer .drawer-head { padding: 14px 16px 12px; }
+  .lay-drawer .drawer-foot { padding: 10px 14px; gap: 8px; }
   .lay-theme .lay-sub { display: none; }
   .lay-list { padding: 10px 14px; gap: 6px; }
   .lay-row { padding: 6px 4px 6px 12px; gap: 10px; }
