@@ -7,7 +7,7 @@ import { pill as scriptsPill, showChangelog } from "./scripts.js";
 import { scheduleText } from "./activity.js";
 import { applyLayout, openLayout } from "./layout.js";
 import { countryName } from "./vpn.js";
-import { loadTraffic, trafficData, trafficStale, feedNet, nowRate, today, fmtRate } from "./traffic.js";
+import { loadTraffic, trafficData, trafficStale, feedNet, nowRate, today, fmtRate, netOrder } from "./traffic.js";
 
 // ---------------- update check ----------------
 let rel = null, relLoading = false, relFor = null, lastSt = null;
@@ -730,8 +730,7 @@ function certTiles(grid, st) {
 // they read top to bottom. Whatever shares the VPN's network is counted once, under it.
 function netSec(st, n) {
   const onVpn = st.vpn === "on";
-  // The panel first in Services, but last here: the services a stream passes through come first
-  const run = (st.services || []).filter((s) => s.state === "running").sort((a, b) => !!a.panel - !!b.panel);
+  const run = netOrder((st.services || []).filter((s) => s.state === "running"), onVpn);
   const shared = run.filter((s) => onVpn && (s.key === "aiostreams" || s.via_vpn)).map((s) => s.name);
   // The arrow keeps to the column's left edge and the speed to its right, so arrows stay in
   // one line down the list however long each speed is

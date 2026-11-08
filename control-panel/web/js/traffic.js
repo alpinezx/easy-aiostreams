@@ -93,6 +93,12 @@ export function today(d) {
 }
 
 // Down and up speeds, each with its own unit: "↓ 387 KB/s ↑ 1.4 KB/s"
+// The order of the Network lists: the panel first, then what doesn't use the VPN, then the VPN tunnel
+// with whatever is counted under it, so the VPN's group always sits together at the bottom
+export function netOrder(services, onVpn) {
+  const rank = (s) => s.panel ? 0 : s.key === "gluetun" ? 2 : onVpn && (s.key === "aiostreams" || s.via_vpn) ? 3 : 1;
+  return [...services].sort((a, b) => rank(a) - rank(b));
+}
 // An arrow and a figure in a column of their own: the arrow at the column's left, the figure right
 // after it, the column wide enough that arrows stay in one line down a list (.nsv-speed)
 export const arrowed = (arrow, text) => h("span", { class: "num nsv-speed" },

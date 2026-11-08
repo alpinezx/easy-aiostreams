@@ -1,5 +1,5 @@
 import { $, h, clear } from "./util.js";
-import { trafficCard, updateNow, fmtRate, arrowed } from "./traffic.js";
+import { trafficCard, updateNow, fmtRate, arrowed, netOrder } from "./traffic.js";
 
 // The Network page: the server's traffic, or the VPN tunnel's once the VPN is set up, as the
 // same Traffic card the VPN page has; and each service's speed right now.
@@ -30,10 +30,9 @@ function sourceSwitch() {
 // through several on its way, so the rows add up to more than the server's total.
 function services(box) {
   clear(box);
-  // The panel last, after the services a stream passes through (it's first in Services)
-  const rows = (st && st.services || []).filter((s) => s.state === "running").sort((a, b) => !!a.panel - !!b.panel);
+  const onVpn = st && st.vpn === "on";
+  const rows = netOrder((st && st.services || []).filter((s) => s.state === "running"), onVpn);
   if (!rows.length) return;
-  const onVpn = st.vpn === "on";
   const measured = rows.some((s) => s.rx != null);
   box.append(h("div", { class: "panel vpn-card ns-card" },
     h("div", { class: "vpn-head" }, h("h3", { class: "tr-title", text: "By service" }), h("span", { class: "vpn-checked", text: "Right now" })),
