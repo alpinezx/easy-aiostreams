@@ -114,6 +114,34 @@ function markRestart(stop) {
   return changed;
 }
 
+// The Overview's Recent warnings & errors: a log's lines sorted with this page's own rules, so
+// the card and Logs always agree on what is a warning, an error or noise. Oldest first, as sent.
+// Each comes back with `at` (when Docker got it, in seconds) for the card's "4 min ago".
+export function scan(raws) {
+  const saved = lastStop;
+  lastStop = -Infinity;
+  const out = [];
+  for (const raw of raws) {
+    const l = parse(raw);
+    const m = TS.exec(raw);
+    l.at = m ? Date.parse(m[1].slice(0, 23) + "Z") / 1000 : NaN;
+    if (!isNaN(l.ts) && CADDY_STOP.test(raw)) {
+      lastStop = l.ts;
+      for (let i = out.length - 1; i >= 0 && !(out[i].ts < l.ts - RESTART_WINDOW); i--) if (out[i].cut) out[i].noise = true;
+    }
+    out.push(l);
+  }
+  lastStop = saved;
+  return out;
+}
+
+// A row on that card opens Logs with WARN and ERROR picked, for this visit (not saved)
+export function pickLevels(list) {
+  levels = new Set(list);
+  syncControls();
+  paint();
+}
+
 const isCaddy = () => current === "caddy";
 // Logs with a Hide noise switch: Caddy's, and the Cloudflare Tunnel's and VPN tunnel's grey lines.
 const hasNoise = () => isCaddy() || current === "cloudflared" || current === "gluetun";

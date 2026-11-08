@@ -453,6 +453,38 @@ class DemoBackend:
         return {"ok": True, "reasons": [], "notes": ["It holds AIOStreams v2.35.9.",
                 "streams.example.com points at this server.", "Control panel: panel.example.com points at this server."]}
 
+    def log_warnings(self, loggable) -> list[dict]:
+        """Recent warnings & errors: a few real-looking lines, noise among them (the card leaves it out)."""
+        now = time.time()
+        def at(ago):
+            return datetime.fromtimestamp(now - ago, timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        sample = {
+            "gluetun": ("VPN tunnel", [
+                (5 * 3600, "2026-11-08T10:00:00Z WARN [dns] exchanging over tls connection for request 1.1.1.1:853: EOF"),
+                (4 * 60, "2026-11-08T10:00:00Z ERROR [vpn] getting public IP address information: all fetchers failed"),
+            ]),
+            "aiostreams": ("AIOStreams", [
+                (3 * 3600, "warn: [Knightcrawler] Request timed out after 5000ms, skipping"),
+                (2 * 3600 + 600, "warn: [Knightcrawler] Request timed out after 5000ms, skipping"),
+                (52 * 60, "warn: [Knightcrawler] Request timed out after 5000ms, skipping"),
+                (21 * 60, "error: [Orionoid] 429 Too Many Requests, backing off 30s"),
+            ]),
+            "caddy": ("Caddy", [
+                (70 * 60, '{"level":"warn","ts":%f,"logger":"http","msg":"HTTP/3 skipped because it requires TLS","network":"tcp","addr":":80"}'),
+                (6 * 3600, '{"level":"error","ts":%f,"logger":"http.handlers.reverse_proxy","msg":"aborting with incomplete response","upstream":"aiostreams:3000","error":"reading: read tcp: connection reset by peer"}'),
+            ]),
+            "mediaflow-proxy-light": ("MediaFlow Proxy", [
+                (9 * 3600, "WARN upstream closed the connection early (bytes 52428800 of 734003200)"),
+            ]),
+        }
+        out = []
+        for cname, (name, rows) in sample.items():
+            if cname in self._cleared_logs:
+                continue
+            lines = [f"{at(ago)} {line % (now - ago) if '%f' in line else line}" for ago, line in sorted(rows, key=lambda r: -r[0])]
+            out.append({"container": cname, "name": name, "lines": lines})
+        return out
+
     def log_stream(self, container: str, tail: int) -> FakeStream:
         return FakeStream(container, 0 if container in self._cleared_logs else tail)
 

@@ -534,7 +534,7 @@ async def backups(user: str = Depends(current_user)):
 # always first, so not among them). One layout each for the install, kept with the panel's
 # state (so phone and desktop match, and a restore brings it back).
 # The default order: the request flow, AIOStreams, the add-ons' cards, then This server and the services
-OVERVIEW_CARDS = ["flow", "aiostreams", "aiometadata", "aiomanager", "mediaflow", "alerts", "vpn", "server", "services"]
+OVERVIEW_CARDS = ["flow", "aiostreams", "aiometadata", "aiomanager", "mediaflow", "alerts", "vpn", "server", "warn", "services"]
 # The rail's default: everyday pages, upkeep, Add-ons with each add-on's own page under it, then tools
 RAIL_PAGES = ["logs", "activity", "net", "backups", "maint", "addons", "vpn", "alerts", "scripts", "terminal"]
 LAYOUTS = {"overview": (OVERVIEW_CARDS, "overview-layout.json"), "rail": (RAIL_PAGES, "rail-layout.json")}
@@ -841,12 +841,26 @@ async def logs(container: str, request: Request, tail: int = 200, user: str = De
                              headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"})
 
 
+_warn_cache: dict = {"at": 0.0, "data": None}
+
+
+@app.get("/api/log-warnings")
+async def log_warnings(user: str = Depends(current_user)):
+    """The Overview's Recent warnings & errors: each running service's lines of the last day
+    that may be warnings or errors. The browser sorts them with the Logs page's rules."""
+    if _warn_cache["data"] is None or time.time() - _warn_cache["at"] > 30:
+        _warn_cache["data"] = await asyncio.to_thread(backend.log_warnings, LOGGABLE)
+        _warn_cache["at"] = time.time()
+    return {"services": _warn_cache["data"]}
+
+
 @app.post("/api/logs/{container}/clear")
 async def clear_logs(container: str, user: str = Depends(current_user)):
     if container not in LOGGABLE:
         raise HTTPException(404, "Unknown container")
     try:
         how = await asyncio.to_thread(backend.clear_logs, container)
+        _warn_cache["data"] = None
     except Exception:
         raise HTTPException(500, "Couldn't clear that log.")
     return {"ok": True, "how": how}

@@ -220,6 +220,25 @@ def clean_line(line: str) -> str | None:
 _LOG_SECRET = re.compile(r"(api_password=)[^&\s\"']+")
 
 
+# The Overview's Recent warnings & errors: lines that might be a warning or an error, plus Caddy's
+# stop lines (an AIOStreams cut just before a restart is noise). Deliberately broad: the browser
+# sorts them with the Logs page's own rules, so this only spares sending every line.
+WARN_HINT = re.compile(r'error|fatal|panic|exception|failed|warn|critical|"level":\s*[4-6]\d'
+                       r'|shutting down apps|shutdown complete|exiting; byeee', re.I)
+WARN_DAY = 86400          # how far back the card looks
+WARN_TAIL = 3000          # at most this many of a log's last lines are read
+WARN_KEEP = 300           # and at most this many hints sent per service
+
+
+def warn_hints(raw: bytes) -> list[str]:
+    """A log's lines (with Docker's timestamps) that may be warnings, newest last, secrets hidden."""
+    out = []
+    for line in raw.decode("utf-8", "replace").splitlines():
+        if WARN_HINT.search(line):
+            out.append(_LOG_SECRET.sub(r"\1[hidden]", line.rstrip("\r")))
+    return out[-WARN_KEEP:]
+
+
 class LogStream:
     """Iterates decoded log lines; close() ends it from another thread."""
 
@@ -1714,6 +1733,27 @@ class Backend:
             return json.loads(self._cleared_path().read_text())
         except Exception:
             return {}
+
+    def log_warnings(self, loggable) -> list[dict]:
+        """For each running service the Logs page can show: its name and the lines of the last
+        day (since a Clear, if later) that may be warnings or errors. Read in parallel, once."""
+        cleared = self._cleared()
+        since = int(time.time()) - WARN_DAY
+        want = [(cname, title) for _, cname, title, *_ in [PANEL, *SERVICES] if cname in loggable]
+
+        def one(item):
+            cname, title = item
+            try:
+                c = self.client.containers.get(cname)
+                if c.status != "running":
+                    return None
+                raw = c.logs(stream=False, timestamps=True, tail=WARN_TAIL, since=max(since, int(cleared.get(cname) or 0)))
+                return {"container": cname, "name": title, "lines": warn_hints(raw)}
+            except Exception:
+                return None
+
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            return [r for r in pool.map(one, want) if r]
 
     def log_stream(self, container: str, tail: int) -> LogStream:
         c = self.client.containers.get(container)

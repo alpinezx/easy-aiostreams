@@ -7,6 +7,7 @@ import { pill as scriptsPill, showChangelog } from "./scripts.js";
 import { scheduleText } from "./activity.js";
 import { applyLayout, openLayout } from "./layout.js";
 import { countryName } from "./vpn.js";
+import { scan, pickLevels } from "./logs.js";
 import { loadTraffic, trafficData, trafficStale, feedNet, nowRate, today, fmtRate, netOrder } from "./traffic.js";
 
 // ---------------- update check ----------------
@@ -819,6 +820,7 @@ function side(st) {
   if (!hostFolded) host.append(grid);
   el.append(host);
   vpnCard(el, st, avail);
+  warnCard(el);
 
   // Phone alerts are an optional add-on: the card only appears once they're set up, so it never
   // reads as something missing. The Scripts tab lists the add-on for anyone who wants it.
@@ -857,6 +859,58 @@ function side(st) {
         h("div", { class: "dim wd-today", text: todayLine(wdDays, nowOk || settling) })), btns));
   } else wd.append(btns);
   el.append(wd);
+}
+
+// Recent warnings & errors: the latest from every service's log over the last day (or since
+// its Clear), sorted by the Logs page's own rules so noise stays out. The same message from the
+// same service is one row with a count. A row opens that log with WARN and ERROR picked.
+let warnData = null, warnAt = 0, warnLoading = false;
+async function loadWarnings() {
+  if (warnLoading || Date.now() - warnAt < 60000) return;
+  warnLoading = true;
+  try {
+    const r = await api("/api/log-warnings");
+    const rows = new Map();
+    for (const s of r.services || []) {
+      for (const l of scan(s.lines || [])) {
+        if (l.noise || (l.cls !== "warn" && l.cls !== "error") || isNaN(l.at)) continue;
+        const text = [l.mod ? `[${l.mod}]` : "", l.msg, l.extra].filter(Boolean).join(" ").trim() || l.text;
+        const key = [s.container, l.cls, text].join("|");
+        const row = rows.get(key);
+        if (row) { row.n++; row.at = Math.max(row.at, l.at); }
+        else rows.set(key, { container: s.container, name: s.name, cls: l.cls, text, at: l.at, n: 1 });
+      }
+    }
+    warnData = [...rows.values()].sort((x, y) => y.at - x.at);
+  } catch (_) { if (!warnData) warnData = null; }
+  warnAt = Date.now(); warnLoading = false;
+  if (lastSt) side(lastSt);
+}
+const WARN_SHOWN = 5;
+function warnCard(el) {
+  loadWarnings();
+  const folded = isFolded("warn");
+  const rows = warnData || [];
+  const errs = rows.filter((r) => r.cls === "error").length, warns = rows.length - errs;
+  const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+  const card = h("section", { class: "panel warnc" + (folded ? " folded" : "") }, h("div", { class: "card-head" },
+    h("h3", {}, foldTitle("warn", "Recent warnings & errors")),
+    folded ? foldSum([[errs ? plural(errs, "error") : "", "bad"], [warns ? plural(warns, "warning") : "", "warn"],
+      [warnData && !rows.length ? "None today" : "", "ok"]]) : null,
+    h("a", { href: "#logs", class: "dim card-link", text: "Logs" })));
+  el.append(card);
+  if (folded) return;
+  if (!warnData) { card.append(h("p", { class: "dim warn-none", text: warnLoading ? "Reading the logs…" : "Couldn't read the logs." })); return; }
+  if (!rows.length) { card.append(h("p", { class: "dim warn-none", text: "No warnings or errors in the last day." })); return; }
+  const now = Date.now() / 1000;
+  card.append(h("div", { class: "warn-list" }, ...rows.slice(0, WARN_SHOWN).map((r) =>
+    h("a", { class: `warn-row ${r.cls}`, href: "#logs", title: r.text,
+      onclick: (e) => { e.preventDefault(); pickLevels(["warn", "error"]); if (lastGoLogs) lastGoLogs(r.container); } },
+      h("i", { class: "warn-dot", "aria-label": r.cls === "error" ? "Error" : "Warning" }),
+      h("span", { class: "warn-svc", text: r.name }),
+      h("span", { class: "warn-msg", text: r.text }),
+      h("span", { class: "warn-ago dim", text: (r.n > 1 ? `${r.n}× · ` : "") + ago(Math.min(r.at, now)) })))));
+  if (rows.length > WARN_SHOWN) card.append(h("p", { class: "dim warn-more", text: `${rows.length - WARN_SHOWN} more in Logs` }));
 }
 
 // The VPN, once it's set up (on or off), like Phone alerts: whether it's connected, where

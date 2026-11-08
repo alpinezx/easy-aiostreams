@@ -12,6 +12,7 @@ const CARDS = {
   alerts: ["Phone alerts", "The watchdog, its last check and 14 days"],
   vpn: ["VPN", "Whether it's connected, where traffic leaves and the server"],
   server: ["This server", "Uptime, certificate, memory, disk and backups"],
+  warn: ["Recent warnings & errors", "The latest from every service's log"],
   services: ["Services", "Each container, with Logs, Restart and Stop"],
 };
 const PAGES = {

@@ -597,12 +597,16 @@ def test_backup_schedule(client):
 def test_overview_layout(client):
     login(client)
     ids = lambda r: [(c["id"], c["show"]) for c in r.json()["cards"]]
-    default = [("flow", True), ("aiostreams", True), ("aiometadata", True), ("aiomanager", True), ("mediaflow", True), ("alerts", True), ("vpn", True), ("server", True), ("services", True)]
+    default = [("flow", True), ("aiostreams", True), ("aiometadata", True), ("aiomanager", True), ("mediaflow", True), ("alerts", True), ("vpn", True), ("server", True), ("warn", True), ("services", True)]
     assert ids(client.get("/api/overview-layout")) == default
     # unknown and repeated cards are dropped; ones left out go back to their default place
     r = client.put("/api/overview-layout", json={"cards": [{"id": "services", "show": True}, {"id": "nope"},
                                                          {"id": "alerts", "show": False}, {"id": "services", "show": False}]})
-    assert ids(r) == [("flow", True), ("aiostreams", True), ("aiometadata", True), ("aiomanager", True), ("mediaflow", True), ("services", True), ("alerts", False), ("vpn", True), ("server", True)]
+    assert ids(r) == [("flow", True), ("aiostreams", True), ("aiometadata", True), ("aiomanager", True), ("mediaflow", True), ("services", True), ("alerts", False), ("vpn", True), ("server", True), ("warn", True)]
+    # a layout saved before Recent warnings & errors existed gets it between This server and Services
+    old = [{"id": c, "show": True} for c, _ in default if c != "warn"]
+    from app.main import normal_layout
+    assert [c["id"] for c in normal_layout(old)][-3:] == ["server", "warn", "services"]
     # layout.js lists the cards in the same default order
     import re
     from pathlib import Path
@@ -612,6 +616,26 @@ def test_overview_layout(client):
     assert ids(client.get("/api/overview-layout")) == ids(r)
     assert client.put("/api/overview-layout", json={"cards": "x"}).status_code == 400
     assert ids(client.put("/api/overview-layout", json={"cards": []})) == default
+
+
+def test_log_warnings(client):
+    """Recent warnings & errors: hints from each running service, and a Clear empties that one's."""
+    login(client)
+    from app.stack import warn_hints
+    raw = "\n".join([
+        "2026-11-08T10:00:00.1Z info: [Sort] Sorted 73 streams",
+        "2026-11-08T10:00:01.1Z warn: [Torbox] timed out",
+        '2026-11-08T10:00:02.1Z {"level":40,"msg":"slow"}',
+        "2026-11-08T10:00:03.1Z ERROR GET /x?api_password=hunter2&d=1 failed",
+        "2026-11-08T10:00:04.1Z exiting; byeee!! \U0001F44B"]).encode()
+    got = warn_hints(raw)
+    assert len(got) == 4 and "Sorted" not in " ".join(got)       # info lines never sent
+    assert "hunter2" not in got[2] and "api_password=[hidden]" in got[2]
+    r = client.get("/api/log-warnings").json()["services"]
+    assert r and all(s["lines"] and s["name"] for s in r)
+    one = r[0]["container"]                     # (another test may have cleared some already)
+    assert client.post(f"/api/logs/{one}/clear").status_code == 200
+    assert one not in {s["container"] for s in client.get("/api/log-warnings").json()["services"]}
 
 
 def test_rail_layout(client):
