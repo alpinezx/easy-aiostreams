@@ -1,7 +1,10 @@
 import { $, h, clear, api, toast } from "./util.js";
 
 const MAX = 2000;
-let current = null, es = null, lines = [], follow = true, filter = "", regex = false, wrap = false, svcs = [];
+let current = null, es = null, lines = [], follow = true, filter = "", regex = false, svcs = [];
+// Wrap starts on for phones (long lines are unreadable scrolled sideways), off on desktop,
+// until this browser's switch is changed once
+let wrap = window.matchMedia("(max-width: 720px)").matches;
 // Levels picked with the INFO / WARN / ERROR buttons; none picked shows every line.
 let levels = new Set();
 
@@ -27,7 +30,7 @@ const CUT_BY_AIOS = /aborting with incomplete response.*"error":"reading: [^"]*(
 const QUIET = [
   /WARN \[dns\] exchanging over tls connection .*: EOF$/,   // gluetun: the DNS server closed an idle connection; retried at once
   /WARN \[dns\] renewing tls connection for request .*: running TLS handshake with .*: EOF$/,   // gluetun: the same, while it opens a new connection
-  /WARN \[dns\] getting tls connection for request .*: renewing dead connection: running TLS handshake with .*: EOF$/,   // gluetun: the same, newer wording
+  /WARN \[dns\] getting tls connection for request .*: (renewing dead|creating) connection: running TLS handshake with .*: EOF$/,   // gluetun: the same, newer wording; "creating" right as the VPN comes up
   /WARN Caught OS signal terminated, shutting down$/,   // gluetun: asked to stop, as a restart or reboot does
   // gluetun: its start-up release check hit GitHub's hourly limit, common on a shared exit address; the VPN is fine
   /ERROR \[vpn\] cannot get version information: bad response HTTP status code: 403 403 Forbidden$/,
@@ -45,7 +48,8 @@ let lastStop = -Infinity;
 let hideNoise = false;
 try {
   hideNoise = localStorage.getItem("aios.hideNoise") === "1";
-  wrap = localStorage.getItem("aios.logWrap") === "1";
+  const w = localStorage.getItem("aios.logWrap");
+  if (w !== null) wrap = w === "1";
   levels = new Set(JSON.parse(localStorage.getItem("aios.logLevels") || "[]"));
 } catch (_) {}
 const save = (k, v) => { try { localStorage.setItem(k, v); } catch (_) {} };
@@ -113,7 +117,15 @@ function markRestart(stop) {
 const isCaddy = () => current === "caddy";
 // Logs with a Hide noise switch: Caddy's, and the Cloudflare Tunnel's and VPN tunnel's grey lines.
 const hasNoise = () => isCaddy() || current === "cloudflared" || current === "gluetun";
-const hiddenByToggle = (l) => (hideNoise && hasNoise() && l.noise) || (levels.size > 0 && !levels.has(l.cls));
+// The level chips: each line counts as one of INFO, WARN, ERROR or, on those logs, NOISE. With
+// none picked every line shows (less the noise, with Hide noise on); NOISE overrides Hide noise.
+const noiseChip = () => hasNoise() && levels.has("noise");
+const hiddenByToggle = (l) => {
+  const noise = hasNoise() && l.noise;
+  const picked = noiseChip() || [...levels].some((v) => v !== "noise");
+  if (picked) return noise ? !noiseChip() : !levels.has(l.cls);
+  return hideNoise && noise;
+};
 
 // The filter as a test: plain text (any case), or a regular expression with .* on. A broken pattern matches everything.
 let matcher = () => true;
@@ -132,14 +144,31 @@ function setMatcher() {
 
 const visible = (l) => !hiddenByToggle(l) && matcher(l);
 
+// Phones: the box is sized so that, scrolled down, the filters and the whole box fit on screen
+// under the top bar, with no gap below. The filters then stay in reach for scrolling back up.
+const PHONE = window.matchMedia("(max-width: 720px)");
+function fitBox() {
+  const t = $("#log-term");
+  if (!PHONE.matches || $("#view-logs").hidden) { t.style.height = ""; return; }
+  const screen = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const bar = $(".topbar").getBoundingClientRect().height;
+  const above = t.getBoundingClientRect().top - $(".lg-filters").getBoundingClientRect().top;
+  const below = parseFloat(getComputedStyle($("main")).paddingBottom) || 0;
+  t.style.height = `${Math.max(240, Math.floor(screen - bar - 12 - above - below))}px`;
+}
+
 function syncControls() {
   $("#log-noise-row").hidden = !hasNoise();
   $("#log-help").hidden = !isCaddy();
   $("#log-help-tunnel").hidden = current !== "cloudflared";
+  $("#log-help-vpn").hidden = current !== "gluetun";
   $("#log-noise").checked = hideNoise;
+  $("#log-noise-chip").hidden = !hasNoise();
+  $("#log-noise").disabled = noiseChip();   // set aside while NOISE shows only the noise
   const n = hasNoise() ? lines.filter((l) => l.noise).length : 0;
   $("#log-noise-n").textContent = n ? `(${n})` : "";
   document.querySelectorAll(".lg-levels button").forEach((b) => b.setAttribute("aria-pressed", String(levels.has(b.dataset.lv))));
+  fitBox();
 }
 
 function setCount() { $("#log-count").textContent = `${lines.filter(visible).length} shown`; }
@@ -235,6 +264,7 @@ export function show(status, pick) {
   if (!svcs.some((s) => s.container === current)) current = (svcs.find((s) => s.key === "aiostreams") || svcs[0] || {}).container || null;
   services();
   if (!es || current !== was) connect();
+  requestAnimationFrame(fitBox);   // the view is shown by now, so it can be measured
 }
 
 export function hide() { if (es) { es.close(); es = null; } }
@@ -264,6 +294,10 @@ export function init() {
     const t = e.target;
     setFollow(t.scrollTop + t.clientHeight >= t.scrollHeight - 24);
   });
+  window.addEventListener("resize", fitBox);
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", fitBox);
+  PHONE.addEventListener("change", fitBox);
+  document.querySelectorAll("#view-logs details.log-help").forEach((d) => d.addEventListener("toggle", fitBox));
   // Phones: Hide noise, Auto-scroll and Wrap sit behind the ⋮ button
   const more = $("#log-more"), tog = $("#log-toggles");
   const openMore = (v) => { tog.classList.toggle("open", v); more.setAttribute("aria-expanded", String(v)); };
