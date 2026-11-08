@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 8 November 2026
 
+- **Fixed:** scheduled server reboots happen again with the VPN on. Since v1.6.0 they were skipped every time ("setup-vpn-gluetun.sh was still running after 30 minutes"), because the VPN's always-running route watcher was mistaken for a job in progress. ([#159](https://github.com/alpinezx/easy-aiostreams/pull/159))
 - **New:** the Logs page has a **NOISE** button beside the levels on Caddy's, the Cloudflare Tunnel's and the VPN's logs, showing only the grey lines Hide noise would hide, and the VPN log gets a fold-out on what's noise and what's worth a look. With Wrap on, long lines use the full width; on phones each entry's message sits under its time with the dot first, Wrap starts on, and the log fits the screen under the filters. (Panel 1.50.4, [#158](https://github.com/alpinezx/easy-aiostreams/pull/158))
 - **Fixed:** the VPN's "creating connection … EOF" DNS lines, seen as it comes up, are grey and hidden by **Hide noise**, like its other EOF retries. (Panel 1.50.4, [#158](https://github.com/alpinezx/easy-aiostreams/pull/158))
 - **Fixed:** the Logs page greys the VPN's "renewing dead connection … EOF" DNS lines, gluetun's newer wording for a DNS server closing an idle connection, and **Hide noise** hides them. Timeouts stay amber. (Panel 1.50.3, [#157](https://github.com/alpinezx/easy-aiostreams/pull/157))

@@ -460,9 +460,11 @@ restart_last() {
 
 # What's in the way of a restart right now: another of these scripts (a
 # backup, an update, a restore, a panel job) or apt. Empty when nothing is.
+# The VPN's watch-routes runs all the time while the VPN is on (a service, not
+# a job), so it never counts, or no scheduled reboot would ever happen.
 restart_busy() {
     local p
-    p=$(pgrep -af 'setup-[a-z-]+\.sh' 2>/dev/null | grep -v -e "^$$ " -e 'scheduled-restart' | grep -oP 'setup-[a-z-]+\.sh' | head -n 1 || true)
+    p=$(pgrep -af 'setup-[a-z-]+\.sh' 2>/dev/null | grep -v -e "^$$ " -e 'scheduled-restart' -e 'watch-routes' | grep -oP 'setup-[a-z-]+\.sh' | head -n 1 || true)
     if [[ -n "$p" ]]; then echo "$p"; return 0; fi
     # unattended-upgrade itself, not the -shutdown helper Ubuntu keeps running all day
     p=$( { pgrep -x 'apt|apt-get|dpkg'; pgrep -f 'bin/unattended-upgrade( |$)'; } 2>/dev/null | head -n 1 || true)
