@@ -18,6 +18,8 @@ dig +short meta.yourdomain.com
 
 Should print this server's IP.
 
+**Hosting from home through a Cloudflare Tunnel?** Skip the A record and the `dig` check: add a **route** for the subdomain on your tunnel instead (Service URL `http://caddy:80`), as in [step 4 of the home guide](./home-hosting.md#4-add-a-route-for-each-subdomain). Add it before installing; the script reminds you about the route instead of checking DNS.
+
 ---
 
 ## 2. Install and run the script

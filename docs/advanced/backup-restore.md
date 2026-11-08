@@ -424,5 +424,5 @@ stack. If it's missing, the backup was likely taken before the
 
 **Restored under a new domain, and an add-on still uses its old subdomain**
 You chose to keep it when the restore asked. Point that subdomain's DNS at
-this server, or move the add-on with its own script's Reconfigure option
+this server (through a Cloudflare Tunnel, add its route), or move the add-on with its own script's Reconfigure option
 (for MediaFlow, `setup-mediaflow.sh` option 4).

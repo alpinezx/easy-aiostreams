@@ -2,6 +2,9 @@
 
 > In a hurry? [Basic guide](../basic/firewall-ports.md) covers the same steps with no deep explanation.
 
+> [!NOTE]
+> **Hosting from home through a Cloudflare Tunnel?** None of this applies: the tunnel connects out to Cloudflare, so nothing comes in on ports 80 or 443 and there's nothing to open or forward. Cloudflare provides the HTTPS certificate.
+
 ## What's actually happening
 
 Caddy uses Let's Encrypt's HTTP-01 challenge by default to get your HTTPS certificate. Roughly: Let's Encrypt makes an outbound HTTP request to your domain on port 80, Caddy answers it to prove you actually control that domain and server, and only then issues the certificate that ends up served over 443. If port 80 is blocked, that exchange never completes and Caddy just keeps retrying quietly in the background, which is what shows up on screen as "not confirmed yet" during the install.

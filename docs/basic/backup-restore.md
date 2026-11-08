@@ -105,6 +105,8 @@ Moving AIOStreams to a different VPS: a provider switch, a resize that needs a r
 
 ### 2. Point your domain at your new server: do this now
 
+**Moving to a computer at home through a Cloudflare Tunnel?** Skip this step and the `dig` checks below: your domain points at Cloudflare, not an IP, and the tunnel's routes take the place of A records. Follow [Moving from a VPS to home](./home-hosting.md#adding-more-later) in the home guide instead.
+
 **This does:** starts DNS propagation early, so it's already pointing at the new server by the time you restore. The script can't do this step for you.
 
 ⚠️ **Do this before you restore, not after.** DNS changes can take a few minutes to spread across the internet. If you restore before DNS has caught up, the restore script will pause and offer to wait for you, fix a typo'd domain, or let you continue anyway (see the note in step 4). Doing this now just means you likely won't be shown that prompt at all.
@@ -163,7 +165,7 @@ What would you like to do?
 - Realize the domain in the backup isn't the one you want live on this server (e.g. testing under a separate subdomain)? Pick **3** and type the correct one: it rewrites the config on the spot and re-checks immediately.
 - Nothing here will start Docker or touch your certificates until you choose: it's safe to sit and think.
 
-**Then it checks your add-ons' subdomains** (AIOMetadata, AIOManager, MediaFlow, control panel), whether or not they were running. For any that don't point at this server yet, it asks whether to move it to another subdomain, keep it and fix DNS yourself (Enter), or leave it off for now. The summary at the end says what's running, what's waiting for DNS, and anything to update elsewhere, like MediaFlow's Public URL in the AIOStreams dashboard. [More detail](../advanced/backup-restore.md#add-ons-on-restore).
+**Then it checks your add-ons' subdomains** (AIOMetadata, AIOManager, MediaFlow, control panel), whether or not they were running (at home, that each has its route). For any that don't point at this server yet, it asks whether to move it to another subdomain, keep it and fix DNS yourself (Enter), or leave it off for now. The summary at the end says what's running, what's waiting for DNS, and anything to update elsewhere, like MediaFlow's Public URL in the AIOStreams dashboard. [More detail](../advanced/backup-restore.md#add-ons-on-restore).
 
 That's it: no other setup needed.
 

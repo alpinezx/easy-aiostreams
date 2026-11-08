@@ -17,6 +17,8 @@ A private web page for your AIOStreams server. See at a glance whether everythin
 
 At your domain provider, add an **A record** for a new subdomain (for example `panel`) pointing at the same IP as your AIOStreams domain, as you did for the main domain in the [Quick start](../../README.md#confirm-your-dns-is-actually-pointing-at-your-server-first).
 
+**Hosting from home through a Cloudflare Tunnel?** Skip the A record: add a **route** for the subdomain on your tunnel instead (Service URL `http://caddy:80`), as in [step 4 of the home guide](./home-hosting.md#4-add-a-route-for-each-subdomain). Add it before installing.
+
 ---
 
 ## 2. Download the panel
