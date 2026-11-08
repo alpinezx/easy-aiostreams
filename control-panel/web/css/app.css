@@ -866,9 +866,13 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .cl-kind.cl-new { color: var(--accent); background: var(--accent-soft); }
 .cl-kind.cl-fixed { color: var(--ok); background: var(--hover); }
 .rel > summary .chip, .rel-when { white-space: nowrap; }
+/* Phones: the badge starts the entry's first line and the text wraps under it; slimmer edges */
 @media (max-width: 720px) {
-  .cl-list { padding: 2px 14px 12px; gap: 12px; }
-  .cl-list li { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .rel-list { padding: 10px; }
+  .rel > summary { padding: 10px 12px; }
+  .cl-list { padding: 0 12px 12px; gap: 12px; }
+  .cl-list li { display: block; }
+  .cl-kind { display: inline-block; margin-right: 6px; vertical-align: 1px; }
   .cl-count { display: none; }
 }
 .result { font-weight: 600; }
