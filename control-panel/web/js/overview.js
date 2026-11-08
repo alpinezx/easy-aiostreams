@@ -98,8 +98,8 @@ const STATE_WORD = {
 };
 const stateOf = (s) => (s.on_purpose && s.state !== "running" ? "paused" : s.state);
 
-// A container's CPU is Docker's figure, up to 100% per CPU. Coloured by its share
-// of the whole server, like Load, and only once the last 3 readings were all that
+// A container's CPU history is Docker's figure, up to 100% per CPU. Shown, and coloured,
+// by its share of the whole server, like This server's CPU, and only once the last 3 readings were all that
 // high, so a short burst (a search) doesn't flash amber.
 function cpuTone(h, cpus) {
   if (!h || h.length < 3) return "";
@@ -623,10 +623,13 @@ function rows(st, goLogs) {
     setText(row, "[data-w]", word + (s.restarts ? `, restarted ${s.restarts}×` : ""));
     setText(row, "[data-img]", s.image || "");
     // Docker's figure from the last look (about every 3s), not an average, so a burst settles
-    // as quickly here as it does in This server's CPU
-    setText(row, "[data-cpu]", s.state === "running" && s.cpu != null ? `${s.cpu}%` : "");
+    // as quickly here as it does in This server's CPU. Docker counts 100% per core (a busy
+    // service can read 120%); shown as its share of the whole server instead, the scale of
+    // This server's CPU, so 100% is the real ceiling and the rows add up to that figure.
+    const cpus = (st.host && st.host.cpus) || 1;
+    setText(row, "[data-cpu]", s.state === "running" && s.cpu != null ? `${Math.round((s.cpu / cpus) * 10) / 10}%` : "");
     const cpuEl = row.querySelector("[data-cpu]");
-    if (cpuEl) cpuEl.className = "num " + cpuTone(hist[s.key], (st.host && st.host.cpus) || 1);
+    if (cpuEl) cpuEl.className = "num " + cpuTone(hist[s.key], cpus);
     setText(row, "[data-mem]", s.state === "running" && s.mem != null ? fmtBytes(s.mem) : "");
     const sv = row.querySelector("svg.spark");
     if (sv) fillSpark(sv, hist[s.key] || []);
