@@ -132,6 +132,19 @@ function setMatcher() {
 
 const visible = (l) => !hiddenByToggle(l) && matcher(l);
 
+// Phones: the box is sized so that, scrolled down, the filters and the whole box fit on screen
+// under the top bar, with no gap below. The filters then stay in reach for scrolling back up.
+const PHONE = window.matchMedia("(max-width: 720px)");
+function fitBox() {
+  const t = $("#log-term");
+  if (!PHONE.matches || $("#view-logs").hidden) { t.style.height = ""; return; }
+  const screen = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const bar = $(".topbar").getBoundingClientRect().height;
+  const above = t.getBoundingClientRect().top - $(".lg-filters").getBoundingClientRect().top;
+  const below = parseFloat(getComputedStyle($("main")).paddingBottom) || 0;
+  t.style.height = `${Math.max(240, Math.floor(screen - bar - 12 - above - below))}px`;
+}
+
 function syncControls() {
   $("#log-noise-row").hidden = !hasNoise();
   $("#log-help").hidden = !isCaddy();
@@ -141,6 +154,7 @@ function syncControls() {
   const n = hasNoise() ? lines.filter((l) => l.noise).length : 0;
   $("#log-noise-n").textContent = n ? `(${n})` : "";
   document.querySelectorAll(".lg-levels button").forEach((b) => b.setAttribute("aria-pressed", String(levels.has(b.dataset.lv))));
+  fitBox();
 }
 
 function setCount() { $("#log-count").textContent = `${lines.filter(visible).length} shown`; }
@@ -236,6 +250,7 @@ export function show(status, pick) {
   if (!svcs.some((s) => s.container === current)) current = (svcs.find((s) => s.key === "aiostreams") || svcs[0] || {}).container || null;
   services();
   if (!es || current !== was) connect();
+  requestAnimationFrame(fitBox);   // the view is shown by now, so it can be measured
 }
 
 export function hide() { if (es) { es.close(); es = null; } }
@@ -265,6 +280,10 @@ export function init() {
     const t = e.target;
     setFollow(t.scrollTop + t.clientHeight >= t.scrollHeight - 24);
   });
+  window.addEventListener("resize", fitBox);
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", fitBox);
+  PHONE.addEventListener("change", fitBox);
+  document.querySelectorAll("#view-logs details.log-help").forEach((d) => d.addEventListener("toggle", fitBox));
   // Phones: Hide noise, Auto-scroll and Wrap sit behind the ⋮ button
   const more = $("#log-more"), tog = $("#log-toggles");
   const openMore = (v) => { tog.classList.toggle("open", v); more.setAttribute("aria-expanded", String(v)); };

@@ -794,6 +794,8 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
   /* The box fills most of a phone's screen, so a finger is nearly always on it: at its end, let
      the swipe carry on to the page, or the box's own bottom can never be scrolled into view */
   .lg-list { height: 60vh; overscroll-behavior: auto; }
+  /* logs.js sizes the box to the screen; no empty strip under it */
+  main:has(#view-logs:not([hidden])) { padding-bottom: 16px; }
   /* Wrap on a phone: the time on its own row, then the dot as a bullet and the message at full width */
   .lg-list.wrap .lg-ln:has(> .lg-time) { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 10px; align-items: start; }
   .lg-list.wrap .lg-ln > .lg-time { grid-column: 1 / -1; justify-self: start; }
