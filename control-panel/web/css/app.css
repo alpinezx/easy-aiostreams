@@ -16,8 +16,9 @@
   --bg: #070707;
   --raised: #0b0b0b;
   --sunk: #0f0f0f;
-  --line: rgba(255, 255, 255, .1);
-  --line-soft: rgba(255, 255, 255, .07);
+  /* A little more visible on the cards than Light's lines: thin grey on near-black fades on phones */
+  --line: rgba(255, 255, 255, .2);
+  --line-soft: rgba(255, 255, 255, .14);
   --text: #e1e1e1;
   --dim: rgba(255, 255, 255, .6);
   --faint: rgba(255, 255, 255, .4);
@@ -73,7 +74,7 @@
 :root[data-theme="slate"] {
   color-scheme: dark;
   --bg: #1c2028; --raised: #272c36; --sunk: #2b313c;
-  --line: #3a414e; --line-soft: #323844;
+  --line: #4e5768; --line-soft: #414857;
   --text: #eceff4; --dim: #aab2bf; --faint: #7f8898; --hover: rgba(236, 239, 244, .06);
   --accent: #8fc6d6; --accent-soft: rgba(143, 198, 214, .14);
   --primary: #5779a8; --primary-hover: #6587b6; --primary-ink: #ffffff;
@@ -491,19 +492,22 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 /* Inside the values' grid: a full-width row after everything, Reboot's row included */
 .stat-grid > .cert-sec { grid-column: 1 / -1; order: 2; margin-top: 0; }
 /* This server's Network, opened: each service's speed, a row each, down and up in columns */
-.stat-grid > .net-sec { grid-column: 1 / -1; order: 2; border-top: 1px solid var(--line-soft); padding-top: 6px; }
-.nsv-row { display: grid; max-width: 560px; grid-template-columns: minmax(0, 1fr) 110px 110px; gap: 12px; align-items: baseline; padding: 7px 0; font-size: .92rem; }
+/* The speed columns are as wide as their widest value (rows share them through subgrid), so a
+   larger text size in the browser can't push them past the card's edge */
+.stat-grid > .net-sec { grid-column: 1 / -1; order: 2; border-top: 1px solid var(--line-soft); padding-top: 6px;
+  display: grid; max-width: 560px; grid-template-columns: minmax(0, 1fr) max-content max-content; column-gap: 24px; }
+.nsv-row { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: baseline; padding: 7px 0; font-size: .92rem; }
 .nsv-row + .nsv-row { border-top: 1px solid var(--line-soft); }
 /* The total on top, set apart from the services under it */
 .nsv-whole + .nsv-row { border-top-color: var(--line); }
 .nsv-row .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .nsv-name { font-weight: 600; min-width: 0; }
 .nsv-sub { display: block; font-weight: 400; font-size: .8rem; }
-.nsv-go { display: inline-block; margin-top: 4px; font-size: .84rem; text-decoration: none; }
+.nsv-go { grid-column: 1 / -1; justify-self: start; margin-top: 4px; font-size: .84rem; text-decoration: none; }
 .nsv-go:hover { color: var(--text); text-decoration: underline; }
 @media (max-width: 720px) {
   .stat-grid > .net-sec { order: 0; padding-top: 2px; margin-bottom: 4px; }
-  .nsv-row { grid-template-columns: minmax(0, 1fr) 86px 86px; gap: 8px; }
+  .stat-grid > .net-sec { column-gap: 14px; }
 }
 /* Phones: the certificates come last among the values, their list right under them, Reboot at the end */
 @media (max-width: 720px) {

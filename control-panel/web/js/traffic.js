@@ -55,13 +55,14 @@ export function feedNet(net) {
 export const liveRate = (kind) => live[kind];
 
 // Bytes a second as a speed, written as AIOStreams' own dashboard writes them: KB and MB of
-// 1000, one decimal left off when it's zero ("3 MB/s", "15.8 MB/s")
+// 1000, one decimal left off when it's zero ("3 MB/s", "15.8 MB/s"). From 10 KB/s to 1 MB/s
+// whole numbers ("852 KB/s"): the decimal there only adds digits.
 const KB = 1000, MB = 1000 * 1000;
 export function fmtRate(bps) {
   const b = bps || 0;
   const num = (v) => +v.toFixed(1);
   if (b >= MB) return `${num(b / MB)} MB/s`;
-  if (b >= KB) return `${num(b / KB)} KB/s`;
+  if (b >= KB) return `${b >= 10 * KB ? Math.min(999, Math.round(b / KB)) : num(b / KB)} KB/s`;
   return `${Math.round(b)} B/s`;
 }
 
