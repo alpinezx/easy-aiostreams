@@ -749,6 +749,9 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .lg-levels button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
 .lg-levels button[data-lv="warn"][aria-pressed="true"] { color: var(--warn); }
 .lg-levels button[data-lv="error"][aria-pressed="true"] { color: var(--bad); }
+/* NOISE in the grey of the lines it picks out */
+.lg-levels button[data-lv="noise"][aria-pressed="true"] { border-color: var(--dim); background: var(--hover); color: var(--text); }
+.lg-toggles .sw:has(input:disabled) { opacity: .45; cursor: default; }
 .lg-toggles { display: flex; gap: 22px; align-items: center; }
 /* on/off switches */
 .sw { display: inline-flex; align-items: center; gap: 10px; font-size: .9rem; font-weight: 600; cursor: pointer; user-select: none; }

@@ -113,7 +113,15 @@ function markRestart(stop) {
 const isCaddy = () => current === "caddy";
 // Logs with a Hide noise switch: Caddy's, and the Cloudflare Tunnel's and VPN tunnel's grey lines.
 const hasNoise = () => isCaddy() || current === "cloudflared" || current === "gluetun";
-const hiddenByToggle = (l) => (hideNoise && hasNoise() && l.noise) || (levels.size > 0 && !levels.has(l.cls));
+// The level chips: each line counts as one of INFO, WARN, ERROR or, on those logs, NOISE. With
+// none picked every line shows (less the noise, with Hide noise on); NOISE overrides Hide noise.
+const noiseChip = () => hasNoise() && levels.has("noise");
+const hiddenByToggle = (l) => {
+  const noise = hasNoise() && l.noise;
+  const picked = noiseChip() || [...levels].some((v) => v !== "noise");
+  if (picked) return noise ? !noiseChip() : !levels.has(l.cls);
+  return hideNoise && noise;
+};
 
 // The filter as a test: plain text (any case), or a regular expression with .* on. A broken pattern matches everything.
 let matcher = () => true;
@@ -151,6 +159,8 @@ function syncControls() {
   $("#log-help-tunnel").hidden = current !== "cloudflared";
   $("#log-help-vpn").hidden = current !== "gluetun";
   $("#log-noise").checked = hideNoise;
+  $("#log-noise-chip").hidden = !hasNoise();
+  $("#log-noise").disabled = noiseChip();   // set aside while NOISE shows only the noise
   const n = hasNoise() ? lines.filter((l) => l.noise).length : 0;
   $("#log-noise-n").textContent = n ? `(${n})` : "";
   document.querySelectorAll(".lg-levels button").forEach((b) => b.setAttribute("aria-pressed", String(levels.has(b.dataset.lv))));
