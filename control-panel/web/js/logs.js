@@ -1,7 +1,10 @@
 import { $, h, clear, api, toast } from "./util.js";
 
 const MAX = 2000;
-let current = null, es = null, lines = [], follow = true, filter = "", regex = false, wrap = false, svcs = [];
+let current = null, es = null, lines = [], follow = true, filter = "", regex = false, svcs = [];
+// Wrap starts on for phones (long lines are unreadable scrolled sideways), off on desktop,
+// until this browser's switch is changed once
+let wrap = window.matchMedia("(max-width: 720px)").matches;
 // Levels picked with the INFO / WARN / ERROR buttons; none picked shows every line.
 let levels = new Set();
 
@@ -45,7 +48,8 @@ let lastStop = -Infinity;
 let hideNoise = false;
 try {
   hideNoise = localStorage.getItem("aios.hideNoise") === "1";
-  wrap = localStorage.getItem("aios.logWrap") === "1";
+  const w = localStorage.getItem("aios.logWrap");
+  if (w !== null) wrap = w === "1";
   levels = new Set(JSON.parse(localStorage.getItem("aios.logLevels") || "[]"));
 } catch (_) {}
 const save = (k, v) => { try { localStorage.setItem(k, v); } catch (_) {} };
