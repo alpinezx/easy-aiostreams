@@ -1,5 +1,6 @@
 import { $, h, clear, setText, fmtDur, fmtBytes, api, toast, ago, extIcon } from "./util.js";
-import { runAction, openJob, rebootServer, restartService } from "./actions.js";
+import { runAction, openJob, rebootServer, restartService, ask } from "./actions.js";
+import { restartPanel } from "./terminal.js";
 import { openReleases, remember, behind } from "./releases.js";
 import { days, todayLine, parseCheck } from "./alerts.js";
 import { pill as scriptsPill, showChangelog } from "./scripts.js";
@@ -482,10 +483,12 @@ function versionCard(st, avail) {
 // Folded until someone opens it (see folding above)
 function path(st) {
   const folded = isFolded("flow");
-  const main = st.services.filter((s) => !s.addon);
-  const addons = st.services.filter((s) => s.addon);
+  // The panel isn't on a stream's way through, so the flow leaves it out
+  const svcs = st.services.filter((s) => !s.panel);
+  const main = svcs.filter((s) => !s.addon);
+  const addons = svcs.filter((s) => s.addon);
   const restart = st.installed && st.actions.find((a) => a.id === "stack.restart");
-  const key = st.services.map((s) => `${s.key}:${stateOf(s)}:${!!s.via_vpn}`).join(",") + st.docker_ok + !!st.busy + !!(restart && restart.available) + folded;
+  const key = svcs.map((s) => `${s.key}:${stateOf(s)}:${!!s.via_vpn}`).join(",") + st.docker_ok + !!st.busy + !!(restart && restart.available) + folded;
   const restartBtn = () => restart && restart.available ? h("button", { class: "btn small", type: "button", text: "Restart stack", disabled: !!st.busy,
     title: "Restart Caddy, AIOStreams and anything in between", onclick: () => runAction(restart) }) : null;
   const el = rebuild("#path", key, (el) => {
@@ -494,7 +497,7 @@ function path(st) {
     el.append(head);
     if (folded) {
       // One line: a dot per service, coloured like the boxes, and Restart stack beside them
-      head.append(h("ul", { class: "path-sum" }, ...st.services.map((s) => {
+      head.append(h("ul", { class: "path-sum" }, ...svcs.map((s) => {
         const sx = stateOf(s);
         return h("li", { dataset: { s: sx }, title: `${s.name}: ${STATE_WORD[sx] || sx}` }, h("i", { "aria-hidden": "true" }), s.name);
       })), restartBtn());
@@ -531,7 +534,7 @@ function path(st) {
     el.append(tree);
     head.append(restartBtn());
   });
-  for (const s of st.services) setText(el, `[data-up="${s.key}"]`, uptime(s));
+  for (const s of svcs) setText(el, `[data-up="${s.key}"]`, uptime(s));
 }
 
 // ---------------- service rows ----------------
@@ -574,6 +577,13 @@ function svcHead(st) {
   setText(el, "[data-mem]", mem ? `${fmtBytes(mem)} memory` : "");
 }
 
+// The panel restarts itself and this page reloads once it answers again. No Stop: nothing here could start it again.
+async function confirmPanelRestart() {
+  const ok = await ask({ title: "Restart the control panel?", confirmLabel: "Restart",
+    body: "Only the panel restarts, and this page reloads by itself in a few seconds. AIOStreams and everything else keep running." });
+  if (ok) restartPanel();
+}
+
 function rows(st, goLogs) {
   svcHead(st);
   const avail = Object.fromEntries(st.actions.map((a) => [a.id, a]));
@@ -587,11 +597,11 @@ function rows(st, goLogs) {
       const slot = [h("span", { class: "slot" }), h("span", { class: "slot" }), h("span", { class: "slot" })];
       const acts = h("div", { class: "acts" }, ...slot);
       if (s.present) slot[0].append(h("button", { class: "btn small", type: "button", text: "Logs", onclick: () => goLogs(s.container) }));
-      if (RESTARTABLE.has(s.key) && s.present) {
+      if ((RESTARTABLE.has(s.key) || s.panel) && s.present) {
         slot[2].append(h("button", { class: "btn small", type: "button", text: "Restart",
           disabled: !!st.busy || s.state !== "running",
           title: s.state === "running" ? `Restart only ${s.name}` : "Only available while it's running",
-          onclick: () => restartService(s) }));
+          onclick: () => (s.panel ? confirmPanelRestart() : restartService(s)) }));
       }
       // AIOStreams' Start / Stop are the stack's (Stop leaves Caddy up); the add-ons have their own
       if (s.addon || s.key === "aiostreams") {

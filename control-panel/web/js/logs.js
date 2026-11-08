@@ -31,6 +31,8 @@ const QUIET = [
   // gluetun: its start-up release check hit GitHub's hourly limit, common on a shared exit address; the VPN is fine
   /ERROR \[vpn\] cannot get version information: bad response HTTP status code: 403 403 Forbidden$/,
   /canceled by remote with error code 0\b/,   // a visitor closed a connection still open (left a live page, stopped a video)
+  // The visitor's side gave up before the answer came (a reload, a closed tab, the panel restarting): both halves
+  /error="Incoming request ended abruptly: context canceled"/,
   /ERR {2}error="unexpected EOF" .*originService=/,   // a cut connection's first half; its Request failed line says what it was
   // A restart cut a live page: AIOStreams' dashboard, or this panel's own Logs.
   /Request failed error="unexpected EOF" .*dest=https?:\/\/[^/ ]+\/api\/(v1\/dashboard\/[^ ]*\/stream|logs\/[^ ]*) /,

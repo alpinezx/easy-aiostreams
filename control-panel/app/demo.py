@@ -146,7 +146,7 @@ class DemoBackend:
         self._made: list[dict] = []    # backups "made" by demo actions, newest first
         self.signups_until = 0.0       # AIOManager's sign-ups, closed until a demo action opens them
         self.mf_version = "1.1.1"      # MediaFlow's pinned release, one behind until a demo Update
-        self.running = {"cloudflared": True, "caddy": True, "gluetun": True, "aiostreams": True, "mediaflow-proxy-light": True, "aiometadata": True, "aiomanager": True}
+        self.running = {"cloudflared": True, "caddy": True, "gluetun": True, "aiostreams": True, "mediaflow-proxy-light": True, "aiometadata": True, "aiomanager": True, "aios-ui": True}
         if scenario == "down":
             self.running["aiostreams"] = False
         self.stopped_on_purpose = scenario == "paused"
@@ -307,7 +307,8 @@ class DemoBackend:
                 ("aiostreams", "aiostreams", "AIOStreams", "Addon aggregator", False, "viren070/aiostreams:latest"),
                 ("mediaflow", "mediaflow-proxy-light", "MediaFlow Proxy", "Faster video proxy", True, f"ghcr.io/mhdzumair/mediaflow-proxy-light:{self.mf_version}"),
                 ("aiometadata", "aiometadata", "AIOMetadata", "Catalogs and metadata", True, "ghcr.io/cedya77/aiometadata:3.6.1"),
-                ("aiomanager", "aiomanager", "AIOManager", "Manages Stremio accounts", True, "ghcr.io/sonicx161/aiomanager:2.0.0")]
+                ("aiomanager", "aiomanager", "AIOManager", "Manages Stremio accounts", True, "ghcr.io/sonicx161/aiomanager:2.0.0"),
+                ("panel", "aios-ui", "Control panel", "This panel", False, "aios-ui:local")]
         if self.vpn != "on":
             defs = [x for x in defs if x[0] != "gluetun"]
         # UI_DEMO_TUNNEL=1: hosted at home through a Cloudflare Tunnel
@@ -316,21 +317,21 @@ class DemoBackend:
         services = []
         for key, cname, name, role, addon, image in defs:
             run = self.running[cname]
-            s = {"key": key, "container": cname, "name": name, "role": role, "addon": addon,
+            s = {"key": key, "container": cname, "name": name, "role": role, "addon": addon, "panel": key == "panel",
                  "present": True, "state": "running" if run else "stopped", "health": "healthy" if run else None,
                  "restarts": 0, "image": image, "via_vpn": self.vpn == "on" and key in self.routed,
                  "on_purpose": (not run) and key == "aiostreams" and self.stopped_on_purpose}
             if run:
                 s.update(started_at=self.started[cname].isoformat().replace("+00:00", "Z"),
                          cpu=round(random.uniform(0.2, 9.0) if key == "aiostreams" else random.uniform(0.0, 1.5), 1),
-                         mem=int({"tunnel": 19, "caddy": 31, "gluetun": 44, "aiostreams": 318, "mediaflow": 22, "aiometadata": 452, "aiomanager": 182}[key] * MB * random.uniform(0.97, 1.03)))
+                         mem=int({"tunnel": 19, "caddy": 31, "gluetun": 44, "aiostreams": 318, "mediaflow": 22, "aiometadata": 452, "aiomanager": 182, "panel": 58}[key] * MB * random.uniform(0.97, 1.03)))
                 # Network speeds: a stream comes in through the VPN (or straight to AIOStreams
                 # without one), over to Caddy and out to the viewer; AIOStreams on the VPN's
                 # network has no counters of its own
                 r = demo_rate(time.time()) * random.uniform(0.9, 1.1)
                 net = {"tunnel": (r * 0.99 + 7000, r + 9000), "caddy": (r + 9000, r * 0.98 + 6000), "gluetun": (r * 1.04, r * 0.98 + 2000),
                        "aiostreams": None if self.vpn == "on" else (r * 1.02, r * 0.98),
-                       "mediaflow": (4000, 3000), "aiometadata": (30000, 12000), "aiomanager": (1500, 2500)}[key]
+                       "mediaflow": (4000, 3000), "aiometadata": (30000, 12000), "aiomanager": (1500, 2500), "panel": (2200, 9500)}[key]
                 if net:
                     s.update(rx=net[0], tx=net[1])
             services.append(s)
