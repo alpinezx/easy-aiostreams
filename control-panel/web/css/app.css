@@ -778,9 +778,11 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .lg-ln.quiet .lg-msg { color: var(--dim); }
 .lg-mod { color: var(--dim); }
 .lg-extra { color: var(--faint); }
-.lg-list.wrap .lg-ln { white-space: normal; width: auto; align-items: flex-start; }
-.lg-list.wrap .lg-msg { white-space: pre-wrap; word-break: break-word; min-width: 0; }
-.lg-list.wrap .lg-dot { margin-top: 5px; }
+/* Wrap: the time and dot start the first line, and the rest of a long line flows back under them
+   to the left edge instead of leaving that column empty */
+.lg-list.wrap .lg-ln { display: block; white-space: normal; width: auto; }
+.lg-list.wrap .lg-time, .lg-list.wrap .lg-dot { display: inline-block; margin-right: 10px; vertical-align: middle; }
+.lg-list.wrap .lg-msg { white-space: pre-wrap; word-break: break-word; }
 .lg-list .term-empty { display: grid; place-items: center; height: 100%; text-align: center; }
 @media (max-width: 720px) {
   .view-head.lg-head { flex-direction: column; gap: 10px; }
@@ -802,6 +804,8 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
   /* Wrap on a phone: the time on its own row, then the dot as a bullet and the message at full width */
   .lg-list.wrap .lg-ln:has(> .lg-time) { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 10px; align-items: start; }
   .lg-list.wrap .lg-ln > .lg-time { grid-column: 1 / -1; justify-self: start; }
+  .lg-list.wrap .lg-ln:has(> .lg-time) > :is(.lg-time, .lg-dot) { margin-right: 0; }
+  .lg-list.wrap .lg-ln:has(> .lg-time) > .lg-dot { margin-top: 5px; }
 }
 
 /* ---------- activity + backups ---------- */
