@@ -55,13 +55,14 @@ export function feedNet(net) {
 export const liveRate = (kind) => live[kind];
 
 // Bytes a second as a speed, written as AIOStreams' own dashboard writes them: KB and MB of
-// 1000, one decimal left off when it's zero ("3 MB/s", "15.8 MB/s")
+// 1000, one decimal left off when it's zero ("3 MB/s", "15.8 MB/s"). From 10 KB/s to 1 MB/s
+// whole numbers ("852 KB/s"): the decimal there only adds digits.
 const KB = 1000, MB = 1000 * 1000;
 export function fmtRate(bps) {
   const b = bps || 0;
   const num = (v) => +v.toFixed(1);
   if (b >= MB) return `${num(b / MB)} MB/s`;
-  if (b >= KB) return `${num(b / KB)} KB/s`;
+  if (b >= KB) return `${b >= 10 * KB ? Math.min(999, Math.round(b / KB)) : num(b / KB)} KB/s`;
   return `${Math.round(b)} B/s`;
 }
 
@@ -92,6 +93,10 @@ export function today(d) {
 }
 
 // Down and up speeds, each with its own unit: "↓ 387 KB/s ↑ 1.4 KB/s"
+// An arrow and a figure in a column of their own: the arrow at the column's left, the figure right
+// after it, the column wide enough that arrows stay in one line down a list (.nsv-speed)
+export const arrowed = (arrow, text) => h("span", { class: "num nsv-speed" },
+  h("span", { class: "nsv-arrow", text: arrow }), h("span", { text }));
 export const fmtPair = ([d, u]) => `↓ ${fmtRate(d)} ↑ ${fmtRate(u)}`;
 
 // The Overview's VPN line, in two halves that each stay whole: "Now ↓ 3.2 MB/s ↑ 48 KB/s", "Today ↓ 3.2 GB ↑ 48 MB"
@@ -238,8 +243,8 @@ function days(d) {
       return h("div", { class: "tr-day" },
         h("span", { class: "tr-day-name", text: dayName(r[0]) }),
         h("span", { class: "tr-bar" }, bar),
-        h("span", { class: "tr-day-tot" + (r[1] == null ? " dim" : ""),
-          text: r[1] == null ? "No data" : `↓ ${fmtBytes(r[1])}   ↑ ${fmtBytes(r[2])}` }));
+        r[1] == null ? h("span", { class: "tr-day-tot dim", text: "No data" })
+          : h("span", { class: "tr-day-tot" }, arrowed("↓", fmtBytes(r[1])), arrowed("↑", fmtBytes(r[2]))));
     }));
 }
 

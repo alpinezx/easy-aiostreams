@@ -2,6 +2,12 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 8 November 2026
+
+- **New:** lines and separators stand out more in every theme, and Light's cards have a visible edge, so each part of a page is easier to tell apart. (Panel 1.49.8, [#152](https://github.com/alpinezx/easy-aiostreams/pull/152))
+- **New:** speeds from 10 KB/s up show whole numbers ("852 KB/s"). In This server's Network list and on the Network page (Last 7 days, By service) the arrows keep to one line and every figure starts right after its arrow; on phones each service's speeds sit under its name. (Panel 1.49.8, [#152](https://github.com/alpinezx/easy-aiostreams/pull/152))
+- **Fixed:** opening a folded part of the Overview, such as Network or HTTPS certificates, opens it downwards instead of pushing the page up. Speeds no longer run past the card's edge with larger text on phones, on the Overview or the Network page. (Panel 1.49.8, [#152](https://github.com/alpinezx/easy-aiostreams/pull/152))
+
 ## 7 November 2026
 
 - **Fixed:** the scp command printed after a backup over SSH uses the server's public address on a VPS behind NAT (Oracle, AWS), where it used to print a private one. At home it keeps the local address. ([#151](https://github.com/alpinezx/easy-aiostreams/pull/151))

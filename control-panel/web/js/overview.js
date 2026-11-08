@@ -160,10 +160,17 @@ window.addEventListener("layout-reset", () => {
   }
   if (lastSt) render(lastSt, lastGoLogs);
 });
+// The title tapped stays where it was on screen, so a section opens downwards. Left alone, the
+// browser's scroll anchoring keeps a card below it still instead, near the page's foot, and
+// everything above shoots up.
 function setFold(id) {
   folds[id] = !isFolded(id);
   try { localStorage.setItem(foldKey(id), folds[id] ? "1" : "0"); } catch (_) {}
+  const at = (el) => (el ? el.getBoundingClientRect().top : null);
+  const before = at(document.querySelector(`.fold-toggle[data-fold="${id}"]`));
   if (lastSt) render(lastSt, lastGoLogs);
+  const after = at(document.querySelector(`.fold-toggle[data-fold="${id}"]`));
+  if (before != null && after != null && after !== before) window.scrollBy(0, after - before);
 }
 function chev() {
   const c = h("span", { class: "path-chev", "aria-hidden": "true" });
@@ -173,7 +180,7 @@ function chev() {
 // The title as the fold button, as on the request flow
 function foldTitle(id, label) {
   const f = isFolded(id);
-  return h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(!f),
+  return h("button", { class: "path-toggle fold-toggle", type: "button", "data-fold": id, "aria-expanded": String(!f),
     title: f ? `Show all of ${label}` : `Fold ${label} to one line`, onclick: () => setFold(id) }, label, chev());
 }
 // The folded line: [text or element, tone, tooltip], empty ones left out
@@ -715,16 +722,19 @@ function netSec(st, n) {
   const onVpn = st.vpn === "on";
   const run = (st.services || []).filter((s) => s.state === "running");
   const shared = run.filter((s) => onVpn && (s.key === "aiostreams" || s.via_vpn)).map((s) => s.name);
+  // The arrow keeps to the column's left edge and the speed to its right, so arrows stay in
+  // one line down the list however long each speed is
+  const speed = (arrow, v) => h("span", { class: "num nsv-speed" },
+    ...(v != null ? [h("span", { class: "nsv-arrow", text: arrow }), h("span", { text: fmtRate(v) })] : []));
   const rows = run.filter((s) => !shared.includes(s.name)).map((s) => {
     const sub = s.key === "gluetun" && shared.length ? shared.join(", ") : "";
     return h("div", { class: "nsv-row" },
       h("span", { class: "nsv-name" }, s.name, sub ? h("span", { class: "nsv-sub dim", text: sub }) : null),
-      h("span", { class: "num", text: s.rx != null ? `↓ ${fmtRate(s.rx)}` : "" }),
-      h("span", { class: "num", text: s.tx != null ? `↑ ${fmtRate(s.tx)}` : "" }));
+      speed("↓", s.rx), speed("↑", s.tx));
   });
   // All traffic first, so the total and each service are read in one column
   const whole = h("div", { class: "nsv-row nsv-whole" }, h("span", { class: "nsv-name", text: "All traffic" }),
-    h("span", { class: "num", text: n ? `↓ ${fmtRate(n[0])}` : "" }), h("span", { class: "num", text: n ? `↑ ${fmtRate(n[1])}` : "" }));
+    speed("↓", n ? n[0] : null), speed("↑", n ? n[1] : null));
   return h("div", { class: "net-sec" }, whole, ...rows,
     h("a", { class: "nsv-go dim", href: "#net", text: "Graphs on the Network page" }));
 }
