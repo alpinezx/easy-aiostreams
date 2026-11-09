@@ -844,14 +844,49 @@ async def logs(container: str, request: Request, tail: int = 200, user: str = De
 _warn_cache: dict = {"at": 0.0, "data": None}
 
 
+# The services the card leaves out (its cog), one choice per install like the layouts.
+# Kept as the ones hidden, so a service added later shows up by itself.
+def _warn_hidden_path() -> Path:
+    return config.STATE_DIR / "warn-hidden.json"
+
+
+def load_warn_hidden() -> list[str]:
+    try:
+        hidden = json.loads(_warn_hidden_path().read_text()).get("hidden")
+        return sorted({c for c in hidden if c in LOGGABLE}) if isinstance(hidden, list) else []
+    except Exception:
+        return []
+
+
 @app.get("/api/log-warnings")
 async def log_warnings(user: str = Depends(current_user)):
     """The Overview's Recent warnings & errors: each running service's lines of the last day
     that may be warnings or errors. The browser sorts them with the Logs page's rules."""
+    hidden = load_warn_hidden()
     if _warn_cache["data"] is None or time.time() - _warn_cache["at"] > 30:
-        _warn_cache["data"] = await asyncio.to_thread(backend.log_warnings, LOGGABLE)
+        _warn_cache["data"] = await asyncio.to_thread(backend.log_warnings, LOGGABLE - set(hidden))
         _warn_cache["at"] = time.time()
-    return {"services": _warn_cache["data"]}
+    return {"services": _warn_cache["data"], "hidden": hidden}
+
+
+@app.put("/api/log-warnings/hidden")
+async def set_warn_hidden(request: Request, user: str = Depends(current_user)):
+    """{"hidden": ["caddy", ...]}: the services whose logs the card leaves out."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = None
+    if not isinstance(body, dict) or not isinstance(body.get("hidden"), list):
+        raise HTTPException(400, "Bad request")
+    hidden = sorted({c for c in body["hidden"] if c in LOGGABLE})
+    try:
+        tmp = _warn_hidden_path().with_suffix(".tmp")
+        tmp.write_text(json.dumps({"hidden": hidden}))
+        tmp.replace(_warn_hidden_path())
+    except OSError:
+        raise HTTPException(500, "Couldn't save that.")
+    _warn_cache["data"] = None
+    return {"hidden": hidden}
 
 
 @app.post("/api/logs/clear-all")

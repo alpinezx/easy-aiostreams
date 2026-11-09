@@ -642,6 +642,28 @@ def test_log_warnings(client):
     assert client.get("/api/log-warnings").json()["services"] == []
 
 
+def test_log_warnings_hidden(client):
+    """The card's cog: services left out are saved per install and never read."""
+    login(client)
+    import app.main as m
+    m._warn_cache["data"] = None
+    seen = []
+    real = m.backend.log_warnings
+    m.backend.log_warnings = lambda loggable: seen.append(set(loggable)) or []
+    try:
+        assert client.get("/api/log-warnings").json()["hidden"] == []
+        r = client.put("/api/log-warnings/hidden", json={"hidden": ["caddy", "gluetun", "caddy", "not-a-service"]})
+        assert r.json()["hidden"] == ["caddy", "gluetun"]
+        body = client.get("/api/log-warnings").json()
+        assert body["hidden"] == ["caddy", "gluetun"]
+        assert "caddy" not in seen[-1] and "gluetun" not in seen[-1] and "aiostreams" in seen[-1]
+        assert client.put("/api/log-warnings/hidden", json={"nope": 1}).status_code == 400
+        assert client.put("/api/log-warnings/hidden", json={"hidden": []}).json()["hidden"] == []
+    finally:
+        m.backend.log_warnings = real
+        m._warn_cache["data"] = None
+
+
 def test_rail_layout(client):
     login(client)
     from app.main import RAIL_PAGES

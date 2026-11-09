@@ -890,9 +890,39 @@ async function loadWarnings() {
       }
     }
     warnData = [...rows.values()].sort((x, y) => y.at - x.at);
+    warnHidden = r.hidden || [];
   } catch (_) { if (!warnData) warnData = null; }
   warnAt = Date.now(); warnLoading = false;
   if (lastSt) side(lastSt);
+}
+// The cog: which services' logs feed the card, a switch for each one set up here
+let warnHidden = [];
+async function warnPick() {
+  const svcs = (lastSt ? lastSt.services : []).filter((s) => s.container);
+  const boxes = svcs.map((s) => {
+    const input = h("input", { type: "checkbox", "aria-label": `Show ${s.name}` });
+    input.checked = !warnHidden.includes(s.container);
+    return [s, input];
+  });
+  const el = h("div", { class: "warn-pick" }, ...boxes.map(([s, input]) =>
+    h("label", { class: "warn-pick-row" }, h("span", { text: s.name }), h("span", { class: "sw" }, input, h("i", { "aria-hidden": "true" })))));
+  const res = await ask({ title: "Show warnings from", body: "Which services' logs this card reads. Every device shows the same.",
+    confirmLabel: "Save", options: { el, read: () => boxes.filter(([, i]) => !i.checked).map(([s]) => s.container) } });
+  if (!res) return;
+  // Services not set up here keep whatever they had
+  const keep = warnHidden.filter((c) => !svcs.some((s) => s.container === c));
+  try {
+    const r = await api("/api/log-warnings/hidden", { method: "PUT", body: JSON.stringify({ hidden: [...keep, ...res] }) });
+    warnHidden = r.hidden;
+  } catch (e) { toast(e.message, true); return; }
+  warnAt = 0; warnData = null;
+  if (lastSt) side(lastSt);
+}
+function cogBtn() {
+  const b = h("button", { class: "card-cog", type: "button", title: "Choose which services' warnings show here",
+    "aria-label": "Choose services", onclick: warnPick });
+  b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>';
+  return b;
 }
 // Five rows, and up to five more behind Show more (opened in place: no scrolling box inside
 // the page, which phones handle badly). Open for this visit only.
@@ -910,11 +940,15 @@ function warnCard(el) {
     h("h3", {}, foldTitle("warn", "Recent warnings & errors")),
     folded ? foldSum([[errs ? plural(errs, "error") : "", "bad"], [warns ? plural(warns, "warning") : "", "warn"],
       [warnData && !rows.length ? "None today" : "", "ok"]]) : null,
-    h("a", { href: "#logs", class: "dim card-link", text: "Logs" })));
+    h("span", { class: "card-acts" }, cogBtn(), h("a", { href: "#logs", class: "dim card-link", text: "Logs" }))));
   el.append(card);
   if (folded) return;
   if (!warnData) { card.append(h("p", { class: "dim warn-none", text: warnLoading ? "Reading the logs…" : "Couldn't read the logs." })); return; }
-  if (!rows.length) { card.append(h("p", { class: "dim warn-none", text: "No warnings or errors in the last day." })); return; }
+  if (!rows.length) {
+    const none = lastSt && lastSt.services.filter((s) => s.container).every((s) => warnHidden.includes(s.container));
+    card.append(h("p", { class: "dim warn-none", text: none ? "No services picked: choose some with the cog." : "No warnings or errors in the last day." }));
+    return;
+  }
   const now = Date.now() / 1000;
   card.append(h("div", { class: "warn-list" }, ...rows.slice(0, warnMore ? WARN_MAX : WARN_SHOWN).map((r) =>
     h("a", { class: `warn-row ${r.cls}`, href: "#logs", title: r.text,

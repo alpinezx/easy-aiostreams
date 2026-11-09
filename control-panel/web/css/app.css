@@ -314,6 +314,15 @@ button.chip:hover { text-decoration: underline; }
 .panel.folded { padding-top: 12px; padding-bottom: 12px; }
 .panel.folded .card-head, .ver-card.folded .ver-head { justify-content: flex-start; }
 #view-overview .panel.folded { align-self: start; }
+/* Recent warnings' cog, beside Logs, in the same quiet grey */
+.card-acts { display: inline-flex; align-items: center; gap: 12px; margin-left: auto; }
+.card-cog { display: inline-flex; padding: 2px; background: none; border: 0; color: var(--dim); cursor: pointer; border-radius: 6px; }
+.card-cog:hover { color: var(--text); }
+.card-cog:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.card-cog svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.warn-pick { display: grid; margin: 0 0 18px; }
+.warn-pick-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line-soft); cursor: pointer; }
+.warn-pick-row:last-child { border-bottom: 1px solid var(--line-soft); }
 /* No buttons on folded cards: Update and Restart stack are quiet links in the top right, like Details */
 .folded .btn.fold-act { background: none; border: 0; padding: 0; min-height: 0; font-size: .86rem; font-weight: 400; color: var(--dim); box-shadow: none; }
 .folded .btn.fold-act:hover:not(:disabled) { color: var(--text); text-decoration: underline; background: none; }

@@ -482,7 +482,7 @@ class DemoBackend:
         }
         out = []
         for cname, (name, rows) in sample.items():
-            if cname in self._cleared_logs:
+            if cname in self._cleared_logs or cname not in loggable:
                 continue
             lines = [f"{at(ago)} {line % (now - ago) if '%f' in line else line}" for ago, line in sorted(rows, key=lambda r: -r[0])]
             out.append({"container": cname, "name": name, "lines": lines})
