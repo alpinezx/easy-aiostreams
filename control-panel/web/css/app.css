@@ -521,10 +521,13 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 /* gluetun's status: on a phone a row of the list, its status under the version; on desktop in the
    middle of the card instead, as on AIOStreams' card, the place and the server either side */
 .vpnc .vs-status { display: none; }
-@media (max-width: 720px) { .vpnc .vs-all { display: none; } }
-/* On desktop Turn VPN off/on stands apart on the left, under the exit location; the release
-   buttons stay on the right, under AIOStreams' own */
+/* Turn VPN off/on stands apart from the release buttons: on desktop on the left, under the exit
+   location, the others on the right under AIOStreams' own; on a phone on a row of its own above them */
 @media (min-width: 721px) { .vpnc-foot .vpnc-switch { margin-right: auto; } }
+@media (max-width: 720px) {
+  .vpnc-foot { display: grid; grid-template-columns: repeat(3, auto); justify-content: space-between; gap: 10px 8px; }
+  .vpnc-foot .vpnc-switch { grid-column: 1 / -1; justify-self: start; }
+}
 @media (min-width: 721px) {
   .vpnc .stat-grid:has(> .vs-ver) { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; }
   .vpnc .stat-grid:has(> .vs-ver) > .vs-ver { display: none; }

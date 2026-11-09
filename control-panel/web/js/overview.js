@@ -1056,7 +1056,7 @@ function vpnCard(el, st, avail) {
       title: "Ask from inside the VPN where traffic leaves now, and GitHub for gluetun's newest release",
       onclick: () => { loadVpn(mode, true); if (running) glRel.load(true); } }));
   }
-  // As on the version cards; a phone has What's new under the version instead
+  // As on the version cards
   if (running && list) btns.append(h("button", { class: "btn small vs-all", type: "button", text: "All releases",
     title: "What changed in each gluetun release", onclick: () => openReleases(list, running) }));
   card.append(btns);
