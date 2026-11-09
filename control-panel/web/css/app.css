@@ -527,6 +527,8 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 @media (max-width: 720px) {
   .vpnc-foot { display: grid; grid-template-columns: repeat(3, auto); justify-content: space-between; gap: 10px 8px; }
   .vpnc-foot .vpnc-switch { grid-column: 1 / -1; justify-self: start; }
+  /* two buttons under it (the VPN off: no Check now) stay together on the left */
+  .vpnc-foot:not(:has(> :nth-child(4))) { justify-content: start; }
 }
 @media (min-width: 721px) {
   .vpnc .stat-grid:has(> .vs-ver) { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; }

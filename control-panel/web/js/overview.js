@@ -1042,7 +1042,8 @@ function vpnCard(el, st, avail) {
   // Not connected, or not checked: why, under the title's word
   const why = tn && tn !== "ok" && sub ? h("p", { class: "vpn-note", text: sub }) : null;
   card.append(why || "", h("div", { class: "stat-grid" },
-    up ? cls(stat("Exit location", where || "Unknown", [where !== country ? country : "", v.exit_ip].filter(Boolean).join(", ")), "vs-exit") : null,
+    up ? cls(stat("Exit location", where || "Unknown", [where !== country ? country : "", v.exit_ip].filter(Boolean).join(", ")), "vs-exit")
+      : mode === "off" ? cls(stat("Exit location", "This server", "A direct connection"), "vs-exit") : null,
     server, ver, status));
   // Turning it on with no config saved asks for one, which only the VPN page does
   const btns = h("div", { class: "card-foot vpnc-foot" });
