@@ -1046,7 +1046,7 @@ function vpnCard(el, st, avail) {
   const btns = h("div", { class: "card-foot vpnc-foot" });
   const a = avail[mode === "on" ? "vpn.off" : "vpn.on"];
   if (a && a.available && !(mode === "off" && v && v.has_config === false)) {
-    btns.append(h("button", { class: "btn small", type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
+    btns.append(h("button", { class: "btn small vpnc-switch", type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
   }
   if (updBtn) btns.append(updBtn);
   if (mode === "on") {

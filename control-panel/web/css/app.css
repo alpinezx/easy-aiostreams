@@ -522,6 +522,9 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
    middle of the card instead, as on AIOStreams' card, the place and the server either side */
 .vpnc .vs-status { display: none; }
 @media (max-width: 720px) { .vpnc .vs-all { display: none; } }
+/* On desktop Turn VPN off/on stands apart on the left, under the exit location; the release
+   buttons stay on the right, under AIOStreams' own */
+@media (min-width: 721px) { .vpnc-foot .vpnc-switch { margin-right: auto; } }
 .vpnc .vs-status .ver-label { display: inline; margin: 0 8px 0 0; }
 @media (min-width: 721px) {
   .vpnc .stat-grid:has(> .vs-ver) { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; }
