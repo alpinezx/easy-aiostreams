@@ -178,6 +178,12 @@ function foldTitle(id, label) {
   return h("button", { class: "path-toggle fold-toggle", type: "button", "data-fold": id, "aria-expanded": String(!f),
     title: f ? `Show all of ${label}` : `Fold ${label} to one line`, onclick: () => setFold(id) }, label, chev());
 }
+// A folded card's button (Update, Restart stack) is a quiet link in the card's top right,
+// like Details, so a page of folded cards has no buttons on it
+function foldAct(b) {
+  if (b) b.classList.add("fold-act");
+  return b;
+}
 // The folded line: [text or element, tone, tooltip], empty ones left out
 function foldSum(items) {
   return h("ul", { class: "path-sum fold-sum" }, ...items.filter((x) => x && x[0]).map(([v, tone, title]) =>
@@ -337,7 +343,7 @@ function metaCard(st, avail) {
     m.domain ? cardPages(m.domain, [["Dashboard", "/dashboard"], ["Configure", "/configure"]]) : null);
   if (isFolded("aiometadata")) {
     return h("section", { class: "panel ver-card folded", "aria-label": "AIOMetadata version" },
-      h("div", { class: "ver-head" }, title, foldSum([[running], [latest]]), updBtn));
+      h("div", { class: "ver-head" }, title, foldSum([[running], [latest]]), foldAct(updBtn)));
   }
   const col = (value, sub) => h("div", {}, h("div", { class: "ver-value" }, value), h("div", { class: "ver-sub", text: sub || "" }));
   return h("section", { class: "panel ver-card", "aria-label": "AIOMetadata version" },
@@ -400,7 +406,7 @@ function addonVerCard(st, avail, o) {
   const shown = running || "Latest image";
   if (isFolded(o.id)) {
     return h("section", { class: "panel ver-card folded", "aria-label": `${o.name} version` },
-      h("div", { class: "ver-head" }, title, foldSum([[shown], [latest]]), o.foldCorner || null, updBtn));
+      h("div", { class: "ver-head" }, title, foldSum([[shown], [latest]]), o.foldCorner || null, foldAct(updBtn)));
   }
   const col = (value, sub) => h("div", {}, h("div", { class: "ver-value" }, value), h("div", { class: "ver-sub", text: sub || "" }));
   return h("section", { class: "panel ver-card", "aria-label": `${o.name} version` },
@@ -462,7 +468,7 @@ function versionCard(st, avail) {
     return h("section", { class: "panel ver-card folded", "aria-label": "AIOStreams version" },
       h("div", { class: "ver-head" }, title,
         foldSum([[nightly && running ? `Nightly ${running.slice(0, -8)}` : `v${st.version}`], [latest]]),
-        btns[0] && btns[0].textContent === "Update" ? btns[0] : null));
+        btns[0] && btns[0].textContent === "Update" ? foldAct(btns[0]) : null));
   }
   return h("section", { class: "panel ver-card", "aria-label": "AIOStreams version" },
     h("div", { class: "ver-head" }, title,
@@ -494,7 +500,7 @@ function path(st) {
       head.append(h("ul", { class: "path-sum" }, ...svcs.map((s) => {
         const sx = stateOf(s);
         return h("li", { dataset: { s: sx }, title: `${s.name}: ${STATE_WORD[sx] || sx}` }, h("i", { "aria-hidden": "true" }), s.name);
-      })), restartBtn());
+      })), foldAct(restartBtn()));
       return;
     }
     // One tree on every screen: who hands on to whom, a light for each service

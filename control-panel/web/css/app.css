@@ -314,6 +314,10 @@ button.chip:hover { text-decoration: underline; }
 .panel.folded { padding-top: 12px; padding-bottom: 12px; }
 .panel.folded .card-head, .ver-card.folded .ver-head { justify-content: flex-start; }
 #view-overview .panel.folded { align-self: start; }
+/* No buttons on folded cards: Update and Restart stack are quiet links in the top right, like Details */
+.folded .btn.fold-act { background: none; border: 0; padding: 0; min-height: 0; font-size: .86rem; font-weight: 400; color: var(--dim); box-shadow: none; }
+.folded .btn.fold-act:hover:not(:disabled) { color: var(--text); text-decoration: underline; background: none; }
+.ver-card.folded .ver-head > .btn.fold-act { margin-left: auto; }
 /* Until the first status reading draws it, so empty card frames never flash up */
 #view-overview:not(.drawn) { visibility: hidden; }
 .sec-head { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; }
@@ -1261,6 +1265,10 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .ver-card.folded .fold-title { flex: 1 0 100%; }
   .ver-card.folded .fold-sum { flex: 1 1 0; }
   .ver-card.folded .ver-head > .btn { order: 4; }
+  /* the title's line has no room on a phone, so the link sits in the corner above the pages */
+  .ver-card.folded { position: relative; }
+  .ver-card.folded .fold-title { padding-right: 76px; box-sizing: border-box; }
+  .ver-card.folded .ver-head > .btn.fold-act { position: absolute; top: 14px; right: 16px; }
 }
 
 /* Add-ons page (ao-, never ad-: ad blockers hide ad-* classes): full-width cards like the Overview's, each value a tile (label,
