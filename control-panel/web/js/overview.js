@@ -178,6 +178,12 @@ function foldTitle(id, label) {
   return h("button", { class: "path-toggle fold-toggle", type: "button", "data-fold": id, "aria-expanded": String(!f),
     title: f ? `Show all of ${label}` : `Fold ${label} to one line`, onclick: () => setFold(id) }, label, chev());
 }
+// A folded card's button (Update, Restart stack) is a quiet link in the card's top right,
+// like Details, so a page of folded cards has no buttons on it
+function foldAct(b) {
+  if (b) b.classList.add("fold-act");
+  return b;
+}
 // The folded line: [text or element, tone, tooltip], empty ones left out
 function foldSum(items) {
   return h("ul", { class: "path-sum fold-sum" }, ...items.filter((x) => x && x[0]).map(([v, tone, title]) =>
@@ -337,7 +343,7 @@ function metaCard(st, avail) {
     m.domain ? cardPages(m.domain, [["Dashboard", "/dashboard"], ["Configure", "/configure"]]) : null);
   if (isFolded("aiometadata")) {
     return h("section", { class: "panel ver-card folded", "aria-label": "AIOMetadata version" },
-      h("div", { class: "ver-head" }, title, foldSum([[running], [latest]]), updBtn));
+      h("div", { class: "ver-head" }, title, foldSum([[running], [latest]]), foldAct(updBtn)));
   }
   const col = (value, sub) => h("div", {}, h("div", { class: "ver-value" }, value), h("div", { class: "ver-sub", text: sub || "" }));
   return h("section", { class: "panel ver-card", "aria-label": "AIOMetadata version" },
@@ -400,7 +406,7 @@ function addonVerCard(st, avail, o) {
   const shown = running || "Latest image";
   if (isFolded(o.id)) {
     return h("section", { class: "panel ver-card folded", "aria-label": `${o.name} version` },
-      h("div", { class: "ver-head" }, title, foldSum([[shown], [latest]]), o.foldCorner || null, updBtn));
+      h("div", { class: "ver-head" }, title, foldSum([[shown], [latest]]), o.foldCorner || null, foldAct(updBtn)));
   }
   const col = (value, sub) => h("div", {}, h("div", { class: "ver-value" }, value), h("div", { class: "ver-sub", text: sub || "" }));
   return h("section", { class: "panel ver-card", "aria-label": `${o.name} version` },
@@ -462,7 +468,7 @@ function versionCard(st, avail) {
     return h("section", { class: "panel ver-card folded", "aria-label": "AIOStreams version" },
       h("div", { class: "ver-head" }, title,
         foldSum([[nightly && running ? `Nightly ${running.slice(0, -8)}` : `v${st.version}`], [latest]]),
-        btns[0] && btns[0].textContent === "Update" ? btns[0] : null));
+        btns[0] && btns[0].textContent === "Update" ? foldAct(btns[0]) : null));
   }
   return h("section", { class: "panel ver-card", "aria-label": "AIOStreams version" },
     h("div", { class: "ver-head" }, title,
@@ -494,7 +500,7 @@ function path(st) {
       head.append(h("ul", { class: "path-sum" }, ...svcs.map((s) => {
         const sx = stateOf(s);
         return h("li", { dataset: { s: sx }, title: `${s.name}: ${STATE_WORD[sx] || sx}` }, h("i", { "aria-hidden": "true" }), s.name);
-      })), restartBtn());
+      })), foldAct(restartBtn()));
       return;
     }
     // One tree on every screen: who hands on to whom, a light for each service
@@ -673,24 +679,26 @@ function stat(label, value, sub, tone) {
 const tone = (pct, warn, bad) => (pct >= bad ? "bad" : pct >= warn ? "warn" : "");
 const dayMonth = (ms) => new Date(ms).toLocaleDateString([], { day: "numeric", month: "short" });
 
-// This server folded: uptime, memory, disk and the last backup, plus the certificate or
-// load only when they need a look
+// This server folded: CPU, memory, disk and the network's speed now, plus the certificate
+// and backups only when they need a look
 function hostSum(st) {
   const hs = st.host || {};
   const pct = (u, t) => Math.round((u / t) * 100);
   const bk = st.backup;
   const bad = bk && bk.every !== "off" && bk.last && (bk.last.status === "failed" || bk.last.status === "skipped");
-  const cpu = hs.cpu_pct != null ? hs.cpu_pct : hs.load ? (hs.load[0] / (hs.cpus || 1)) * 100 : 0;
+  const cpu = hs.cpu_pct != null ? hs.cpu_pct : hs.load ? (hs.load[0] / (hs.cpus || 1)) * 100 : null;
   const wc = worstCert(st);
+  const n = st.net && st.net.host ? nowRate(trafficData("host"), "host") : null;
   return foldSum([
-    [hs.uptime != null ? `Up ${fmtDur(hs.uptime)}` : ""],
     [wc && !wc.ok ? "Certificate: couldn't check" : wc && certTone(wc) ? `Certificate: ${wc.days_left} days left` : "",
       wc && !wc.ok ? "warn" : wc && certTone(wc)],
-    [cpu >= 75 ? (hs.cpu_pct != null ? `CPU ${Math.round(cpu)}%` : `Load ${hs.load[0].toFixed(2)}`) : "", tone(cpu, 75, 90)],
+    [cpu == null ? "" : hs.cpu_pct != null ? `CPU ${Math.round(cpu)}%` : `Load ${hs.load[0].toFixed(2)}`, cpu != null && tone(cpu, 75, 90)],
     [hs.mem_total ? `Memory ${pct(hs.mem_used, hs.mem_total)}%` : "", hs.mem_total && tone(pct(hs.mem_used, hs.mem_total), 80, 90)],
     [hs.disk_total ? `Disk ${pct(hs.disk_used, hs.disk_total)}%` : "", hs.disk_total && tone(pct(hs.disk_used, hs.disk_total), 80, 90)],
-    [bk ? (bad ? `Last scheduled backup ${bk.last.status === "skipped" ? "skipped" : "failed"}` : bk.newest ? `Backup ${ago(bk.newest)}` : "No backup yet") : "",
-      bad || (bk && !bk.newest) ? "warn" : ""]]);
+    // Down and up together with their label (as the open card's tile), so they wrap as one
+    [n ? h("span", { class: "net-pair" }, h("span", { text: "Network" }), h("span", { text: `↓ ${fmtRate(n[0])}` }), h("span", { text: `↑ ${fmtRate(n[1])}` })) : "",
+      "", "The whole server's network now, down and up"],
+    [bad ? `Last scheduled backup ${bk.last.status === "skipped" ? "skipped" : "failed"}` : bk && !bk.newest ? "No backup yet" : "", "warn"]]);
 }
 
 // HTTPS certificates. One site: a single tile. Several: one tile with the soonest expiry,
@@ -884,9 +892,39 @@ async function loadWarnings() {
       }
     }
     warnData = [...rows.values()].sort((x, y) => y.at - x.at);
+    warnHidden = r.hidden || [];
   } catch (_) { if (!warnData) warnData = null; }
   warnAt = Date.now(); warnLoading = false;
   if (lastSt) side(lastSt);
+}
+// The cog: which services' logs feed the card, a switch for each one set up here
+let warnHidden = [];
+async function warnPick() {
+  const svcs = (lastSt ? lastSt.services : []).filter((s) => s.container);
+  const boxes = svcs.map((s) => {
+    const input = h("input", { type: "checkbox", "aria-label": `Show ${s.name}` });
+    input.checked = !warnHidden.includes(s.container);
+    return [s, input];
+  });
+  const el = h("div", { class: "warn-pick" }, ...boxes.map(([s, input]) =>
+    h("label", { class: "warn-pick-row" }, h("span", { text: s.name }), h("span", { class: "sw" }, input, h("i", { "aria-hidden": "true" })))));
+  const res = await ask({ title: "Show warnings from", body: "Which services' logs this card reads. Every device shows the same.",
+    confirmLabel: "Save", options: { el, read: () => boxes.filter(([, i]) => !i.checked).map(([s]) => s.container) } });
+  if (!res) return;
+  // Services not set up here keep whatever they had
+  const keep = warnHidden.filter((c) => !svcs.some((s) => s.container === c));
+  try {
+    const r = await api("/api/log-warnings/hidden", { method: "PUT", body: JSON.stringify({ hidden: [...keep, ...res] }) });
+    warnHidden = r.hidden;
+  } catch (e) { toast(e.message, true); return; }
+  warnAt = 0; warnData = null;
+  if (lastSt) side(lastSt);
+}
+function cogBtn() {
+  const b = h("button", { class: "card-cog", type: "button", title: "Choose which services' warnings show here",
+    "aria-label": "Choose services", onclick: warnPick });
+  b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>';
+  return b;
 }
 // Five rows, and up to five more behind Show more (opened in place: no scrolling box inside
 // the page, which phones handle badly). Open for this visit only.
@@ -904,11 +942,15 @@ function warnCard(el) {
     h("h3", {}, foldTitle("warn", "Recent warnings & errors")),
     folded ? foldSum([[errs ? plural(errs, "error") : "", "bad"], [warns ? plural(warns, "warning") : "", "warn"],
       [warnData && !rows.length ? "None today" : "", "ok"]]) : null,
-    h("a", { href: "#logs", class: "dim card-link", text: "Logs" })));
+    h("span", { class: "card-acts" }, cogBtn(), h("a", { href: "#logs", class: "dim card-link", text: "Logs" }))));
   el.append(card);
   if (folded) return;
   if (!warnData) { card.append(h("p", { class: "dim warn-none", text: warnLoading ? "Reading the logs…" : "Couldn't read the logs." })); return; }
-  if (!rows.length) { card.append(h("p", { class: "dim warn-none", text: "No warnings or errors in the last day." })); return; }
+  if (!rows.length) {
+    const none = lastSt && lastSt.services.filter((s) => s.container).every((s) => warnHidden.includes(s.container));
+    card.append(h("p", { class: "dim warn-none", text: none ? "No services picked: choose some with the cog." : "No warnings or errors in the last day." }));
+    return;
+  }
   const now = Date.now() / 1000;
   card.append(h("div", { class: "warn-list" }, ...rows.slice(0, warnMore ? WARN_MAX : WARN_SHOWN).map((r) =>
     h("a", { class: `warn-row ${r.cls}`, href: "#logs", title: r.text,

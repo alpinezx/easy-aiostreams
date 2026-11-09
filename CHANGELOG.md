@@ -2,6 +2,10 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 9 November 2026
+
+- **New:** **Recent warnings & errors** has a cog to pick which services' logs it reads (saved for every device), and it now sits straight under the request flow by default. Folded cards show Update and Restart stack as quiet links in their corner instead of buttons, and folded **This server** shows CPU, memory, disk and the network's speed. On phones, backup and VPN buttons line up evenly and the restore dialog is much shorter. (Panel 1.52.0, [#161](https://github.com/alpinezx/easy-aiostreams/pull/161))
+
 ## 8 November 2026
 
 - **New:** the Overview has a **Recent warnings & errors** card, between This server and Services: the latest warnings and errors from every service's log over the last day, with the same noise left out as on the Logs page and repeats grouped with a count. Five show, up to five more behind **Show more**, and a row opens that log with WARN and ERROR picked. On the Logs page the bin now asks whether to clear the log shown or **All logs**, and a clear empties the card's rows too. (Panel 1.51.0, [#160](https://github.com/alpinezx/easy-aiostreams/pull/160))

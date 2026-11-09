@@ -597,16 +597,16 @@ def test_backup_schedule(client):
 def test_overview_layout(client):
     login(client)
     ids = lambda r: [(c["id"], c["show"]) for c in r.json()["cards"]]
-    default = [("flow", True), ("aiostreams", True), ("aiometadata", True), ("aiomanager", True), ("mediaflow", True), ("alerts", True), ("vpn", True), ("server", True), ("warn", True), ("services", True)]
+    default = [("flow", True), ("warn", True), ("aiostreams", True), ("aiometadata", True), ("aiomanager", True), ("mediaflow", True), ("alerts", True), ("vpn", True), ("server", True), ("services", True)]
     assert ids(client.get("/api/overview-layout")) == default
     # unknown and repeated cards are dropped; ones left out go back to their default place
     r = client.put("/api/overview-layout", json={"cards": [{"id": "services", "show": True}, {"id": "nope"},
                                                          {"id": "alerts", "show": False}, {"id": "services", "show": False}]})
-    assert ids(r) == [("flow", True), ("aiostreams", True), ("aiometadata", True), ("aiomanager", True), ("mediaflow", True), ("services", True), ("alerts", False), ("vpn", True), ("server", True), ("warn", True)]
-    # a layout saved before Recent warnings & errors existed gets it between This server and Services
+    assert ids(r) == [("flow", True), ("warn", True), ("aiostreams", True), ("aiometadata", True), ("aiomanager", True), ("mediaflow", True), ("services", True), ("alerts", False), ("vpn", True), ("server", True)]
+    # a layout saved before Recent warnings & errors existed gets it straight under the request flow
     old = [{"id": c, "show": True} for c, _ in default if c != "warn"]
     from app.main import normal_layout
-    assert [c["id"] for c in normal_layout(old)][-3:] == ["server", "warn", "services"]
+    assert [c["id"] for c in normal_layout(old)][:3] == ["flow", "warn", "aiostreams"]
     # layout.js lists the cards in the same default order
     import re
     from pathlib import Path
@@ -640,6 +640,28 @@ def test_log_warnings(client):
     r = client.post("/api/logs/clear-all").json()
     assert r["ok"] and "caddy" in r["cleared"]
     assert client.get("/api/log-warnings").json()["services"] == []
+
+
+def test_log_warnings_hidden(client):
+    """The card's cog: services left out are saved per install and never read."""
+    login(client)
+    import app.main as m
+    m._warn_cache["data"] = None
+    seen = []
+    real = m.backend.log_warnings
+    m.backend.log_warnings = lambda loggable: seen.append(set(loggable)) or []
+    try:
+        assert client.get("/api/log-warnings").json()["hidden"] == []
+        r = client.put("/api/log-warnings/hidden", json={"hidden": ["caddy", "gluetun", "caddy", "not-a-service"]})
+        assert r.json()["hidden"] == ["caddy", "gluetun"]
+        body = client.get("/api/log-warnings").json()
+        assert body["hidden"] == ["caddy", "gluetun"]
+        assert "caddy" not in seen[-1] and "gluetun" not in seen[-1] and "aiostreams" in seen[-1]
+        assert client.put("/api/log-warnings/hidden", json={"nope": 1}).status_code == 400
+        assert client.put("/api/log-warnings/hidden", json={"hidden": []}).json()["hidden"] == []
+    finally:
+        m.backend.log_warnings = real
+        m._warn_cache["data"] = None
 
 
 def test_rail_layout(client):
