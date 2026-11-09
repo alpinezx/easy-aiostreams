@@ -1137,7 +1137,8 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 
 /* The Overview: the headline, then the cards in the order Edit saved (layout.js sets
    --o-<card> and data-hide). By default: the request flow it illustrates, the version
-   card, the add-ons' cards (AIOMetadata, AIOManager, MediaFlow, Phone alerts, VPN), then This server and the services. */
+   card, the add-ons' cards (AIOMetadata, AIOManager, MediaFlow, then the VPN, laid out like them, and Phone
+   alerts), then This server and the services. */
 #view-overview:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr); }
 #view-overview .cols, #view-overview .side { display: contents; }
 #view-overview .hero { order: 0; }
@@ -1147,8 +1148,8 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 #view-overview .meta-slot { order: var(--o-aiometadata, 4); }
 #view-overview .mgr-slot { order: var(--o-aiomanager, 5); }
 #view-overview .mf-slot { order: var(--o-mediaflow, 6); }
-#view-overview .panel.wd { order: var(--o-alerts, 7); margin: 0 0 30px; }
-#view-overview .panel.vpnc { order: var(--o-vpn, 8); margin: 0 0 30px; }
+#view-overview .panel.vpnc { order: var(--o-vpn, 7); margin: 0 0 30px; }
+#view-overview .panel.wd { order: var(--o-alerts, 8); margin: 0 0 30px; }
 #view-overview .panel.host { order: var(--o-server, 9); margin: 0 0 30px; }
 #view-overview .cols > div { order: var(--o-services, 10); margin: 0 0 30px; }
 #view-overview[data-hide~="flow"] .path, #view-overview[data-hide~="aiostreams"] .ver-slot:not(.meta-slot):not(.mgr-slot):not(.mf-slot),
