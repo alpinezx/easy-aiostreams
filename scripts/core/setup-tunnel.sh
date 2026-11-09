@@ -408,20 +408,55 @@ do_token() {
     if wait_connected; then echo "Connected with the new token."; else warn "Not connected yet: sudo docker logs cloudflared"; fi
 }
 
+# The release in use keeps a spare tag until the new one has connected; if it
+# doesn't, the earlier one is put back (latest would fetch the same one again).
+SPARE_IMAGE="cloudflare/cloudflared:aios-previous"
+
+# Untags the spare; when nothing else uses that image, Docker deletes it
+drop_spare() { docker image rm "$SPARE_IMAGE" >/dev/null 2>&1; }
+
 do_update() {
     tunnel_on || error "The tunnel is off."
     local before after
-    before=$(docker image inspect -f '{{.Id}}' "$IMAGE" 2>/dev/null || true)
-    tunnel_compose pull -q
+    before=$(docker inspect -f '{{.Image}}' cloudflared 2>/dev/null || true)
+    [[ -n "$before" ]] || before=$(docker image inspect -f '{{.Id}}' "$IMAGE" 2>/dev/null || true)
+    [[ -n "$before" ]] && docker tag "$before" "$SPARE_IMAGE"
+    if ! tunnel_compose pull -q; then
+        drop_spare || true
+        error "Couldn't download the newest cloudflared. Nothing was changed."
+    fi
     after=$(docker image inspect -f '{{.Id}}' "$IMAGE" 2>/dev/null || true)
     if [[ "$before" == "$after" ]]; then
+        drop_spare || true
         echo "cloudflared is already the newest."
         return 0
     fi
     # Visitors wait a few seconds while it reconnects
     tunnel_compose up -d
-    docker image prune -f >/dev/null 2>&1 || true
-    if wait_connected; then echo "Updated and connected."; else warn "Updated, not connected yet: sudo docker logs cloudflared"; fi
+    if wait_connected; then
+        echo "Updated and connected."
+        drop_spare && echo "Removed the earlier cloudflared image to free disk space."
+        return 0
+    fi
+    warn "The new cloudflared didn't connect. Its last lines:"
+    docker logs --tail 15 cloudflared 2>&1 | sed 's/^/    /' || true
+    if [[ -z "$before" ]]; then
+        warn "There's no earlier cloudflared on this server to go back to: sudo docker logs cloudflared"
+        return 1
+    fi
+    info "Putting the earlier cloudflared back"
+    docker tag "$SPARE_IMAGE" "$IMAGE"
+    tunnel_compose up -d --force-recreate
+    drop_spare || true
+    docker image rm "$after" >/dev/null 2>&1 || true
+    if wait_connected; then
+        warn "Back on the earlier cloudflared, and connected. Nothing else changed."
+        warn "A later release may fix it: the next AIOStreams update tries again."
+    else
+        warn "The earlier cloudflared didn't connect either, so the update probably isn't the problem."
+        warn "Check the token ('token') and Cloudflare's dashboard. Its log: sudo docker logs cloudflared"
+    fi
+    return 1
 }
 
 tunnel_menu() {

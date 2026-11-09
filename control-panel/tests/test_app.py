@@ -1,6 +1,7 @@
 import json
 import os
 import time
+from pathlib import Path
 
 import pytest
 
@@ -418,6 +419,13 @@ def test_vpn_change_server_takes_only_an_ipv4_address(client):
     act = actions.resolve("vpn.use", {"ip": "203.0.113.24"})
     assert act.args == ("use-address", "203.0.113.24") and act.confirm is None
     assert actions.resolve("vpn.update").args == ("update",)
+    assert actions.resolve("vpn.update", {"backup": True}).args == ("update", "--backup")
+    with pytest.raises(actions.BadAction):
+        actions.resolve("vpn.update", {"backup": "yes"})
+    # Back up first only for a script that knows --backup (an older one ignores it), and it's
+    # the script itself that says so
+    vpn_sh = (Path(__file__).resolve().parents[2] / "scripts/others/setup-vpn-gluetun.sh").read_text(encoding="utf-8")
+    assert actions.resolve("vpn.update").backup_has in vpn_sh
 
 
 def test_vpn_change_config_checks_it_and_never_sends_keys_back(client):

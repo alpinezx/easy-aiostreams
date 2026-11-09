@@ -11,36 +11,6 @@ notice() { printf '\033[1;33m!! %s !!\033[0m\n' "$1"; }
 alert() { printf '\033[1;31m!! %s !!\033[0m\n' "$1"; }
 error() { printf '\033[1;31mXX \033[0m %s\n' "$1"; exit 1; }
 
-# Image cleanup after updates. Remembers each image's ID before a pull,
-# then removes just the old copies that pull replaced. Only ever touches
-# this stack's own images, and Docker refuses to delete one a container
-# still uses, so anything not recreated keeps its old image (no harm).
-snapshot_image_ids() {
-    local ref
-    for ref in "$@"; do
-        printf '%s %s\n' "$ref" "$(docker image inspect -f '{{.Id}}' "$ref" 2>/dev/null || echo none)"
-    done
-}
-
-cleanup_replaced_images() {
-    local ref old new freed=0
-    while read -r ref old; do
-        [[ -z "$ref" || -z "$old" || "$old" == "none" ]] && continue
-        new=$(docker image inspect -f '{{.Id}}' "$ref" 2>/dev/null || echo none)
-        if [[ "$new" != "$old" ]] && docker image rm "$old" >/dev/null 2>&1; then
-            freed=$((freed + 1))
-        fi
-    done <<< "$1"
-    if (( freed > 0 )); then
-        echo "Removed $freed old image(s) replaced by this update, to free disk space."
-    fi
-    return 0
-}
-
-compose_image_refs() {
-    grep -oP '^\s*image:\s*\K\S+' "$1" 2>/dev/null || true
-}
-
 if [[ $EUID -ne 0 ]]; then
     error "Please run this script as root (or with sudo)."
 fi
@@ -1102,33 +1072,113 @@ do_force_cleanup() {
     echo "Use 'Turn VPN ON' or 'Turn VPN OFF' from the menu to bring the stack back up."
 }
 
+# Update VPN: the newest gluetun v3. The release in use keeps a spare tag until
+# the new one has connected; if it doesn't, the earlier one is put back. A
+# backup can't do that: images aren't in backups, and v3 would fetch the same
+# broken release again.
+GLUETUN_IMAGE="qmcgaw/gluetun:v3"
+GLUETUN_SPARE="qmcgaw/gluetun:aios-previous"
+
+# Untags the spare; when nothing else uses that image, Docker deletes it
+drop_gluetun_spare() { docker image rm "$GLUETUN_SPARE" >/dev/null 2>&1; }
+
+gluetun_tunnel_answers() {
+    local svc
+    for svc in ifconfig.me/ip icanhazip.com ipinfo.io/ip; do
+        docker exec gluetun wget -qO- --timeout=5 "$svc" 2>/dev/null | grep -qE '^[0-9]' && return 0
+    done
+    return 1
+}
+
+# Restarts the VPN on whatever v3 names now, in a process of its own so a start
+# that fails comes back here instead of ending the update. Succeeds when the
+# tunnel connects and AIOStreams runs ($1 false: it stays stopped on purpose).
+restart_vpn_checked() {
+    bash "$SELF_PATH" _restart-vpn < /dev/null || true
+    gluetun_tunnel_answers || return 1
+    [[ "$1" != true ]] || [[ "$(docker inspect -f '{{.State.Running}}' aiostreams 2>/dev/null || echo false)" == "true" ]]
+}
+
+# do_update_gluetun [yes]: yes backs up first (the panel's Back up first)
 do_update_gluetun() {
-    local active
+    local backup="${1:-no}" active running newest want_aio=true
     active=$(cat "$ACTIVE_MARKER" 2>/dev/null || echo "unknown")
+    if aio_stays_stopped; then want_aio=false; fi
+    running=$(docker inspect -f '{{.Image}}' gluetun 2>/dev/null || true)
+    [[ -n "$running" ]] || running=$(docker image inspect -f '{{.Id}}' "$GLUETUN_IMAGE" 2>/dev/null || true)
 
     info "Pulling latest gluetun (v3 stable channel)"
-    local image_snapshot
-    image_snapshot=$(snapshot_image_ids qmcgaw/gluetun:v3)
-    docker pull qmcgaw/gluetun:v3
+    [[ -n "$running" ]] && docker tag "$running" "$GLUETUN_SPARE"
+    if ! docker pull "$GLUETUN_IMAGE"; then
+        drop_gluetun_spare || true
+        error "Couldn't download the newest gluetun. Nothing was changed."
+    fi
+    newest=$(docker image inspect -f '{{.Id}}' "$GLUETUN_IMAGE" 2>/dev/null || echo none)
 
-    local newest running
-    newest=$(docker image inspect -f '{{.Id}}' qmcgaw/gluetun:v3 2>/dev/null || echo none)
-    running=$(docker inspect -f '{{.Image}}' gluetun 2>/dev/null || echo none)
-    if [[ "$active" == "vpn" && "$running" == "$newest" ]]; then
-        echo ""
+    echo ""
+    if [[ "$newest" == "$running" ]]; then
+        drop_gluetun_spare || true
         echo "gluetun is already on the newest v3 release. Nothing restarted."
-    elif [[ "$active" == "vpn" ]]; then
-        echo ""
-        echo "VPN mode is active, restarting the stack so the new image takes effect."
-        echo "(Full toggle rather than a lone container restart: aiostreams shares"
-        echo "gluetun's network namespace, so both must be recreated together.)"
-        turn_vpn_on
-    else
-        echo ""
+        return 0
+    fi
+    if [[ "$active" != "vpn" ]]; then
+        drop_gluetun_spare || true
         echo "Done. You're in direct mode, so nothing needs restarting."
         echo "The updated image is used next time you turn the VPN on."
+        return 0
     fi
-    cleanup_replaced_images "$image_snapshot"
+
+    if [[ "$backup" == yes ]]; then
+        local backup_script="$INSTALL_DIR/setup-backup.sh" backed=yes
+        if [[ ! -f "$backup_script" ]]; then
+            warn "setup-backup.sh isn't in $INSTALL_DIR, so no backup was made."
+            backed=no
+        else
+            info "Backing up first"
+            bash "$backup_script" backup < /dev/null || { warn "The backup didn't finish."; backed=no; }
+        fi
+        if [[ "$backed" == no ]]; then
+            # Nothing restarted yet: v3 goes back to the release in use
+            [[ -n "$running" ]] && docker tag "$GLUETUN_SPARE" "$GLUETUN_IMAGE"
+            drop_gluetun_spare || true
+            docker image rm "$newest" >/dev/null 2>&1 || true
+            echo "Nothing else was changed."
+            return 1
+        fi
+    fi
+
+    info "Restarting the VPN on the new release"
+    echo "(AIOStreams shares gluetun's network, so both restart together.)"
+    if restart_vpn_checked "$want_aio"; then
+        echo ""
+        echo -e "\033[1;32mThe VPN is up on the new gluetun.\033[0m"
+        drop_gluetun_spare && echo "Removed the earlier gluetun image to free disk space."
+        return 0
+    fi
+
+    echo ""
+    warn "The new gluetun didn't connect. Its last lines:"
+    docker logs --tail 15 gluetun 2>&1 | sed 's/^/    /' || true
+    if [[ -z "$running" ]]; then
+        warn "There's no earlier gluetun on this server to go back to. Its log: sudo docker compose logs gluetun"
+        return 1
+    fi
+    info "Putting the earlier gluetun back"
+    docker tag "$GLUETUN_SPARE" "$GLUETUN_IMAGE"
+    if restart_vpn_checked "$want_aio"; then
+        drop_gluetun_spare || true
+        docker image rm "$newest" >/dev/null 2>&1 || true
+        echo ""
+        warn "Back on the earlier gluetun, and the VPN is up. Nothing else changed."
+        warn "Try Update VPN again in a few days: a later release may fix it."
+        return 1
+    fi
+    drop_gluetun_spare || true
+    docker image rm "$newest" >/dev/null 2>&1 || true
+    echo ""
+    warn "The earlier gluetun didn't connect either, so the update probably isn't the problem."
+    warn "Check the VPN server and config. Its log: sudo docker compose logs gluetun"
+    return 1
 }
 
 # gluetun needs the endpoint as an IP. When a .conf gives a name instead, look
@@ -1506,6 +1556,12 @@ if [[ "${1:-}" == "install-boot-hook" ]]; then
     exit 0
 fi
 
+# Update VPN's restart, run as a process of its own (see restart_vpn_checked)
+if [[ "${1:-}" == "_restart-vpn" ]]; then
+    turn_vpn_on
+    exit 0
+fi
+
 # "on" / "off": switch modes without the menu, for the control panel. "off"
 # keeps AIOStreams live through the switch (the menu's "Continue anyway"); the
 # panel shows that warning before running it. Neither does anything when the
@@ -1655,7 +1711,7 @@ deletable_config() {
 }
 
 # For the control panel, all without questions, and only once the VPN is set
-# up. "update": menu option 5. "addresses [name]": the current config's
+# up. "update [--backup]": menu option 5, --backup backing up first. "addresses [name]": the current config's
 # server addresses (or a name's, for Change config), fastest first, one line
 # each: "<ip> <ms, or - for no reply>" then "in-use" and "recommended" where
 # they apply. "use-address <ip>": point the current config at that address
@@ -1676,7 +1732,12 @@ deletable_config() {
 if [[ "${1:-}" =~ ^(update|addresses|use-address|use-config|revert-config|forget-config|list-configs|delete-config|use-file|uninstall|route|sync-routes|watch-routes)$ ]]; then
     [[ -f "$ACTIVE_MARKER" ]] || error "The VPN isn't set up on this server yet. Run this script without arguments first."
     case "$1" in
-        update) do_update_gluetun ;;
+        update)
+            case "${2:-}" in
+                "") do_update_gluetun ;;
+                --backup) do_update_gluetun yes ;;
+                *) error "Unknown option '$2'. Use: update [--backup]" ;;
+            esac ;;
         route) route_addon "${2:-}" "${3:-}" ;;
         sync-routes) sync_routes ;;
         watch-routes) watch_routes ;;

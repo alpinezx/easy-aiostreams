@@ -371,7 +371,8 @@ class DemoBackend:
                            "signups_until": int(self.signups_until) if self.signups_until > time.time() else None},
             # MediaFlow pinned to a release, one behind
             "mediaflow": {"domain": "mediaflow.example.com", "version": self.mf_version},
-            "actions": [{"id": a.id, "label": a.label, "confirm": a.confirm, "available": True} for a in catalog()],
+            "actions": [{"id": a.id, "label": a.label, "confirm": a.confirm, "available": True,
+                         **({"backup": True} if a.backup_has else {})} for a in catalog()],
         }
 
     def delete_backup(self, name: str) -> list[str]:
@@ -687,8 +688,10 @@ class DemoBackend:
                 say(l, 0.5)
             self.vpn = "none"
         elif action.id == "vpn.update":
-            for l in ["==> Pulling latest gluetun (v3 stable channel)", "Status: Image is up to date for qmcgaw/gluetun:v3",
-                      "gluetun is already on the newest v3 release. Nothing restarted."]:
+            for l in ["==> Pulling latest gluetun (v3 stable channel)", "Status: Downloaded newer image for qmcgaw/gluetun:v3",
+                      *(["==> Backing up first", "Backup written: /root/aiostreams-backup-20261109-101500.tar.gz"] if "--backup" in action.args else []),
+                      "==> Restarting the VPN on the new release", "VPN is up. gluetun's exit IP: 203.0.113.7",
+                      "The VPN is up on the new gluetun.", "Removed the earlier gluetun image to free disk space."]:
                 say(l, 0.5)
         elif action.id == "stack.backup":
             say("==> Creating backup"); say("Backup written to /root/aiostreams-backup-20261009-161500.tar.gz")

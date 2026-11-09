@@ -1105,7 +1105,10 @@ class Backend:
         res = []
         for a in catalog():
             ok = all(self.p(n).exists() for n in a.needs) and (not a.script_has or a.script_has in _read(self.p(a.script)))
-            res.append({"id": a.id, "label": a.label, "confirm": a.confirm, "available": ok})
+            row = {"id": a.id, "label": a.label, "confirm": a.confirm, "available": ok}
+            if a.backup_has:
+                row["backup"] = ok and a.backup_has in _read(self.p(a.script))
+            res.append(row)
         return res
 
     # ---- backups ---------------------------------------------------------

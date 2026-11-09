@@ -132,6 +132,18 @@ export async function runAction(act, params) {
     });
     if (!res) return;
     params = res;
+  } else if (act.id === "vpn.update" && act.backup) {
+    const backup = h("input", { type: "checkbox", id: "vpn-backup", checked: true });
+    const res = await ask({
+      title: "Update VPN",
+      body: "Gets the newest gluetun v3 release. If there is one and the VPN is on, the stack restarts and streams pause "
+        + "for up to a minute. If the new release doesn't connect, the previous one is put back by itself.",
+      confirmLabel: "Update",
+      options: { el: h("div", { class: "opts" }, h("label", { class: "check" }, backup, h("span", { text: "Back up first" }))),
+        read: () => ({ backup: backup.checked }) },
+    });
+    if (!res) return;
+    params = res;
   } else if (act.confirm || vpnOff) {
     const addonsNote = act.id === "stack.restart" && window.__addons ? "Add-ons aren't restarted: use Restart on their row in Services." : null;
     const body = [restartWhat(act), act.confirm, addonsNote, vpnOff ? VPN_OFF_NOTE : null].filter(Boolean).join(" ");

@@ -211,12 +211,15 @@ sudo bash /opt/aiostreams/setup-vpn-gluetun.sh
 - **Update gluetun**: pulls the newest gluetun v3 release (the `v3` tag,
   gluetun's stable line, never `latest`). In VPN mode, if a new image came
   down, it then safely restarts the stack so it takes effect; already on the
-  newest, nothing restarts. In direct mode
-  nothing restarts: the fresh image simply gets used next time you turn the
-  VPN on. (Note: the main script's **Update** option already refreshes
-  gluetun too whenever VPN mode happens to be on, since it updates
-  everything in the running stack. This option exists for updating gluetun
-  on its own: especially useful if you've been in direct mode a while.)
+  newest, nothing restarts. The release in use is kept under a spare tag
+  (`qmcgaw/gluetun:aios-previous`) until the new one has connected. If the
+  new one doesn't connect, the earlier one is put back and the stack restarts
+  on it; once the new one works, the earlier image is deleted. A backup
+  couldn't do this: images aren't in backups, and `v3` would fetch the same
+  release again. In direct mode nothing restarts: the fresh image simply
+  gets used next time you turn the VPN on. This is the only thing that
+  updates gluetun: the main script's **Update** leaves it alone. `update
+  --backup` makes a backup first (the panel's **Back up first**).
 - **Force cleanup**: a recovery tool, **not** routine maintenance. Only
   reach for it if a mode switch got interrupted (Ctrl+C, dropped SSH,
   reboot mid-switch) and containers look stuck or mismatched. It removes

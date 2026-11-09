@@ -31,6 +31,7 @@ class Action:
     confirm: str | None = None   # confirmation text; None = no modal
     needs: tuple[str, ...] = ()  # paths (relative to INSTALL_DIR) that must exist
     script_has: str = ""         # text the script must contain: a command older copies lack
+    backup_has: str = ""         # the same for its Back up first choice: offered only when present
     env: tuple[str, ...] = ()    # extra NAME=value for the script
     # Run on the host as a systemd unit of its own rather than under the panel:
     # for anything that restarts Docker, which restarts this container too
@@ -115,10 +116,6 @@ _STATIC: dict[str, Action] = {a.id: a for a in [
            args=("off",), timeout=420, needs=("setup-vpn-gluetun.sh", "vpn-state/active"),
            confirm="AIOStreams switches to a direct connection, so its traffic leaves from "
                    "this server's own IP from now on. Streams pause for a few seconds, and this page reconnects by itself."),
-    Action("vpn.update", "Update VPN", "Updating the VPN", "VPN update finished", "setup-vpn-gluetun.sh",
-           args=("update",), timeout=600, needs=("setup-vpn-gluetun.sh", "vpn-state/active"),
-           confirm="Pulls the newest gluetun v3 release. If there is one and the VPN is on, the stack restarts "
-                   "and streams pause for up to a minute. Already on the newest, nothing restarts."),
     # The Maintenance page. The two that can restart Docker run outside the panel.
     Action("maint.space", "Free up space", "Freeing up space", "Space freed", AIO,
            args=("free-space",), timeout=900, needs=(AIO,),
@@ -215,6 +212,19 @@ def build_mediaflow_update(backup: bool) -> Action:
                   args=("update-mediaflow",) + (("--backup",) if backup else ()), timeout=600,
                   needs=("setup-mediaflow.sh", "mediaflow-state/docker-compose.yml"), script_has="update-mediaflow",
                   confirm="Update MediaFlow Proxy to its newest release? Streams through it pause for a few seconds.")
+
+
+def build_vpn_update(backup: bool) -> Action:
+    """The newest gluetun v3: the script puts the earlier release back by itself if the
+    new one doesn't connect. --backup only for scripts that know it (backup_has); older
+    ones would ignore it and update without the backup."""
+    if not isinstance(backup, bool):
+        raise BadAction("backup must be true or false")
+    return Action("vpn.update", "Update VPN", "Updating the VPN", "VPN update finished", "setup-vpn-gluetun.sh",
+                  args=("update",) + (("--backup",) if backup else ()), timeout=900,
+                  needs=("setup-vpn-gluetun.sh", "vpn-state/active"), backup_has="update [--backup]",
+                  confirm="Pulls the newest gluetun v3 release. If there is one and the VPN is on, the stack restarts "
+                          "and streams pause for up to a minute. Already on the newest, nothing restarts.")
 
 
 def build_restore(path: str, without_vpn: bool = False) -> Action:
@@ -348,6 +358,8 @@ def _resolve(action_id: str, params: dict) -> Action:
         return build_manager_update(params.get("backup", True))
     if action_id == "mediaflow.update":
         return build_mediaflow_update(params.get("backup", True))
+    if action_id == "vpn.update":
+        return build_vpn_update(params.get("backup", False))
     if action_id == "vpn.use":
         return build_use_address(params.get("ip"))
     if action_id == "vpn.route":
@@ -367,7 +379,7 @@ def _resolve(action_id: str, params: dict) -> Action:
 
 
 def catalog() -> list[Action]:
-    return list(_STATIC.values()) + [build_update(True, None), build_meta_update(True), build_manager_update(True), build_mediaflow_update(True), build_use_address("192.0.2.1"), build_use_config("192.0.2.1"),
+    return list(_STATIC.values()) + [build_update(True, None), build_meta_update(True), build_manager_update(True), build_mediaflow_update(True), build_vpn_update(False), build_use_address("192.0.2.1"), build_use_config("192.0.2.1"),
                                      build_delete_config("/"), build_use_file("/", "192.0.2.1"), build_vpn_uninstall(False, False),
                                      build_set_topic("aios-example-topic"), build_route("mediaflow", True)] + [build_addon_uninstall(a, False) for a in ADDON_UNINSTALL]
 
