@@ -309,7 +309,8 @@ button.chip:hover { text-decoration: underline; }
 .fold-toggle[aria-expanded="false"] .path-chev svg { transform: rotate(-90deg); }
 .fold-sum li.ok { color: var(--ok); } .fold-sum li.warn { color: var(--warn); } .fold-sum li.bad { color: var(--bad); }
 .fold-sum .ok { color: var(--ok); } .fold-sum .warn { color: var(--warn); }
-.fold-sum .net-pair { display: inline-flex; gap: 12px; }
+.fold-sum .net-pair { display: inline-flex; gap: 6px 12px; }
+.fold-sum .net-pair > :first-child { margin-right: -4px; }
 .fold-sum .linkish { font: inherit; color: var(--warn); background: none; border: 0; padding: 0; cursor: pointer; }
 .fold-sum .linkish:hover { text-decoration: underline; }
 .panel.folded { padding-top: 12px; padding-bottom: 12px; }

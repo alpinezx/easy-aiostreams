@@ -695,8 +695,8 @@ function hostSum(st) {
     [cpu == null ? "" : hs.cpu_pct != null ? `CPU ${Math.round(cpu)}%` : `Load ${hs.load[0].toFixed(2)}`, cpu != null && tone(cpu, 75, 90)],
     [hs.mem_total ? `Memory ${pct(hs.mem_used, hs.mem_total)}%` : "", hs.mem_total && tone(pct(hs.mem_used, hs.mem_total), 80, 90)],
     [hs.disk_total ? `Disk ${pct(hs.disk_used, hs.disk_total)}%` : "", hs.disk_total && tone(pct(hs.disk_used, hs.disk_total), 80, 90)],
-    // Down and up together, so they wrap as a pair
-    [n ? h("span", { class: "net-pair" }, h("span", { text: `↓ ${fmtRate(n[0])}` }), h("span", { text: `↑ ${fmtRate(n[1])}` })) : "",
+    // Down and up together with their label (as the open card's tile), so they wrap as one
+    [n ? h("span", { class: "net-pair" }, h("span", { text: "Network" }), h("span", { text: `↓ ${fmtRate(n[0])}` }), h("span", { text: `↑ ${fmtRate(n[1])}` })) : "",
       "", "The whole server's network now, down and up"],
     [bad ? `Last scheduled backup ${bk.last.status === "skipped" ? "skipped" : "failed"}` : bk && !bk.newest ? "No backup yet" : "", "warn"]]);
 }
