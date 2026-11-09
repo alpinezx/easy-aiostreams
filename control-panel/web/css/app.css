@@ -456,6 +456,12 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
   .tr-day-tot { grid-column: 1 / -1; text-align: left; font-size: .84rem; color: var(--dim); }
 }
 .vpn-card-acts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
+/* Phones: two even columns across the card, and an odd last one (Update VPN) the full width under them */
+@media (max-width: 720px) {
+  .vpn-card-acts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .vpn-card-acts .btn { width: 100%; }
+  .vpn-card-acts .btn:last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
 /* Phone alerts page */
 .wd-grid .vpn-value { font-weight: 500; font-size: .94rem; }
 .wd-fail { color: var(--warn); }
