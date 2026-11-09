@@ -29,9 +29,10 @@ const CUT_BY_AIOS = /aborting with incomplete response.*"error":"reading: [^"]*(
 // Tunnel and VPN lines shown in grey, not as errors. cloudflared logs each failure twice: a first half without
 // the address, then "Request failed ... dest=<url>".
 const QUIET = [
-  /WARN \[dns\] exchanging over tls connection .*: EOF$/,   // gluetun: the DNS server closed an idle connection; retried at once
-  /WARN \[dns\] renewing tls connection for request .*: running TLS handshake with .*: EOF$/,   // gluetun: the same, while it opens a new connection
-  /WARN \[dns\] getting tls connection for request .*: (renewing dead|creating) connection: running TLS handshake with .*: EOF$/,   // gluetun: the same, newer wording; "creating" right as the VPN comes up
+  // gluetun: one DNS query's encrypted connection closed or slow (EOF, a timeout), so it asked again, over
+  // another connection or its other provider. Every wording and ending, not one at a time: real DNS trouble
+  // shows elsewhere (its health check restarting the VPN, AIOStreams' searches failing), and ERROR lines stay.
+  /WARN \[dns\] (exchanging over|renewing|getting) tls connection /,
   /WARN Caught OS signal terminated, shutting down$/,   // gluetun: asked to stop, as a restart or reboot does
   // gluetun: its start-up release check hit GitHub's hourly limit, common on a shared exit address; the VPN is fine
   /ERROR \[vpn\] cannot get version information: bad response HTTP status code: 403 403 Forbidden$/,

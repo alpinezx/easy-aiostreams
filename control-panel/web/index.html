@@ -158,11 +158,11 @@
       <summary>Warnings in the VPN's log? Usually fine.</summary>
       <p><b>Hide noise</b> hides these:</p>
       <ul>
-        <li><b>[dns]</b> lines ending in <b>EOF</b> (<b>exchanging over tls connection</b>, <b>renewing tls connection</b>, <b>renewing dead connection</b> or <b>creating connection</b>): the DNS server closed a connection, or the VPN was still coming up, and the VPN retried at once.</li>
+        <li><b>[dns]</b> warnings about its <b>tls connection</b> (<b>exchanging over</b>, <b>renewing</b> or <b>getting</b> one, ending in <b>EOF</b> or a timeout): one DNS lookup's encrypted connection closed or was slow, so the VPN asked again, over another connection or its other DNS provider.</li>
         <li><b>Caught OS signal terminated, shutting down</b>: the VPN being stopped for a restart, update or reboot.</li>
         <li><b>cannot get version information</b> with <b>403</b>: the VPN's own check for a newer version, turned away by GitHub. Common on a shared VPN address, and harmless.</li>
       </ul>
-      <p>Worth a look: <b>[dns]</b> lines ending in <b>i/o timeout</b> that keep repeating (the VPN's DNS is struggling), or <b>i/o timeout</b> errors and the VPN restarting over and over (the VPN isn't connecting: try <b>Change server</b> on the VPN page, or a fresh config).</p>
+      <p>Worth a look: <b>[healthcheck]</b> lines with the VPN restarting over and over, or <b>i/o timeout</b> errors (the VPN isn't connecting: try <b>Change server</b> on the VPN page, or a fresh config).</p>
     </details>
     <div class="lg-list" id="log-term" tabindex="0" role="log" aria-live="off" aria-label="Container logs"></div>
   </section>
