@@ -512,16 +512,25 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .card-link { font-size: .86rem; text-decoration: none; }
 .card-link:hover { color: var(--text); text-decoration: underline; }
 .stat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 24px; margin-top: 14px; }
-/* A newer gluetun is amber, like a newer release on the version cards */
-.vpnc .ver-sub.warn { color: var(--warn); }
-/* The VPN card with gluetun's version, on desktop: laid out like AIOStreams' card above it, the
-   version first and the tunnel in the middle, under AIOStreams' "Up to date". Phones keep the list. */
+/* The tunnel's state beside the VPN card's title */
+.vpnc-tunnel { display: inline-flex; align-items: baseline; gap: 8px; margin: 0 auto 0 14px; }
+.vpnc-tunnel .ver-label { margin: 0; }
+.vpnc-word { font-weight: 600; }
+.vpnc-word.ok { color: var(--ok); } .vpnc-word.warn { color: var(--warn); } .vpnc-word.bad { color: var(--bad); }
+.vpnc .ver-sub .warn { color: var(--warn); }
+/* gluetun's status: on a phone a row of the list, its status under the version; on desktop in the
+   middle of the card instead, as on AIOStreams' card, the place and the server either side */
+.vpnc .vs-status { display: none; }
+@media (max-width: 720px) { .vpnc .vs-all { display: none; } }
+.vpnc .vs-status .ver-label { display: inline; margin: 0 8px 0 0; }
 @media (min-width: 721px) {
-  .vpnc .stat-grid:has(> .vs-ver) { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  .vpnc .stat-grid:has(> .vs-ver) > .vs-ver { grid-column: 1; grid-row: 1; }
-  .vpnc .stat-grid:has(> .vs-ver) > .vs-exit { grid-column: 2; grid-row: 1; }
-  .vpnc .stat-grid:has(> .vs-ver) > .vs-tunnel { grid-column: 3; grid-row: 1; text-align: center; }
-  .vpnc .stat-grid:has(> .vs-ver) > .vs-server { grid-column: 4 / span 2; grid-row: 1; }
+  .vpnc .stat-grid:has(> .vs-ver) { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; }
+  .vpnc .stat-grid:has(> .vs-ver) > .vs-ver { display: none; }
+  .vpnc .stat-grid:has(> .vs-ver) > .vs-exit { grid-column: 1; grid-row: 1; }
+  .vpnc .stat-grid:has(> .vs-ver) > .vs-status { display: block; grid-column: 2; grid-row: 1; text-align: center; }
+  .vpnc .stat-grid:has(> .vs-ver) > .vs-server { grid-column: 3; grid-row: 1; text-align: right; }
+  /* the size AIOStreams' card gives its status */
+  .vpnc .vs-status .ver-value { font-size: .95rem; font-weight: 600; letter-spacing: 0; }
 }
 .stat-value { font-size: 1.05rem; font-weight: 650; letter-spacing: -.01em; overflow-wrap: anywhere; }
 .stat-value.warn { color: var(--warn); } .stat-value.bad { color: var(--bad); } .stat-value.ok { color: var(--ok); }

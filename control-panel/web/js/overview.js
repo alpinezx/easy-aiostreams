@@ -1001,8 +1001,12 @@ function vpnCard(el, st, avail) {
   const updBtn = upd && upd.available ? h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
     title: "Update gluetun to its newest v3 release, with a backup first", onclick: () => runAction(upd) }) : null;
   const folded = isFolded("vpn");
+  // Open, the tunnel's state sits beside the title, which leaves the card's middle to gluetun's
+  // status, where AIOStreams' card has its own
   const card = h("section", { class: "panel vpnc" + (folded ? " folded" : "") }, h("div", { class: "card-head" },
     h("h3", {}, foldTitle("vpn", "VPN")),
+    folded ? null : h("span", { class: "vpnc-tunnel" }, h("span", { class: "ver-label", text: "Tunnel" }),
+      h("span", { class: "vpnc-word" + (tn ? " " + tn : ""), text: word })),
     folded ? foldSum([[word, tn], [where], top ? [`gluetun ${top.tag} available`] : [""]]) : null,
     folded && top && updBtn ? foldAct(updBtn) : h("a", { href: "#vpn", class: "dim card-link", text: "Details" })));
   el.append(card);
@@ -1016,20 +1020,28 @@ function vpnCard(el, st, avail) {
     const host = v.endpoint_ip && v.endpoint_host;
     if (host) server.lastChild.append(...host.split(".").flatMap((p, i) => i ? [".", h("wbr"), p] : [p]));
   }
-  let ver = null;
+  let ver = null, status = null;
   if (running) {
+    // A phone's list: the version, its status under it. Desktop: the status in the middle of the
+    // card, as on AIOStreams' card, naming the version in use only when a newer one is out.
+    const whatsNew = () => openReleases(list, running);
     ver = stat("gluetun", running, "");
     ver.classList.add("vs-ver");
     const s = ver.lastChild;
-    s.textContent = latest[0];
-    if (latest[1]) s.classList.add(latest[1]);
-    if (top) s.append(" · ", h("button", { class: "linkish", type: "button", text: "What's new",
-      title: "What changed in each gluetun release", onclick: () => openReleases(list, running) }));
+    s.append(h("span", { class: latest[1] }, latest[0]), top ? " · " : null, top ? h("button", { class: "linkish", type: "button",
+      text: "What's new", title: "What changed in each gluetun release", onclick: whatsNew }) : null);
+    const said = top ? h("button", { class: "linkish", type: "button", text: latest[0], title: "What changed in each gluetun release", onclick: whatsNew })
+      : h("span", { class: latest[1], text: latest[1] === "ok" ? `${running} up to date` : latest[0] });
+    const checked = list ? `checked ${ago(rel.checked_at)}` : "";
+    status = h("div", { class: "vs-status" },
+      h("div", { class: "ver-value" }, h("span", { class: "ver-label", text: "gluetun" }), said),
+      h("div", { class: "ver-sub", text: top ? `On ${running} · ${checked}` : checked.replace(/^c/, "C") }));
   }
-  card.append(h("div", { class: "stat-grid" },
-    cls(stat("Tunnel", word, sub, tn), "vs-tunnel"),
+  // Not connected, or not checked: why, under the title's word
+  const why = tn && tn !== "ok" && sub ? h("p", { class: "vpn-note", text: sub }) : null;
+  card.append(why || "", h("div", { class: "stat-grid" },
     up ? cls(stat("Exit location", where || "Unknown", [where !== country ? country : "", v.exit_ip].filter(Boolean).join(", ")), "vs-exit") : null,
-    server, ver));
+    server, ver, status));
   // Turning it on with no config saved asks for one, which only the VPN page does
   const btns = h("div", { class: "card-foot vpnc-foot" });
   const a = avail[mode === "on" ? "vpn.off" : "vpn.on"];
@@ -1042,5 +1054,8 @@ function vpnCard(el, st, avail) {
       title: "Ask from inside the VPN where traffic leaves now, and GitHub for gluetun's newest release",
       onclick: () => { loadVpn(mode, true); if (running) glRel.load(true); } }));
   }
+  // As on the version cards; a phone has What's new under the version instead
+  if (running && list) btns.append(h("button", { class: "btn small vs-all", type: "button", text: "All releases",
+    title: "What changed in each gluetun release", onclick: () => openReleases(list, running) }));
   card.append(btns);
 }
