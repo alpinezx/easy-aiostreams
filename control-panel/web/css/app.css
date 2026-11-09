@@ -1105,14 +1105,14 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 #view-overview .cols, #view-overview .side { display: contents; }
 #view-overview .hero { order: 0; }
 #view-overview .path { order: var(--o-flow, 1); }
-#view-overview .ver-slot { order: var(--o-aiostreams, 2); margin: 0 0 30px; }
-#view-overview .meta-slot { order: var(--o-aiometadata, 3); }
-#view-overview .mgr-slot { order: var(--o-aiomanager, 4); }
-#view-overview .mf-slot { order: var(--o-mediaflow, 5); }
-#view-overview .panel.wd { order: var(--o-alerts, 6); margin: 0 0 30px; }
-#view-overview .panel.vpnc { order: var(--o-vpn, 7); margin: 0 0 30px; }
-#view-overview .panel.host { order: var(--o-server, 8); margin: 0 0 30px; }
-#view-overview .panel.warnc { order: var(--o-warn, 9); margin: 0 0 30px; }
+#view-overview .panel.warnc { order: var(--o-warn, 2); margin: 0 0 30px; }
+#view-overview .ver-slot { order: var(--o-aiostreams, 3); margin: 0 0 30px; }
+#view-overview .meta-slot { order: var(--o-aiometadata, 4); }
+#view-overview .mgr-slot { order: var(--o-aiomanager, 5); }
+#view-overview .mf-slot { order: var(--o-mediaflow, 6); }
+#view-overview .panel.wd { order: var(--o-alerts, 7); margin: 0 0 30px; }
+#view-overview .panel.vpnc { order: var(--o-vpn, 8); margin: 0 0 30px; }
+#view-overview .panel.host { order: var(--o-server, 9); margin: 0 0 30px; }
 #view-overview .cols > div { order: var(--o-services, 10); margin: 0 0 30px; }
 #view-overview[data-hide~="flow"] .path, #view-overview[data-hide~="aiostreams"] .ver-slot:not(.meta-slot):not(.mgr-slot):not(.mf-slot),
 #view-overview[data-hide~="aiometadata"] .meta-slot, #view-overview[data-hide~="aiomanager"] .mgr-slot,

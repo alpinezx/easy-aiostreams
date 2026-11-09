@@ -5,6 +5,7 @@ import { $, h, clear, api, toast } from "./util.js";
 
 const CARDS = {
   flow: ["Request flow", "Visitors through Caddy to AIOStreams, and the add-ons"],
+  warn: ["Recent warnings & errors", "The latest from every service's log"],
   aiostreams: ["AIOStreams", "Its version and updates"],
   aiometadata: ["AIOMetadata", "Its version, updates and pages"],
   aiomanager: ["AIOManager", "Its version, updates and sign-ups"],
@@ -12,7 +13,6 @@ const CARDS = {
   alerts: ["Phone alerts", "The watchdog, its last check and 14 days"],
   vpn: ["VPN", "Whether it's connected, where traffic leaves and the server"],
   server: ["This server", "Uptime, certificate, memory, disk and backups"],
-  warn: ["Recent warnings & errors", "The latest from every service's log"],
   services: ["Services", "Each container, with Logs, Restart and Stop"],
 };
 const PAGES = {
