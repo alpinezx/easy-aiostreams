@@ -976,6 +976,7 @@ function warnCard(el) {
 
 // The VPN, once it's set up (on or off), like Phone alerts: whether it's connected, where
 // traffic leaves and the server, with Turn VPN off/on and Check now. The rest is on its page.
+const cls = (el, c) => { el.classList.add(c); return el; };
 function vpnCard(el, st, avail) {
   const mode = st.vpn;
   if (mode !== "on" && mode !== "off") return;
@@ -995,7 +996,7 @@ function vpnCard(el, st, avail) {
   const rel = glRel.list, list = rel && rel.releases.length ? rel : null;
   const top = running && list ? behind(list, running).newer[0] : null;
   const latest = !running ? null : !rel ? ["Checking…", ""] : !list ? ["Couldn't check", "warn"]
-    : top ? [`${top.tag} available`, ""] : ["Up to date", "ok"];
+    : top ? [`${top.tag} available`, "warn"] : ["Up to date", "ok"];
   const upd = avail["vpn.update"];
   const updBtn = upd && upd.available ? h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
     title: "Update gluetun to its newest v3 release, with a backup first", onclick: () => runAction(upd) }) : null;
@@ -1011,12 +1012,14 @@ function vpnCard(el, st, avail) {
   let server = null;
   if (v && (v.endpoint_ip || v.endpoint_host)) {
     server = stat("VPN server", v.endpoint_ip || v.endpoint_host, "");
+    server.classList.add("vs-server");
     const host = v.endpoint_ip && v.endpoint_host;
     if (host) server.lastChild.append(...host.split(".").flatMap((p, i) => i ? [".", h("wbr"), p] : [p]));
   }
   let ver = null;
   if (running) {
     ver = stat("gluetun", running, "");
+    ver.classList.add("vs-ver");
     const s = ver.lastChild;
     s.textContent = latest[0];
     if (latest[1]) s.classList.add(latest[1]);
@@ -1024,8 +1027,8 @@ function vpnCard(el, st, avail) {
       title: "What changed in each gluetun release", onclick: () => openReleases(list, running) }));
   }
   card.append(h("div", { class: "stat-grid" },
-    stat("Tunnel", word, sub, tn),
-    up ? stat("Exit location", where || "Unknown", [where !== country ? country : "", v.exit_ip].filter(Boolean).join(", ")) : null,
+    cls(stat("Tunnel", word, sub, tn), "vs-tunnel"),
+    up ? cls(stat("Exit location", where || "Unknown", [where !== country ? country : "", v.exit_ip].filter(Boolean).join(", ")), "vs-exit") : null,
     server, ver));
   // Turning it on with no config saved asks for one, which only the VPN page does
   const btns = h("div", { class: "card-foot vpnc-foot" });

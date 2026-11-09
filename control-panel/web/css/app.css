@@ -512,8 +512,17 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .card-link { font-size: .86rem; text-decoration: none; }
 .card-link:hover { color: var(--text); text-decoration: underline; }
 .stat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 24px; margin-top: 14px; }
-/* The VPN card with gluetun's version: four values, one row on desktop */
-@media (min-width: 721px) { .vpnc .stat-grid:has(> :nth-child(4)) { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* A newer gluetun is amber, like a newer release on the version cards */
+.vpnc .ver-sub.warn { color: var(--warn); }
+/* The VPN card with gluetun's version, on desktop: laid out like AIOStreams' card above it, the
+   version first and the tunnel in the middle, under AIOStreams' "Up to date". Phones keep the list. */
+@media (min-width: 721px) {
+  .vpnc .stat-grid:has(> .vs-ver) { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .vpnc .stat-grid:has(> .vs-ver) > .vs-ver { grid-column: 1; grid-row: 1; }
+  .vpnc .stat-grid:has(> .vs-ver) > .vs-exit { grid-column: 2; grid-row: 1; }
+  .vpnc .stat-grid:has(> .vs-ver) > .vs-tunnel { grid-column: 3; grid-row: 1; text-align: center; }
+  .vpnc .stat-grid:has(> .vs-ver) > .vs-server { grid-column: 4 / span 2; grid-row: 1; }
+}
 .stat-value { font-size: 1.05rem; font-weight: 650; letter-spacing: -.01em; overflow-wrap: anywhere; }
 .stat-value.warn { color: var(--warn); } .stat-value.bad { color: var(--bad); } .stat-value.ok { color: var(--ok); }
 .row .num.warn { color: var(--warn); } .row .num.bad { color: var(--bad); }
