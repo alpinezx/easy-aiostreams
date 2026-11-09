@@ -1,6 +1,5 @@
 import { $, h, clear, api, ago, fmtBytes, toast, timePicker } from "./util.js";
 import { openJob, runAction, ask } from "./actions.js";
-import { tagLabel } from "./releases.js";
 
 // The panel reads each backup's build in the background; look again a few times while it does.
 let buildTimer = null, buildTries = 0;
@@ -106,17 +105,16 @@ async function startRestore(it, restoreCmd, btn) {
     if (copyIt) copy(restoreCmd, "Copied. Paste it into an SSH session.");
     return;
   }
-  const build = it.build ? `, AIOStreams ${tagLabel(it.build.tag)}` : "";
-  const input = h("input", { class: "input", type: "text", autocomplete: "off", spellcheck: "false", placeholder: "restore", "aria-label": "Type restore to confirm" });
+  // The check's own notes say which AIOStreams it holds, so the text above them doesn't
+  const input = h("input", { class: "input", type: "text", autocomplete: "off", spellcheck: "false", placeholder: "Type restore to confirm", "aria-label": "Type restore to confirm" });
   const asks = res.questions || [];
   const el = h("div", { class: "opts" },
     h("ul", { class: "check-list ok" }, ...res.notes.map((n) => h("li", { text: n }))),
     asks.length ? h("ul", { class: "check-list" }, ...asks.map((q) => h("li", { text: q }))) : null,
     asks.length ? h("p", { class: "small", text: "Restoring says yes to that. Turn the VPN back on afterwards if you want it." }) : null,
-    h("p", { class: "dim small", text: "This restore's own output won't stay in Activity afterwards: that list is part of what gets rolled back." }),
     input);
-  const ok = await ask({ title: "Roll your AIOStreams setup back?", danger: true, confirmLabel: "Restore",
-    body: `Restores ${it.name} (made ${ago(it.mtime)}${build}). The current install is moved aside, not deleted. AIOStreams restarts, so streams stop for a minute or two, and the panel restarts at the end. Type restore to confirm.`,
+  const ok = await ask({ title: "Restore this backup?", danger: true, confirmLabel: "Restore",
+    body: `Made ${ago(it.mtime)}. Streams stop for a minute or two, then the panel restarts. Your current setup is kept aside, not deleted.`,
     options: { el, gate: input, word: "restore", read: () => true } });
   if (!ok) return;
   try {

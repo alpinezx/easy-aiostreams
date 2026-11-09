@@ -913,6 +913,8 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
   position: fixed; z-index: 50; left: 50%; top: 50%; transform: translate(-50%, -50%);
   width: min(440px, calc(100vw - 32px)); background: var(--raised); border: 1px solid var(--line);
   border-radius: var(--radius); padding: 22px; box-shadow: 0 30px 80px rgba(0, 0, 0, .5);
+  /* never taller than the screen: a long one scrolls inside itself */
+  max-height: calc(var(--vv-h, 100dvh) - 32px); overflow-y: auto; overscroll-behavior: contain;
 }
 .dialog[hidden] { display: none; }
 .dialog h3 { margin: 0 0 8px; font-size: 1.25rem; font-weight: 700; }
