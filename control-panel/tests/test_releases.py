@@ -55,6 +55,16 @@ def test_aiometadata_list_comes_from_its_own_repo(monkeypatch):
     assert urls == [releases.META_URL, releases.META_URL]
 
 
+def test_gluetun_list_keeps_only_the_v3_line(monkeypatch):
+    # Update VPN pulls the v3 tag, so a v4 (or a test build) is never "available"
+    calls, urls = [], []
+    pages = [[rel("v4.0.0"), rel("v3.41.4-rc1"), rel("v3.41.3"), rel("v3.40.0")]]
+    monkeypatch.setattr(releases.requests, "get", fake_get(pages, calls, urls))
+    out = releases.get(channel="gluetun")
+    assert [r["tag"] for r in out["releases"]] == ["v3.41.3", "v3.40.0"]
+    assert urls == [releases.GLUETUN_URL]
+
+
 def test_answer_is_cached_and_force_is_throttled(monkeypatch):
     calls = []
     monkeypatch.setattr(releases.requests, "get", fake_get([[rel("v2.35.9")]], calls))

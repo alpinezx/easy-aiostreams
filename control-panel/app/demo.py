@@ -185,6 +185,7 @@ class DemoBackend:
         if self.vpn == "none":
             return out
         names = {"mediaflow": "MediaFlow Proxy"}
+        out["version"] = "3.41.2"
         out["routes"] = [{"key": k, "name": n, "on": k in self.routed} for k, n in names.items()]
         out.update(endpoint_host=self.vpn_host if self.has_config else None, endpoint_ip=self.vpn_ip if self.has_config else None,
                    endpoint_port="51820" if self.has_config else None, previous=self.previous, has_config=self.has_config)

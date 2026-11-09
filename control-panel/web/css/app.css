@@ -512,6 +512,8 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .card-link { font-size: .86rem; text-decoration: none; }
 .card-link:hover { color: var(--text); text-decoration: underline; }
 .stat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 24px; margin-top: 14px; }
+/* The VPN card with gluetun's version: four values, one row on desktop */
+@media (min-width: 721px) { .vpnc .stat-grid:has(> :nth-child(4)) { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .stat-value { font-size: 1.05rem; font-weight: 650; letter-spacing: -.01em; overflow-wrap: anywhere; }
 .stat-value.warn { color: var(--warn); } .stat-value.bad { color: var(--bad); } .stat-value.ok { color: var(--ok); }
 .row .num.warn { color: var(--warn); } .row .num.bad { color: var(--bad); }

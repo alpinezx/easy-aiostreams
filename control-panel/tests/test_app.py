@@ -419,6 +419,9 @@ def test_vpn_change_server_takes_only_an_ipv4_address(client):
     act = actions.resolve("vpn.use", {"ip": "203.0.113.24"})
     assert act.args == ("use-address", "203.0.113.24") and act.confirm is None
     assert actions.resolve("vpn.update").args == ("update",)
+    # gluetun's version for the VPN card, and its releases to compare it with
+    assert client.get("/api/vpn").json()["version"] == "3.41.2"
+    assert client.get("/api/gluetun-releases").json()["releases"][0]["tag"].startswith("v3.")
     assert actions.resolve("vpn.update", {"backup": True}).args == ("update", "--backup")
     with pytest.raises(actions.BadAction):
         actions.resolve("vpn.update", {"backup": "yes"})
@@ -1068,3 +1071,28 @@ def test_caddy_compresses_only_the_static_files():
     sh = (Path(__file__).resolve().parents[1] / "setup-ui.sh").read_text(encoding="utf-8")
     assert "@static path /js/* /css/* /vendor/*" in sh and "encode @static zstd gzip" in sh
     assert "\n        encode zstd" not in sh     # never the API: its log streams must flush as they come
+
+
+def test_gluetun_version_from_the_container_or_its_image():
+    from types import SimpleNamespace
+    from app import stack
+
+    def backend(container_labels, image_labels):
+        def get_c(name):
+            if container_labels is None:
+                raise LookupError(name)
+            return SimpleNamespace(attrs={"Config": {"Labels": container_labels}})
+
+        def get_i(ref):
+            if image_labels is None:
+                raise LookupError(ref)
+            return SimpleNamespace(attrs={"Config": {"Labels": image_labels}})
+        client = SimpleNamespace(containers=SimpleNamespace(get=get_c), images=SimpleNamespace(get=get_i))
+        return SimpleNamespace(client=client)
+    key = "org.opencontainers.image.version"
+    assert stack.Backend._gluetun_version(backend({key: "v3.41.3"}, None)) == "3.41.3"
+    # VPN off: no container, so the image Turn VPN on would use
+    assert stack.Backend._gluetun_version(backend(None, {key: "v3.40.0"})) == "3.40.0"
+    # nothing to go by, or something that isn't a version
+    assert stack.Backend._gluetun_version(backend(None, None)) is None
+    assert stack.Backend._gluetun_version(backend({key: "latest"}, None)) is None
