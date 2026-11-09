@@ -1028,8 +1028,9 @@ function vpnCard(el, st, avail) {
     ver = stat("gluetun", running, "");
     ver.classList.add("vs-ver");
     const s = ver.lastChild;
-    s.append(h("span", { class: latest[1] }, latest[0]), top ? " · " : null, top ? h("button", { class: "linkish", type: "button",
-      text: "What's new", title: "What changed in each gluetun release", onclick: whatsNew }) : null);
+    // append() writes a null out as "null", so only what's there
+    s.append(h("span", { class: latest[1] }, latest[0]), ...(top ? [" · ", h("button", { class: "linkish", type: "button",
+      text: "What's new", title: "What changed in each gluetun release", onclick: whatsNew })] : []));
     const said = top ? h("button", { class: "linkish", type: "button", text: latest[0], title: "What changed in each gluetun release", onclick: whatsNew })
       : h("span", { class: latest[1], text: latest[1] === "ok" ? `${running} up to date` : latest[0] });
     const checked = list ? `checked ${ago(rel.checked_at)}` : "";
