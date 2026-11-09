@@ -679,24 +679,26 @@ function stat(label, value, sub, tone) {
 const tone = (pct, warn, bad) => (pct >= bad ? "bad" : pct >= warn ? "warn" : "");
 const dayMonth = (ms) => new Date(ms).toLocaleDateString([], { day: "numeric", month: "short" });
 
-// This server folded: uptime, memory, disk and the last backup, plus the certificate or
-// load only when they need a look
+// This server folded: CPU, memory, disk and the network's speed now, plus the certificate
+// and backups only when they need a look
 function hostSum(st) {
   const hs = st.host || {};
   const pct = (u, t) => Math.round((u / t) * 100);
   const bk = st.backup;
   const bad = bk && bk.every !== "off" && bk.last && (bk.last.status === "failed" || bk.last.status === "skipped");
-  const cpu = hs.cpu_pct != null ? hs.cpu_pct : hs.load ? (hs.load[0] / (hs.cpus || 1)) * 100 : 0;
+  const cpu = hs.cpu_pct != null ? hs.cpu_pct : hs.load ? (hs.load[0] / (hs.cpus || 1)) * 100 : null;
   const wc = worstCert(st);
+  const n = st.net && st.net.host ? nowRate(trafficData("host"), "host") : null;
   return foldSum([
-    [hs.uptime != null ? `Up ${fmtDur(hs.uptime)}` : ""],
     [wc && !wc.ok ? "Certificate: couldn't check" : wc && certTone(wc) ? `Certificate: ${wc.days_left} days left` : "",
       wc && !wc.ok ? "warn" : wc && certTone(wc)],
-    [cpu >= 75 ? (hs.cpu_pct != null ? `CPU ${Math.round(cpu)}%` : `Load ${hs.load[0].toFixed(2)}`) : "", tone(cpu, 75, 90)],
+    [cpu == null ? "" : hs.cpu_pct != null ? `CPU ${Math.round(cpu)}%` : `Load ${hs.load[0].toFixed(2)}`, cpu != null && tone(cpu, 75, 90)],
     [hs.mem_total ? `Memory ${pct(hs.mem_used, hs.mem_total)}%` : "", hs.mem_total && tone(pct(hs.mem_used, hs.mem_total), 80, 90)],
     [hs.disk_total ? `Disk ${pct(hs.disk_used, hs.disk_total)}%` : "", hs.disk_total && tone(pct(hs.disk_used, hs.disk_total), 80, 90)],
-    [bk ? (bad ? `Last scheduled backup ${bk.last.status === "skipped" ? "skipped" : "failed"}` : bk.newest ? `Backup ${ago(bk.newest)}` : "No backup yet") : "",
-      bad || (bk && !bk.newest) ? "warn" : ""]]);
+    // Down and up together, so they wrap as a pair
+    [n ? h("span", { class: "net-pair" }, h("span", { text: `↓ ${fmtRate(n[0])}` }), h("span", { text: `↑ ${fmtRate(n[1])}` })) : "",
+      "", "The whole server's network now, down and up"],
+    [bad ? `Last scheduled backup ${bk.last.status === "skipped" ? "skipped" : "failed"}` : bk && !bk.newest ? "No backup yet" : "", "warn"]]);
 }
 
 // HTTPS certificates. One site: a single tile. Several: one tile with the soonest expiry,
