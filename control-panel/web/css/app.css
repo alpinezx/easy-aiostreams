@@ -1189,8 +1189,8 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   /* backup rows: details on top, buttons underneath */
   .item.bk { grid-template-columns: minmax(0, 1fr); }
   .item.bk .what { overflow-wrap: anywhere; }
-  /* one column, every button as wide as the longest, so none wraps */
-  .item.bk .btns { display: grid; grid-template-columns: max-content; justify-content: start; gap: 8px; }
+  /* one column, every button the card's full width, so none wraps */
+  .item.bk .btns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
   .item.bk .btns .btn { width: 100%; white-space: nowrap; text-align: center; }
   .item.bk .what .lock-tag { display: table; margin: 6px 0 2px; }
 }
@@ -1275,9 +1275,10 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .ver-card.folded .fold-title { flex: 1 0 100%; }
   .ver-card.folded .fold-sum { flex: 1 1 0; }
   .ver-card.folded .ver-head > .btn { order: 4; }
-  /* Recent warnings: its long title stays on one line beside the cog and Logs */
+  /* Recent warnings: its long title stays on one line beside the cog. Logs makes way for it: each
+     row opens its log, and Logs is in the menu */
   .warnc .card-head .fold-toggle { white-space: nowrap; }
-  .warnc .card-acts { gap: 10px; }
+  .warnc .card-acts .card-link { display: none; }
   /* the title's line has no room on a phone, so the link sits in the corner above the pages */
   .ver-card.folded { position: relative; }
   .ver-card.folded .fold-title { padding-right: 76px; box-sizing: border-box; }
