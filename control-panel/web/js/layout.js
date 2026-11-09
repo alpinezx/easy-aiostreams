@@ -10,8 +10,8 @@ const CARDS = {
   aiometadata: ["AIOMetadata", "Its version, updates and pages"],
   aiomanager: ["AIOManager", "Its version, updates and sign-ups"],
   mediaflow: ["MediaFlow Proxy", "Its version, updates and what's passing through"],
+  vpn: ["VPN", "Whether it's connected, where traffic leaves, the server and gluetun's version"],
   alerts: ["Phone alerts", "The watchdog, its last check and 14 days"],
-  vpn: ["VPN", "Whether it's connected, where traffic leaves and the server"],
   server: ["This server", "Uptime, certificate, memory, disk and backups"],
   services: ["Services", "Each container, with Logs, Restart and Stop"],
 };
