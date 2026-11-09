@@ -37,7 +37,7 @@ With the tunnel on, the menu (`sudo bash /opt/aiostreams/setup-aiostreams.sh`) h
 | `check` | Exit code only: 0 connected, 1 not connected, 2 off. The watchdog and status use it. |
 | `routes` | The hostnames Caddy serves, each needing a route on the tunnel. |
 | `token` | Paste a new token (after rotating it in Cloudflare, say). |
-| `update` | Pulls the newest `cloudflared` and restarts it if there was one. Visitors wait a few seconds. |
+| `update` | Pulls the newest `cloudflared` and restarts it if there was one. Visitors wait a few seconds. If the new one doesn't connect within 30 seconds, the earlier one (kept as `cloudflare/cloudflared:aios-previous` until then) is put back. AIOStreams' **Update** runs this too. |
 
 ## Real visitor addresses
 

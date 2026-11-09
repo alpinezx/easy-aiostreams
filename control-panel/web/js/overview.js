@@ -383,6 +383,14 @@ function addonReleases(key, name, page) {
 }
 const mgrRel = addonReleases("aiomanager", "AIOManager", "https://github.com/sonicx161/aiomanager/releases");
 const mfRel = addonReleases("mediaflow", "MediaFlow Proxy", "https://github.com/mhdzumair/MediaFlow-Proxy-Light/releases");
+const glRel = addonReleases("gluetun", "gluetun", "https://github.com/qdm12/gluetun/releases");
+// Its version sits on the VPN card, among the side cards, so those draw again too
+const glLoad = glRel.load;
+glRel.load = async (force) => {
+  if (glRel.loading) return;   // a redraw while it's checking mustn't start another check
+  await glLoad(force);
+  if (lastSt) side(lastSt);
+};
 
 // An add-on's version card, laid out like AIOMetadata's: its version, the newest
 // release, Update, Check now and All releases. A newer release is a plain line, not a
@@ -968,6 +976,7 @@ function warnCard(el) {
 
 // The VPN, once it's set up (on or off), like Phone alerts: whether it's connected, where
 // traffic leaves and the server, with Turn VPN off/on and Check now. The rest is on its page.
+const cls = (el, c) => { el.classList.add(c); return el; };
 function vpnCard(el, st, avail) {
   const mode = st.vpn;
   if (mode !== "on" && mode !== "off") return;
@@ -981,11 +990,25 @@ function vpnCard(el, st, avail) {
     : !v ? ["On", "Couldn't check", "warn"]
     : v.connected ? ["Connected", v.checked_at ? `Checked ${ago(v.checked_at)}` : "", "ok"]
     : ["Not connected", (v.error || "").slice(0, 70), "bad"];
+  // gluetun's release, and the newest on GitHub, as on the add-ons' cards: a newer one is a plain line
+  const running = v && v.version ? `v${v.version}` : null;
+  if (running && !glRel.list) glRel.load(false);
+  const rel = glRel.list, list = rel && rel.releases.length ? rel : null;
+  const top = running && list ? behind(list, running).newer[0] : null;
+  const latest = !running ? null : !rel ? ["Checking…", ""] : !list ? ["Couldn't check", "warn"]
+    : top ? [`${top.tag} available`, "warn"] : ["Up to date", "ok"];
+  const upd = avail["vpn.update"];
+  const updBtn = upd && upd.available ? h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
+    title: "Update gluetun to its newest v3 release, with a backup first", onclick: () => runAction(upd) }) : null;
   const folded = isFolded("vpn");
+  // Open, the tunnel's state sits beside the title, which leaves the card's middle to gluetun's
+  // status, where AIOStreams' card has its own
   const card = h("section", { class: "panel vpnc" + (folded ? " folded" : "") }, h("div", { class: "card-head" },
     h("h3", {}, foldTitle("vpn", "VPN")),
-    folded ? foldSum([[word, tn], [where]]) : null,
-    h("a", { href: "#vpn", class: "dim card-link", text: "Details" })));
+    folded ? null : h("span", { class: "vpnc-tunnel" }, h("span", { class: "ver-label", text: "Tunnel" }),
+      h("span", { class: "vpnc-word" + (tn ? " " + tn : ""), text: word })),
+    folded ? foldSum([[word, tn], [where], top ? [`gluetun ${top.tag} available`] : [""]]) : null,
+    folded && top && updBtn ? foldAct(updBtn) : h("a", { href: "#vpn", class: "dim card-link", text: "Details" })));
   el.append(card);
   if (folded) return;
   // Short values, so they fit beside their labels on a phone: the city with the country under it,
@@ -993,22 +1016,49 @@ function vpnCard(el, st, avail) {
   let server = null;
   if (v && (v.endpoint_ip || v.endpoint_host)) {
     server = stat("VPN server", v.endpoint_ip || v.endpoint_host, "");
+    server.classList.add("vs-server");
     const host = v.endpoint_ip && v.endpoint_host;
     if (host) server.lastChild.append(...host.split(".").flatMap((p, i) => i ? [".", h("wbr"), p] : [p]));
   }
-  card.append(h("div", { class: "stat-grid" },
-    stat("Tunnel", word, sub, tn),
-    up ? stat("Exit location", where || "Unknown", [where !== country ? country : "", v.exit_ip].filter(Boolean).join(", ")) : null,
-    server));
+  let ver = null, status = null;
+  if (running) {
+    // A phone's list: the version, its status under it. Desktop: the status in the middle of the
+    // card, as on AIOStreams' card, naming the version in use only when a newer one is out.
+    const whatsNew = () => openReleases(list, running);
+    ver = stat("gluetun", running, "");
+    ver.classList.add("vs-ver");
+    const s = ver.lastChild;
+    // append() writes a null out as "null", so only what's there
+    s.append(h("span", { class: latest[1] }, latest[0]), ...(top ? [" · ", h("button", { class: "linkish", type: "button",
+      text: "What's new", title: "What changed in each gluetun release", onclick: whatsNew })] : []));
+    const said = top ? h("button", { class: "linkish", type: "button", text: latest[0], title: "What changed in each gluetun release", onclick: whatsNew })
+      : h("span", { class: latest[1], text: latest[1] === "ok" ? `${running} up to date` : latest[0] });
+    const checked = list ? `checked ${ago(rel.checked_at)}` : "";
+    status = h("div", { class: "vs-status" },
+      h("div", { class: "ver-label", text: "gluetun" }),
+      h("div", { class: "ver-value" }, said),
+      h("div", { class: "ver-sub", text: top ? `On ${running} · ${checked}` : checked.replace(/^c/, "C") }));
+  }
+  // Not connected, or not checked: why, under the title's word
+  const why = tn && tn !== "ok" && sub ? h("p", { class: "vpn-note", text: sub }) : null;
+  card.append(why || "", h("div", { class: "stat-grid" },
+    up ? cls(stat("Exit location", where || "Unknown", [where !== country ? country : "", v.exit_ip].filter(Boolean).join(", ")), "vs-exit")
+      : mode === "off" ? cls(stat("Exit location", "This server", "A direct connection"), "vs-exit") : null,
+    server, ver, status));
   // Turning it on with no config saved asks for one, which only the VPN page does
   const btns = h("div", { class: "card-foot vpnc-foot" });
   const a = avail[mode === "on" ? "vpn.off" : "vpn.on"];
   if (a && a.available && !(mode === "off" && v && v.has_config === false)) {
-    btns.append(h("button", { class: "btn small", type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
+    btns.append(h("button", { class: "btn small vpnc-switch", type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
   }
+  if (updBtn) btns.append(updBtn);
   if (mode === "on") {
     btns.append(h("button", { class: "btn small", type: "button", text: vpnLoading ? "Checking…" : "Check now", disabled: vpnLoading,
-      title: "Ask from inside the VPN where traffic leaves now", onclick: () => loadVpn(mode, true) }));
+      title: "Ask from inside the VPN where traffic leaves now, and GitHub for gluetun's newest release",
+      onclick: () => { loadVpn(mode, true); if (running) glRel.load(true); } }));
   }
+  // As on the version cards
+  if (running && list) btns.append(h("button", { class: "btn small vs-all", type: "button", text: "All releases",
+    title: "What changed in each gluetun release", onclick: () => openReleases(list, running) }));
   card.append(btns);
 }

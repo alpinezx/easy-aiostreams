@@ -553,6 +553,7 @@ class Backend:
         names = {key: title for key, _, title, _, _ in SERVICES}
         routed = self._routed()
         out["routes"] = [{"key": k, "name": names[k], "on": k in routed} for k in ROUTABLE if self.addon_set_up(k)]
+        out["version"] = self._gluetun_version()
         if mode != "on":
             return out
         now = time.time()
@@ -598,6 +599,21 @@ class Backend:
         self._vpn_cache = got
         out.update(got)
         return out
+
+    # gluetun's release ("3.41.3"), from the running container's image, or with the VPN
+    # off from the image Turn VPN on would use. None when neither says.
+    def _gluetun_version(self) -> str | None:
+        labels = None
+        try:
+            labels = self.client.containers.get("gluetun").attrs.get("Config", {}).get("Labels")
+        except Exception:
+            try:
+                labels = self.client.images.get("qmcgaw/gluetun:v3").attrs.get("Config", {}).get("Labels")
+            except Exception:
+                pass
+        v = str((labels or {}).get("org.opencontainers.image.version") or "")
+        m = re.fullmatch(r"v?(\d+\.\d+\.\d+)", v)
+        return m.group(1) if m else None
 
     # Which DNS servers gluetun is talking to, and whether over DNS-over-TLS (port
     # 853), as the VPN script's "DNS: encrypted" check: a lookup is made first so
@@ -1105,7 +1121,10 @@ class Backend:
         res = []
         for a in catalog():
             ok = all(self.p(n).exists() for n in a.needs) and (not a.script_has or a.script_has in _read(self.p(a.script)))
-            res.append({"id": a.id, "label": a.label, "confirm": a.confirm, "available": ok})
+            row = {"id": a.id, "label": a.label, "confirm": a.confirm, "available": ok}
+            if a.backup_has:
+                row["backup"] = ok and a.backup_has in _read(self.p(a.script))
+            res.append(row)
         return res
 
     # ---- backups ---------------------------------------------------------

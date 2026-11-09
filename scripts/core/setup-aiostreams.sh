@@ -648,7 +648,8 @@ restore_start_stack() {
     local image_snapshot
     # shellcheck disable=SC2046  # image refs never contain spaces
     image_snapshot=$(snapshot_image_ids $(compose_image_refs "$COMPOSE_FILE"))
-    if ! (cd "$INSTALL_DIR" && docker compose pull); then
+    # gluetun only if it's missing (compose up fetches it): Update VPN updates it safely
+    if ! (cd "$INSTALL_DIR" && docker compose pull aiostreams caddy); then
         local tag
         tag=$(sed -n 's/.*image: viren070\/aiostreams:\([^[:space:]]*\).*/\1/p' "$COMPOSE_FILE" 2>/dev/null | head -n1)
         tag=${tag:-latest}
@@ -1060,7 +1061,8 @@ do_update_aio() {
     echo "Updating AIOStreams (pull + recreate)..."
     # shellcheck disable=SC2046  # image refs never contain spaces
     IMAGE_SNAPSHOT=$(snapshot_image_ids $(compose_image_refs "$COMPOSE_FILE"))
-    docker compose pull
+    # Not gluetun: Update VPN updates it, and puts the earlier one back if it won't connect
+    docker compose pull aiostreams caddy
     if vpn_mode_active; then
         echo "VPN mode detected, recreating gluetun+caddy first, then gating aiostreams"
         echo "behind a confirmed tunnel before it comes up on the new images..."

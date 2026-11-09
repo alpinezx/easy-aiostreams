@@ -253,6 +253,13 @@ async def mediaflow_releases(force: bool = False, user: str = Depends(current_us
     return await asyncio.to_thread(releases.get, force, "mediaflow")
 
 
+@app.get("/api/gluetun-releases")
+async def gluetun_releases(force: bool = False, user: str = Depends(current_user)):
+    if config.DEMO:
+        return releases.demo("gluetun")
+    return await asyncio.to_thread(releases.get, force, "gluetun")
+
+
 @app.get("/api/aiostreams-releases")
 async def aiostreams_releases(force: bool = False, channel: str = "stable", user: str = Depends(current_user)):
     if channel not in releases.CHANNELS:

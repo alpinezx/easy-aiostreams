@@ -1,6 +1,6 @@
 """AIOStreams releases from GitHub, the same list AIOStreams' own dashboard
 reads: stable tags (v2.35.9) or nightly ones (2026.10.10.1200-nightly), and
-AIOMetadata's (v3.6.1) and AIOManager's (v2.0.0). Kept for a few hours: GitHub
+AIOMetadata's (v3.6.1), AIOManager's (v2.0.0) and gluetun's v3 line. Kept for a few hours: GitHub
 allows 60 unauthenticated requests an hour per IP."""
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ URL = "https://api.github.com/repos/viren070/aiostreams/releases"
 META_URL = "https://api.github.com/repos/cedya77/aiometadata/releases"
 MANAGER_URL = "https://api.github.com/repos/sonicx161/aiomanager/releases"
 MEDIAFLOW_URL = "https://api.github.com/repos/mhdzumair/MediaFlow-Proxy-Light/releases"
+GLUETUN_URL = "https://api.github.com/repos/qdm12/gluetun/releases"
 FRESH = 3 * 3600
 RETRY = 10 * 60
 FORCE_GAP = 60
@@ -27,7 +28,9 @@ CHANNELS = ("stable", "nightly")
 # Each list: where it comes from and which tags count. The add-ons have one channel each;
 # AIOManager's build releases (v1.8.5+build.2) have no image of their own, so they don't count.
 SOURCES = {"stable": (URL, STABLE), "nightly": (URL, NIGHTLY), "aiometadata": (META_URL, STABLE),
-           "aiomanager": (MANAGER_URL, STABLE), "mediaflow": (MEDIAFLOW_URL, re.compile(r"^v?\d+\.\d+\.\d+$"))}
+           "aiomanager": (MANAGER_URL, STABLE), "mediaflow": (MEDIAFLOW_URL, re.compile(r"^v?\d+\.\d+\.\d+$")),
+           # Only v3: the image's v3 tag, which Update VPN pulls, never moves to a v4
+           "gluetun": (GLUETUN_URL, re.compile(r"^v3\.\d+\.\d+$"))}
 
 _lock = threading.Lock()
 _cache: dict = {}
@@ -105,6 +108,12 @@ def demo(channel: str = "stable") -> dict:
         notes = {"v1.1.2": "## What's Changed\n\n* Faster HLS segment proxying\n", "v1.1.1": "## What's Changed\n\n* Fix range requests on some hosts\n"}
         rels = [{"tag": t, "published": p, "url": f"https://github.com/mhdzumair/MediaFlow-Proxy-Light/releases/tag/{t[1:]}", "body": notes[t]}
                 for t, p in (("v1.1.2", "2026-06-03T04:19:34Z"), ("v1.1.1", "2026-05-19T10:59:20Z"))]
+        return {"channel": channel, "checked_at": now, "error": None, "keep": KEEP, "releases": rels}
+    if channel == "gluetun":
+        notes = {"v3.41.3": "## Fixes\n\n- WireGuard: retry the handshake sooner after a network change\n",
+                 "v3.41.2": "## Fixes\n\n- DNS: keep the DoT connection alive across restarts\n"}
+        rels = [{"tag": t, "published": p, "url": f"https://github.com/qdm12/gluetun/releases/tag/{t}", "body": notes[t]}
+                for t, p in (("v3.41.3", "2026-07-30T14:56:14Z"), ("v3.41.2", "2026-06-12T09:10:00Z"))]
         return {"channel": channel, "checked_at": now, "error": None, "keep": KEEP, "releases": rels}
     if channel == "aiomanager":
         notes = {"v2.0.0": "# AIOManager 2.0.0\n\n* Nuvio, RealStream and Hydra as connections\n* End-to-end encrypted cloud sync\n",
