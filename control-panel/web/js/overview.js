@@ -1035,7 +1035,8 @@ function vpnCard(el, st, avail) {
       : h("span", { class: latest[1], text: latest[1] === "ok" ? `${running} up to date` : latest[0] });
     const checked = list ? `checked ${ago(rel.checked_at)}` : "";
     status = h("div", { class: "vs-status" },
-      h("div", { class: "ver-value" }, h("span", { class: "ver-label", text: "gluetun" }), said),
+      h("div", { class: "ver-label", text: "gluetun" }),
+      h("div", { class: "ver-value" }, said),
       h("div", { class: "ver-sub", text: top ? `On ${running} · ${checked}` : checked.replace(/^c/, "C") }));
   }
   // Not connected, or not checked: why, under the title's word
