@@ -239,8 +239,7 @@ async function showSchedule() {
     h("h3", { text: "Scheduled backups" }),
     h("div", { class: "wd-when-row" }, every, onDay, day, atLbl, time, setBtn, tz),
     last,
-    h("p", { class: "dim small", text: "The newest 7 scheduled backups are kept. Ones you make, ones made before an update and locked ones are never removed. "
-      + "They stay on this server, so copy one somewhere else now and then." })));
+    h("p", { class: "dim small", text: "Keeps the newest 7 scheduled backups. Yours, ones made before an update and locked ones are never removed." })));
 }
 
 // Old installs a restore moved aside. Only shown when there are some.
