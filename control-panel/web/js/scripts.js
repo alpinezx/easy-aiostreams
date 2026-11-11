@@ -242,8 +242,8 @@ function sdot(s, why) {
 function row(x, cmd, updateCmd, termOn) {
   const idle = x.present && x.in_use === false && x.id !== "aiostreams";
   const dot = !x.present ? sdot("off", "Not on this server") : idle ? sdot("warn", `The script is here, but ${x.label} isn't set up`) : sdot("ok", "Set up on this server");
-  const tags = [!x.present ? h("span", { class: "sdot-word", "data-s": "off", text: "Not installed" })
-    : idle ? h("span", { class: "sdot-word", "data-s": "warn", text: "Script only, not set up",
+  const tags = [!x.present ? h("span", { class: "sdot-word", "data-s": "off", text: "Not downloaded or installed" })
+    : idle ? h("span", { class: "sdot-word", "data-s": "warn", text: "Downloaded, not set up",
       title: `${x.file} is on this server, but ${x.label} isn't set up. Get it going with Run in terminal, or Remove deletes the script.` }) : null];
   if (x.present && differs(x)) {
     tags.push(h("span", { class: "chip warn small-chip", text: "Differs from GitHub",

@@ -106,7 +106,7 @@ sudo bash /opt/aiostreams/control-panel/setup-ui.sh
 
 When a newer panel is out, the version under its logo turns amber, and the **Scripts** tab offers **Update**. The panel is away for about a minute and the page reloads by itself; your login, unlock link and terminal key stay the same. **What's new**, at the top of the Scripts tab or beside Edit on the Overview, lists the changes since your version, from the project's changelog.
 
-Each script's dot says where it stands: green, set up on this server; amber, **Script only, not set up** (the script is here but its add-on isn't, so **Remove** can delete it); grey, **Not installed**.
+Each script's dot says where it stands: green, set up on this server; amber, **Downloaded, not set up** (the script is here but its add-on isn't, so **Remove** can delete it); grey, **Not downloaded or installed**.
 
 ![The Scripts tab, with the panel's own version and update at the top](../images/control-panel/scripts.png)
 
