@@ -323,8 +323,8 @@ function render() {
   box.append(statusLine());
   if (!terminalOn) {
     box.append(h("div", { class: "note" },
-      h("p", {}, h("b", { text: "Run in terminal needs the web terminal, which is off." }), " Switch it on over SSH: see the ",
-        h("a", { href: GUIDE, target: "_blank", rel: "noopener noreferrer", text: "control panel guide" }), "."),
+      h("p", {}, h("b", { text: "Run in terminal needs the web terminal, which is off." }), " ",
+        h("a", { href: GUIDE, target: "_blank", rel: "noopener noreferrer", text: "Switch it on over SSH" }), "."),
       h("p", { text: "Copy and Update work without it." })));
   }
   box.append(h("section", { class: "panel scripts-panel scripts-core" },
@@ -332,9 +332,8 @@ function render() {
   if (addons.length) {
     box.append(h("section", { class: "panel scripts-panel" },
       h("h3", { class: "sub-head", text: "Optional add-ons" }),
-      h("p", { class: "addons-note" }, h("b", { text: "Most setups need none of these." }),
-        " Read what each one does first: ",
-        h("a", { href: ADDONS_GUIDE, target: "_blank", rel: "noopener noreferrer", text: "Other scripts guide" }), "."),
+      h("p", { class: "addons-note" }, h("b", { text: "Most setups need none of these." }), " ",
+        h("a", { href: ADDONS_GUIDE, target: "_blank", rel: "noopener noreferrer", text: "Read what each one does first" }), "."),
       h("ul", { class: "cmds" }, ...addons.map(rowOf))));
   }
 }
