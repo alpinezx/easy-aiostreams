@@ -585,24 +585,27 @@ function fillSpark(svg, values) {
   svg.querySelector(".area").setAttribute("d", `${d} L96 28 L0 28 Z`);
 }
 
-// Folded: how many are running, their memory, and any that aren't, by name
+// Folded: how many are running and any that aren't, by name, then their CPU and memory
+// together (a line of their own on a phone), CPU as a share of the whole server as in the rows
 function svcHead(st) {
   const f = isFolded("services");
   $("#rows").hidden = f;
   const up = st.services.filter((s) => s.state === "running");
   const mem = up.reduce((n, s) => n + (s.mem || 0), 0);
+  const cpu = up.reduce((n, s) => n + (s.cpu || 0), 0) / ((st.host && st.host.cpus) || 1);
   const el = rebuild("#svc-head", st.services.map((s) => `${s.key}:${stateOf(s)}`).join(",") + f, (el) => {
     el.classList.toggle("folded", f);
     el.append(h("h2", { class: "sec" }, foldTitle("services", "Services")));
     if (!f) return;
     el.append(foldSum([[`${up.length} of ${st.services.length} running`, up.length === st.services.length ? "ok" : ""],
-      [h("span", { dataset: { mem: "1" } })],
       ...st.services.filter((s) => s.state !== "running").map((s) => {
         const sx = stateOf(s);
         return [`${s.name}: ${(STATE_WORD[sx] || sx).toLowerCase()}`, sx === "paused" ? "warn" : "bad"];
-      })]));
+      }),
+      [h("span", { class: "svc-pair" }, h("span", { dataset: { cpu: "1" } }), h("span", { dataset: { mem: "1" } })), "svc-load"]]));
   });
-  setText(el, "[data-mem]", mem ? `${fmtBytes(mem)} memory` : "");
+  setText(el, "[data-cpu]", up.some((s) => s.cpu != null) ? `CPU ${Math.round(cpu * 10) / 10}%` : "");
+  setText(el, "[data-mem]", mem ? `Memory ${fmtBytes(mem)}` : "");
 }
 
 // The panel restarts itself and this page reloads once it answers again. No Stop: nothing here could start it again.
@@ -639,7 +642,8 @@ function rows(st, goLogs) {
       }
       el.append(h("div", { class: "row", dataset: { svc: s.key } },
         // What the service does is on hover, keeping each row to the name
-        h("div", {}, h("div", { class: "name", text: s.name, title: s.role || null })),
+        // On a phone, where the CPU and Memory columns don't fit, both sit under the name
+        h("div", {}, h("div", { class: "name", text: s.name, title: s.role || null }), h("div", { class: "sub pstat", dataset: { pstat: "1" } })),
         h("div", {}, h("div", { class: "state-word", dataset: { s: sx } }, h("span", { dataset: { w: "1" } })),
           h("div", { class: "img", dataset: { img: "1" }, title: s.image || "" })),
         h("div", { class: "num", dataset: { cpu: "1" } }),
@@ -666,6 +670,7 @@ function rows(st, goLogs) {
     const cpuEl = row.querySelector("[data-cpu]");
     if (cpuEl) cpuEl.className = "num " + cpuTone(hist[s.key], cpus);
     setText(row, "[data-mem]", s.state === "running" && s.mem != null ? fmtBytes(s.mem) : "");
+    setText(row, "[data-pstat]", s.state === "running" && s.cpu != null ? `CPU ${Math.round((s.cpu / cpus) * 10) / 10}%` + (s.mem != null ? ` · ${fmtBytes(s.mem)}` : "") : "");
     const sv = row.querySelector("svg.spark");
     if (sv) fillSpark(sv, hist[s.key] || []);
   }
@@ -1062,8 +1067,16 @@ function vpnCard(el, st, avail) {
   }
   // Not connected, or not checked: why, under the title's word
   const why = tn && tn !== "ok" && sub ? h("p", { class: "vpn-note", text: sub }) : null;
+  let exit = null;
+  if (up) {
+    exit = cls(stat("Exit location", where || "Unknown", [where !== country ? country : "", v.exit_ip].filter(Boolean).join(", ")), "vs-exit");
+    // How long the tunnel has been up (gluetun reconnecting by itself starts it again). On a phone
+    // it's a line of its own, "Up for ...", with no comma before it
+    if (v.tunnel_since) exit.lastChild.append(exit.lastChild.textContent ? h("span", { class: "vs-up-sep", text: ", " }) : "",
+      h("span", { class: "nowrap vs-up", text: `up for ${fmtDur(Date.now() / 1000 - v.tunnel_since)}` }));
+  }
   card.append(why || "", h("div", { class: "stat-grid" },
-    up ? cls(stat("Exit location", where || "Unknown", [where !== country ? country : "", v.exit_ip].filter(Boolean).join(", ")), "vs-exit")
+    exit ? exit
       : mode === "off" ? cls(stat("Exit location", "This server", "A direct connection"), "vs-exit") : null,
     server, ver, status));
   // Turning it on with no config saved asks for one, which only the VPN page does

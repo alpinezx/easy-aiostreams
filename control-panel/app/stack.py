@@ -644,6 +644,7 @@ class Backend:
                     break
                 if got["connected"]:
                     got["dns"] = self._vpn_dns(c)
+                    got["tunnel_since"] = self._tunnel_since(c)
                 if not got["connected"]:
                     got["error"] = "Couldn't reach the internet through the tunnel."
         except Exception:
@@ -651,6 +652,27 @@ class Backend:
         self._vpn_cache = got
         out.update(got)
         return out
+
+    # When the tunnel last came up: gluetun can restart it without restarting its container
+    # (its health check does), and writes this line each time. The container's own start
+    # when none is found in what it has written since it started.
+    _TUNNEL_UP = re.compile(r"^(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)\S*\s.*(?:Wireguard setup is complete|Initialization Sequence Completed)", re.M)
+
+    def _tunnel_since(self, c) -> float | None:
+        started = (c.attrs.get("State") or {}).get("StartedAt") or ""
+        since = None
+        try:
+            since = datetime.fromisoformat(started[:19]).replace(tzinfo=timezone.utc).timestamp()
+        except ValueError:
+            pass
+        try:
+            text = c.logs(timestamps=True, since=int(since) if since else None, tail=5000).decode(errors="replace")
+            hits = self._TUNNEL_UP.findall(text)
+            if hits:
+                return datetime.fromisoformat(hits[-1]).replace(tzinfo=timezone.utc).timestamp()
+        except Exception:
+            pass
+        return since
 
     # gluetun's release ("3.41.3"), from the running container's image, or with the VPN
     # off from the image Turn VPN on would use. None when neither says.
