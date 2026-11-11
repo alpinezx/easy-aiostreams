@@ -1375,3 +1375,19 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .warn-msg { grid-column: 2 / -1; grid-row: 2; white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .warn-ago { grid-column: 3; grid-row: 1; }
 }
+
+/* Maintenance: a quiet word on a card title's right (System updates' system) */
+.maint-card .card-head .card-corner { margin-left: auto; font-size: .9rem; }
+/* List updates: one package a line, its versions under its name on a phone */
+.upd-list { list-style: none; margin: 0; padding: 0; }
+.upd-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 7px 0; border-top: 1px solid var(--line-soft); }
+.upd-list li:first-child { border-top: 0; }
+.upd-name { font-weight: 600; }
+.upd-ver { margin-left: auto; font-size: .82rem; overflow-wrap: anywhere; }
+.upd-note { margin: 0 0 6px; font-size: .86rem; }
+@media (max-width: 720px) { .upd-ver { margin-left: 0; flex-basis: 100%; } }
+@media (max-width: 720px) {
+  /* Two buttons on a Maintenance card (Install updates, List updates) share the row on a phone */
+  .maint-foot:has(> .btn + .btn) > .dim:empty { display: none; }
+  .maint-foot:has(> .btn + .btn) > .btn { flex: 1 1 0; }
+}

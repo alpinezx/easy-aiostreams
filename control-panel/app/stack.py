@@ -239,6 +239,24 @@ def warn_hints(raw: bytes) -> list[str]:
     return out[-WARN_KEEP:]
 
 
+
+# apt list --upgradable's lines, "name/suite new-version arch [upgradable from: old-version]", for
+# the Maintenance page's List updates: those Install updates would install now first, then the
+# ones still phasing in. Capped, so a server months behind doesn't send thousands.
+_UPGRADABLE = re.compile(r"^([^/\s]+)/(\S+)\s+(\S+)\s+\S+\s+\[upgradable from:\s*([^\]]+)\]")
+
+
+def upgradable_packages(lines: list[str], now: set[str], cap: int = 300) -> list[dict]:
+    out = []
+    for l in lines:
+        m = _UPGRADABLE.match(l.strip())
+        if m:
+            name, suite, new, old = m.groups()
+            out.append({"name": name, "from": old.strip(), "to": new, "security": "-security" in suite,
+                        "phased": name not in now})
+    out.sort(key=lambda p: (p["phased"], not p["security"], p["name"]))
+    return out[:cap]
+
 class LogStream:
     """Iterates decoded log lines; close() ends it from another thread."""
 
@@ -1068,15 +1086,18 @@ class Backend:
         # share of servers over a few days) and apt holds those back until this server's turn.
         # A simulated upgrade, as Install updates runs it, says which; they're counted apart.
         phased = 0
+        everything = lines
         if lines:
             sim = self._on_host("apt-get", "-s", "-o", "Debug::NoLocking=1", "upgrade", "--with-new-pkgs", timeout=60)
             if sim:
                 ready = {l.split()[1] for l in sim.splitlines() if l.startswith("Inst ") and len(l.split()) > 1}
                 now = [l for l in lines if l.split("/", 1)[0] in ready]
                 phased, lines = len(lines) - len(now), now
+        now_names = {l.split("/", 1)[0] for l in lines}
         stamp = self._on_host("sh", "-c", "stat -c %Y /var/lib/apt/periodic/update-success-stamp 2>/dev/null "
                                        "|| stat -c %Y /var/lib/apt/lists 2>/dev/null").strip()
         return {"available": True, "os": os_name, "count": len(lines), "security": sum("-security" in l for l in lines), "phased": phased,
+                "packages": upgradable_packages(everything, now_names),
                 "reboot": self.reboot_needed(),
                 "checked_at": int(stamp) if stamp.isdigit() else None}
 

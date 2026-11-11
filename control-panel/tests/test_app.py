@@ -1120,3 +1120,20 @@ def test_gluetun_version_from_the_container_or_its_image():
     # nothing to go by, or something that isn't a version
     assert stack.Backend._gluetun_version(backend(None, None)) is None
     assert stack.Backend._gluetun_version(backend({key: "latest"}, None)) is None
+
+
+def test_list_updates_reads_apt_list():
+    """List updates on Maintenance: apt list --upgradable's lines, ready ones first, security first among them."""
+    from app.stack import upgradable_packages
+    lines = [
+        "Listing...",
+        "udev/noble-updates 255.4-1ubuntu8.11 amd64 [upgradable from: 255.4-1ubuntu8.10]",
+        "curl/noble-updates 8.5.0-2ubuntu10.7 amd64 [upgradable from: 8.5.0-2ubuntu10.6]",
+        "openssl/noble-security,noble-updates 3.0.13-0ubuntu3.6 amd64 [upgradable from: 3.0.13-0ubuntu3.5]",
+        "not a package line",
+    ]
+    got = upgradable_packages(lines, {"curl", "openssl"})
+    assert [p["name"] for p in got] == ["openssl", "curl", "udev"]
+    assert got[0] == {"name": "openssl", "from": "3.0.13-0ubuntu3.5", "to": "3.0.13-0ubuntu3.6", "security": True, "phased": False}
+    assert got[2]["phased"] and not got[1]["phased"]
+    assert len(upgradable_packages(lines * 200, {"curl"}, cap=5)) == 5

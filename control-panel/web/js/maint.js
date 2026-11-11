@@ -1,5 +1,6 @@
 import { $, h, clear, api, ago, toast, fmtBytes, timePicker } from "./util.js";
 import { runAction, rebootServer } from "./actions.js";
+import { openUpdates } from "./releases.js";
 
 // Maintenance: upkeep that's easy to forget. Each card says what it found, coloured
 // only when something needs a look, with its one button at the bottom right. The
@@ -14,8 +15,10 @@ function stat(label, value, sub, tone, why) {
 }
 
 function card(title, grid, note, ...btns) {
+  // A title can carry a quiet word on its right: System updates' system
+  const [name, corner] = Array.isArray(title) ? title : [title, ""];
   return h("section", { class: "panel maint-card" },
-    h("div", { class: "card-head" }, h("h3", { text: title })),
+    h("div", { class: "card-head" }, h("h3", { text: name }), corner ? h("span", { class: "dim card-corner", text: corner }) : null),
     h("div", { class: "stat-grid" }, ...grid),
     h("div", { class: "card-foot" }, h("div", { class: "maint-foot" }, h("span", { class: "dim", text: note || "" }), ...btns)));
 }
@@ -40,8 +43,9 @@ function space(m) {
 
 function updates(m) {
   const u = m.updates;
-  if (!u.available) return card("System updates", [stat("Waiting", "Can't tell", "This server doesn't use apt")], u.os, null);
-  return card("System updates", [
+  if (!u.available) return card(["System updates", u.os], [stat("Waiting", "Can't tell", "This server doesn't use apt")], "", null);
+  const pk = u.packages || [];
+  return card(["System updates", u.os], [
     stat("Waiting", u.count ? `${u.count} update${u.count === 1 ? "" : "s"}` : "Up to date",
       (u.count ? (u.security ? `${u.security} for security` : "None for security") + (u.phased ? `, ${u.phased} more phasing in` : "")
         : u.phased ? `${u.phased} more phasing in` : ""), u.security ? "warn" : u.count ? "" : "ok",
@@ -49,7 +53,10 @@ function updates(m) {
         + "so Install updates leaves them until its turn, usually within days." : null),
     stat("Restart", u.reboot ? "Needed" : "Not needed", u.reboot ? "To finish installing updates" : "", u.reboot ? "warn" : ""),
     stat("Checked", u.checked_at ? ago(u.checked_at) : "Unknown", "The package lists"),
-  ], u.os, button("maint.updates", u.count > 0),
+  ], "", button("maint.updates", u.count > 0),
+  // What's waiting, by name, in a drawer: nothing is installed from it
+  h("button", { class: "btn small", type: "button", text: "List updates", disabled: !pk.length,
+    title: pk.length ? "Which packages are waiting, and their versions" : "Nothing is waiting", onclick: () => openUpdates(u) }),
   u.reboot ? h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer,
     disabled: !!(status && status.busy) || !!(last && last.last && last.last.running) }) : null);
 }

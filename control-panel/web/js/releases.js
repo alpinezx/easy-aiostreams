@@ -84,6 +84,7 @@ export function openReleases(rel, running) {
   $("#rel-sub").textContent = `${nightly ? "Nightly builds" : rel.name ? "Releases" : "Stable releases"}, newest first. You're running ${tagLabel(running)}, `
     + (newer.length ? `${count} behind.` : "the latest.");
   const foot = $("#rel-foot");
+  foot.hidden = false;
   foot.href = rel.page || "https://github.com/Viren070/AIOStreams/releases";
   foot.firstChild.textContent = rel.page ? "Every release on GitHub " : "Every release on GitHub, nightlies included ";
   rel.releases.forEach((r, i) => {
@@ -127,6 +128,7 @@ export function openChangelog(log) {
     ? `${news === 1 ? "One new repo change" : `${news} new repo changes`}, newest first.`
     : "Latest repo changes, newest first.";
   const foot = $("#rel-foot");
+  foot.hidden = false;
   foot.href = log.page;
   foot.firstChild.textContent = "The full changelog on GitHub ";
   const days = [];
@@ -147,6 +149,37 @@ export function openChangelog(log) {
       }))));
   });
   if (!days.length) list.append(h("p", { class: "dim", text: log.error ? `Couldn't load the changelog. ${log.error}` : "The changelog is empty." }));
+  list.scrollTop = 0;
+  $("#rel-drawer").hidden = false;
+  $("#scrim").hidden = false;
+  $("#rel-x").focus();
+}
+
+// The Maintenance page's List updates: the system packages waiting, in the same drawer. Those
+// Install updates would install now first, then the ones Ubuntu is still phasing in.
+export function openUpdates(u) {
+  lastFocus = document.activeElement;
+  const list = $("#rel-list");
+  clear(list);
+  const pk = u.packages || [];
+  const now = pk.filter((p) => !p.phased), later = pk.filter((p) => p.phased);
+  const n = (k, w) => `${k} ${w}${k === 1 ? "" : "s"}`;
+  $("#rel-title").textContent = "System updates";
+  $("#rel-sub").textContent = [now.length ? `${n(now.length, "update")} ready to install` : "Nothing ready to install",
+    later.length ? `${later.length} more phasing in` : ""].filter(Boolean).join(", ") + (u.os ? `, on ${u.os}.` : ".");
+  $("#rel-foot").hidden = true;
+  const group = (title, items, open, note) => h("details", { class: "rel", open },
+    h("summary", {}, h("span", { class: "rel-tag", text: title }),
+      h("span", { class: "rel-when cl-count", text: n(items.length, "package") })),
+    h("div", { class: "rel-body" }, note ? h("p", { class: "dim upd-note", text: note }) : null,
+      h("ul", { class: "upd-list" }, ...items.map((p) => h("li", {},
+        h("span", { class: "upd-name mono", text: p.name }),
+        p.security ? h("span", { class: "chip warn small-chip", text: "Security" }) : null,
+        h("span", { class: "upd-ver mono dim", text: `${p.from} → ${p.to}` }))))));
+  if (now.length) list.append(group("Ready to install", now, true));
+  if (later.length) list.append(group("Phasing in", later, !now.length,
+    "Ubuntu offers these to a few servers at a time. Install updates leaves them until this server's turn, usually within days."));
+  if (!pk.length) list.append(h("p", { class: "dim", text: "Nothing is waiting." }));
   list.scrollTop = 0;
   $("#rel-drawer").hidden = false;
   $("#scrim").hidden = false;
