@@ -58,7 +58,8 @@ The pages are icons down the left; point at one to see its name. On a phone they
 - The buttons do the same as the matching options in the setup scripts, so you can mix the panel and SSH freely.
 - Cards and pages for add-ons (AIOMetadata, AIOManager, MediaFlow, the VPN, Phone alerts...) only appear once you've set them up with their scripts.
 - **Edit** on the Overview and **Edit menu** (the pencil) rearrange or hide cards and pages. The layout is saved on the server, so every device shows the same. The Overview's **Edit** also has **Colours**: System (follows your device), Light, Dark or Slate (a softer dark), saved in that browser only.
-- **Recent warnings & errors** on the Overview lists the latest warnings and errors from every service's log, leaving out the expected noise. Tap one to open that log. Its cog picks which services it covers.
+- Tap a card's title to fold it to one line, or open it again; **Fold all cards** (or **Open all cards**) beside What's new does every card at once. On a phone every card starts folded; on a computer they start open. Each browser remembers its own, and **Reset to default** in Edit puts them back.
+- **Recent warnings & errors** on the Overview lists the latest warnings and errors from every service's log, leaving out the expected noise. Tap one to open that log. Its cog picks which services it covers: AIOStreams (its own dashboard has the same list) and the optional add-ons start switched off.
 - **Activity** keeps what every button printed, if you want to check how an update or backup went.
 
 ## Worth knowing
@@ -66,6 +67,7 @@ The pages are icons down the left; point at one to see its name. On a phone they
 - **Restore is for rolling this same server back.** The panel checks first that the backup matches this install and its domains point here. If not, it refuses and gives you the command to run over SSH instead. Moving to a new server is always done over SSH ([backup guide](./backup-restore.md)).
 - **Scheduled backups keep the newest 7 scheduled ones.** Backups you make yourself, ones made before an update, and locked ones are never removed.
 - **Install updates** and **Set limits** on the Maintenance page restart every container for a few seconds, the panel included. The job carries on, and the page reconnects by itself.
+- **List updates**, beside Install updates, shows which system packages are waiting and their versions, security ones marked, with those still phasing in listed apart. It only lists them: nothing is installed.
 - **Scheduled server reboot** on the Maintenance page restarts the server at a set time, either only when an update needs it (a new kernel, say) or every time. It's off until you pick one, never runs during a backup or an update, and Phone alerts says the restart was planned. The same card shows whether the server's clock is in sync and lets you change its time zone; scheduled backups and reboots go by it.
 
 ---
@@ -103,6 +105,8 @@ sudo bash /opt/aiostreams/control-panel/setup-ui.sh
 ## Updating the panel
 
 When a newer panel is out, the version under its logo turns amber, and the **Scripts** tab offers **Update**. The panel is away for about a minute and the page reloads by itself; your login, unlock link and terminal key stay the same. **What's new**, at the top of the Scripts tab or beside Edit on the Overview, lists the changes since your version, from the project's changelog.
+
+Each script's dot says where it stands: green, set up on this server; amber, **Downloaded, not set up** (the script is here but its add-on isn't, so **Remove** can delete it); grey, **Not downloaded or installed**.
 
 ![The Scripts tab, with the panel's own version and update at the top](../images/control-panel/scripts.png)
 

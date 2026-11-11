@@ -7,7 +7,7 @@ import { pill as scriptsPill, showChangelog } from "./scripts.js";
 import { scheduleText } from "./activity.js";
 import { applyLayout, openLayout } from "./layout.js";
 import { countryName } from "./vpn.js";
-import { scan, pickLevels } from "./logs.js";
+import { scan } from "./logs.js";
 import { loadTraffic, trafficData, trafficStale, feedNet, nowRate, today, fmtRate, netOrder } from "./traffic.js";
 
 // ---------------- update check ----------------
@@ -134,16 +134,18 @@ export function record(st) {
 // ---------------- folding ----------------
 // Every card folds to one line holding what matters most, and anything that needs a look
 // stays on that line. Remembered per browser, so a phone can keep cards folded and a
-// desktop open. Only the request flow and the list of certificates start folded.
+// desktop open. On a phone every card starts folded (the folded line says enough there); on
+// a desktop only the request flow and the lists inside This server do.
 const FOLD_KEYS = { flow: "aios.flowFolded" };
 const DEFAULT_FOLDED = new Set(["flow", "certs", "netsvc"]);
+const PHONE_FOLDED = window.matchMedia("(max-width: 720px)").matches;
 const foldKey = (id) => FOLD_KEYS[id] || `aios.fold.${id}`;
 const folds = {};
 function isFolded(id) {
   if (!(id in folds)) {
     let v = null;
     try { v = localStorage.getItem(foldKey(id)); } catch (_) {}
-    folds[id] = v == null ? DEFAULT_FOLDED.has(id) : v !== "0";
+    folds[id] = v == null ? PHONE_FOLDED || DEFAULT_FOLDED.has(id) : v !== "0";
   }
   return folds[id];
 }
@@ -171,6 +173,22 @@ function chev() {
   const c = h("span", { class: "path-chev", "aria-hidden": "true" });
   c.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
   return c;
+}
+// Fold all / Open all, beside What's new: every card on the Overview at once, as if each title
+// were tapped (saved per browser the same way). Open all when every card is folded.
+const CARD_FOLDS = ["flow", "warn", "aiostreams", "aiometadata", "aiomanager", "mediaflow", "vpn", "alerts", "server", "services"];
+const shownFolds = () => {
+  const on = CARD_FOLDS.filter((id) => document.querySelector(`.fold-toggle[data-fold="${id}"]`));
+  return on.length ? on : CARD_FOLDS;
+};
+const allFolded = () => shownFolds().every(isFolded);
+function foldAll() {
+  const fold = !allFolded();
+  for (const id of CARD_FOLDS) {
+    folds[id] = fold;
+    try { localStorage.setItem(foldKey(id), fold ? "1" : "0"); } catch (_) {}
+  }
+  if (lastSt) render(lastSt, lastGoLogs);
 }
 // The title as the fold button, as on the request flow
 function foldTitle(id, label) {
@@ -240,7 +258,8 @@ function hero(st) {
     allCerts(st).map((c) => `${c.host}:${c.ok}:${c.days_left}:${c.days_total}`).join(","), st.installed, st.docker_ok, relLoading, rel && rel.checked_at, rel && rel.error, isFolded("aiostreams"),
     JSON.stringify(st.aiometadata || null), isFolded("aiometadata"),
     JSON.stringify(st.aiomanager || null), isFolded("aiomanager"), mgrRel.loading, mgrRel.list && mgrRel.list.checked_at,
-    JSON.stringify(st.mediaflow || null), isFolded("mediaflow"), mfRel.loading, mfRel.list && mfRel.list.checked_at].join("|");
+    JSON.stringify(st.mediaflow || null), isFolded("mediaflow"), mfRel.loading, mfRel.list && mfRel.list.checked_at,
+    CARD_FOLDS.map(isFolded).join("")].join("|");
   rebuild("#hero", key, (el) => {
     // The headline, and after it the "Script updates" pill while a setup script here differs
     // from GitHub (it drops below the headline when they don't fit on one line).
@@ -250,6 +269,8 @@ function hero(st) {
       h("h1", { class: "headline", "aria-live": "polite", text: st.headline }),
       h("a", { class: "chip warn scripts-pill", id: "scripts-pill", href: "#scripts", hidden: true }),
       st.installed ? h("span", { class: "hero-btns" },
+        h("button", { class: "btn small quiet fold-all", type: "button", text: allFolded() ? "Open all cards" : "Fold all cards",
+          title: allFolded() ? "Open every card" : "Fold every card to one line", onclick: foldAll }),
         h("button", { class: "btn small quiet", type: "button", text: "What's new",
           title: "The changes since this panel's version, from the project's changelog", onclick: showChangelog }),
         editBtn()) : null));
@@ -434,8 +455,8 @@ function addonVerCard(st, avail, o) {
 // When sign-ups close, in the viewer's own time
 const untilTime = (t) => new Date(t * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-// AIOManager's card. Its corner says how many logins there are, or, amber, that
-// sign-ups are open (switched on the Add-ons page).
+// AIOManager's card. Its corner says, amber, when sign-ups are open (switched on the
+// Add-ons page); how many logins there are is on that page.
 function mgrCard(st, avail) {
   const m = st.aiomanager;
   const open = m.signups === "open";
@@ -443,8 +464,7 @@ function mgrCard(st, avail) {
     // Short, so it fits beside the title on a phone; when they close is in its tooltip and on the Add-ons page
     ? h("a", { class: "chip warn", href: "#addons", text: "Sign-ups open",
         title: `Anyone with the address can make a login${m.signups_until ? ` until ${untilTime(m.signups_until)}` : ""}. Close them on the Add-ons page.` })
-    : m.logins != null ? h("span", { class: "chip", text: `${m.logins} ${m.logins === 1 ? "login" : "logins"}`,
-        title: "Sign-ups are closed, so nobody else can make one. Open them briefly on the Add-ons page." }) : null;
+    : null;
   return addonVerCard(st, avail, { id: "aiomanager", name: "AIOManager", rel: mgrRel, version: m.version,
     pages: m.domain ? cardPages(m.domain, [["Dashboard", "/"]]) : null, corner, foldCorner: open ? corner : null });
 }
@@ -460,12 +480,12 @@ function mfCard(st, avail) {
 function versionCard(st, avail) {
   const nightly = relChannel(st) === "nightly";
   const running = runningTag(st);
-  const [latest, latestSub, btns, fresh] = updateBits(st);
+  const [latest, latestSub, btns] = updateBits(st);
   const col = (value, sub) => h("div", {},
-    h("div", { class: "ver-value" }, value), h("div", { class: "ver-sub", text: sub || "" }));
+    h("div", { class: "ver-value" }, ...[value].flat()), h("div", { class: "ver-sub", text: sub || "" }));
   const upd = st.installed && avail["stack.update"];
-  // Update sits with Check now, blue only when a newer release is out
-  if (upd && upd.available) btns.unshift(h("button", { class: "btn small" + (fresh ? " primary" : ""), type: "button", text: "Update",
+  // Update sits with Check now, plain like every card's: the amber "available" already says a newer one is out
+  if (upd && upd.available) btns.unshift(h("button", { class: "btn small", type: "button", text: "Update",
     disabled: !!st.busy, title: "Update AIOStreams, or switch between stable and nightly", onclick: () => runAction(upd) }));
   // The title folds the card like the others; its two pages are links beside it
   const title = h("div", { class: "fold-title" },
@@ -479,11 +499,11 @@ function versionCard(st, avail) {
         btns[0] && btns[0].textContent === "Update" ? foldAct(btns[0]) : null));
   }
   return h("section", { class: "panel ver-card", "aria-label": "AIOStreams version" },
-    h("div", { class: "ver-head" }, title,
-      h("span", { class: "chip" + (nightly ? " warn" : " ok"), text: nightly ? "Nightly" : "Stable",
-        title: nightly ? "AIOStreams' nightly builds (Docker tag: nightly). Switch with Update." : "AIOStreams' stable releases (Docker tag: latest). Switch with Update." })),
+    h("div", { class: "ver-head" }, title),
     h("div", { class: "ver-grid" },
-      col(`v${st.version}`, nightly ? (running ? `Nightly ${running.slice(0, -8)}` : "") : releasedAgo(running)),
+      // The channel as a word beside the version, not a pill
+      col([`v${st.version}`, h("span", { class: "ver-chan", text: nightly ? "Nightly" : "Stable",
+        title: nightly ? "AIOStreams' nightly builds (Docker tag: nightly). Switch with Update." : "AIOStreams' stable releases (Docker tag: latest). Switch with Update." })], nightly ? (running ? `Nightly ${running.slice(0, -8)}` : "") : releasedAgo(running)),
       h("div", { class: "ver-right" }, col(latest, latestSub), h("div", { class: "ver-btns" }, ...btns))));
 }
 
@@ -879,7 +899,7 @@ function side(st) {
 
 // Recent warnings & errors: the latest from every service's log over the last day (or since
 // its Clear), sorted by the Logs page's own rules so noise stays out. The same message from the
-// same service is one row with a count. A row opens that log with WARN and ERROR picked.
+// same service is one row with a count. A row opens that log.
 let warnData = null, warnAt = 0, warnLoading = false;
 async function loadWarnings() {
   if (warnLoading || Date.now() - warnAt < 60000) return;
@@ -917,12 +937,13 @@ async function warnPick() {
   const el = h("div", { class: "warn-pick" }, ...boxes.map(([s, input]) =>
     h("label", { class: "warn-pick-row" }, h("span", { text: s.name }), h("span", { class: "sw" }, input, h("i", { "aria-hidden": "true" })))));
   const res = await ask({ title: "Show warnings from", body: "Which services' logs this card reads. Every device shows the same.",
-    confirmLabel: "Save", options: { el, read: () => boxes.filter(([, i]) => !i.checked).map(([s]) => s.container) } });
+    confirmLabel: "Save", options: { el, read: () => ({
+      hidden: boxes.filter(([, i]) => !i.checked).map(([s]) => s.container),
+      shown: boxes.filter(([, i]) => i.checked).map(([s]) => s.container) }) } });
   if (!res) return;
-  // Services not set up here keep whatever they had
-  const keep = warnHidden.filter((c) => !svcs.some((s) => s.container === c));
+  // Only the switches shown are sent: services not set up here keep their choice or default
   try {
-    const r = await api("/api/log-warnings/hidden", { method: "PUT", body: JSON.stringify({ hidden: [...keep, ...res] }) });
+    const r = await api("/api/log-warnings/hidden", { method: "PUT", body: JSON.stringify(res) });
     warnHidden = r.hidden;
   } catch (e) { toast(e.message, true); return; }
   warnAt = 0; warnData = null;
@@ -962,7 +983,7 @@ function warnCard(el) {
   const now = Date.now() / 1000;
   card.append(h("div", { class: "warn-list" }, ...rows.slice(0, warnMore ? WARN_MAX : WARN_SHOWN).map((r) =>
     h("a", { class: `warn-row ${r.cls}`, href: "#logs", title: r.text,
-      onclick: (e) => { e.preventDefault(); pickLevels(["warn", "error"]); if (lastGoLogs) lastGoLogs(r.container); } },
+      onclick: (e) => { e.preventDefault(); if (lastGoLogs) lastGoLogs(r.container); } },
       h("i", { class: "warn-dot", "aria-label": r.cls === "error" ? "Error" : "Warning" }),
       h("span", { class: "warn-svc", text: r.name }),
       h("span", { class: "warn-msg", text: r.text }),

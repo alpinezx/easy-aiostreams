@@ -2,6 +2,11 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 11 November 2026
+
+- **New:** a tidier panel, on phones especially. Every Overview card starts folded on a phone, **Fold all cards** sits beside What's new, and a fold's arrow points down while there's more to open. Maintenance has **List updates** (each waiting package and its versions), shows the first few on the System updates card on a desktop (or what the last install brought), and lays out Scheduled server reboot like a list with **Set schedule**; Scheduled backups does the same. Recent warnings starts with AIOStreams and the add-ons switched off in its cog (their first warnings are mostly settings not entered yet). The Scripts tab puts a dot before each script, amber when it's downloaded but not set up. AIOStreams' channel is a word beside its version, notes are shorter, links in them don't break across lines, and Logs' Wrap starts off. (Panel 1.54.0, [#165](https://github.com/alpinezx/easy-aiostreams/pull/165))
+- **Fixed:** release checks are kept across a panel restart, so a few updates in a row no longer use up GitHub's hourly limit and leave every card saying Couldn't check. The Cloudflare Tunnel's "Error shutting down control stream" while it stops counts as noise. (Panel 1.54.0, [#165](https://github.com/alpinezx/easy-aiostreams/pull/165))
+
 ## 9 November 2026
 
 - **Fixed:** the VPN's DNS retries no longer show as warnings: every gluetun `[dns]` line about renewing its encrypted DNS connection counts as noise now, timeouts included, on the Logs page and in Recent warnings. Real DNS trouble still shows (errors, and the VPN's health check restarting it). (Panel 1.53.2, [#164](https://github.com/alpinezx/easy-aiostreams/pull/164))

@@ -661,16 +661,31 @@ def test_log_warnings_hidden(client):
     seen = []
     real = m.backend.log_warnings
     m.backend.log_warnings = lambda loggable: seen.append(set(loggable)) or []
+    addons = sorted(m.WARN_OFF_BY_DEFAULT)
+    m._warn_hidden_path().unlink(missing_ok=True)
     try:
-        assert client.get("/api/log-warnings").json()["hidden"] == []
+        # A fresh install: the core services on, the optional add-ons off
+        assert client.get("/api/log-warnings").json()["hidden"] == addons
+        assert {"caddy", "gluetun", "cloudflared", "aios-ui"} <= seen[-1]
+        assert not seen[-1] & m.WARN_OFF_BY_DEFAULT
         r = client.put("/api/log-warnings/hidden", json={"hidden": ["caddy", "gluetun", "caddy", "not-a-service"]})
-        assert r.json()["hidden"] == ["caddy", "gluetun"]
+        assert r.json()["hidden"] == sorted(["caddy", "gluetun", *addons])
         body = client.get("/api/log-warnings").json()
-        assert body["hidden"] == ["caddy", "gluetun"]
-        assert "caddy" not in seen[-1] and "gluetun" not in seen[-1] and "aiostreams" in seen[-1]
+        assert body["hidden"] == sorted(["caddy", "gluetun", *addons])
+        assert "caddy" not in seen[-1] and "gluetun" not in seen[-1] and "cloudflared" in seen[-1]
+        # An add-on switched on stays on; services the cog didn't show keep their choice
+        r = client.put("/api/log-warnings/hidden", json={"hidden": [], "shown": ["aiometadata", "caddy"]})
+        assert r.json()["hidden"] == sorted(["gluetun", "aiostreams", "aiomanager", "mediaflow-proxy-light"])
+        m._warn_cache["data"] = None
+        client.get("/api/log-warnings")
+        assert "aiometadata" in seen[-1] and "aiomanager" not in seen[-1]
         assert client.put("/api/log-warnings/hidden", json={"nope": 1}).status_code == 400
-        assert client.put("/api/log-warnings/hidden", json={"hidden": []}).json()["hidden"] == []
+        assert client.put("/api/log-warnings/hidden", json={"hidden": [], "shown": "x"}).status_code == 400
+        # A file saved before add-ons were off by default (only "hidden") still reads
+        m._warn_hidden_path().write_text('{"hidden": ["caddy"]}')
+        assert client.get("/api/log-warnings").json()["hidden"] == sorted(["caddy", *addons])
     finally:
+        m._warn_hidden_path().unlink(missing_ok=True)
         m.backend.log_warnings = real
         m._warn_cache["data"] = None
 
@@ -818,6 +833,7 @@ def test_maintenance_leaves_phased_updates_out():
         ns = SimpleNamespace(_on_host=on_host)
         ns.reboot_needed = lambda: stack.Backend.reboot_needed(ns)
         ns._host_os = lambda: stack.Backend._host_os(ns)
+        ns._last_installed = lambda: stack.Backend._last_installed(ns)
         return ns
     os_release = 'PRETTY_NAME="Debian GNU/Linux 13 (trixie)"\nNAME="Debian GNU/Linux"\nVERSION_ID="13"\nID=debian\n'
     u = stack.Backend._maint_updates(host({"apt": listing, "apt-get": sim, "sh": "", "cat": os_release}))
@@ -973,7 +989,7 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
     js = (Path(__file__).resolve().parents[1] / "web" / "js" / "logs.js").read_text(encoding="utf-8")
     block = re.search(r"const QUIET = \[(.*?)\n\];", js, re.S).group(1)
     quiet = [re.compile(p) for p in re.findall(r"^\s*/(.+)/,", block, re.M)]
-    assert len(quiet) == 7
+    assert len(quiet) == 8
     grey = [
         'ERR  error="Incoming request ended abruptly: context canceled" connIndex=3 event=1 ingressRule=1 originService=http://caddy:80',
         'ERR Request failed error="Incoming request ended abruptly: context canceled" connIndex=3 dest=https://cp.example.com/api/status event=0 type=http',
@@ -992,6 +1008,8 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
         '2026-11-08T14:04:01Z WARN [dns] getting tls connection for request IN A example.com.: renewing dead connection: running TLS handshake with 9.9.9.9:853 (dns.quad9.net): i/o timeout',
         '2026-11-08T14:49:03Z WARN [dns] getting tls connection for request IN A example.com.: creating connection: running TLS handshake with 9.9.9.9:853 (dns.quad9.net): i/o timeout',
         '2026-11-06T17:06:48Z WARN Caught OS signal terminated, shutting down',
+        # the tunnel stopping (after "Initiating graceful shutdown due to signal terminated")
+        '2026-11-10T20:47:13Z ERR Serve tunnel error error="control stream error: Error shutting down control stream: rpc: connection closed" connIndex=0 event=0 ip=198.41.192.47',
         '2026-11-06T21:12:30Z ERROR [vpn] cannot get version information: bad response HTTP status code: 403 403 Forbidden',
     ]
     red = [
@@ -1005,6 +1023,8 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
         '2026-11-09T17:40:00Z WARN [dns] serving: listen udp :53: bind: address already in use',
         '2026-11-09T17:40:06Z INFO [healthcheck] program has been unhealthy for 6s: restarting VPN',
         '2026-11-06T17:06:48Z ERROR Caught OS signal terminated, but the VPN failed to stop',
+        # a tunnel that can't reach Cloudflare stays
+        '2026-11-10T20:47:13Z ERR Serve tunnel error error="failed to dial to edge with quic: timeout: no recent network activity" connIndex=0 event=0 ip=198.41.192.47',
         '2026-11-06T21:12:30Z ERROR [vpn] cannot get version information: bad response HTTP status code: 500 500 Internal Server Error',
     ]
     for line in grey:
@@ -1101,3 +1121,37 @@ def test_gluetun_version_from_the_container_or_its_image():
     # nothing to go by, or something that isn't a version
     assert stack.Backend._gluetun_version(backend(None, None)) is None
     assert stack.Backend._gluetun_version(backend({key: "latest"}, None)) is None
+
+
+def test_list_updates_reads_apt_list():
+    """List updates on Maintenance: apt list --upgradable's lines, ready ones first, security first among them."""
+    from app.stack import upgradable_packages
+    lines = [
+        "Listing...",
+        "udev/noble-updates 255.4-1ubuntu8.11 amd64 [upgradable from: 255.4-1ubuntu8.10]",
+        "curl/noble-updates 8.5.0-2ubuntu10.7 amd64 [upgradable from: 8.5.0-2ubuntu10.6]",
+        "openssl/noble-security,noble-updates 3.0.13-0ubuntu3.6 amd64 [upgradable from: 3.0.13-0ubuntu3.5]",
+        "not a package line",
+    ]
+    got = upgradable_packages(lines, {"curl", "openssl"})
+    assert [p["name"] for p in got] == ["openssl", "curl", "udev"]
+    assert got[0] == {"name": "openssl", "from": "3.0.13-0ubuntu3.5", "to": "3.0.13-0ubuntu3.6", "security": True, "phased": False}
+    assert got[2]["phased"] and not got[1]["phased"]
+    assert len(upgradable_packages(lines * 200, {"curl"}, cap=5)) == 5
+
+
+def test_last_installed_reads_apt_history():
+    """With nothing waiting, Maintenance shows the last install: the last run's upgrades, unattended-upgrade's
+    small entries joined into one run, removals and older runs left out."""
+    from app.stack import last_installed
+    log = "\n\n".join([
+        "Start-Date: 2026-11-06  22:38:10\nCommandline: apt-get -y upgrade\nUpgrade: old-one:amd64 (1.0, 1.1)\nEnd-Date: 2026-11-06  22:38:43",
+        "Start-Date: 2026-11-07  13:54:39\nCommandline: /usr/bin/unattended-upgrade\nRemove: linux-tools-7.0.0-38:amd64 (7.0.0-38.38)\nEnd-Date: 2026-11-07  13:54:39",
+        "Start-Date: 2026-11-11  15:28:21\nCommandline: /usr/bin/unattended-upgrade\nUpgrade: python3-pyasn1:amd64 (0.6.3-1ubuntu0.1, 0.6.3-1ubuntu0.2)\nEnd-Date: 2026-11-11  15:28:22",
+        "Start-Date: 2026-11-11  15:28:25\nCommandline: /usr/bin/unattended-upgrade\nUpgrade: libperl5.40:amd64 (5.40.1-7ubuntu0.3, 5.40.1-7ubuntu0.4), perl:amd64 (5.40.1-7ubuntu0.3, 5.40.1-7ubuntu0.4)\nEnd-Date: 2026-11-11  15:28:27",
+    ])
+    got = last_installed(log)
+    assert got["when"] == "2026-11-11 15:28:27" and got["auto"] and got["count"] == 3
+    assert [p["name"] for p in got["packages"]] == ["libperl5.40", "perl", "python3-pyasn1"]
+    assert got["packages"][1]["from"] == "5.40.1-7ubuntu0.3" and got["packages"][1]["to"] == "5.40.1-7ubuntu0.4"
+    assert last_installed("") is None and last_installed("Start-Date: x\nRemove: a (1)") is None

@@ -36,6 +36,22 @@ CADDY_LINES = [
 ]
 
 
+
+# The demo server's waiting updates, as List updates shows them: 2 security, 6 more, 3 phasing in
+DEMO_PACKAGES = [
+    {"name": "libssl3t64", "from": "3.0.13-0ubuntu3.5", "to": "3.0.13-0ubuntu3.6", "security": True, "phased": False},
+    {"name": "openssl", "from": "3.0.13-0ubuntu3.5", "to": "3.0.13-0ubuntu3.6", "security": True, "phased": False},
+    {"name": "curl", "from": "8.5.0-2ubuntu10.6", "to": "8.5.0-2ubuntu10.7", "security": False, "phased": False},
+    {"name": "libcurl4t64", "from": "8.5.0-2ubuntu10.6", "to": "8.5.0-2ubuntu10.7", "security": False, "phased": False},
+    {"name": "python3-apt", "from": "2.7.7ubuntu4", "to": "2.7.7ubuntu5", "security": False, "phased": False},
+    {"name": "tzdata", "from": "2026a-0ubuntu0.24.04", "to": "2026b-0ubuntu0.24.04", "security": False, "phased": False},
+    {"name": "vim-common", "from": "2:9.1.0016-1ubuntu7.8", "to": "2:9.1.0016-1ubuntu7.9", "security": False, "phased": False},
+    {"name": "vim-tiny", "from": "2:9.1.0016-1ubuntu7.8", "to": "2:9.1.0016-1ubuntu7.9", "security": False, "phased": False},
+    {"name": "systemd", "from": "255.4-1ubuntu8.10", "to": "255.4-1ubuntu8.11", "security": False, "phased": True},
+    {"name": "systemd-resolved", "from": "255.4-1ubuntu8.10", "to": "255.4-1ubuntu8.11", "security": False, "phased": True},
+    {"name": "udev", "from": "255.4-1ubuntu8.10", "to": "255.4-1ubuntu8.11", "security": False, "phased": True},
+]
+
 class FakeStream:
     def __init__(self, container: str, tail: int):
         self.container, self.tail, self._stop = container, tail, threading.Event()
@@ -240,7 +256,9 @@ class DemoBackend:
 
     def maintenance_info(self, force: bool = False) -> dict:
         return {"space": {"images": 149_000_000, "image_count": 2, "build": 503_100_000, "journal": 184_000_000},
-                "updates": {"available": True, "os": "Ubuntu 24.04", "count": 8, "security": 2, "phased": 3, "reboot": self.reboot_pending, "checked_at": time.time() - 3 * 3600},
+                "updates": {"available": True, "os": "Ubuntu 24.04", "count": 8, "security": 2, "phased": 3, "reboot": self.reboot_pending, "checked_at": time.time() - 3 * 3600,
+                            "packages": DEMO_PACKAGES,
+                            "installed": {"at": time.time() - 5 * 86400, "auto": False, "count": 6, "packages": DEMO_PACKAGES[2:8]}},
                 "logs": {"limited": False, "pending": False, "size": 488_000},
                 "checked_at": time.time(), "last": None}
 

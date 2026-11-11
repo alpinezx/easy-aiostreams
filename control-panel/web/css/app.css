@@ -259,6 +259,8 @@ button.chip:hover { text-decoration: underline; }
 .ver-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--faint); margin-bottom: 4px; }
 .ver-value { font-size: 1.2rem; font-weight: 650; letter-spacing: -.01em; }
 .ver-value .ok { color: var(--ok); } .ver-value .warn { color: var(--warn); }
+/* AIOStreams' channel, a word beside its version where a pill used to sit */
+.ver-value .ver-chan { margin-left: 10px; font-size: .84rem; font-weight: 400; letter-spacing: 0; color: var(--faint); }
 .ver-value .linkish { font: inherit; color: var(--warn); text-decoration: none; background: none; border: 0; padding: 0; cursor: pointer; }
 .ver-value .linkish:hover { text-decoration: underline; }
 /* a newer release that isn't a to-do (AIOMetadata's come up to twice a day): plain, not amber */
@@ -288,7 +290,6 @@ button.chip:hover { text-decoration: underline; }
   background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
 .path-toggle:hover { color: var(--dim); background: var(--hover); }
 .path-chev svg { display: block; width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s; }
-.path.folded .path-chev svg { transform: rotate(-90deg); }
 @media (prefers-reduced-motion: reduce) { .path-chev svg { transition: none; } }
 .path.folded { padding-top: 12px; padding-bottom: 12px; }
 .path.folded .path-head { margin: 0; }
@@ -306,7 +307,8 @@ button.chip:hover { text-decoration: underline; }
 .card-pages { display: inline-flex; gap: 14px; font-size: .88rem; font-weight: 500; }
 .card-page { display: inline-flex; align-items: center; text-decoration: none; white-space: nowrap; }
 .card-page:hover { text-decoration: underline; }
-.fold-toggle[aria-expanded="false"] .path-chev svg { transform: rotate(-90deg); }
+/* Folded, a title's arrow points down: there's more below. Open, it points up: fold it back */
+.fold-toggle[aria-expanded="true"] .path-chev svg { transform: rotate(180deg); }
 .fold-sum li.ok { color: var(--ok); } .fold-sum li.warn { color: var(--warn); } .fold-sum li.bad { color: var(--bad); }
 .fold-sum .ok { color: var(--ok); } .fold-sum .warn { color: var(--warn); }
 .fold-sum .net-pair { display: inline-flex; gap: 6px 12px; }
@@ -485,8 +487,6 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .maint-foot .dim { margin-right: auto; font-size: .84rem; }
 .maint-foot .warn { margin-right: auto; font-size: .84rem; color: var(--warn); }
 .restart-row { margin-top: 14px; padding-bottom: 4px; }
-.tz-edit { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
-.tz-edit .tz-box { width: 100%; padding: 4px 8px; font-size: .84rem; }
 /* The time zone box's own suggestions, drawn like the panel rather than the browser's list */
 .tz-wrap { position: relative; flex: 1 1 auto; min-width: 0; max-width: 15em; }
 .tz-sugg { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; min-width: 100%; width: max-content; max-width: 20em;
@@ -496,7 +496,6 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .tz-sugg li { padding: 6px 10px; border-radius: 6px; font-size: .84rem; color: var(--text); cursor: pointer; white-space: nowrap; }
 .tz-sugg li:hover, .tz-sugg li.on { background: var(--hover); }
 .tz-sugg li.on { box-shadow: inset 0 0 0 1px var(--line); }
-@media (max-width: 720px) { .tz-edit { justify-content: flex-end; } .tz-sugg { left: auto; right: 0; } }
 /* Every dropdown's list (js/select.js), drawn the same way */
 .pick-list { box-sizing: border-box; position: fixed; z-index: 60; margin: 0; padding: 4px; list-style: none; overflow-y: auto; overscroll-behavior: contain;
   max-width: calc(100vw - 16px); background: var(--raised); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, .3); }
@@ -541,6 +540,8 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 }
 .stat-value { font-size: 1.05rem; font-weight: 650; letter-spacing: -.01em; overflow-wrap: anywhere; }
 .stat-value.warn { color: var(--warn); } .stat-value.bad { color: var(--bad); } .stat-value.ok { color: var(--ok); }
+/* The VPN server's address in grey, like the exit address under Exit location */
+.vpnc .vs-server .stat-value { color: var(--faint); }
 .row .num.warn { color: var(--warn); } .row .num.bad { color: var(--bad); }
 .stat .ver-sub { font-size: .8rem; }
 /* The fold button reads as a stat label: same size, case and colour as the others */
@@ -1099,7 +1100,11 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .scripts-status details summary { cursor: pointer; font-size: .88rem; color: var(--dim); }
 .scripts-status pre { margin: 8px 0 0; max-height: 260px; overflow: auto; padding: 10px 12px; background: var(--sunk); border-radius: 8px; font-family: var(--mono); font-size: .78rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; }
 .btn-spacer { visibility: hidden; pointer-events: none; }
-@media (max-width: 720px) { .btn-spacer { display: none; } }
+@media (max-width: 720px) {
+  .btn-spacer { display: none; }
+  /* A row without Update keeps its place on a phone, so every row's buttons line up in three columns */
+  .scripts-panel .cmd-btns .btn-spacer[data-for="Update"] { display: block; }
+}
 .term-scripts-hint { margin: -6px 0 14px; font-size: .9rem; }
 .term-scripts-hint a { color: var(--accent); }
 .cmds { list-style: none; padding: 0; margin: 0 0 6px; display: grid; gap: 6px; }
@@ -1118,9 +1123,13 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   .cmd { display: none; }
   /* the badge drops under the name in one piece rather than squeezing beside it */
   .cmd-label { flex-wrap: wrap; row-gap: 6px; color: var(--text); font-size: .95rem; font-weight: 500; }
-  /* a fourth button (Remove) drops to its own line rather than running off the screen */
-  .scripts-panel .cmd-btns { flex-wrap: wrap; gap: 8px; }
   .cmd-btns .btn { flex: 1; border-color: var(--line); background: var(--raised); color: var(--text); padding: 8px 12px; }
+  /* Scripts: three columns on every row, Run wider, whatever the phone's text size; a fourth
+     button (Remove) takes a line of its own */
+  .scripts-panel .cmd-btns { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+  .scripts-panel .cmd-btns .btn { padding: 8px 6px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .scripts-panel .cmd-btns .btn-spacer[data-for="Remove"] { display: none; }
+  .scripts-panel .cmd-btns > :nth-child(4) { grid-column: 1 / -1; }
 }
 .sdot-tag { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; font-weight: 600; }
 .sdot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
@@ -1128,6 +1137,10 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .sdot-tag[data-s="warn"] { color: var(--warn); }
 .sdot-tag[data-s="warn"] .sdot { background: var(--warn); box-shadow: 0 0 0 3px var(--warn-soft), 0 0 8px var(--warn); }
 .sdot-tag[data-s="off"] { color: var(--faint); font-weight: 500; }
+.sdot-tag[data-s="off"] .sdot { background: var(--faint); opacity: .6; }
+/* The words after a row's name: Not installed in grey, Script only in amber */
+.sdot-word { font-size: .78rem; font-weight: 500; color: var(--faint); }
+.sdot-word[data-s="warn"] { color: var(--warn); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* pressed toggle buttons (Follow, Hide known noise, Lock) */
@@ -1371,3 +1384,87 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .warn-msg { grid-column: 2 / -1; grid-row: 2; white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .warn-ago { grid-column: 3; grid-row: 1; }
 }
+
+/* Maintenance: a quiet word on a card title's right (System updates' system) */
+.maint-card .card-head .card-corner { margin-left: auto; font-size: .9rem; }
+/* List updates: each package's name, then its versions under it, both on the left */
+.upd-list { list-style: none; margin: 0; padding: 0; }
+.upd-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 7px 0; border-top: 1px solid var(--line-soft); }
+.upd-list li:first-child { border-top: 0; }
+.upd-name { font-weight: 600; }
+.upd-ver { flex-basis: 100%; font-size: .82rem; overflow-wrap: anywhere; }
+.upd-note { margin: 0 0 6px; font-size: .86rem; }
+@media (max-width: 720px) {
+  /* Two buttons on a Maintenance card (Install updates, List updates) share the row on a phone */
+  .maint-foot:has(> .btn + .btn) > .dim:empty { display: none; }
+  .maint-foot:has(> .btn + .btn) > .btn { flex: 1 1 0; }
+}
+/* Scheduled server reboot: Schedule and Clock as rows of their own, their state on the right, controls under them */
+.rs-list .rs-block { border-top: 1px solid var(--line-soft); margin-top: 4px; padding: 16px 0 6px; }
+.rs-list .rs-line { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.rs-list .rs-word { font-weight: 600; }
+.rs-list .rs-word.ok { color: var(--ok); } .rs-list .rs-word.warn { color: var(--warn); } .rs-list .rs-word.dim { color: var(--faint); }
+.rs-list .card-foot { margin-top: 10px; }
+/* Desktop: the controls on one row, their button at its end */
+.rs-desk .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.rs-desk .rs-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.rs-desk .restart-row { flex: 0 1 auto; margin: 0; padding: 0; flex-wrap: nowrap; }
+.rs-desk .restart-row .time-box { width: 5em; text-align: center; }
+.rs-desk .rs-ctl > .btn { margin-left: auto; }
+.rs-desk .tz-wrap { flex: 0 1 18em; max-width: 18em; }
+.rs-desk .tz-box { width: 100%; padding: 5px 8px; font-size: .88rem; }
+@media (max-width: 720px) {
+  /* Daily: when, how often and the time on one row; weekly: two rows of two; off: one box */
+  .rs-phone .restart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; padding-bottom: 0; }
+  .rs-phone .restart-row:has(> select[hidden]) { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 5.5em; }
+  .rs-phone .restart-row .time-pick { display: block; min-width: 0; }
+  .rs-phone .restart-row:has(> .time-pick[hidden]) { grid-template-columns: 1fr; }
+  .rs-phone .restart-row > [hidden] { display: none; }
+  .rs-phone .restart-row .input { width: 100%; min-width: 0; }
+  .rs-phone .restart-row .time-pick .input { text-align: center; }
+  .rs-phone .btn.rs-wide { display: block; width: 100%; margin-top: 12px; }
+  .rs-phone .btn.rs-wide[hidden] { display: none; }
+  .rs-phone .tz-wrap { display: block; max-width: none; margin-top: 12px; }
+  .rs-phone .tz-box { width: 100%; }
+  .rs-phone .tz-sugg { left: 0; right: auto; }
+  .rs-phone .maint-foot .dim { margin-right: 0; line-height: 1.5; }
+}
+/* System updates on a desktop: the first few waiting, under the values */
+.upd-peek { border-top: 1px solid var(--line-soft); margin-top: 4px; padding: 12px 0 4px; }
+.upd-peek-grid { display: grid; grid-template-columns: max-content max-content minmax(0, 1fr); grid-auto-rows: 26px; align-items: center; gap: 4px 14px; }
+.upd-peek .upd-name { font-weight: 600; }
+.upd-peek .upd-ver { font-size: .82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.upd-peek .upd-more { margin-top: 10px; font-size: .84rem; }
+.upd-peek.empty p { margin: 0; font-size: .88rem; }
+@media (max-width: 720px) { .upd-peek { display: none; } }
+.upd-peek .upd-peek-head { margin: 0 0 8px; font-size: .86rem; }
+.upd-done { padding: 4px 18px; }
+@media (max-width: 720px) {
+  /* Fold all cards takes the rest of the row, so the buttons span the cards' width */
+  .hero-btns:has(> .fold-all) { flex: 1 1 100%; }
+  .hero-btns .fold-all { flex: 1 1 auto; }
+}
+/* Scripts tab: Run in terminal and Get and run share one width */
+.run-btn { display: inline-grid; justify-items: center; }
+.run-btn > span { grid-area: 1 / 1; }
+.run-btn .run-alt { visibility: hidden; }
+/* A link in a note stays in one piece: it moves to the next line whole rather than breaking */
+.note a, .addons-note a { white-space: nowrap; }
+@media (max-width: 720px) {
+  /* Scheduled backups on a phone: weekly's three choices on one row, daily's two, off one box */
+  .bk-phone .rs-block { border-top: 0; margin-top: 0; padding-top: 6px; }
+  .bk-phone .restart-row.bk-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 5.5em; }
+  .bk-phone .restart-row.bk-row:has(> select[hidden]) { grid-template-columns: minmax(0, 1fr) 5.5em; }
+  .bk-phone .restart-row.bk-row:has(> .time-pick[hidden]) { grid-template-columns: 1fr; }
+  .bk-phone .rs-tz { display: block; margin: 8px 0 0; }
+  .bk-phone .rs-tz[hidden] { display: none; }
+  .bk-phone .sched-last { margin-top: 14px; }
+}
+.addons-note .nowrap { white-space: nowrap; }
+/* Scheduled backups on a desktop: no line above Schedule, the time zone under the choices */
+.bk-desk .rs-block { border-top: 0; margin-top: 0; padding-top: 6px; }
+.bk-desk .rs-tz { display: block; margin: 8px 0 0; }
+.bk-desk .rs-tz[hidden] { display: none; }
+.bk-desk .sched-last { margin-top: 12px; }
+/* Desktop: each row's button says what it sets, and they share one width so they line up */
+.rs-desk .rs-ctl > .btn { min-width: 9.5em; }

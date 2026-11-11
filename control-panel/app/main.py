@@ -30,6 +30,9 @@ else:
 # Network traffic, read once a minute whether or not the panel is open: the VPN's tunnel
 # (from gluetun) and the server's own network card
 from .traffic import Traffic
+
+if not config.DEMO:
+    releases.CACHE_FILE = config.STATE_DIR / "release-cache.json"
 vpn_traffic = Traffic(config.STATE_DIR / "vpn-traffic.json", backend.vpn_counters)
 host_traffic = Traffic(config.STATE_DIR / "host-traffic.json", backend.host_counters)
 if config.DEMO:
@@ -851,18 +854,34 @@ async def logs(container: str, request: Request, tail: int = 200, user: str = De
 _warn_cache: dict = {"at": 0.0, "data": None}
 
 
-# The services the card leaves out (its cog), one choice per install like the layouts.
-# Kept as the ones hidden, so a service added later shows up by itself.
+# The services the card reads (its cog), one choice per install like the layouts.
+# The panel, Caddy, the tunnel and the VPN start on; AIOStreams and the add-ons start off.
+# A new add-on's first-run warnings (keys not entered yet) are mostly harmless, and
+# AIOStreams' own dashboard has the same Recent warnings & errors, so each is shown only
+# once switched on.
+WARN_OFF_BY_DEFAULT = {"aiostreams", "mediaflow-proxy-light", "aiometadata", "aiomanager"}
+
+
 def _warn_hidden_path() -> Path:
     return config.STATE_DIR / "warn-hidden.json"
 
 
-def load_warn_hidden() -> list[str]:
+def _warn_choices() -> dict[str, bool]:
+    """Each service's saved switch; services never saved are left out (their default applies)."""
     try:
-        hidden = json.loads(_warn_hidden_path().read_text()).get("hidden")
-        return sorted({c for c in hidden if c in LOGGABLE}) if isinstance(hidden, list) else []
+        saved = json.loads(_warn_hidden_path().read_text())
     except Exception:
-        return []
+        return {}
+    out = {}
+    for key, on in (("hidden", False), ("shown", True)):
+        if isinstance(saved.get(key), list):
+            out.update({c: on for c in saved[key] if c in LOGGABLE})
+    return out
+
+
+def load_warn_hidden() -> list[str]:
+    choices = _warn_choices()
+    return sorted(c for c in LOGGABLE if not choices.get(c, c not in WARN_OFF_BY_DEFAULT))
 
 
 @app.get("/api/log-warnings")
@@ -878,22 +897,27 @@ async def log_warnings(user: str = Depends(current_user)):
 
 @app.put("/api/log-warnings/hidden")
 async def set_warn_hidden(request: Request, user: str = Depends(current_user)):
-    """{"hidden": ["caddy", ...]}: the services whose logs the card leaves out."""
+    """{"hidden": ["caddy", ...], "shown": ["aiometadata", ...]}: the switches the cog showed,
+    off and on. Services not named (not set up here) keep their saved choice or default."""
     try:
         body = await request.json()
     except Exception:
         body = None
-    if not isinstance(body, dict) or not isinstance(body.get("hidden"), list):
+    if (not isinstance(body, dict) or not isinstance(body.get("hidden"), list)
+            or not isinstance(body.get("shown", []), list)):
         raise HTTPException(400, "Bad request")
-    hidden = sorted({c for c in body["hidden"] if c in LOGGABLE})
+    choices = _warn_choices()
+    choices.update({c: True for c in body.get("shown", []) if c in LOGGABLE})
+    choices.update({c: False for c in body["hidden"] if c in LOGGABLE})
     try:
         tmp = _warn_hidden_path().with_suffix(".tmp")
-        tmp.write_text(json.dumps({"hidden": hidden}))
+        tmp.write_text(json.dumps({"hidden": sorted(c for c, on in choices.items() if not on),
+                                   "shown": sorted(c for c, on in choices.items() if on)}))
         tmp.replace(_warn_hidden_path())
     except OSError:
         raise HTTPException(500, "Couldn't save that.")
     _warn_cache["data"] = None
-    return {"hidden": hidden}
+    return {"hidden": load_warn_hidden()}
 
 
 @app.post("/api/logs/clear-all")

@@ -3,9 +3,8 @@ import { ask } from "./actions.js";
 
 const MAX = 2000;
 let current = null, es = null, lines = [], follow = true, filter = "", regex = false, svcs = [];
-// Wrap starts on for phones (long lines are unreadable scrolled sideways), off on desktop,
-// until this browser's switch is changed once
-let wrap = window.matchMedia("(max-width: 720px)").matches;
+// Wrap starts off everywhere, until this browser's switch is changed once
+let wrap = false;
 // Levels picked with the INFO / WARN / ERROR buttons; none picked shows every line.
 let levels = new Set();
 
@@ -36,6 +35,9 @@ const QUIET = [
   /WARN Caught OS signal terminated, shutting down$/,   // gluetun: asked to stop, as a restart or reboot does
   // gluetun: its start-up release check hit GitHub's hourly limit, common on a shared exit address; the VPN is fine
   /ERROR \[vpn\] cannot get version information: bad response HTTP status code: 403 403 Forbidden$/,
+  // cloudflared: told to stop (a restart, update or reboot), it closes its connections to Cloudflare; only said
+  // while shutting down. A tunnel that can't reach Cloudflare says something else and stays.
+  /Serve tunnel error error="control stream error: Error shutting down control stream: /,
   /canceled by remote with error code 0\b/,   // a visitor closed a connection still open (left a live page, stopped a video)
   // The visitor's side gave up before the answer came (a reload, a closed tab, the panel restarting): both halves
   /error="Incoming request ended abruptly: context canceled"/,
@@ -135,13 +137,6 @@ export function scan(raws) {
   }
   lastStop = saved;
   return out;
-}
-
-// A row on that card opens Logs with WARN and ERROR picked, for this visit (not saved)
-export function pickLevels(list) {
-  levels = new Set(list);
-  syncControls();
-  paint();
 }
 
 const isCaddy = () => current === "caddy";

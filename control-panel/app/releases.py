@@ -4,9 +4,11 @@ AIOMetadata's (v3.6.1), AIOManager's (v2.0.0) and gluetun's v3 line. Kept for a 
 allows 60 unauthenticated requests an hour per IP."""
 from __future__ import annotations
 
+import json
 import re
 import threading
 import time
+from pathlib import Path
 
 import requests
 
@@ -34,6 +36,37 @@ SOURCES = {"stable": (URL, STABLE), "nightly": (URL, NIGHTLY), "aiometadata": (M
 
 _lock = threading.Lock()
 _cache: dict = {}
+# Where the last good checks are kept (main.py sets it, demo mode doesn't), so a panel
+# restart or update reuses them instead of asking GitHub again: each restart cost about
+# eight of the 60 requests an hour, and a few updates in a row used them all up.
+CACHE_FILE: Path | None = None
+_loaded = False
+
+
+def _load() -> None:
+    global _loaded
+    _loaded = True
+    if CACHE_FILE is None:
+        return
+    try:
+        saved = json.loads(CACHE_FILE.read_text())
+    except Exception:
+        return
+    for ch, c in (saved if isinstance(saved, dict) else {}).items():
+        if ch in SOURCES and ch not in _cache and isinstance(c, dict) and isinstance(c.get("releases"), list)                 and isinstance(c.get("at"), (int, float)):
+            _cache[ch] = {"at": float(c["at"]), "releases": c["releases"], "error": None}
+
+
+def _save() -> None:
+    if CACHE_FILE is None:
+        return
+    good = {ch: {"at": c["at"], "releases": c["releases"]} for ch, c in _cache.items() if c.get("releases") is not None}
+    try:
+        tmp = CACHE_FILE.with_suffix(".tmp")
+        tmp.write_text(json.dumps(good))
+        tmp.replace(CACHE_FILE)
+    except OSError:
+        pass
 
 
 class CheckFailed(Exception):
@@ -77,6 +110,8 @@ def get(force: bool = False, channel: str = "stable") -> dict:
     if channel not in SOURCES:
         raise ValueError(channel)
     with _lock:
+        if not _loaded:
+            _load()
         c = _cache.setdefault(channel, {"at": 0.0, "releases": None, "error": None})
         now = time.time()
         age = now - c["at"]
@@ -86,6 +121,8 @@ def get(force: bool = False, channel: str = "stable") -> dict:
             try:
                 c["releases"] = _fetch(channel)
                 c["error"] = None
+                c["at"] = now
+                _save()
             except CheckFailed as e:
                 c["error"] = str(e)
             except Exception:

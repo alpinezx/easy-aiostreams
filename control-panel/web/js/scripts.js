@@ -97,7 +97,7 @@ function panelRow(cmd, termOn) {
   else if (v.latest) state = h("span", { class: "chip ok small-chip", text: "Up to date" });
   else if (v.error) state = h("span", { class: "chip warn small-chip", title: v.error, text: "Couldn't check" });
   return h("li", {},
-    h("span", { class: "cmd-label" }, "Control panel",
+    h("span", { class: "cmd-label" }, sdot("ok", "Running"), "Control panel",
       v.current ? h("span", { class: "chip small-chip", text: `v${v.current}` }) : null, state),
     h("span", { class: "cmd-btns" }, runBtn(true, cmd, termOn),
       copyBtn("Copy", cmd, "Copied. Paste it into an SSH session or the Terminal tab.", cmd),
@@ -223,29 +223,39 @@ function copyBtn(text, cmd, msg, title) {
 }
 
 // An invisible stand-in keeps the buttons lined up down the list.
-const spacer = (text) => h("span", { class: "btn small quiet btn-spacer", "aria-hidden": "true", text });
+const spacer = (text) => h("span", { class: "btn small quiet btn-spacer", "aria-hidden": "true", "data-for": text, text });
 
+// Run in terminal and Get and run are the same width: each holds the other's words, unseen
 function runBtn(present, cmd, termOn) {
-  return h("button", { class: "btn small", type: "button", text: present ? "Run in terminal" : "Get and run", disabled: !termOn,
+  const [label, other] = present ? ["Run in terminal", "Get and run"] : ["Get and run", "Run in terminal"];
+  return h("button", { class: "btn small run-btn", type: "button", disabled: !termOn,
     title: !termOn ? "Needs the panel's web terminal, which is switched off (see the note above)."
       : present ? "Types the command into the panel's terminal. Check it, then press Enter."
       : "Types the command into the panel's terminal: it downloads the script, then runs it. Check it, then press Enter.",
-    onclick: () => runInTerminal(cmd) });
+    onclick: () => runInTerminal(cmd) }, h("span", { text: label }), h("span", { class: "run-alt", "aria-hidden": "true", text: other }));
+}
+
+// Each row's state as a dot before its name: green, set up here; amber, the script is here but
+// its add-on isn't set up (Remove deletes it); grey, not on this server
+function sdot(s, why) {
+  return h("span", { class: "sdot-tag", "data-s": s, title: why }, h("i", { class: "sdot", "aria-hidden": "true" }), h("span", { class: "sr-only", text: why }));
 }
 
 function row(x, cmd, updateCmd, termOn) {
-  const tags = [x.present
-    ? h("span", { class: "sdot-tag", "data-s": "ok", title: "On this server" }, h("i", { class: "sdot", "aria-hidden": "true" }), h("span", { class: "sr-only", text: "On this server" }))
-    : h("span", { class: "sdot-tag", "data-s": "off", text: "Not installed" })];
+  const idle = x.present && x.in_use === false && x.id !== "aiostreams";
+  const dot = !x.present ? sdot("off", "Not on this server") : idle ? sdot("warn", `The script is here, but ${x.label} isn't set up`) : sdot("ok", "Set up on this server");
+  const tags = [!x.present ? h("span", { class: "sdot-word", "data-s": "off", text: "Not downloaded or installed" })
+    : idle ? h("span", { class: "sdot-word", "data-s": "warn", text: "Downloaded, not set up",
+      title: `${x.file} is on this server, but ${x.label} isn't set up. Get it going with Run in terminal, or Remove deletes the script.` }) : null];
   if (x.present && differs(x)) {
     tags.push(h("span", { class: "chip warn small-chip", text: "Differs from GitHub",
       title: `This copy doesn't match the one on GitHub (${(cmp && cmp.branch) || "main"} branch). Update fetches GitHub's.` }));
   }
   // An add-on's script that's still here once the add-on is uninstalled can go
-  const removable = x.present && x.in_use === false && x.id !== "aiostreams";
+  const removable = idle;
   // The command itself is on Copy's tooltip; spelt out, it crowded the row (and phones)
   return h("li", {},
-    h("span", { class: "cmd-label" }, x.label, ...tags),
+    h("span", { class: "cmd-label" }, dot, x.label, ...tags),
     h("span", { class: "cmd-btns" }, runBtn(x.present, cmd, termOn),
       copyBtn("Copy", cmd, "Copied. Paste it into an SSH session or the Terminal tab.", cmd),
       updateCmd ? h("button", { class: "btn small quiet", type: "button", text: "Update",
@@ -312,17 +322,19 @@ function render() {
 
   box.append(statusLine());
   if (!terminalOn) {
-    box.append(h("p", { class: "note" }, "Run in terminal needs the panel's web terminal, which is switched off. Switch it on with setup-ui.sh over SSH (see the ",
-      h("a", { href: GUIDE, target: "_blank", rel: "noopener noreferrer", text: "control panel guide" }), "). Copy and Update work either way."));
+    box.append(h("div", { class: "note" },
+      h("p", {}, h("b", { text: "Run in terminal needs the web terminal, which is off." }), " ",
+        h("a", { href: GUIDE, target: "_blank", rel: "noopener noreferrer", text: "Switch it on over SSH" }), "."),
+      h("p", { text: "Copy and Update work without it." })));
   }
   box.append(h("section", { class: "panel scripts-panel scripts-core" },
     h("ul", { class: "cmds" }, panelRow(`sudo bash ${dir}/control-panel/setup-ui.sh`, terminalOn), ...core.map(rowOf))));
   if (addons.length) {
     box.append(h("section", { class: "panel scripts-panel" },
       h("h3", { class: "sub-head", text: "Optional add-ons" }),
-      h("p", { class: "addons-note" }, h("b", { text: "These are optional. Most setups don't need any of them." }),
-        " Read what each one does before adding it: ",
-        h("a", { href: ADDONS_GUIDE, target: "_blank", rel: "noopener noreferrer", text: "Other scripts guide" }), "."),
+      h("p", { class: "addons-note" }, h("b", { text: "Most setups need none of these." }), " ",
+        // "Read" and the link wrap together, so the link never starts a line alone
+        h("span", { class: "nowrap" }, "Read ", h("a", { href: ADDONS_GUIDE, target: "_blank", rel: "noopener noreferrer", text: "what each one does" })), " first."),
       h("ul", { class: "cmds" }, ...addons.map(rowOf))));
   }
 }
