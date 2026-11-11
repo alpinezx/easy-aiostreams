@@ -36,6 +36,9 @@ const QUIET = [
   /WARN Caught OS signal terminated, shutting down$/,   // gluetun: asked to stop, as a restart or reboot does
   // gluetun: its start-up release check hit GitHub's hourly limit, common on a shared exit address; the VPN is fine
   /ERROR \[vpn\] cannot get version information: bad response HTTP status code: 403 403 Forbidden$/,
+  // cloudflared: told to stop (a restart, update or reboot), it closes its connections to Cloudflare; only said
+  // while shutting down. A tunnel that can't reach Cloudflare says something else and stays.
+  /Serve tunnel error error="control stream error: Error shutting down control stream: /,
   /canceled by remote with error code 0\b/,   // a visitor closed a connection still open (left a live page, stopped a video)
   // The visitor's side gave up before the answer came (a reload, a closed tab, the panel restarting): both halves
   /error="Incoming request ended abruptly: context canceled"/,

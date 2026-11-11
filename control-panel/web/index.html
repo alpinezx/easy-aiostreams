@@ -144,6 +144,7 @@
       <p>The tunnel logs each failed request twice: a first line without the address, then <b>Request failed</b> with it (<code class="mono">dest=</code>).</p>
       <p><b>Hide noise</b> hides these:</p>
       <ul>
+        <li><b>Error shutting down control stream</b>: the tunnel was stopping (a restart, update or reboot) and closed its connections to Cloudflare.</li>
         <li><b>stream canceled by remote with error code 0</b>: a visitor closed a page that was still loading or updating, or stopped a video.</li>
         <li><b>unexpected EOF</b> on the AIOStreams dashboard's <code class="mono">/api/v1/dashboard/…/stream</code> or this page's <code class="mono">/api/logs/…</code>: a restart, update or Reconfigure cut a page that was open. The first line of each pair is hidden too; its Request failed line shows any other address in full.</li>
       </ul>

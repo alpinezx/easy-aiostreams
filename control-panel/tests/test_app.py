@@ -988,7 +988,7 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
     js = (Path(__file__).resolve().parents[1] / "web" / "js" / "logs.js").read_text(encoding="utf-8")
     block = re.search(r"const QUIET = \[(.*?)\n\];", js, re.S).group(1)
     quiet = [re.compile(p) for p in re.findall(r"^\s*/(.+)/,", block, re.M)]
-    assert len(quiet) == 7
+    assert len(quiet) == 8
     grey = [
         'ERR  error="Incoming request ended abruptly: context canceled" connIndex=3 event=1 ingressRule=1 originService=http://caddy:80',
         'ERR Request failed error="Incoming request ended abruptly: context canceled" connIndex=3 dest=https://cp.example.com/api/status event=0 type=http',
@@ -1007,6 +1007,8 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
         '2026-11-08T14:04:01Z WARN [dns] getting tls connection for request IN A example.com.: renewing dead connection: running TLS handshake with 9.9.9.9:853 (dns.quad9.net): i/o timeout',
         '2026-11-08T14:49:03Z WARN [dns] getting tls connection for request IN A example.com.: creating connection: running TLS handshake with 9.9.9.9:853 (dns.quad9.net): i/o timeout',
         '2026-11-06T17:06:48Z WARN Caught OS signal terminated, shutting down',
+        # the tunnel stopping (after "Initiating graceful shutdown due to signal terminated")
+        '2026-11-10T20:47:13Z ERR Serve tunnel error error="control stream error: Error shutting down control stream: rpc: connection closed" connIndex=0 event=0 ip=198.41.192.47',
         '2026-11-06T21:12:30Z ERROR [vpn] cannot get version information: bad response HTTP status code: 403 403 Forbidden',
     ]
     red = [
@@ -1020,6 +1022,8 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
         '2026-11-09T17:40:00Z WARN [dns] serving: listen udp :53: bind: address already in use',
         '2026-11-09T17:40:06Z INFO [healthcheck] program has been unhealthy for 6s: restarting VPN',
         '2026-11-06T17:06:48Z ERROR Caught OS signal terminated, but the VPN failed to stop',
+        # a tunnel that can't reach Cloudflare stays
+        '2026-11-10T20:47:13Z ERR Serve tunnel error error="failed to dial to edge with quic: timeout: no recent network activity" connIndex=0 event=0 ip=198.41.192.47',
         '2026-11-06T21:12:30Z ERROR [vpn] cannot get version information: bad response HTTP status code: 500 500 Internal Server Error',
     ]
     for line in grey:
