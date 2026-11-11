@@ -97,7 +97,7 @@ function panelRow(cmd, termOn) {
   else if (v.latest) state = h("span", { class: "chip ok small-chip", text: "Up to date" });
   else if (v.error) state = h("span", { class: "chip warn small-chip", title: v.error, text: "Couldn't check" });
   return h("li", {},
-    h("span", { class: "cmd-label" }, "Control panel",
+    h("span", { class: "cmd-label" }, sdot("ok", "Running"), "Control panel",
       v.current ? h("span", { class: "chip small-chip", text: `v${v.current}` }) : null, state),
     h("span", { class: "cmd-btns" }, runBtn(true, cmd, termOn),
       copyBtn("Copy", cmd, "Copied. Paste it into an SSH session or the Terminal tab.", cmd),
@@ -233,19 +233,27 @@ function runBtn(present, cmd, termOn) {
     onclick: () => runInTerminal(cmd) });
 }
 
+// Each row's state as a dot before its name: green, set up here; amber, the script is here but
+// its add-on isn't set up (Remove deletes it); grey, not on this server
+function sdot(s, why) {
+  return h("span", { class: "sdot-tag", "data-s": s, title: why }, h("i", { class: "sdot", "aria-hidden": "true" }), h("span", { class: "sr-only", text: why }));
+}
+
 function row(x, cmd, updateCmd, termOn) {
-  const tags = [x.present
-    ? h("span", { class: "sdot-tag", "data-s": "ok", title: "On this server" }, h("i", { class: "sdot", "aria-hidden": "true" }), h("span", { class: "sr-only", text: "On this server" }))
-    : h("span", { class: "sdot-tag", "data-s": "off", text: "Not installed" })];
+  const idle = x.present && x.in_use === false && x.id !== "aiostreams";
+  const dot = !x.present ? sdot("off", "Not on this server") : idle ? sdot("warn", `The script is here, but ${x.label} isn't set up`) : sdot("ok", "Set up on this server");
+  const tags = [!x.present ? h("span", { class: "sdot-word", "data-s": "off", text: "Not installed" })
+    : idle ? h("span", { class: "sdot-word", "data-s": "warn", text: "Script only, not set up",
+      title: `${x.file} is on this server, but ${x.label} isn't set up. Get it going with Run in terminal, or Remove deletes the script.` }) : null];
   if (x.present && differs(x)) {
     tags.push(h("span", { class: "chip warn small-chip", text: "Differs from GitHub",
       title: `This copy doesn't match the one on GitHub (${(cmp && cmp.branch) || "main"} branch). Update fetches GitHub's.` }));
   }
   // An add-on's script that's still here once the add-on is uninstalled can go
-  const removable = x.present && x.in_use === false && x.id !== "aiostreams";
+  const removable = idle;
   // The command itself is on Copy's tooltip; spelt out, it crowded the row (and phones)
   return h("li", {},
-    h("span", { class: "cmd-label" }, x.label, ...tags),
+    h("span", { class: "cmd-label" }, dot, x.label, ...tags),
     h("span", { class: "cmd-btns" }, runBtn(x.present, cmd, termOn),
       copyBtn("Copy", cmd, "Copied. Paste it into an SSH session or the Terminal tab.", cmd),
       updateCmd ? h("button", { class: "btn small quiet", type: "button", text: "Update",

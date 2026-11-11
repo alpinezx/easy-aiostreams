@@ -1129,6 +1129,10 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .sdot-tag[data-s="warn"] { color: var(--warn); }
 .sdot-tag[data-s="warn"] .sdot { background: var(--warn); box-shadow: 0 0 0 3px var(--warn-soft), 0 0 8px var(--warn); }
 .sdot-tag[data-s="off"] { color: var(--faint); font-weight: 500; }
+.sdot-tag[data-s="off"] .sdot { background: var(--faint); opacity: .6; }
+/* The words after a row's name: Not installed in grey, Script only in amber */
+.sdot-word { font-size: .78rem; font-weight: 500; color: var(--faint); }
+.sdot-word[data-s="warn"] { color: var(--warn); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* pressed toggle buttons (Follow, Hide known noise, Lock) */
