@@ -134,16 +134,18 @@ export function record(st) {
 // ---------------- folding ----------------
 // Every card folds to one line holding what matters most, and anything that needs a look
 // stays on that line. Remembered per browser, so a phone can keep cards folded and a
-// desktop open. Only the request flow and the list of certificates start folded.
+// desktop open. On a phone every card starts folded (the folded line says enough there); on
+// a desktop only the request flow and the lists inside This server do.
 const FOLD_KEYS = { flow: "aios.flowFolded" };
 const DEFAULT_FOLDED = new Set(["flow", "certs", "netsvc"]);
+const PHONE_FOLDED = window.matchMedia("(max-width: 720px)").matches;
 const foldKey = (id) => FOLD_KEYS[id] || `aios.fold.${id}`;
 const folds = {};
 function isFolded(id) {
   if (!(id in folds)) {
     let v = null;
     try { v = localStorage.getItem(foldKey(id)); } catch (_) {}
-    folds[id] = v == null ? DEFAULT_FOLDED.has(id) : v !== "0";
+    folds[id] = v == null ? PHONE_FOLDED || DEFAULT_FOLDED.has(id) : v !== "0";
   }
   return folds[id];
 }
