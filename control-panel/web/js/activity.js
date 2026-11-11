@@ -190,6 +190,11 @@ export function scheduleText(s) {
   return s.every === "daily" ? `Daily at ${s.time}` : `${DAYS[(s.day || 7) - 1]}s at ${s.time}`;
 }
 
+// On a phone the card is laid out like Maintenance's Scheduled server reboot: Schedule with its
+// state on the right, the choices under it in a row and a full-width Set button
+const PHONE = window.matchMedia("(max-width: 720px)");
+PHONE.addEventListener("change", () => { if ($("#backup-schedule").childElementCount) showSchedule().catch(() => {}); });
+
 async function showSchedule() {
   const box = $("#backup-schedule");
   let s;
@@ -200,7 +205,8 @@ async function showSchedule() {
     ...[["off", "Off"], ["daily", "Daily"], ["weekly", "Weekly"]].map(([v, t]) => h("option", { value: v, text: t })));
   const day = h("select", { class: "input", "aria-label": "Day" }, ...DAYS.map((d, i) => h("option", { value: String(i + 1), text: d })));
   const time = timePicker(s.time || "04:00");
-  const setBtn = h("button", { class: "btn small", type: "button", text: "Set" });
+  const phone = PHONE.matches;
+  const setBtn = h("button", { class: "btn small" + (phone ? " rs-wide" : ""), type: "button", text: phone ? "Set scheduled backups" : "Set" });
   every.value = s.every; day.value = String(s.day || 7);
   const onDay = h("span", { class: "dim", text: "on" });
   const tz = h("span", { class: "dim", text: `24-hour, server time${s.timezone ? ` (${s.timezone})` : ""}` });
@@ -209,6 +215,7 @@ async function showSchedule() {
     const on = every.value !== "off";
     for (const el of [atLbl, time, setBtn, tz]) el.hidden = !on;
     onDay.hidden = day.hidden = every.value !== "weekly";
+    if (phone) onDay.hidden = atLbl.hidden = true;
   };
   const save = async (body) => {
     setBtn.disabled = every.disabled = true;
@@ -235,11 +242,22 @@ async function showSchedule() {
   } else if (s.every !== "off" && !s.timer) {
     last = h("p", { class: "sched-last warn", text: "The timer isn't running. Press Set to start it again." });
   }
+  const keep = h("p", { class: "dim small", text: "Keeps the newest 7 scheduled backups. Yours, ones made before an update and locked ones are never removed." });
+  if (phone) {
+    const word = s.every === "off" ? ["Off", "dim"] : !s.timer ? ["Not running", "warn"] : ["Active", "ok"];
+    tz.className = "dim small rs-tz";
+    box.append(h("section", { class: "panel sched-card rs-list rs-phone bk-phone" },
+      h("h3", { text: "Scheduled backups" }),
+      h("div", { class: "rs-block" },
+        h("div", { class: "rs-line" }, h("span", { class: "ver-label", text: "Schedule" }), h("span", { class: "rs-word " + word[1], text: word[0] })),
+        h("div", { class: "wd-when-row restart-row bk-row" }, every, onDay, day, atLbl, time), tz, setBtn),
+      last, keep));
+    return;
+  }
   box.append(h("section", { class: "panel sched-card" },
     h("h3", { text: "Scheduled backups" }),
     h("div", { class: "wd-when-row" }, every, onDay, day, atLbl, time, setBtn, tz),
-    last,
-    h("p", { class: "dim small", text: "Keeps the newest 7 scheduled backups. Yours, ones made before an update and locked ones are never removed." })));
+    last, keep));
 }
 
 // Old installs a restore moved aside. Only shown when there are some.

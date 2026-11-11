@@ -1450,3 +1450,14 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .run-btn .run-alt { visibility: hidden; }
 /* A link in a note stays in one piece: it moves to the next line whole rather than breaking */
 .note a, .addons-note a { white-space: nowrap; }
+@media (max-width: 720px) {
+  /* Scheduled backups on a phone: weekly's three choices on one row, daily's two, off one box */
+  .bk-phone .rs-block { border-top: 0; margin-top: 0; padding-top: 6px; }
+  .bk-phone .restart-row.bk-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 5.5em; }
+  .bk-phone .restart-row.bk-row:has(> select[hidden]) { grid-template-columns: minmax(0, 1fr) 5.5em; }
+  .bk-phone .restart-row.bk-row:has(> .time-pick[hidden]) { grid-template-columns: 1fr; }
+  .bk-phone .rs-tz { display: block; margin: 8px 0 0; }
+  .bk-phone .rs-tz[hidden] { display: none; }
+  .bk-phone .sched-last { margin-top: 14px; }
+}
+.addons-note .nowrap { white-space: nowrap; }
