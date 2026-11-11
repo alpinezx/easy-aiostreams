@@ -726,7 +726,7 @@ function hostSum(st) {
     [wc && !wc.ok ? "Certificate: couldn't check" : wc && certTone(wc) ? `Certificate: ${wc.days_left} days left` : "",
       wc && !wc.ok ? "warn" : wc && certTone(wc)],
     [cpu == null ? "" : hs.cpu_pct != null ? `CPU ${Math.round(cpu)}%` : `Load ${hs.load[0].toFixed(2)}`, cpu != null && tone(cpu, 75, 90)],
-    [hs.mem_total ? `Memory ${pct(hs.mem_used, hs.mem_total)}%` : "", hs.mem_total && tone(pct(hs.mem_used, hs.mem_total), 80, 90)],
+    [hs.mem_total ? `Memory ${fmtBytes(hs.mem_used)} / ${fmtBytes(hs.mem_total)}` : "", hs.mem_total && tone(pct(hs.mem_used, hs.mem_total), 80, 90)],
     [hs.disk_total ? `Disk ${pct(hs.disk_used, hs.disk_total)}%` : "", hs.disk_total && tone(pct(hs.disk_used, hs.disk_total), 80, 90)],
     // Down and up together with their label (as the open card's tile), so they wrap as one
     [n ? h("span", { class: "net-pair" }, h("span", { text: "Network" }), h("span", { text: `↓ ${fmtRate(n[0])}` }), h("span", { text: `↑ ${fmtRate(n[1])}` })) : "",
@@ -813,7 +813,7 @@ function side(st) {
   for (const [label, used, total, warn] of [["Memory", hs.mem_used, hs.mem_total, 80], ["Disk", hs.disk_used, hs.disk_total, 80]]) {
     if (!total) continue;
     const pct = (used / total) * 100;
-    grid.append(stat(label, `${fmtBytes(used)} of ${fmtBytes(total)}`, `${Math.round(pct)}% used, ${fmtBytes(total - used)} free`, tone(pct, warn, 90)));
+    grid.append(stat(label, `${fmtBytes(used)} / ${fmtBytes(total)}`, `${Math.round(pct)}% used, ${fmtBytes(total - used)} free`, tone(pct, warn, 90)));
   }
   if (hs.uptime != null) grid.append(stat("Up for", fmtDur(hs.uptime), `since ${dayMonth(Date.now() - hs.uptime * 1000)}`));
   // Maintenance's scheduled server reboot; its label opens Maintenance. Off is plain, never a to-do
