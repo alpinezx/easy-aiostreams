@@ -487,8 +487,6 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .maint-foot .dim { margin-right: auto; font-size: .84rem; }
 .maint-foot .warn { margin-right: auto; font-size: .84rem; color: var(--warn); }
 .restart-row { margin-top: 14px; padding-bottom: 4px; }
-.tz-edit { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
-.tz-edit .tz-box { width: 100%; padding: 4px 8px; font-size: .84rem; }
 /* The time zone box's own suggestions, drawn like the panel rather than the browser's list */
 .tz-wrap { position: relative; flex: 1 1 auto; min-width: 0; max-width: 15em; }
 .tz-sugg { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; min-width: 100%; width: max-content; max-width: 20em;
@@ -498,7 +496,6 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .tz-sugg li { padding: 6px 10px; border-radius: 6px; font-size: .84rem; color: var(--text); cursor: pointer; white-space: nowrap; }
 .tz-sugg li:hover, .tz-sugg li.on { background: var(--hover); }
 .tz-sugg li.on { box-shadow: inset 0 0 0 1px var(--line); }
-@media (max-width: 720px) { .tz-edit { justify-content: flex-end; } .tz-sugg { left: auto; right: 0; } }
 /* Every dropdown's list (js/select.js), drawn the same way */
 .pick-list { box-sizing: border-box; position: fixed; z-index: 60; margin: 0; padding: 4px; list-style: none; overflow-y: auto; overscroll-behavior: contain;
   max-width: calc(100vw - 16px); background: var(--raised); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, .3); }
@@ -1390,12 +1387,21 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .maint-foot:has(> .btn + .btn) > .dim:empty { display: none; }
   .maint-foot:has(> .btn + .btn) > .btn { flex: 1 1 0; }
 }
+/* Scheduled server reboot: Schedule and Clock as rows of their own, their state on the right, controls under them */
+.rs-list .rs-block { border-top: 1px solid var(--line-soft); margin-top: 4px; padding: 16px 0 6px; }
+.rs-list .rs-line { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.rs-list .rs-word { font-weight: 600; }
+.rs-list .rs-word.ok { color: var(--ok); } .rs-list .rs-word.warn { color: var(--warn); } .rs-list .rs-word.dim { color: var(--faint); }
+.rs-list .card-foot { margin-top: 10px; }
+/* Desktop: the controls on one row, their button at its end */
+.rs-desk .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.rs-desk .rs-ctl { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.rs-desk .restart-row { flex: 1 1 auto; margin: 0; padding: 0; flex-wrap: nowrap; }
+.rs-desk .restart-row .time-box { width: 5em; text-align: center; }
+.rs-desk .rs-ctl > .btn { margin-left: auto; }
+.rs-desk .tz-wrap { flex: 0 1 18em; max-width: 18em; }
+.rs-desk .tz-box { width: 100%; padding: 5px 8px; font-size: .88rem; }
 @media (max-width: 720px) {
-  /* Scheduled server reboot on a phone: Schedule and Clock as rows of their own, controls under them */
-  .rs-phone .rs-block { border-top: 1px solid var(--line-soft); margin-top: 4px; padding: 16px 0 6px; }
-  .rs-phone .rs-line { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-  .rs-phone .rs-word { font-weight: 600; }
-  .rs-phone .rs-word.ok { color: var(--ok); } .rs-phone .rs-word.warn { color: var(--warn); } .rs-phone .rs-word.dim { color: var(--faint); }
   /* Daily: when, how often and the time on one row; weekly: two rows of two; off: one box */
   .rs-phone .restart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; padding-bottom: 0; }
   .rs-phone .restart-row:has(> select[hidden]) { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 5.5em; }
@@ -1409,6 +1415,5 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .rs-phone .tz-wrap { display: block; max-width: none; margin-top: 12px; }
   .rs-phone .tz-box { width: 100%; }
   .rs-phone .tz-sugg { left: 0; right: auto; }
-  .rs-phone .card-foot { margin-top: 10px; }
   .rs-phone .maint-foot .dim { margin-right: 0; line-height: 1.5; }
 }

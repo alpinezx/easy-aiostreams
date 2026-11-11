@@ -73,9 +73,10 @@ function logs(m) {
 // Scheduled server reboot: setup-maintenance.sh's timer restarts the server at a set time, only when an
 // update needs it or every time. With it, the clock that time goes by, and its time zone.
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-let rs = null;
-// On a phone the card is a list: Schedule and Clock each get a row with their state, their
-// controls under it and a full-width button. A desktop keeps the three values side by side.
+let rs = null, editing = false;
+// The card is a list: Next reboot and Last, then Schedule and Clock, each with its state on the
+// right and its controls under it. On a phone the buttons are full width under the controls;
+// on a desktop they sit at the end of the controls' row.
 const PHONE = window.matchMedia("(max-width: 720px)");
 PHONE.addEventListener("change", () => { if (last) render(true); });
 
@@ -89,7 +90,7 @@ function restart(r) {
   const last = stat("Last", l ? ago(l.at) : "Not yet",
     !l ? "" : l.status === "restarted" ? "Restarted" : /^Not needed/.test(l.text) ? "Skipped: not needed" : "Skipped", "", l ? l.text : null);
   const phone = PHONE.matches;
-  const cards = phone ? [next, last] : [next, last, clockStat(r)];
+  const cards = [next, last];
 
   const mode = h("select", { class: "input", "aria-label": "When" },
     ...[["off", "Off"], ["needed", "When needed"], ["always", "Always"]].map(([v, t]) => h("option", { value: v, text: t })));
@@ -104,8 +105,8 @@ function restart(r) {
     const o = mode.value !== "off";
     for (const el of [every, atLbl, time, setBtn]) el.hidden = !o;
     onLbl.hidden = day.hidden = !o || every.value !== "weekly";
-    // A phone's row has no room for the little words
-    if (phone) onLbl.hidden = atLbl.hidden = true;
+    // Each box says what it is, so the little words go
+    onLbl.hidden = atLbl.hidden = true;
   };
   const save = async (body) => {
     setBtn.disabled = mode.disabled = true;
@@ -138,51 +139,35 @@ function restart(r) {
       catch (err) { toast(err.message || "Couldn't switch it on.", true); }
       render(true);
     } }) : null;
-  if (phone) {
+  {
     // Schedule: Active, Off or Not running, then its choices and Set; Clock: Synced or not, then the time zone
+    // (why it isn't synced in its tooltip)
     const word = !on ? ["Off", "dim"] : !r.timer ? ["Not running", "warn"] : ["Active", "ok"];
     const c = r.clock;
     const clock = !c.known ? ["Can't tell", "dim"] : c.synced ? ["Synced", "ok"] : ["Not synced", "warn"];
     const [tzWrap, tzGo] = tzEditor(r, true);
-    if (ntp) ntp.classList.add("rs-wide");
-    return h("section", { class: "panel maint-card rs-phone" },
+    if (!phone) { tzGo.classList.remove("rs-wide"); tzGo.textContent = "Set"; }
+    if (ntp && phone) ntp.classList.add("rs-wide");
+    // Once a choice is changed or a zone typed, the page's own refreshes leave the card alone until Set
+    const cardEl = h("section", { class: "panel maint-card rs-list " + (phone ? "rs-phone" : "rs-desk"),
+      oninput: () => { editing = true; }, onchange: () => { editing = true; } },
       h("div", { class: "card-head" }, h("h3", { text: "Scheduled server reboot" })),
       h("div", { class: "stat-grid" }, ...cards),
       h("div", { class: "rs-block" },
         h("div", { class: "rs-line" }, h("span", { class: "ver-label", text: "Schedule" }), h("span", { class: "rs-word " + word[1], text: word[0] })),
-        h("div", { class: "wd-when-row restart-row" }, mode, every, onLbl, day, atLbl, time), setBtn),
+        h("div", { class: "rs-ctl" }, h("div", { class: "wd-when-row restart-row" }, mode, every, onLbl, day, atLbl, time), setBtn)),
       h("div", { class: "rs-block" },
-        h("div", { class: "rs-line" }, h("span", { class: "ver-label", text: "Clock" }), h("span", { class: "rs-word " + clock[1], text: clock[0] })),
-        tzWrap, tzGo, ntp),
+        h("div", { class: "rs-line" }, h("span", { class: "ver-label", text: "Clock" }), h("span", { class: "rs-word " + clock[1], text: clock[0],
+          title: c.known && !c.synced ? (c.ntp ? "Time sync is on but hasn't reached a time server yet." : "Time sync is off, so the clock can drift.") : null })),
+        h("div", { class: "rs-ctl" }, tzWrap, tzGo, ntp)),
       note.textContent ? h("div", { class: "card-foot" }, h("div", { class: "maint-foot" }, note)) : null);
+    return cardEl;
   }
-  return h("section", { class: "panel maint-card" },
-    h("div", { class: "card-head" }, h("h3", { text: "Scheduled server reboot" })),
-    h("div", { class: "stat-grid" }, ...cards),
-    h("div", { class: "wd-when-row restart-row" }, mode, every, onLbl, day, atLbl, time),
-    h("div", { class: "card-foot" }, h("div", { class: "maint-foot" }, note, ntp, setBtn)));
-}
-
-// The clock: synced or not, and the time zone under it, which Change sets
-function clockStat(r) {
-  const c = r.clock;
-  const s = stat("Clock", !c.known ? "Can't tell" : c.synced ? "Synced" : "Not synced", "",
-    !c.known ? "" : c.synced ? "ok" : "warn",
-    c.known && !c.synced ? (c.ntp ? "Time sync is on but hasn't reached a time server yet." : "Time sync is off, so the clock can drift.") : null);
-  const sub = s.querySelector(".ver-sub");
-  const change = h("button", { class: "linkish", type: "button", text: "Change" });
-  sub.append(`${r.timezone || "Time zone unknown"} · `, change);
-  change.addEventListener("click", () => {
-    const [wrap, go, box] = tzEditor(r, false);
-    clear(sub); sub.classList.add("tz-edit"); sub.append(wrap, go);
-    box.focus();
-  });
-  return s;
 }
 
 // The time zone box and its Set button. Our own list of suggestions rather than the browser's, so it
 // looks like the panel: up to 8 zones matching what's typed, a city's start first ("paris", "new
-// york"). On a phone it's always shown, the zone in use as its placeholder, with a full-width button.
+// york"). The zone in use is its placeholder.
 function tzEditor(r, phone) {
   {
     let zones = [], shown = [], pick = -1;
@@ -231,7 +216,7 @@ function tzEditor(r, phone) {
         if (pick >= 0) box.value = shown[pick];
         close(); done();
       } else if (e.key === "Escape") {
-        if (shown.length) close(); else if (!phone) render(true);
+        if (shown.length) close(); else { box.value = ""; render(true); }
       }
     });
     go.addEventListener("click", done);
@@ -267,8 +252,9 @@ async function load(force) {
 function render(force) {
   if (!last) return;
   const root = $("#maint-root");
-  // A time zone being typed survives the page's own refreshes
-  if (root.querySelector(".tz-edit") && !force) return;
+  // A schedule being chosen or a time zone being typed survives the page's own refreshes
+  if (editing && !force) return;
+  editing = false;
   const open = !!(root.querySelector(".maint-last") || {}).open;   // keep the output open across refreshes
   clear(root);
   root.append(h("div", { class: "maint-grid" }, updates(last), rs && rs.available ? restart(rs) : null, space(last), logs(last)));
