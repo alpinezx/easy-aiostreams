@@ -852,9 +852,11 @@ _warn_cache: dict = {"at": 0.0, "data": None}
 
 
 # The services the card reads (its cog), one choice per install like the layouts.
-# The core ones start on, the optional add-ons off: a new add-on's first-run warnings
-# (keys not entered yet) are mostly harmless, so each is shown only once switched on.
-WARN_OFF_BY_DEFAULT = {"mediaflow-proxy-light", "aiometadata", "aiomanager"}
+# The panel, Caddy, the tunnel and the VPN start on; AIOStreams and the add-ons start off.
+# A new add-on's first-run warnings (keys not entered yet) are mostly harmless, and
+# AIOStreams' own dashboard has the same Recent warnings & errors, so each is shown only
+# once switched on.
+WARN_OFF_BY_DEFAULT = {"aiostreams", "mediaflow-proxy-light", "aiometadata", "aiomanager"}
 
 
 def _warn_hidden_path() -> Path:

@@ -666,16 +666,16 @@ def test_log_warnings_hidden(client):
     try:
         # A fresh install: the core services on, the optional add-ons off
         assert client.get("/api/log-warnings").json()["hidden"] == addons
-        assert {"caddy", "gluetun", "cloudflared", "aiostreams", "aios-ui"} <= seen[-1]
+        assert {"caddy", "gluetun", "cloudflared", "aios-ui"} <= seen[-1]
         assert not seen[-1] & m.WARN_OFF_BY_DEFAULT
         r = client.put("/api/log-warnings/hidden", json={"hidden": ["caddy", "gluetun", "caddy", "not-a-service"]})
         assert r.json()["hidden"] == sorted(["caddy", "gluetun", *addons])
         body = client.get("/api/log-warnings").json()
         assert body["hidden"] == sorted(["caddy", "gluetun", *addons])
-        assert "caddy" not in seen[-1] and "gluetun" not in seen[-1] and "aiostreams" in seen[-1]
+        assert "caddy" not in seen[-1] and "gluetun" not in seen[-1] and "cloudflared" in seen[-1]
         # An add-on switched on stays on; services the cog didn't show keep their choice
         r = client.put("/api/log-warnings/hidden", json={"hidden": [], "shown": ["aiometadata", "caddy"]})
-        assert r.json()["hidden"] == sorted(["gluetun", "aiomanager", "mediaflow-proxy-light"])
+        assert r.json()["hidden"] == sorted(["gluetun", "aiostreams", "aiomanager", "mediaflow-proxy-light"])
         m._warn_cache["data"] = None
         client.get("/api/log-warnings")
         assert "aiometadata" in seen[-1] and "aiomanager" not in seen[-1]
