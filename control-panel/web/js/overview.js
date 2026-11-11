@@ -436,8 +436,8 @@ function addonVerCard(st, avail, o) {
 // When sign-ups close, in the viewer's own time
 const untilTime = (t) => new Date(t * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-// AIOManager's card. Its corner says how many logins there are, or, amber, that
-// sign-ups are open (switched on the Add-ons page).
+// AIOManager's card. Its corner says, amber, when sign-ups are open (switched on the
+// Add-ons page); how many logins there are is on that page.
 function mgrCard(st, avail) {
   const m = st.aiomanager;
   const open = m.signups === "open";
@@ -445,8 +445,7 @@ function mgrCard(st, avail) {
     // Short, so it fits beside the title on a phone; when they close is in its tooltip and on the Add-ons page
     ? h("a", { class: "chip warn", href: "#addons", text: "Sign-ups open",
         title: `Anyone with the address can make a login${m.signups_until ? ` until ${untilTime(m.signups_until)}` : ""}. Close them on the Add-ons page.` })
-    : m.logins != null ? h("span", { class: "chip", text: `${m.logins} ${m.logins === 1 ? "login" : "logins"}`,
-        title: "Sign-ups are closed, so nobody else can make one. Open them briefly on the Add-ons page." }) : null;
+    : null;
   return addonVerCard(st, avail, { id: "aiomanager", name: "AIOManager", rel: mgrRel, version: m.version,
     pages: m.domain ? cardPages(m.domain, [["Dashboard", "/"]]) : null, corner, foldCorner: open ? corner : null });
 }
@@ -464,7 +463,7 @@ function versionCard(st, avail) {
   const running = runningTag(st);
   const [latest, latestSub, btns, fresh] = updateBits(st);
   const col = (value, sub) => h("div", {},
-    h("div", { class: "ver-value" }, value), h("div", { class: "ver-sub", text: sub || "" }));
+    h("div", { class: "ver-value" }, ...[value].flat()), h("div", { class: "ver-sub", text: sub || "" }));
   const upd = st.installed && avail["stack.update"];
   // Update sits with Check now, blue only when a newer release is out
   if (upd && upd.available) btns.unshift(h("button", { class: "btn small" + (fresh ? " primary" : ""), type: "button", text: "Update",
@@ -481,11 +480,11 @@ function versionCard(st, avail) {
         btns[0] && btns[0].textContent === "Update" ? foldAct(btns[0]) : null));
   }
   return h("section", { class: "panel ver-card", "aria-label": "AIOStreams version" },
-    h("div", { class: "ver-head" }, title,
-      h("span", { class: "chip" + (nightly ? " warn" : " ok"), text: nightly ? "Nightly" : "Stable",
-        title: nightly ? "AIOStreams' nightly builds (Docker tag: nightly). Switch with Update." : "AIOStreams' stable releases (Docker tag: latest). Switch with Update." })),
+    h("div", { class: "ver-head" }, title),
     h("div", { class: "ver-grid" },
-      col(`v${st.version}`, nightly ? (running ? `Nightly ${running.slice(0, -8)}` : "") : releasedAgo(running)),
+      // The channel as a word beside the version, not a pill
+      col([`v${st.version}`, h("span", { class: "ver-chan " + (nightly ? "warn" : "ok"), text: nightly ? "Nightly" : "Stable",
+        title: nightly ? "AIOStreams' nightly builds (Docker tag: nightly). Switch with Update." : "AIOStreams' stable releases (Docker tag: latest). Switch with Update." })], nightly ? (running ? `Nightly ${running.slice(0, -8)}` : "") : releasedAgo(running)),
       h("div", { class: "ver-right" }, col(latest, latestSub), h("div", { class: "ver-btns" }, ...btns))));
 }
 

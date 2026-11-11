@@ -259,6 +259,8 @@ button.chip:hover { text-decoration: underline; }
 .ver-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--faint); margin-bottom: 4px; }
 .ver-value { font-size: 1.2rem; font-weight: 650; letter-spacing: -.01em; }
 .ver-value .ok { color: var(--ok); } .ver-value .warn { color: var(--warn); }
+/* AIOStreams' channel, a word beside its version where a pill used to sit */
+.ver-value .ver-chan { margin-left: 10px; font-size: .8rem; font-weight: 600; letter-spacing: 0; }
 .ver-value .linkish { font: inherit; color: var(--warn); text-decoration: none; background: none; border: 0; padding: 0; cursor: pointer; }
 .ver-value .linkish:hover { text-decoration: underline; }
 /* a newer release that isn't a to-do (AIOMetadata's come up to twice a day): plain, not amber */

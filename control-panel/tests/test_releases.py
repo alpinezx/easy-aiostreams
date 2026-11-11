@@ -130,3 +130,23 @@ def test_non_github_links_are_dropped(monkeypatch):
     bad = {**rel("v2.35.9"), "html_url": "javascript:alert(1)"}
     monkeypatch.setattr(releases.requests, "get", fake_get([[bad]], []))
     assert releases.get()["releases"][0]["url"] is None
+
+
+def test_checks_survive_a_panel_restart(monkeypatch, tmp_path):
+    """The last good checks are kept on disk, so a restart or update doesn't ask GitHub again."""
+    calls = []
+    monkeypatch.setattr(releases, "CACHE_FILE", tmp_path / "release-cache.json")
+    monkeypatch.setattr(releases.requests, "get", fake_get([[rel("v2.37.0")]], calls))
+    assert releases.get(channel="stable")["releases"][0]["tag"] == "v2.37.0"
+    assert len(calls) == 1
+    # A restart: nothing in memory, GitHub refusing
+    monkeypatch.setattr(releases, "_cache", {})
+    monkeypatch.setattr(releases, "_loaded", False)
+    monkeypatch.setattr(releases.requests, "get", lambda *a, **k: FakeResp([], status=403))
+    got = releases.get(channel="stable")
+    assert got["releases"][0]["tag"] == "v2.37.0" and got["error"] is None
+    # A broken file is ignored, never fatal
+    (tmp_path / "release-cache.json").write_text("{nope")
+    monkeypatch.setattr(releases, "_cache", {})
+    monkeypatch.setattr(releases, "_loaded", False)
+    assert releases.get(channel="stable")["releases"] == []

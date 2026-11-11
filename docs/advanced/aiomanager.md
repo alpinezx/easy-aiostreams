@@ -89,7 +89,7 @@ With the [watchdog](./watchdog.md) set up, AIOManager joins its checks by itself
 
 Once AIOManager is installed, the [control panel](./control-panel.md) shows:
 
-- **Its own Overview card**: the release it runs, the newest one, **Update**, **Check now**, **All releases**, and a **Dashboard** link beside its title. Its corner shows how many logins there are, or, amber, **Sign-ups open** while they are. It folds and can be hidden or moved with **Edit**, like the other cards.
+- **Its own Overview card**: the release it runs, the newest one, **Update**, **Check now**, **All releases**, and a **Dashboard** link beside its title. Its corner shows **Sign-ups open**, amber, while they are; the number of logins is on the Add-ons page. It folds and can be hidden or moved with **Edit**, like the other cards.
 - **A card on the Add-ons page**: its address, the **sign-ups switch** (on opens them for 30 minutes, off closes them now), the number of logins, its version and certificate, and **Uninstall**.
 - **A row in Services** with **Logs**, **Restart** and **Stop** / **Start**, and its branch off Caddy in the request flow.
 - **A row on the Scripts tab**, as an optional add-on.

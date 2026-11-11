@@ -30,6 +30,9 @@ else:
 # Network traffic, read once a minute whether or not the panel is open: the VPN's tunnel
 # (from gluetun) and the server's own network card
 from .traffic import Traffic
+
+if not config.DEMO:
+    releases.CACHE_FILE = config.STATE_DIR / "release-cache.json"
 vpn_traffic = Traffic(config.STATE_DIR / "vpn-traffic.json", backend.vpn_counters)
 host_traffic = Traffic(config.STATE_DIR / "host-traffic.json", backend.host_counters)
 if config.DEMO:
