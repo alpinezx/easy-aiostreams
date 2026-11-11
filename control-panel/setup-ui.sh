@@ -121,10 +121,15 @@ write_caddy_snippet() {
     # gets in; Strict left those on "Not found". Every visit sets it again,
     # which also moves older Strict cookies over. Only the static files are
     # compressed (about a quarter the size), never the API's live log streams.
+    # The 404 and the unlock redirect say no-store: through a Cloudflare Tunnel,
+    # Cloudflare otherwise keeps a 404 for /css/app.css or /js/*.js for a few
+    # minutes and hands it to everyone, cookie or not, so one visitor without
+    # the cookie left the panel with no styles or scripts.
     cat > "$CADDY_SNIPPET" << CADDY_EOF
 ${domain} {
     @unlock path /unlock/${token}
     handle @unlock {
+        header Cache-Control "no-store"
         header Set-Cookie "ui_gate=${token}; Path=/; Max-Age=31536000; HttpOnly; Secure; SameSite=Lax"
         redir * / 302
     }
@@ -138,6 +143,7 @@ ${domain} {
     }
 
     handle {
+        header Cache-Control "no-store"
         respond "Not found" 404
     }
 }
