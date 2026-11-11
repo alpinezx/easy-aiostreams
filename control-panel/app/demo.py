@@ -208,7 +208,8 @@ class DemoBackend:
         if self.vpn == "on":
             out.update(connected=self.running.get("gluetun", False), exit_ip="203.0.113.17", city="Amsterdam",
                        region="North Holland", country="NL", org="AS64500 Example VPN", checked_at=time.time(),
-                       dns={"state": "encrypted", "via": ["Cloudflare"]})
+                       dns={"state": "encrypted", "via": ["Cloudflare"]},
+                       tunnel_since=self.started["gluetun"].timestamp() if "gluetun" in self.started else None)
         return out
 
     def vpn_stage_config(self, conf: str) -> dict:

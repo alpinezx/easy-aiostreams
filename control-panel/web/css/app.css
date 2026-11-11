@@ -312,6 +312,7 @@ button.chip:hover { text-decoration: underline; }
 .fold-sum li.ok { color: var(--ok); } .fold-sum li.warn { color: var(--warn); } .fold-sum li.bad { color: var(--bad); }
 .fold-sum .ok { color: var(--ok); } .fold-sum .warn { color: var(--warn); }
 .fold-sum .net-pair { display: inline-flex; gap: 6px 12px; }
+.fold-sum .svc-pair { display: inline-flex; flex-wrap: wrap; gap: 4px 16px; }
 .fold-sum .net-pair > :first-child { margin-right: -4px; }
 .fold-sum .linkish { font: inherit; color: var(--warn); background: none; border: 0; padding: 0; cursor: pointer; }
 .fold-sum .linkish:hover { text-decoration: underline; }
@@ -356,6 +357,7 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .row-head { padding-top: 9px; padding-bottom: 9px; color: var(--faint); font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; background: var(--sunk); }
 .row .name { font-weight: 600; }
 .row .sub { font-size: .84rem; color: var(--faint); }
+.row .pstat { display: none; }
 .row .num { font-variant-numeric: tabular-nums; font-size: .9rem; text-align: right; }
 .row-head .num { font-size: inherit; }
 .row .img { font-family: var(--mono); font-size: .8rem; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1468,3 +1470,18 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .bk-desk .sched-last { margin-top: 12px; }
 /* Desktop: each row's button says what it sets, and they share one width so they line up */
 .rs-desk .rs-ctl > .btn { min-width: 9.5em; }
+
+/* The VPN card: the tunnel's uptime wraps as one piece */
+.vs-exit .nowrap { white-space: nowrap; }
+@media (max-width: 720px) {
+  /* On a phone the tunnel's uptime is a line of its own: "Up for 2h 14m" */
+  .vs-exit .vs-up-sep { display: none; }
+  .vs-exit .vs-up { display: block; }
+  .vs-exit .vs-up::first-letter { text-transform: uppercase; }
+}
+@media (max-width: 720px) {
+  /* Services: folded, the CPU and memory of them all on a line of their own; open, under each name */
+  .fold-sum li.svc-load { flex-basis: 100%; }
+  .row .pstat { display: block; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .row .pstat:empty { display: none; }
+}
