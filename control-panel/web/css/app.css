@@ -1065,7 +1065,7 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 
 /* ---- reboot ---- */
 .btn.reboot { display: flex; margin: 14px 0 0 auto; }
-.veil { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 92%, transparent); }
+.veil { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 0 40px; background: color-mix(in srgb, var(--bg) 92%, transparent); }
 .veil-box { text-align: center; padding: 28px 32px; background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius); max-width: 420px; }
 .veil-box h3 { margin: 0 0 8px; }
 .veil-box p { margin: 0; }
@@ -1484,4 +1484,10 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .fold-sum li.svc-load { flex-basis: 100%; }
   .row .pstat { display: block; margin-top: 2px; font-variant-numeric: tabular-nums; }
   .row .pstat:empty { display: none; }
+}
+@media (max-width: 720px) {
+  /* The reboot and update notices: a smaller box with room around it */
+  .veil-box { max-width: 300px; padding: 22px 20px; }
+  .veil-box h3 { font-size: 1.05rem; }
+  .veil-box p { font-size: .9rem; }
 }
