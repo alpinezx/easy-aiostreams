@@ -461,12 +461,12 @@ function mfCard(st, avail) {
 function versionCard(st, avail) {
   const nightly = relChannel(st) === "nightly";
   const running = runningTag(st);
-  const [latest, latestSub, btns, fresh] = updateBits(st);
+  const [latest, latestSub, btns] = updateBits(st);
   const col = (value, sub) => h("div", {},
     h("div", { class: "ver-value" }, ...[value].flat()), h("div", { class: "ver-sub", text: sub || "" }));
   const upd = st.installed && avail["stack.update"];
-  // Update sits with Check now, blue only when a newer release is out
-  if (upd && upd.available) btns.unshift(h("button", { class: "btn small" + (fresh ? " primary" : ""), type: "button", text: "Update",
+  // Update sits with Check now, plain like every card's: the amber "available" already says a newer one is out
+  if (upd && upd.available) btns.unshift(h("button", { class: "btn small", type: "button", text: "Update",
     disabled: !!st.busy, title: "Update AIOStreams, or switch between stable and nightly", onclick: () => runAction(upd) }));
   // The title folds the card like the others; its two pages are links beside it
   const title = h("div", { class: "fold-title" },
