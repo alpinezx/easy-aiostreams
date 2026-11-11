@@ -1407,8 +1407,8 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .rs-list .card-foot { margin-top: 10px; }
 /* Desktop: the controls on one row, their button at its end */
 .rs-desk .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.rs-desk .rs-ctl { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
-.rs-desk .restart-row { flex: 1 1 auto; margin: 0; padding: 0; flex-wrap: nowrap; }
+.rs-desk .rs-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.rs-desk .restart-row { flex: 0 1 auto; margin: 0; padding: 0; flex-wrap: nowrap; }
 .rs-desk .restart-row .time-box { width: 5em; text-align: center; }
 .rs-desk .rs-ctl > .btn { margin-left: auto; }
 .rs-desk .tz-wrap { flex: 0 1 18em; max-width: 18em; }
@@ -1466,3 +1466,5 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .bk-desk .rs-tz { display: block; margin: 8px 0 0; }
 .bk-desk .rs-tz[hidden] { display: none; }
 .bk-desk .sched-last { margin-top: 12px; }
+/* Desktop: each row's button says what it sets, and they share one width so they line up */
+.rs-desk .rs-ctl > .btn { min-width: 12.5em; }

@@ -206,7 +206,7 @@ async function showSchedule() {
   const day = h("select", { class: "input", "aria-label": "Day" }, ...DAYS.map((d, i) => h("option", { value: String(i + 1), text: d })));
   const time = timePicker(s.time || "04:00");
   const phone = PHONE.matches;
-  const setBtn = h("button", { class: "btn small" + (phone ? " rs-wide" : ""), type: "button", text: phone ? "Set scheduled backups" : "Set" });
+  const setBtn = h("button", { class: "btn small" + (phone ? " rs-wide" : ""), type: "button", text: "Set scheduled backups" });
   every.value = s.every; day.value = String(s.day || 7);
   const onDay = h("span", { class: "dim", text: "on" });
   const tz = h("span", { class: "dim", text: `24-hour, server time${s.timezone ? ` (${s.timezone})` : ""}` });

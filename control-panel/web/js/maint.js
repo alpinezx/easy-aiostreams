@@ -128,7 +128,7 @@ function restart(r) {
   const time = timePicker(r.time);
   const onLbl = h("span", { class: "dim", text: "on" }), atLbl = h("span", { class: "dim", text: "at" });
   mode.value = r.mode; every.value = r.every; day.value = String(r.day);
-  const setBtn = h("button", { class: "btn small" + (phone ? " rs-wide" : ""), type: "button", text: phone ? "Set scheduled reboot" : "Set" });
+  const setBtn = h("button", { class: "btn small" + (phone ? " rs-wide" : ""), type: "button", text: "Set scheduled reboot" });
   const show = () => {
     const o = mode.value !== "off";
     for (const el of [every, atLbl, time, setBtn]) el.hidden = !o;
@@ -174,7 +174,7 @@ function restart(r) {
     const c = r.clock;
     const clock = !c.known ? ["Can't tell", "dim"] : c.synced ? ["Synced", "ok"] : ["Not synced", "warn"];
     const [tzWrap, tzGo] = tzEditor(r, true);
-    if (!phone) { tzGo.classList.remove("rs-wide"); tzGo.textContent = "Set"; }
+    if (!phone) tzGo.classList.remove("rs-wide");
     if (ntp && phone) ntp.classList.add("rs-wide");
     // Once a choice is changed or a zone typed, the page's own refreshes leave the card alone until Set
     const cardEl = h("section", { class: "panel maint-card rs-list " + (phone ? "rs-phone" : "rs-desk"),
