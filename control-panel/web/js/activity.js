@@ -215,7 +215,7 @@ async function showSchedule() {
     const on = every.value !== "off";
     for (const el of [atLbl, time, setBtn, tz]) el.hidden = !on;
     onDay.hidden = day.hidden = every.value !== "weekly";
-    if (phone) onDay.hidden = atLbl.hidden = true;
+    onDay.hidden = atLbl.hidden = true;   // each box says what it is
   };
   const save = async (body) => {
     setBtn.disabled = every.disabled = true;
@@ -243,20 +243,16 @@ async function showSchedule() {
     last = h("p", { class: "sched-last warn", text: "The timer isn't running. Press Set to start it again." });
   }
   const keep = h("p", { class: "dim small", text: "Keeps the newest 7 scheduled backups. Yours, ones made before an update and locked ones are never removed." });
-  if (phone) {
-    const word = s.every === "off" ? ["Off", "dim"] : !s.timer ? ["Not running", "warn"] : ["Active", "ok"];
-    tz.className = "dim small rs-tz";
-    box.append(h("section", { class: "panel sched-card rs-list rs-phone bk-phone" },
-      h("h3", { text: "Scheduled backups" }),
-      h("div", { class: "rs-block" },
-        h("div", { class: "rs-line" }, h("span", { class: "ver-label", text: "Schedule" }), h("span", { class: "rs-word " + word[1], text: word[0] })),
-        h("div", { class: "wd-when-row restart-row bk-row" }, every, onDay, day, atLbl, time), tz, setBtn),
-      last, keep));
-    return;
-  }
-  box.append(h("section", { class: "panel sched-card" },
+  // Laid out like Maintenance's Scheduled server reboot: Schedule with its state on the right, then the
+  // choices; Set is full width under them on a phone, at the end of their row on a desktop
+  const word = s.every === "off" ? ["Off", "dim"] : !s.timer ? ["Not running", "warn"] : ["Active", "ok"];
+  tz.className = "dim small rs-tz";
+  const row = h("div", { class: "wd-when-row restart-row bk-row" }, every, onDay, day, atLbl, time);
+  box.append(h("section", { class: `panel sched-card rs-list ${phone ? "rs-phone bk-phone" : "rs-desk bk-desk"}` },
     h("h3", { text: "Scheduled backups" }),
-    h("div", { class: "wd-when-row" }, every, onDay, day, atLbl, time, setBtn, tz),
+    h("div", { class: "rs-block" },
+      h("div", { class: "rs-line" }, h("span", { class: "ver-label", text: "Schedule" }), h("span", { class: "rs-word " + word[1], text: word[0] })),
+      ...(phone ? [row, tz, setBtn] : [h("div", { class: "rs-ctl" }, row, setBtn), tz])),
     last, keep));
 }
 

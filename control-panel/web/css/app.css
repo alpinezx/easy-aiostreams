@@ -1461,3 +1461,8 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .bk-phone .sched-last { margin-top: 14px; }
 }
 .addons-note .nowrap { white-space: nowrap; }
+/* Scheduled backups on a desktop: no line above Schedule, the time zone under the choices */
+.bk-desk .rs-block { border-top: 0; margin-top: 0; padding-top: 6px; }
+.bk-desk .rs-tz { display: block; margin: 8px 0 0; }
+.bk-desk .rs-tz[hidden] { display: none; }
+.bk-desk .sched-last { margin-top: 12px; }
