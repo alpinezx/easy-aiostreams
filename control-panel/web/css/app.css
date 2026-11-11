@@ -290,7 +290,6 @@ button.chip:hover { text-decoration: underline; }
   background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
 .path-toggle:hover { color: var(--dim); background: var(--hover); }
 .path-chev svg { display: block; width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s; }
-.path.folded .path-chev svg { transform: rotate(-90deg); }
 @media (prefers-reduced-motion: reduce) { .path-chev svg { transition: none; } }
 .path.folded { padding-top: 12px; padding-bottom: 12px; }
 .path.folded .path-head { margin: 0; }
@@ -308,7 +307,8 @@ button.chip:hover { text-decoration: underline; }
 .card-pages { display: inline-flex; gap: 14px; font-size: .88rem; font-weight: 500; }
 .card-page { display: inline-flex; align-items: center; text-decoration: none; white-space: nowrap; }
 .card-page:hover { text-decoration: underline; }
-.fold-toggle[aria-expanded="false"] .path-chev svg { transform: rotate(-90deg); }
+/* Folded, a title's arrow points down: there's more below. Open, it points up: fold it back */
+.fold-toggle[aria-expanded="true"] .path-chev svg { transform: rotate(180deg); }
 .fold-sum li.ok { color: var(--ok); } .fold-sum li.warn { color: var(--warn); } .fold-sum li.bad { color: var(--bad); }
 .fold-sum .ok { color: var(--ok); } .fold-sum .warn { color: var(--warn); }
 .fold-sum .net-pair { display: inline-flex; gap: 6px 12px; }
@@ -1427,3 +1427,8 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 @media (max-width: 720px) { .upd-peek { display: none; } }
 .upd-peek .upd-peek-head { margin: 0 0 8px; font-size: .86rem; }
 .upd-done { padding: 4px 18px; }
+@media (max-width: 720px) {
+  /* Fold all cards takes the rest of the row, so the buttons span the cards' width */
+  .hero-btns:has(> .fold-all) { flex: 1 1 100%; }
+  .hero-btns .fold-all { flex: 1 1 auto; }
+}

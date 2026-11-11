@@ -58,7 +58,7 @@ The pages are icons down the left; point at one to see its name. On a phone they
 - The buttons do the same as the matching options in the setup scripts, so you can mix the panel and SSH freely.
 - Cards and pages for add-ons (AIOMetadata, AIOManager, MediaFlow, the VPN, Phone alerts...) only appear once you've set them up with their scripts.
 - **Edit** on the Overview and **Edit menu** (the pencil) rearrange or hide cards and pages. The layout is saved on the server, so every device shows the same. The Overview's **Edit** also has **Colours**: System (follows your device), Light, Dark or Slate (a softer dark), saved in that browser only.
-- Tap a card's title to fold it to one line, or open it again. On a phone every card starts folded; on a computer they start open. Each browser remembers its own, and **Reset to default** in Edit puts them back.
+- Tap a card's title to fold it to one line, or open it again; **Fold all cards** (or **Open all cards**) beside What's new does every card at once. On a phone every card starts folded; on a computer they start open. Each browser remembers its own, and **Reset to default** in Edit puts them back.
 - **Recent warnings & errors** on the Overview lists the latest warnings and errors from every service's log, leaving out the expected noise. Tap one to open that log. Its cog picks which services it covers: AIOStreams (its own dashboard has the same list) and the optional add-ons start switched off.
 - **Activity** keeps what every button printed, if you want to check how an update or backup went.
 

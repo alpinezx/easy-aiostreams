@@ -174,6 +174,22 @@ function chev() {
   c.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
   return c;
 }
+// Fold all / Open all, beside What's new: every card on the Overview at once, as if each title
+// were tapped (saved per browser the same way). Open all when every card is folded.
+const CARD_FOLDS = ["flow", "warn", "aiostreams", "aiometadata", "aiomanager", "mediaflow", "vpn", "alerts", "server", "services"];
+const shownFolds = () => {
+  const on = CARD_FOLDS.filter((id) => document.querySelector(`.fold-toggle[data-fold="${id}"]`));
+  return on.length ? on : CARD_FOLDS;
+};
+const allFolded = () => shownFolds().every(isFolded);
+function foldAll() {
+  const fold = !allFolded();
+  for (const id of CARD_FOLDS) {
+    folds[id] = fold;
+    try { localStorage.setItem(foldKey(id), fold ? "1" : "0"); } catch (_) {}
+  }
+  if (lastSt) render(lastSt, lastGoLogs);
+}
 // The title as the fold button, as on the request flow
 function foldTitle(id, label) {
   const f = isFolded(id);
@@ -242,7 +258,8 @@ function hero(st) {
     allCerts(st).map((c) => `${c.host}:${c.ok}:${c.days_left}:${c.days_total}`).join(","), st.installed, st.docker_ok, relLoading, rel && rel.checked_at, rel && rel.error, isFolded("aiostreams"),
     JSON.stringify(st.aiometadata || null), isFolded("aiometadata"),
     JSON.stringify(st.aiomanager || null), isFolded("aiomanager"), mgrRel.loading, mgrRel.list && mgrRel.list.checked_at,
-    JSON.stringify(st.mediaflow || null), isFolded("mediaflow"), mfRel.loading, mfRel.list && mfRel.list.checked_at].join("|");
+    JSON.stringify(st.mediaflow || null), isFolded("mediaflow"), mfRel.loading, mfRel.list && mfRel.list.checked_at,
+    CARD_FOLDS.map(isFolded).join("")].join("|");
   rebuild("#hero", key, (el) => {
     // The headline, and after it the "Script updates" pill while a setup script here differs
     // from GitHub (it drops below the headline when they don't fit on one line).
@@ -252,6 +269,8 @@ function hero(st) {
       h("h1", { class: "headline", "aria-live": "polite", text: st.headline }),
       h("a", { class: "chip warn scripts-pill", id: "scripts-pill", href: "#scripts", hidden: true }),
       st.installed ? h("span", { class: "hero-btns" },
+        h("button", { class: "btn small quiet fold-all", type: "button", text: allFolded() ? "Open all cards" : "Fold all cards",
+          title: allFolded() ? "Open every card" : "Fold every card to one line", onclick: foldAll }),
         h("button", { class: "btn small quiet", type: "button", text: "What's new",
           title: "The changes since this panel's version, from the project's changelog", onclick: showChangelog }),
         editBtn()) : null));
