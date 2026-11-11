@@ -1378,14 +1378,13 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 
 /* Maintenance: a quiet word on a card title's right (System updates' system) */
 .maint-card .card-head .card-corner { margin-left: auto; font-size: .9rem; }
-/* List updates: one package a line, its versions under its name on a phone */
+/* List updates: each package's name, then its versions under it, both on the left */
 .upd-list { list-style: none; margin: 0; padding: 0; }
 .upd-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 7px 0; border-top: 1px solid var(--line-soft); }
 .upd-list li:first-child { border-top: 0; }
 .upd-name { font-weight: 600; }
-.upd-ver { margin-left: auto; font-size: .82rem; overflow-wrap: anywhere; }
+.upd-ver { flex-basis: 100%; font-size: .82rem; overflow-wrap: anywhere; }
 .upd-note { margin: 0 0 6px; font-size: .86rem; }
-@media (max-width: 720px) { .upd-ver { margin-left: 0; flex-basis: 100%; } }
 @media (max-width: 720px) {
   /* Two buttons on a Maintenance card (Install updates, List updates) share the row on a phone */
   .maint-foot:has(> .btn + .btn) > .dim:empty { display: none; }
