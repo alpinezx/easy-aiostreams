@@ -1390,3 +1390,25 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .maint-foot:has(> .btn + .btn) > .dim:empty { display: none; }
   .maint-foot:has(> .btn + .btn) > .btn { flex: 1 1 0; }
 }
+@media (max-width: 720px) {
+  /* Scheduled server reboot on a phone: Schedule and Clock as rows of their own, controls under them */
+  .rs-phone .rs-block { border-top: 1px solid var(--line-soft); margin-top: 4px; padding: 16px 0 6px; }
+  .rs-phone .rs-line { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .rs-phone .rs-word { font-weight: 600; }
+  .rs-phone .rs-word.ok { color: var(--ok); } .rs-phone .rs-word.warn { color: var(--warn); } .rs-phone .rs-word.dim { color: var(--faint); }
+  /* Daily: when, how often and the time on one row; weekly: two rows of two; off: one box */
+  .rs-phone .restart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; padding-bottom: 0; }
+  .rs-phone .restart-row:has(> select[hidden]) { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 5.5em; }
+  .rs-phone .restart-row .time-pick { display: block; min-width: 0; }
+  .rs-phone .restart-row:has(> .time-pick[hidden]) { grid-template-columns: 1fr; }
+  .rs-phone .restart-row > [hidden] { display: none; }
+  .rs-phone .restart-row .input { width: 100%; min-width: 0; }
+  .rs-phone .restart-row .time-pick .input { text-align: center; }
+  .rs-phone .btn.rs-wide { display: block; width: 100%; margin-top: 12px; }
+  .rs-phone .btn.rs-wide[hidden] { display: none; }
+  .rs-phone .tz-wrap { display: block; max-width: none; margin-top: 12px; }
+  .rs-phone .tz-box { width: 100%; }
+  .rs-phone .tz-sugg { left: 0; right: auto; }
+  .rs-phone .card-foot { margin-top: 10px; }
+  .rs-phone .maint-foot .dim { margin-right: 0; line-height: 1.5; }
+}
