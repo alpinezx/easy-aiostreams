@@ -1103,7 +1103,7 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 @media (max-width: 720px) {
   .btn-spacer { display: none; }
   /* A row without Update keeps its place on a phone, so every row's buttons line up in three columns */
-  .scripts-panel .cmd-btns .btn-spacer[data-for="Update"] { display: inline-flex; flex: 1; }
+  .scripts-panel .cmd-btns .btn-spacer[data-for="Update"] { display: block; }
 }
 .term-scripts-hint { margin: -6px 0 14px; font-size: .9rem; }
 .term-scripts-hint a { color: var(--accent); }
@@ -1123,9 +1123,13 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   .cmd { display: none; }
   /* the badge drops under the name in one piece rather than squeezing beside it */
   .cmd-label { flex-wrap: wrap; row-gap: 6px; color: var(--text); font-size: .95rem; font-weight: 500; }
-  /* a fourth button (Remove) drops to its own line rather than running off the screen */
-  .scripts-panel .cmd-btns { flex-wrap: wrap; gap: 8px; }
   .cmd-btns .btn { flex: 1; border-color: var(--line); background: var(--raised); color: var(--text); padding: 8px 12px; }
+  /* Scripts: three columns on every row, Run wider, whatever the phone's text size; a fourth
+     button (Remove) takes a line of its own */
+  .scripts-panel .cmd-btns { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+  .scripts-panel .cmd-btns .btn { padding: 8px 6px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .scripts-panel .cmd-btns .btn-spacer[data-for="Remove"] { display: none; }
+  .scripts-panel .cmd-btns > :nth-child(4) { grid-column: 1 / -1; }
 }
 .sdot-tag { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; font-weight: 600; }
 .sdot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
@@ -1444,3 +1448,5 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .run-btn { display: inline-grid; justify-items: center; }
 .run-btn > span { grid-area: 1 / 1; }
 .run-btn .run-alt { visibility: hidden; }
+/* A link in a note stays in one piece: it moves to the next line whole rather than breaking */
+.note a, .addons-note a { white-space: nowrap; }

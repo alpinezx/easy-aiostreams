@@ -332,8 +332,8 @@ function render() {
   if (addons.length) {
     box.append(h("section", { class: "panel scripts-panel" },
       h("h3", { class: "sub-head", text: "Optional add-ons" }),
-      h("p", { class: "addons-note" }, h("b", { text: "Most setups need none of these." }), " ",
-        h("a", { href: ADDONS_GUIDE, target: "_blank", rel: "noopener noreferrer", text: "Read what each one does first" }), "."),
+      h("p", { class: "addons-note" }, h("b", { text: "Most setups need none of these." }), " Read ",
+        h("a", { href: ADDONS_GUIDE, target: "_blank", rel: "noopener noreferrer", text: "what each one does" }), " first."),
       h("ul", { class: "cmds" }, ...addons.map(rowOf))));
   }
 }
