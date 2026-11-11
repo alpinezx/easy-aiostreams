@@ -917,12 +917,13 @@ async function warnPick() {
   const el = h("div", { class: "warn-pick" }, ...boxes.map(([s, input]) =>
     h("label", { class: "warn-pick-row" }, h("span", { text: s.name }), h("span", { class: "sw" }, input, h("i", { "aria-hidden": "true" })))));
   const res = await ask({ title: "Show warnings from", body: "Which services' logs this card reads. Every device shows the same.",
-    confirmLabel: "Save", options: { el, read: () => boxes.filter(([, i]) => !i.checked).map(([s]) => s.container) } });
+    confirmLabel: "Save", options: { el, read: () => ({
+      hidden: boxes.filter(([, i]) => !i.checked).map(([s]) => s.container),
+      shown: boxes.filter(([, i]) => i.checked).map(([s]) => s.container) }) } });
   if (!res) return;
-  // Services not set up here keep whatever they had
-  const keep = warnHidden.filter((c) => !svcs.some((s) => s.container === c));
+  // Only the switches shown are sent: services not set up here keep their choice or default
   try {
-    const r = await api("/api/log-warnings/hidden", { method: "PUT", body: JSON.stringify({ hidden: [...keep, ...res] }) });
+    const r = await api("/api/log-warnings/hidden", { method: "PUT", body: JSON.stringify(res) });
     warnHidden = r.hidden;
   } catch (e) { toast(e.message, true); return; }
   warnAt = 0; warnData = null;
