@@ -322,16 +322,18 @@ function render() {
 
   box.append(statusLine());
   if (!terminalOn) {
-    box.append(h("p", { class: "note" }, "Run in terminal needs the panel's web terminal, which is switched off. Switch it on with setup-ui.sh over SSH (see the ",
-      h("a", { href: GUIDE, target: "_blank", rel: "noopener noreferrer", text: "control panel guide" }), "). Copy and Update work either way."));
+    box.append(h("div", { class: "note" },
+      h("p", {}, h("b", { text: "Run in terminal needs the web terminal, which is off." }), " Switch it on over SSH: see the ",
+        h("a", { href: GUIDE, target: "_blank", rel: "noopener noreferrer", text: "control panel guide" }), "."),
+      h("p", { text: "Copy and Update work without it." })));
   }
   box.append(h("section", { class: "panel scripts-panel scripts-core" },
     h("ul", { class: "cmds" }, panelRow(`sudo bash ${dir}/control-panel/setup-ui.sh`, terminalOn), ...core.map(rowOf))));
   if (addons.length) {
     box.append(h("section", { class: "panel scripts-panel" },
       h("h3", { class: "sub-head", text: "Optional add-ons" }),
-      h("p", { class: "addons-note" }, h("b", { text: "These are optional. Most setups don't need any of them." }),
-        " Read what each one does before adding it: ",
+      h("p", { class: "addons-note" }, h("b", { text: "Most setups need none of these." }),
+        " Read what each one does first: ",
         h("a", { href: ADDONS_GUIDE, target: "_blank", rel: "noopener noreferrer", text: "Other scripts guide" }), "."),
       h("ul", { class: "cmds" }, ...addons.map(rowOf))));
   }
