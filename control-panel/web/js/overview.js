@@ -483,7 +483,7 @@ function versionCard(st, avail) {
     h("div", { class: "ver-head" }, title),
     h("div", { class: "ver-grid" },
       // The channel as a word beside the version, not a pill
-      col([`v${st.version}`, h("span", { class: "ver-chan " + (nightly ? "warn" : "ok"), text: nightly ? "Nightly" : "Stable",
+      col([`v${st.version}`, h("span", { class: "ver-chan", text: nightly ? "Nightly" : "Stable",
         title: nightly ? "AIOStreams' nightly builds (Docker tag: nightly). Switch with Update." : "AIOStreams' stable releases (Docker tag: latest). Switch with Update." })], nightly ? (running ? `Nightly ${running.slice(0, -8)}` : "") : releasedAgo(running)),
       h("div", { class: "ver-right" }, col(latest, latestSub), h("div", { class: "ver-btns" }, ...btns))));
 }
