@@ -3,9 +3,8 @@ import { ask } from "./actions.js";
 
 const MAX = 2000;
 let current = null, es = null, lines = [], follow = true, filter = "", regex = false, svcs = [];
-// Wrap starts on for phones (long lines are unreadable scrolled sideways), off on desktop,
-// until this browser's switch is changed once
-let wrap = window.matchMedia("(max-width: 720px)").matches;
+// Wrap starts off everywhere, until this browser's switch is changed once
+let wrap = false;
 // Levels picked with the INFO / WARN / ERROR buttons; none picked shows every line.
 let levels = new Set();
 
@@ -138,13 +137,6 @@ export function scan(raws) {
   }
   lastStop = saved;
   return out;
-}
-
-// A row on that card opens Logs with WARN and ERROR picked, for this visit (not saved)
-export function pickLevels(list) {
-  levels = new Set(list);
-  syncControls();
-  paint();
 }
 
 const isCaddy = () => current === "caddy";

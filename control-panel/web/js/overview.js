@@ -7,7 +7,7 @@ import { pill as scriptsPill, showChangelog } from "./scripts.js";
 import { scheduleText } from "./activity.js";
 import { applyLayout, openLayout } from "./layout.js";
 import { countryName } from "./vpn.js";
-import { scan, pickLevels } from "./logs.js";
+import { scan } from "./logs.js";
 import { loadTraffic, trafficData, trafficStale, feedNet, nowRate, today, fmtRate, netOrder } from "./traffic.js";
 
 // ---------------- update check ----------------
@@ -881,7 +881,7 @@ function side(st) {
 
 // Recent warnings & errors: the latest from every service's log over the last day (or since
 // its Clear), sorted by the Logs page's own rules so noise stays out. The same message from the
-// same service is one row with a count. A row opens that log with WARN and ERROR picked.
+// same service is one row with a count. A row opens that log.
 let warnData = null, warnAt = 0, warnLoading = false;
 async function loadWarnings() {
   if (warnLoading || Date.now() - warnAt < 60000) return;
@@ -965,7 +965,7 @@ function warnCard(el) {
   const now = Date.now() / 1000;
   card.append(h("div", { class: "warn-list" }, ...rows.slice(0, warnMore ? WARN_MAX : WARN_SHOWN).map((r) =>
     h("a", { class: `warn-row ${r.cls}`, href: "#logs", title: r.text,
-      onclick: (e) => { e.preventDefault(); pickLevels(["warn", "error"]); if (lastGoLogs) lastGoLogs(r.container); } },
+      onclick: (e) => { e.preventDefault(); if (lastGoLogs) lastGoLogs(r.container); } },
       h("i", { class: "warn-dot", "aria-label": r.cls === "error" ? "Error" : "Warning" }),
       h("span", { class: "warn-svc", text: r.name }),
       h("span", { class: "warn-msg", text: r.text }),
