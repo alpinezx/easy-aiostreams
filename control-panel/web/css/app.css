@@ -1100,7 +1100,11 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .scripts-status details summary { cursor: pointer; font-size: .88rem; color: var(--dim); }
 .scripts-status pre { margin: 8px 0 0; max-height: 260px; overflow: auto; padding: 10px 12px; background: var(--sunk); border-radius: 8px; font-family: var(--mono); font-size: .78rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; }
 .btn-spacer { visibility: hidden; pointer-events: none; }
-@media (max-width: 720px) { .btn-spacer { display: none; } }
+@media (max-width: 720px) {
+  .btn-spacer { display: none; }
+  /* A row without Update keeps its place on a phone, so every row's buttons line up in three columns */
+  .scripts-panel .cmd-btns .btn-spacer[data-for="Update"] { display: inline-flex; flex: 1; }
+}
 .term-scripts-hint { margin: -6px 0 14px; font-size: .9rem; }
 .term-scripts-hint a { color: var(--accent); }
 .cmds { list-style: none; padding: 0; margin: 0 0 6px; display: grid; gap: 6px; }
@@ -1436,3 +1440,7 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .hero-btns:has(> .fold-all) { flex: 1 1 100%; }
   .hero-btns .fold-all { flex: 1 1 auto; }
 }
+/* Scripts tab: Run in terminal and Get and run share one width */
+.run-btn { display: inline-grid; justify-items: center; }
+.run-btn > span { grid-area: 1 / 1; }
+.run-btn .run-alt { visibility: hidden; }

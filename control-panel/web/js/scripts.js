@@ -223,14 +223,16 @@ function copyBtn(text, cmd, msg, title) {
 }
 
 // An invisible stand-in keeps the buttons lined up down the list.
-const spacer = (text) => h("span", { class: "btn small quiet btn-spacer", "aria-hidden": "true", text });
+const spacer = (text) => h("span", { class: "btn small quiet btn-spacer", "aria-hidden": "true", "data-for": text, text });
 
+// Run in terminal and Get and run are the same width: each holds the other's words, unseen
 function runBtn(present, cmd, termOn) {
-  return h("button", { class: "btn small", type: "button", text: present ? "Run in terminal" : "Get and run", disabled: !termOn,
+  const [label, other] = present ? ["Run in terminal", "Get and run"] : ["Get and run", "Run in terminal"];
+  return h("button", { class: "btn small run-btn", type: "button", disabled: !termOn,
     title: !termOn ? "Needs the panel's web terminal, which is switched off (see the note above)."
       : present ? "Types the command into the panel's terminal. Check it, then press Enter."
       : "Types the command into the panel's terminal: it downloads the script, then runs it. Check it, then press Enter.",
-    onclick: () => runInTerminal(cmd) });
+    onclick: () => runInTerminal(cmd) }, h("span", { text: label }), h("span", { class: "run-alt", "aria-hidden": "true", text: other }));
 }
 
 // Each row's state as a dot before its name: green, set up here; amber, the script is here but
