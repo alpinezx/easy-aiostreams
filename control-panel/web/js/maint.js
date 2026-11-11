@@ -128,7 +128,7 @@ function restart(r) {
   const time = timePicker(r.time);
   const onLbl = h("span", { class: "dim", text: "on" }), atLbl = h("span", { class: "dim", text: "at" });
   mode.value = r.mode; every.value = r.every; day.value = String(r.day);
-  const setBtn = h("button", { class: "btn small" + (phone ? " rs-wide" : ""), type: "button", text: "Set scheduled reboot" });
+  const setBtn = h("button", { class: "btn small" + (phone ? " rs-wide" : ""), type: "button", text: "Set schedule" });
   const show = () => {
     const o = mode.value !== "off";
     for (const el of [every, atLbl, time, setBtn]) el.hidden = !o;

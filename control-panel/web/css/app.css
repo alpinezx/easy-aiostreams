@@ -1467,4 +1467,4 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .bk-desk .rs-tz[hidden] { display: none; }
 .bk-desk .sched-last { margin-top: 12px; }
 /* Desktop: each row's button says what it sets, and they share one width so they line up */
-.rs-desk .rs-ctl > .btn { min-width: 12.5em; }
+.rs-desk .rs-ctl > .btn { min-width: 9.5em; }
