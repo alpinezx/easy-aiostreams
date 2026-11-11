@@ -45,7 +45,7 @@ function updates(m) {
   const u = m.updates;
   if (!u.available) return card(["System updates", u.os], [stat("Waiting", "Can't tell", "This server doesn't use apt")], "", null);
   const pk = u.packages || [];
-  return card(["System updates", u.os], [
+  const c = card(["System updates", u.os], [
     stat("Waiting", u.count ? `${u.count} update${u.count === 1 ? "" : "s"}` : "Up to date",
       (u.count ? (u.security ? `${u.security} for security` : "None for security") + (u.phased ? `, ${u.phased} more phasing in` : "")
         : u.phased ? `${u.phased} more phasing in` : ""), u.security ? "warn" : u.count ? "" : "ok",
@@ -59,6 +59,34 @@ function updates(m) {
     title: pk.length ? "Which packages are waiting, and their versions" : "Nothing is waiting", onclick: () => openUpdates(u) }),
   u.reboot ? h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer,
     disabled: !!(status && status.busy) || !!(last && last.last && last.last.running) }) : null);
+  c.insertBefore(updPeek(u, pk), c.querySelector(".card-foot"));
+  return c;
+}
+
+// The card's spare room on a desktop (a phone's card is long enough already): the first few waiting
+// updates, as List updates shows them, or with nothing waiting, what the last install brought.
+const PEEK = 4;
+function peekRows(list) {
+  return h("div", { class: "upd-peek-grid" }, ...list.slice(0, PEEK).flatMap((p) => [
+    h("span", { class: "upd-name mono", text: p.name }),
+    h("span", {}, p.security ? h("span", { class: "chip warn small-chip", text: "Security" }) : null),
+    h("span", { class: "upd-ver mono dim", title: `${p.from} → ${p.to}`, text: `${p.from} → ${p.to}` })]));
+}
+function updPeek(u, pk) {
+  const now = pk.filter((p) => !p.phased);
+  if (now.length) {
+    const more = now.length - PEEK + (u.phased || 0);
+    return h("div", { class: "upd-peek" }, peekRows(now),
+      more > 0 ? h("button", { class: "linkish upd-more", type: "button", text: `and ${more} more`, onclick: () => openUpdates(u) }) : null);
+  }
+  const done = u.installed;
+  const phasing = u.phased ? ` ${u.phased} more ${u.phased === 1 ? "is" : "are"} phasing in.` : "";
+  if (!done || !done.packages.length) return h("div", { class: "upd-peek empty" }, h("p", { class: "dim", text: `Nothing waiting.${phasing}` }));
+  const more = done.count - PEEK;
+  return h("div", { class: "upd-peek" },
+    h("p", { class: "dim upd-peek-head", text: `Up to date.${phasing} Last installed${done.at ? ` ${ago(done.at)}` : ""}${done.auto ? ", by Ubuntu's automatic updates" : ""}:` }),
+    peekRows(done.packages),
+    more > 0 ? h("button", { class: "linkish upd-more", type: "button", text: `and ${more} more`, onclick: () => openUpdates(u, true) }) : null);
 }
 
 function logs(m) {

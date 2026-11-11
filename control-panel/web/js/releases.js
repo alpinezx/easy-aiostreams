@@ -1,4 +1,4 @@
-import { $, h, clear, extIcon } from "./util.js";
+import { $, h, clear, extIcon, ago } from "./util.js";
 import { renderMarkdown } from "./md.js";
 
 // A nightly's GitHub release appears before its Docker image is pushed; don't offer it until the image has had time.
@@ -157,10 +157,24 @@ export function openChangelog(log) {
 
 // The Maintenance page's List updates: the system packages waiting, in the same drawer. Those
 // Install updates would install now first, then the ones Ubuntu is still phasing in.
-export function openUpdates(u) {
+export function openUpdates(u, installed) {
   lastFocus = document.activeElement;
   const list = $("#rel-list");
   clear(list);
+  if (installed) {
+    // What the last install brought, from apt's own history
+    const d = u.installed;
+    $("#rel-title").textContent = "Last installed";
+    $("#rel-sub").textContent = `${d.count} ${d.count === 1 ? "package" : "packages"}${d.at ? `, ${ago(d.at)}` : ""}${d.auto ? ", by Ubuntu's automatic updates" : ""}.`;
+    $("#rel-foot").hidden = true;
+    list.append(h("ul", { class: "upd-list upd-done" }, ...d.packages.map((p) => h("li", {},
+      h("span", { class: "upd-name mono", text: p.name }), h("span", { class: "upd-ver mono dim", text: `${p.from} → ${p.to}` })))));
+    list.scrollTop = 0;
+    $("#rel-drawer").hidden = false;
+    $("#scrim").hidden = false;
+    $("#rel-x").focus();
+    return;
+  }
   const pk = u.packages || [];
   const now = pk.filter((p) => !p.phased), later = pk.filter((p) => p.phased);
   const n = (k, w) => `${k} ${w}${k === 1 ? "" : "s"}`;

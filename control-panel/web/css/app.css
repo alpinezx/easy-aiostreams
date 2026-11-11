@@ -1417,3 +1417,13 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .rs-phone .tz-sugg { left: 0; right: auto; }
   .rs-phone .maint-foot .dim { margin-right: 0; line-height: 1.5; }
 }
+/* System updates on a desktop: the first few waiting, under the values */
+.upd-peek { border-top: 1px solid var(--line-soft); margin-top: 4px; padding: 12px 0 4px; }
+.upd-peek-grid { display: grid; grid-template-columns: max-content max-content minmax(0, 1fr); grid-auto-rows: 26px; align-items: center; gap: 4px 14px; }
+.upd-peek .upd-name { font-weight: 600; }
+.upd-peek .upd-ver { font-size: .82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.upd-peek .upd-more { margin-top: 10px; font-size: .84rem; }
+.upd-peek.empty p { margin: 0; font-size: .88rem; }
+@media (max-width: 720px) { .upd-peek { display: none; } }
+.upd-peek .upd-peek-head { margin: 0 0 8px; font-size: .86rem; }
+.upd-done { padding: 4px 18px; }

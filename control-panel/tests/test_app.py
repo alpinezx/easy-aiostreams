@@ -833,6 +833,7 @@ def test_maintenance_leaves_phased_updates_out():
         ns = SimpleNamespace(_on_host=on_host)
         ns.reboot_needed = lambda: stack.Backend.reboot_needed(ns)
         ns._host_os = lambda: stack.Backend._host_os(ns)
+        ns._last_installed = lambda: stack.Backend._last_installed(ns)
         return ns
     os_release = 'PRETTY_NAME="Debian GNU/Linux 13 (trixie)"\nNAME="Debian GNU/Linux"\nVERSION_ID="13"\nID=debian\n'
     u = stack.Backend._maint_updates(host({"apt": listing, "apt-get": sim, "sh": "", "cat": os_release}))
@@ -1137,3 +1138,20 @@ def test_list_updates_reads_apt_list():
     assert got[0] == {"name": "openssl", "from": "3.0.13-0ubuntu3.5", "to": "3.0.13-0ubuntu3.6", "security": True, "phased": False}
     assert got[2]["phased"] and not got[1]["phased"]
     assert len(upgradable_packages(lines * 200, {"curl"}, cap=5)) == 5
+
+
+def test_last_installed_reads_apt_history():
+    """With nothing waiting, Maintenance shows the last install: the last run's upgrades, unattended-upgrade's
+    small entries joined into one run, removals and older runs left out."""
+    from app.stack import last_installed
+    log = "\n\n".join([
+        "Start-Date: 2026-11-06  22:38:10\nCommandline: apt-get -y upgrade\nUpgrade: old-one:amd64 (1.0, 1.1)\nEnd-Date: 2026-11-06  22:38:43",
+        "Start-Date: 2026-11-07  13:54:39\nCommandline: /usr/bin/unattended-upgrade\nRemove: linux-tools-7.0.0-38:amd64 (7.0.0-38.38)\nEnd-Date: 2026-11-07  13:54:39",
+        "Start-Date: 2026-11-11  15:28:21\nCommandline: /usr/bin/unattended-upgrade\nUpgrade: python3-pyasn1:amd64 (0.6.3-1ubuntu0.1, 0.6.3-1ubuntu0.2)\nEnd-Date: 2026-11-11  15:28:22",
+        "Start-Date: 2026-11-11  15:28:25\nCommandline: /usr/bin/unattended-upgrade\nUpgrade: libperl5.40:amd64 (5.40.1-7ubuntu0.3, 5.40.1-7ubuntu0.4), perl:amd64 (5.40.1-7ubuntu0.3, 5.40.1-7ubuntu0.4)\nEnd-Date: 2026-11-11  15:28:27",
+    ])
+    got = last_installed(log)
+    assert got["when"] == "2026-11-11 15:28:27" and got["auto"] and got["count"] == 3
+    assert [p["name"] for p in got["packages"]] == ["libperl5.40", "perl", "python3-pyasn1"]
+    assert got["packages"][1]["from"] == "5.40.1-7ubuntu0.3" and got["packages"][1]["to"] == "5.40.1-7ubuntu0.4"
+    assert last_installed("") is None and last_installed("Start-Date: x\nRemove: a (1)") is None

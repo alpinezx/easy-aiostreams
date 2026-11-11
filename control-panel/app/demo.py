@@ -257,7 +257,8 @@ class DemoBackend:
     def maintenance_info(self, force: bool = False) -> dict:
         return {"space": {"images": 149_000_000, "image_count": 2, "build": 503_100_000, "journal": 184_000_000},
                 "updates": {"available": True, "os": "Ubuntu 24.04", "count": 8, "security": 2, "phased": 3, "reboot": self.reboot_pending, "checked_at": time.time() - 3 * 3600,
-                            "packages": DEMO_PACKAGES},
+                            "packages": DEMO_PACKAGES,
+                            "installed": {"at": time.time() - 5 * 86400, "auto": False, "count": 6, "packages": DEMO_PACKAGES[2:8]}},
                 "logs": {"limited": False, "pending": False, "size": 488_000},
                 "checked_at": time.time(), "last": None}
 

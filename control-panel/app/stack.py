@@ -246,6 +246,40 @@ def warn_hints(raw: bytes) -> list[str]:
 _UPGRADABLE = re.compile(r"^([^/\s]+)/(\S+)\s+(\S+)\s+\S+\s+\[upgradable from:\s*([^\]]+)\]")
 
 
+_HIST_PKG = re.compile(r"([^\s,:()]+)(?::[\w-]+)? \(([^,()]+), ([^()]+)\)")
+
+
+def last_installed(history: str, cap: int = 300) -> dict | None:
+    """apt's history.log: the packages upgraded in the last run, for the Maintenance card when nothing
+    is waiting. unattended-upgrade logs one entry per few packages, so entries within 30 minutes of
+    the last one count as the same run. Times stay as the log writes them (the server's own clock)."""
+    from datetime import datetime
+    runs = []
+    for block in history.split("\n\n"):
+        f = dict(re.findall(r"^([\w-]+): (.*)$", block, re.M))
+        if "Upgrade" not in f or "Start-Date" not in f:
+            continue
+        try:
+            start = datetime.strptime(" ".join(f["Start-Date"].split()), "%Y-%m-%d %H:%M:%S")
+            end = datetime.strptime(" ".join(f.get("End-Date", f["Start-Date"]).split()), "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            continue
+        runs.append((start, end, "unattended-upgrade" in f.get("Commandline", ""), _HIST_PKG.findall(f["Upgrade"])))
+    if not runs:
+        return None
+    last_start = runs[-1][0]
+    group = [r for r in runs if (last_start - r[1]).total_seconds() <= 1800 and r[0] <= last_start]
+    seen, pkgs = set(), []
+    for _, _, _, found in group:
+        for name, old, new in found:
+            if name not in seen:
+                seen.add(name)
+                pkgs.append({"name": name, "from": old.strip(), "to": new.strip(), "security": False, "phased": False})
+    pkgs.sort(key=lambda p: p["name"])
+    return {"when": runs[-1][1].strftime("%Y-%m-%d %H:%M:%S"), "auto": all(r[2] for r in group),
+            "count": len(pkgs), "packages": pkgs[:cap]}
+
+
 def upgradable_packages(lines: list[str], now: set[str], cap: int = 300) -> list[dict]:
     out = []
     for l in lines:
@@ -1073,6 +1107,17 @@ class Backend:
             return ""
         return " ".join(x for x in (rel.get("NAME", "").replace(" GNU/Linux", ""), rel.get("VERSION_ID", "")) if x)
 
+    def _last_installed(self) -> dict | None:
+        try:
+            got = last_installed(self._on_host("sh", "-c", "cat /var/log/apt/history.log 2>/dev/null"))
+            if got:
+                # The log's time is the server's local time: let the server turn it into a moment
+                at = self._on_host("date", "-d", got.pop("when"), "+%s").strip()
+                got["at"] = int(at) if at.isdigit() else None
+            return got
+        except Exception:
+            return None
+
     def _maint_updates(self) -> dict:
         os_name = self._host_os()
         try:
@@ -1098,6 +1143,7 @@ class Backend:
                                        "|| stat -c %Y /var/lib/apt/lists 2>/dev/null").strip()
         return {"available": True, "os": os_name, "count": len(lines), "security": sum("-security" in l for l in lines), "phased": phased,
                 "packages": upgradable_packages(everything, now_names),
+                "installed": self._last_installed(),
                 "reboot": self.reboot_needed(),
                 "checked_at": int(stamp) if stamp.isdigit() else None}
 
