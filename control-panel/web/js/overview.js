@@ -619,13 +619,15 @@ async function confirmPanelRestart() {
 }
 
 // Services in order of their buttons, so they line up: none (Caddy), then Restart only (the panel, the Cloudflare
-// Tunnel, then the VPN tunnel, whose Restart is Restart stack's), then Stop and Restart: AIOStreams and the other AIOs
-// together, then any other add-on. Otherwise in the server's order.
-const buttons = (s) => (s.addon || s.key === "aiostreams") ? 2 : (RESTARTABLE.has(s.key) || s.panel || s.key === "gluetun") ? 1 : 0;
-const SVC_FIRST = ["caddy", "aiostreams", "aiometadata", "aiomanager"];
-const place = (s) => s.key === "gluetun" ? SVC_FIRST.length + 1 : SVC_FIRST.includes(s.key) ? SVC_FIRST.indexOf(s.key) : SVC_FIRST.length;
-// The VPN can't restart alone (AIOStreams runs inside its network), so its Restart is Restart stack, which says so
+// Tunnel), then Stop and Restart: AIOStreams and the other AIOs together, the VPN tunnel, then any other add-on.
+// Otherwise in the server's order.
+const buttons = (s) => (s.addon || s.key === "aiostreams" || s.key === "gluetun") ? 2 : (RESTARTABLE.has(s.key) || s.panel) ? 1 : 0;
+const SVC_FIRST = ["caddy", "aiostreams", "aiometadata", "aiomanager", "gluetun"];
+const place = (s) => { const i = SVC_FIRST.indexOf(s.key); return i < 0 ? SVC_FIRST.length : i; };
+// The VPN can't stop or restart alone (AIOStreams runs inside its network): its Stop is Turn VPN off (AIOStreams goes
+// direct) and its Restart is Restart stack, each confirm opening with why
 const VPN_RESTART_LEAD = "The VPN can't restart on its own, as AIOStreams runs inside it.";
+const VPN_STOP_LEAD = "Stopping the VPN turns it off, as Turn VPN off on its card does.";
 const byButtons = (services) => services.map((s, i) => [s, i])
   .sort((a, b) => buttons(a[0]) - buttons(b[0]) || place(a[0]) - place(b[0]) || a[1] - b[1]).map(([s]) => s);
 
@@ -656,6 +658,10 @@ function rows(st, goLogs) {
         const id = `${s.addon ? s.key : "stack"}.${s.state === "running" ? "stop" : "start"}`;
         const a = avail[id];
         if (a && a.available) slot[0].append(h("button", { class: "btn small" + (s.state === "running" ? " danger" : ""), type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
+      } else if (s.key === "gluetun" && s.present && s.state === "running") {
+        const a = avail["vpn.off"];
+        if (a && a.available) slot[0].append(h("button", { class: "btn small danger", type: "button", text: "Stop", disabled: !!st.busy,
+          onclick: () => runAction(a, null, VPN_STOP_LEAD) }));
       }
       el.append(h("div", { class: "row", dataset: { svc: s.key } },
         // What the service does is on hover, keeping each row to the name
