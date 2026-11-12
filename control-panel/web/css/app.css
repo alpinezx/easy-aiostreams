@@ -40,7 +40,7 @@
   --warn-soft: rgba(245, 158, 11, .12);
   --ok-soft: rgba(16, 185, 129, .12);
   /* the amber glow round notes (a quarter of it in Light, where more reads as a shadow) */
-  --note-glow: 0 0 11px color-mix(in srgb, var(--warn) 9%, transparent);
+  --note-glow: 0 0 11px color-mix(in srgb, var(--warn) 34%, transparent);
   --up-line: var(--dim);   /* the traffic graph's Up line, beside Down in --accent */
   --radius: 12px;
   --font: "Inter", ui-sans-serif, system-ui, sans-serif;
