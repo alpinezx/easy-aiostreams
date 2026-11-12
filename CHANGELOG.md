@@ -2,6 +2,10 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 12 November 2026
+
+- **New:** opened, the Overview's Services card keeps the line it shows folded beside its title: how many are running, any that aren't, and their CPU and memory together. Fold all cards, What's new and Edit at the top are plain words like the cards' own links, and Fold all has an arrow that points the way the cards' do. (Panel 1.55.3, [#168](https://github.com/alpinezx/easy-aiostreams/pull/168))
+
 ## 11 November 2026
 
 - **Fixed:** through a Cloudflare Tunnel, the panel could open with no styles or scripts for a few minutes: one visit without the panel's unlock cookie got a "Not found" for its stylesheet, which Cloudflare kept and served to everyone. Cloudflare is now told never to keep it. On a phone, the Rebooting and Updating notices are a smaller box with room around it. (Panel 1.55.2, [#167](https://github.com/alpinezx/easy-aiostreams/pull/167))

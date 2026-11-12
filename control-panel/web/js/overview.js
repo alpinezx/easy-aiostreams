@@ -269,8 +269,10 @@ function hero(st) {
       h("h1", { class: "headline", "aria-live": "polite", text: st.headline }),
       h("a", { class: "chip warn scripts-pill", id: "scripts-pill", href: "#scripts", hidden: true }),
       st.installed ? h("span", { class: "hero-btns" },
-        h("button", { class: "btn small quiet fold-all", type: "button", text: allFolded() ? "Open all cards" : "Fold all cards",
-          title: allFolded() ? "Open every card" : "Fold every card to one line", onclick: foldAll }),
+        // Its arrow points the way the cards' own do: up while they're open, down once folded
+        h("button", { class: "btn small quiet fold-all", type: "button", "aria-expanded": String(!allFolded()),
+          title: allFolded() ? "Open every card" : "Fold every card to one line", onclick: foldAll },
+          allFolded() ? "Open all cards" : "Fold all cards", chev()),
         h("button", { class: "btn small quiet", type: "button", text: "What's new",
           title: "The changes since this panel's version, from the project's changelog", onclick: showChangelog }),
         editBtn()) : null));
@@ -585,8 +587,9 @@ function fillSpark(svg, values) {
   svg.querySelector(".area").setAttribute("d", `${d} L96 28 L0 28 Z`);
 }
 
-// Folded: how many are running and any that aren't, by name, then their CPU and memory
-// together (a line of their own on a phone), CPU as a share of the whole server as in the rows
+// Beside the title, folded or open: how many are running and any that aren't, by name, then
+// their CPU and memory together (a line of their own on a phone), CPU as a share of the whole
+// server as in the rows. Open, it's the totals the table itself doesn't show.
 function svcHead(st) {
   const f = isFolded("services");
   $("#rows").hidden = f;
@@ -596,7 +599,6 @@ function svcHead(st) {
   const el = rebuild("#svc-head", st.services.map((s) => `${s.key}:${stateOf(s)}`).join(",") + f, (el) => {
     el.classList.toggle("folded", f);
     el.append(h("h2", { class: "sec" }, foldTitle("services", "Services")));
-    if (!f) return;
     el.append(foldSum([[`${up.length} of ${st.services.length} running`, up.length === st.services.length ? "ok" : ""],
       ...st.services.filter((s) => s.state !== "running").map((s) => {
         const sx = stateOf(s);
