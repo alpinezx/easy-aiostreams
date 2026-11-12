@@ -6,7 +6,7 @@ import { ask } from "./actions.js";
 import { openChangelog } from "./releases.js";
 
 const REPO = "https://github.com/alpinezx/easy-aiostreams";
-const GUIDE = `${REPO}/blob/main/docs/basic/control-panel.md`;
+const TERMINAL_GUIDE = `${REPO}/blob/main/docs/basic/control-panel.md#turning-on-the-terminal`;
 const ADDONS_GUIDE = `${REPO}/blob/main/docs/other-scripts.md`;
 const RAW_BASE = "https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/scripts/";
 const FALLBACK = [
@@ -75,7 +75,7 @@ function statusLine(terminalOn) {
       terminalOn ? null : h("p", { class: "dim term-off" }, "Run in terminal is off with the web terminal. ",
         // on phones this half takes a line of its own, so the link never splits
         h("span", { class: "term-off-how" },
-          h("a", { href: GUIDE, target: "_blank", rel: "noopener noreferrer", text: "Switch it on over SSH" }), " if you want it.")),
+          h("a", { href: TERMINAL_GUIDE, target: "_blank", rel: "noopener noreferrer", text: "Switch it on over SSH" }), " if you want it.")),
       lastLine),
     h("span", { class: "btns" },
       h("button", { class: "btn small", type: "button", text: "What's new", title: "The changes since this panel's version, from the project's changelog",
