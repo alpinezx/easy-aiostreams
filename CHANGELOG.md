@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 12 November 2026
 
+- **New:** notes like the one at the top of Backup & Restore are a card like the others with a soft glowing amber edge (fainter in Light), instead of an amber wash that looked brown in Dark. The same goes for warnings inside dialogs. (Panel 1.55.5, [#170](https://github.com/alpinezx/easy-aiostreams/pull/170))
 - **Fixed:** the Overview's Request flow card had a slightly different background and edge from the other cards (lighter in Dark and Slate, darker in Light). It now matches them. (Panel 1.55.4, [#169](https://github.com/alpinezx/easy-aiostreams/pull/169))
 - **New:** opened, the Overview's Services card keeps the line it shows folded beside its title: how many are running, any that aren't, and their CPU and memory together. Fold all cards, What's new and Edit at the top are plain words like the cards' own links, and Fold all has an arrow that points the way the cards' do. (Panel 1.55.3, [#168](https://github.com/alpinezx/easy-aiostreams/pull/168))
 
