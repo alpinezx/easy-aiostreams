@@ -23,18 +23,24 @@ export function loadTraffic(force, kind = "vpn") {
 export const trafficData = (kind = "vpn") => hist[kind].data;
 export const trafficStale = (kind = "vpn") => !hist[kind].loading && (!hist[kind].data || Date.now() - hist[kind].at >= 55000);
 
-// Clear history, on the Network page: asks, then the record starts again from now.
-// True once it's cleared.
-const WHAT = { vpn: ["the VPN's", "VPN"], host: ["the server's network", "network"] };
-async function clearHistory(kind) {
-  const ok = await ask({ title: `Clear ${WHAT[kind][0]} traffic history?`, confirmLabel: "Clear history", danger: true,
-    body: `${kind === "vpn" ? "The graph and totals start" : "Today's totals start"} again from the next minute. Only the panel's record goes: nothing on the server changes, and streaming isn't touched. This can't be undone.` });
-  if (!ok) return false;
+// The Network page's bin: asks first, the view shown (All traffic or VPN tunnel) or, with the
+// VPN set up, both at once; then the record starts again from now. True once it's cleared.
+const VIEW = { host: "All traffic", vpn: "VPN tunnel" };
+export async function clearHistory(kind, withVpn) {
+  // "This view" / "Both views": the views' own names on the buttons read alike ("All traffic" vs "Both")
+  const pick = await ask({ title: "Clear traffic history?", confirmLabel: withVpn ? "This view" : "Clear history",
+    alt: withVpn ? { label: "Both views", value: "both" } : null,
+    body: (withVpn ? `You're looking at ${VIEW[kind]}. ` : "")
+      + "The graphs and totals start again from the next minute. Only the panel's record goes: nothing on the server changes, and streaming isn't touched." });
+  if (!pick) return false;
+  const kinds = pick === "both" ? ["host", "vpn"] : [kind];
   try {
-    await api(`/api/${kind}/traffic/clear`, { method: "POST" });
-    hist[kind].at = 0;
+    for (const k of kinds) {
+      await api(`/api/${k}/traffic/clear`, { method: "POST" });
+      hist[k].at = 0;
+    }
     await loadTraffic(true, kind).catch(() => {});
-    toast(`The ${WHAT[kind][1]} traffic history is cleared.`);
+    toast(pick === "both" ? "Both traffic histories are cleared." : `The ${VIEW[kind]} history is cleared.`);
     return true;
   } catch (e) { toast(e.message || "Couldn't clear it.", true); return false; }
 }
@@ -303,7 +309,5 @@ export async function trafficCard(box, force, kind = "vpn") {
     h("div", { class: "tr-legend dim" }, h("span", { class: "tr-key down", text: "Down" }), h("span", { class: "tr-key up", text: "Up" }),
       h("span", { class: "tr-step", text: `${what}, ${range === "7d" ? "hourly averages" : range === "24h" ? "5-minute averages" : "minute by minute"}` })),
     days(d),
-    d.since ? h("div", { class: "card-foot" }, h("span", { class: "dim tr-since", text: `Recorded since ${dayName(d.since)}, ${hhmm(d.since)}` }),
-      h("button", { class: "btn small quiet", type: "button", text: "Clear history",
-        onclick: async () => { if (await clearHistory(kind)) trafficCard(box, false, kind); } })) : null));
+    d.since ? h("div", { class: "card-foot" }, h("span", { class: "dim tr-since", text: `Recorded since ${dayName(d.since)}, ${hhmm(d.since)}` })) : null));
 }

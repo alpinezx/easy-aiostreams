@@ -41,6 +41,9 @@ const QUIET = [
   // cloudflared: back up after a restart or reboot, one connection reached a Cloudflare server that still held
   // its old one, so it moved to another server (both lines of the pair). Other connection failures stay.
   /error="control stream error: already connected to this server, trying another address"/,
+  // cloudflared: Cloudflare's side closed one connection with code 0 ("no error"), as its servers restart or
+  // rebalance; it's registered again within seconds and the other connections carry on. Other codes stay.
+  /error="datagram manager error: Application error 0x0 \(remote\)"/,
   /canceled by remote with error code 0\b/,   // a visitor closed a connection still open (left a live page, stopped a video)
   // The visitor's side gave up before the answer came (a reload, a closed tab, the panel restarting): both halves
   /error="Incoming request ended abruptly: context canceled"/,

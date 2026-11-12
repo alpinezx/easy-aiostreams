@@ -1,5 +1,5 @@
 import { $, h, clear } from "./util.js";
-import { trafficCard, updateNow, fmtRate, arrowed, netOrder } from "./traffic.js";
+import { trafficCard, updateNow, fmtRate, arrowed, netOrder, clearHistory } from "./traffic.js";
 
 // The Network page: the server's traffic, or the VPN tunnel's once the VPN is set up, as the
 // same Traffic card the VPN page has; and each service's speed right now.
@@ -11,10 +11,15 @@ try { source = localStorage.getItem("aios.netSource") === "vpn" ? "vpn" : "host"
 const hasVpn = () => !!st && (st.vpn === "on" || st.vpn === "off");
 const kind = () => (source === "vpn" && hasVpn() ? "vpn" : "host");
 
-// All traffic / VPN tunnel, in the page heading; only once the VPN is set up
+// The page heading: the bin (as on Logs), then All traffic / VPN tunnel once the VPN is set up
+const BIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
 function sourceSwitch() {
   const acts = $("#net-acts");
   clear(acts);
+  const bin = h("button", { class: "btn small icon-only", type: "button", title: "Clear traffic history",
+    "aria-label": "Clear traffic history", onclick: async () => { if (await clearHistory(kind(), hasVpn())) show(st); } });
+  bin.innerHTML = BIN;
+  acts.append(bin);
   if (!hasVpn()) return;
   acts.append(h("div", { class: "tr-ranges", role: "group", "aria-label": "Show" },
     ...[["host", "All traffic"], ["vpn", "VPN tunnel"]].map(([k, label]) => h("button", { class: "btn small", type: "button", text: label,

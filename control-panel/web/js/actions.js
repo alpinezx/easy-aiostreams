@@ -287,10 +287,8 @@ export async function openJob(id, reconnecting, before) {
 
 // ---------- reboot the whole server ----------
 export async function rebootServer() {
-  const input = h("input", { class: "input", type: "text", autocomplete: "off", spellcheck: "false", placeholder: "reboot", "aria-label": "Type reboot to confirm" });
   const ok = await ask({ title: "Reboot the server?", confirmLabel: "Reboot now", danger: true,
-    body: "The whole server restarts. AIOStreams, the VPN and this panel are offline for a minute or two, and streams already playing will drop. They all start again by themselves. Type reboot to confirm.",
-    options: { el: input, gate: input, word: "reboot", read: () => true } });
+    body: "The whole server restarts. AIOStreams, the VPN and this panel are offline for a minute or two, and streams already playing will drop. They all start again by themselves." });
   if (!ok) return;
   try { await api("/api/server/reboot", { method: "POST", body: JSON.stringify({ confirm: "reboot" }) }); }
   catch (e) { toast(e.message || "Couldn't start the reboot.", true); return; }

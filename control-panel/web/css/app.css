@@ -210,12 +210,12 @@ main { max-width: 1680px; margin: 0 auto; padding: 28px var(--gutter) 96px; }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .btn.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); font-weight: 600; }
 .btn.primary:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
-.btn.danger { color: var(--bad); }
+/* Stop, Remove, Reboot...: text like every other button, the warning is the red edge */
+.btn.danger { border-color: var(--bad); }
 .btn.danger:hover:not(:disabled) { border-color: var(--bad); background: var(--bad-soft); }
 .btn.quiet { background: none; color: var(--dim); }
 .btn.quiet:hover:not(:disabled) { color: var(--text); background: var(--hover); }
-.btn.quiet.danger { color: var(--bad); }
-.btn.quiet.danger:hover:not(:disabled) { color: var(--bad); background: var(--bad-soft); }
+.btn.quiet.danger:hover:not(:disabled) { background: var(--bad-soft); }
 .btn.small { padding: 5px 10px; font-size: .88rem; border-radius: 8px; }
 
 /* ---------- hero ---------- */
@@ -784,7 +784,7 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .lg-sub { margin: 4px 0 0; font-size: .86rem; color: var(--faint); }
 .lg-acts { margin-left: auto; display: flex; gap: 8px; }
 .lg-acts .btn { margin-left: 0; }
-.lg-acts svg, .lg-more svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.lg-acts svg, .lg-more svg, #net-acts svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .lg-more svg { fill: currentColor; stroke: none; }
 .btn.icon-only { padding: 5px 8px; }
 .lg-filters { display: grid; gap: 12px; margin-bottom: 12px; padding: 12px; background: var(--raised); border: 1px solid var(--card-edge); border-radius: var(--radius); }
