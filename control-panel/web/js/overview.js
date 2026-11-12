@@ -618,11 +618,11 @@ async function confirmPanelRestart() {
   if (ok) restartPanel();
 }
 
-// Services in order of their buttons, so they line up: none (Caddy), then Restart only (the panel, the Cloudflare
-// Tunnel), then Stop and Restart: AIOStreams and the other AIOs together, the VPN tunnel, then any other add-on.
+// Services in order of their buttons, so they line up: none (Caddy), then Restart only (the Cloudflare Tunnel, the
+// panel), then Stop and Restart: AIOStreams and the other AIOs together, the VPN tunnel, then any other add-on.
 // Otherwise in the server's order.
 const buttons = (s) => (s.addon || s.key === "aiostreams" || s.key === "gluetun") ? 2 : (RESTARTABLE.has(s.key) || s.panel) ? 1 : 0;
-const SVC_FIRST = ["caddy", "aiostreams", "aiometadata", "aiomanager", "gluetun"];
+const SVC_FIRST = ["caddy", "tunnel", "aiostreams", "aiometadata", "aiomanager", "gluetun"];
 const place = (s) => { const i = SVC_FIRST.indexOf(s.key); return i < 0 ? SVC_FIRST.length : i; };
 // The VPN can't stop or restart alone (AIOStreams runs inside its network): its Stop is Turn VPN off (AIOStreams goes
 // direct) and its Restart is Restart stack, each confirm opening with why
