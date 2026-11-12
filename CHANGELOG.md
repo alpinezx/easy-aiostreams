@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 12 November 2026
 
+- **New:** the Network page clears its history from a bin in the heading, as Logs does: this view, or with the VPN set up both views at once. The Clear history button under the graph is gone. Reboot server asks a plain "Reboot the server?" instead of making you type reboot. (Panel 1.55.10, [#175](https://github.com/alpinezx/easy-aiostreams/pull/175))
 - **Fixed:** after updating the panel from the Scripts tab, the page could show "Updating…" and "Last update … didn't finish" until refreshed: it reloaded a second before the update job had ended. It now waits for the job, and a page that catches one still running checks again until it's over. (Panel 1.55.9, [#174](https://github.com/alpinezx/easy-aiostreams/pull/174))
 - **Fixed:** two links open the guide at the part that matters, not the top of the page: Scripts' "Switch it on over SSH" (Turning on the terminal) and Backup & Restore's "done over SSH" (Migrating to a new server). (Panel 1.55.8, [#173](https://github.com/alpinezx/easy-aiostreams/pull/173))
 - **Fixed:** with the web terminal off, the Scripts tab showed an amber note as if something was wrong. Keeping it off is a choice, so it's now a plain line under "Checked against GitHub", with the link to switch it on. The "Last update" line only appears when a panel update didn't finish. (Panel 1.55.7, [#172](https://github.com/alpinezx/easy-aiostreams/pull/172))
