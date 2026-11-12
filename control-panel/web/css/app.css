@@ -39,6 +39,8 @@
   --bad-soft: rgba(248, 113, 113, .12);
   --warn-soft: rgba(245, 158, 11, .12);
   --ok-soft: rgba(16, 185, 129, .12);
+  /* the amber glow round notes; Light has none (on a pale page it reads as a brown shadow) */
+  --note-glow: 0 0 14px color-mix(in srgb, var(--warn) 45%, transparent);
   --up-line: var(--dim);   /* the traffic graph's Up line, beside Down in --accent */
   --radius: 12px;
   --font: "Inter", ui-sans-serif, system-ui, sans-serif;
@@ -58,6 +60,7 @@
     --primary: #4f43b8; --primary-hover: #4034a3; --primary-ink: #ffffff;
     --ok: #047857; --warn: #9a6200; --bad: #c42f2f;
     --bad-soft: rgba(196, 47, 47, .09); --warn-soft: rgba(154, 98, 0, .1); --ok-soft: rgba(18, 128, 90, .1);
+    --note-glow: none;
   }
 }
 :root[data-theme="light"] {
@@ -69,6 +72,7 @@
   --primary: #4f43b8; --primary-hover: #4034a3; --primary-ink: #ffffff;
   --ok: #047857; --warn: #9a6200; --bad: #c42f2f;
   --bad-soft: rgba(196, 47, 47, .09); --warn-soft: rgba(154, 98, 0, .1); --ok-soft: rgba(18, 128, 90, .1);
+  --note-glow: none;
 }
 /* Slate: a softer dark, slate greys in Nord's spirit, only when picked. It comes after the light
    block above so it wins on a device set to light. The page is darker than the cards so they lift
@@ -879,7 +883,10 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .view-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; }
 .view-head h2 { margin: 0; font-size: 1.875rem; font-weight: 700; letter-spacing: -.02em; }
 .view-head .btn { margin-left: auto; }
-.note { background: var(--warn-soft); border-radius: 12px; padding: 12px 16px; color: var(--text); margin: 0 0 16px; font-size: .94rem; }
+/* Notes: a card like the others with an amber edge, glowing in Dark and Slate
+   (an amber wash turned muddy brown on the dark page) */
+.note, .dialog .switch-warn { background: var(--raised); border: 1px solid var(--warn); box-shadow: var(--note-glow); }
+.note { border-radius: 12px; padding: 12px 16px; color: var(--text); margin: 0 0 16px; font-size: .94rem; }
 .note b { font-weight: 650; }
 .note p { margin: 0; }
 .note p + p { margin-top: 8px; }
@@ -969,7 +976,7 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .dialog .check-list li::marker { color: var(--warn); }
 .dialog .check-list.ok li::marker { color: var(--ok); }
 .dialog p.small { margin: 0; font-size: .85rem; }
-.dialog .switch-warn { margin: 0; padding: 10px 12px; border-radius: 9px; background: var(--warn-soft); color: var(--text); font-size: .9rem; }
+.dialog .switch-warn { margin: 0; padding: 10px 12px; border-radius: 9px; color: var(--text); font-size: .9rem; }
 .dialog .switch-warn[hidden] { display: none; }
 .dialog .whats-new { margin: 0; padding: 10px 12px; border-radius: 9px; background: var(--hover); color: var(--text); font-size: .92rem; }
 .linkish { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
