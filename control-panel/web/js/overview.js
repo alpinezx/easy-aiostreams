@@ -676,6 +676,8 @@ function rows(st, goLogs) {
         const a = avail["vpn.on"];
         if (a && a.available) slot[0].append(h("button", { class: "btn small", type: "button", text: "Start", disabled: !!st.busy,
           onclick: () => runAction(a, null, VPN_START_LEAD) }));
+        // Greyed like a stopped service's Restart, so the row matches the others
+        slot[1].append(h("button", { class: "btn small", type: "button", text: "Restart", disabled: true }));
       }
       el.append(h("div", { class: "row", dataset: { svc: s.key } },
         // What the service does is on hover, keeping each row to the name
