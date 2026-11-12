@@ -1110,6 +1110,7 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 @media (max-width: 720px) {
   .term-off-how { display: block; }
   .scripts-status { row-gap: 18px; }   /* room between the status lines and the buttons wrapped under them */
+  .scripts-status details { display: none; }   /* the last update's output: a desktop job, too much text here */
 }
 .scripts-status details { min-width: 0; }
 .scripts-status details summary { cursor: pointer; font-size: .88rem; color: var(--dim); }
