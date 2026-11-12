@@ -364,7 +364,7 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .row .num { font-variant-numeric: tabular-nums; font-size: .9rem; text-align: right; }
 .row-head .num { font-size: inherit; }
 .row .img { font-family: var(--mono); font-size: .8rem; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.row .acts { display: grid; grid-template-columns: 58px 62px 74px; gap: 6px; justify-content: end; }
+.row .acts { display: grid; grid-template-columns: 62px 74px; gap: 6px; justify-content: end; }
 .row .acts .btn { width: 100%; }
 .spark { width: 96px; height: 28px; display: block; }
 .spark path.area { fill: var(--accent-soft); stroke: none; }
@@ -1019,10 +1019,10 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   /* the name and status at the top, the buttons below with room between, so they never crowd the text */
   .row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 18px; }
   .row .img, .row .spark-cell, .row.row-head, .row .num { display: none; }
-  /* Logs on the left, Restart and Stop/Start on the right */
-  .row .acts { grid-column: 1 / -1; display: flex; }
+  /* Stop/Start and Restart on the right, Restart furthest out for the thumb; no line for a row without buttons */
+  .row .acts { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; }
   .row .acts .slot:empty { display: none; }
-  .row .acts .slot:first-child { margin-right: auto; }
+  .row .acts:not(:has(.btn)) { display: none; }
 }
 @media (max-width: 720px) {
   .item { grid-template-columns: minmax(0, 1fr) auto; }

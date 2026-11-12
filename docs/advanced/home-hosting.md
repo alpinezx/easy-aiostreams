@@ -84,7 +84,7 @@ MediaFlow's optional fail2ban jail can't work here: it bans addresses at the ser
 
 The [watchdog](./watchdog.md) can't load the site through port 443, so through a tunnel it checks that `cloudflared` is connected (it's the only way in), then loads the site from Caddy over Docker's network, as `cloudflared` does. A tunnel that stays disconnected alerts as the site being down, saying so. The 6-hourly certificate check is skipped: Cloudflare renews those.
 
-The [control panel](./control-panel.md) shows the tunnel first in the Request flow and Services (Visitors, Cloudflare Tunnel, Caddy, AIOStreams), with Logs and Restart; it turns amber when the tunnel loses Cloudflare. The certificate tile shows Cloudflare's certificate, the one visitors get. **Restart stack** restarts the tunnel with Caddy and AIOStreams.
+The [control panel](./control-panel.md) shows the tunnel first in the Request flow (Visitors, Cloudflare Tunnel, Caddy, AIOStreams) and in Services, with Restart; it turns amber when the tunnel loses Cloudflare. The certificate tile shows Cloudflare's certificate, the one visitors get. **Restart stack** restarts the tunnel with Caddy and AIOStreams.
 
 ## Troubleshooting
 

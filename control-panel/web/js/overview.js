@@ -617,6 +617,11 @@ async function confirmPanelRestart() {
   if (ok) restartPanel();
 }
 
+// Services in order of their buttons, so they line up: none (Caddy, the VPN tunnel), then Restart only (the panel,
+// the Cloudflare Tunnel), then Stop and Restart (AIOStreams, then the add-ons). Otherwise in the server's order.
+const buttons = (s) => (s.addon || s.key === "aiostreams") ? 2 : (RESTARTABLE.has(s.key) || s.panel) ? 1 : 0;
+const byButtons = (services) => services.map((s, i) => [s, i]).sort((a, b) => buttons(a[0]) - buttons(b[0]) || a[1] - b[1]).map(([s]) => s);
+
 function rows(st, goLogs) {
   svcHead(st);
   const avail = Object.fromEntries(st.actions.map((a) => [a.id, a]));
@@ -624,14 +629,14 @@ function rows(st, goLogs) {
   const el = rebuild("#rows", key, (el) => {
     el.append(h("div", { class: "row row-head" }, h("span", { text: "Service" }), h("span", { text: "Status and image" }),
       h("span", { class: "num", text: "CPU" }), h("span", { class: "num", text: "Memory" }), h("span", { class: "spark-cell", text: "Recent CPU" }), h("span")));
-    for (const s of st.services) {
+    for (const s of byButtons(st.services)) {
       const sx = stateOf(s);
-      // Three fixed slots (Logs, Start/Stop, Restart), left empty when a service lacks one, so the buttons line up down the table
-      const slot = [h("span", { class: "slot" }), h("span", { class: "slot" }), h("span", { class: "slot" })];
+      // Two fixed slots (Start/Stop, Restart), left empty when a service lacks one, so the buttons line up down the
+      // table. No Logs here: the Logs page, the Recent warnings card and the rail all reach them.
+      const slot = [h("span", { class: "slot" }), h("span", { class: "slot" })];
       const acts = h("div", { class: "acts" }, ...slot);
-      if (s.present) slot[0].append(h("button", { class: "btn small", type: "button", text: "Logs", onclick: () => goLogs(s.container) }));
       if ((RESTARTABLE.has(s.key) || s.panel) && s.present) {
-        slot[2].append(h("button", { class: "btn small", type: "button", text: "Restart",
+        slot[1].append(h("button", { class: "btn small", type: "button", text: "Restart",
           disabled: !!st.busy || s.state !== "running",
           title: s.state === "running" ? `Restart only ${s.name}` : "Only available while it's running",
           onclick: () => (s.panel ? confirmPanelRestart() : restartService(s)) }));
@@ -640,7 +645,7 @@ function rows(st, goLogs) {
       if (s.addon || s.key === "aiostreams") {
         const id = `${s.addon ? s.key : "stack"}.${s.state === "running" ? "stop" : "start"}`;
         const a = avail[id];
-        if (a && a.available) slot[1].append(h("button", { class: "btn small" + (s.state === "running" ? " danger" : ""), type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
+        if (a && a.available) slot[0].append(h("button", { class: "btn small" + (s.state === "running" ? " danger" : ""), type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
       }
       el.append(h("div", { class: "row", dataset: { svc: s.key } },
         // What the service does is on hover, keeping each row to the name
