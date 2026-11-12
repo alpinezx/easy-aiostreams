@@ -4,7 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 12 November 2026
 
-- **Fixed:** the Scripts tab's "Switch it on over SSH" link opens the guide at Turning on the terminal, not the top of the page. (Panel 1.55.8, [#173](https://github.com/alpinezx/easy-aiostreams/pull/173))
+- **Fixed:** two links open the guide at the part that matters, not the top of the page: Scripts' "Switch it on over SSH" (Turning on the terminal) and Backup & Restore's "done over SSH" (Migrating to a new server). (Panel 1.55.8, [#173](https://github.com/alpinezx/easy-aiostreams/pull/173))
 - **Fixed:** with the web terminal off, the Scripts tab showed an amber note as if something was wrong. Keeping it off is a choice, so it's now a plain line under "Checked against GitHub", with the link to switch it on. The "Last update" line only appears when a panel update didn't finish. (Panel 1.55.7, [#172](https://github.com/alpinezx/easy-aiostreams/pull/172))
 - **Fixed:** after a restart or reboot, the Cloudflare Tunnel's "already connected to this server, trying another address" pair showed as errors on the Overview and in Logs. It's a connection moving to another Cloudflare server, so it's now noise, hidden by Hide noise. (Panel 1.55.6, [#171](https://github.com/alpinezx/easy-aiostreams/pull/171))
 - **New:** notes like the one at the top of Backup & Restore are a card like the others with a soft glowing amber edge (fainter in Light), instead of an amber wash that looked brown in Dark. The same goes for warnings inside dialogs. (Panel 1.55.5, [#170](https://github.com/alpinezx/easy-aiostreams/pull/170))
