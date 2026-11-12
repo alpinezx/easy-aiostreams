@@ -39,7 +39,7 @@
   --bad-soft: rgba(248, 113, 113, .12);
   --warn-soft: rgba(245, 158, 11, .12);
   --ok-soft: rgba(16, 185, 129, .12);
-  /* the amber glow round notes; Light has none (on a pale page it reads as a brown shadow) */
+  /* the amber glow round notes */
   --note-glow: 0 0 11px color-mix(in srgb, var(--warn) 34%, transparent);
   --up-line: var(--dim);   /* the traffic graph's Up line, beside Down in --accent */
   --radius: 12px;
@@ -60,7 +60,7 @@
     --primary: #4f43b8; --primary-hover: #4034a3; --primary-ink: #ffffff;
     --ok: #047857; --warn: #9a6200; --bad: #c42f2f;
     --bad-soft: rgba(196, 47, 47, .09); --warn-soft: rgba(154, 98, 0, .1); --ok-soft: rgba(18, 128, 90, .1);
-    --note-glow: none;
+    --note-glow: 0 0 11px color-mix(in srgb, var(--warn) 34%, transparent);
   }
 }
 :root[data-theme="light"] {
@@ -72,7 +72,7 @@
   --primary: #4f43b8; --primary-hover: #4034a3; --primary-ink: #ffffff;
   --ok: #047857; --warn: #9a6200; --bad: #c42f2f;
   --bad-soft: rgba(196, 47, 47, .09); --warn-soft: rgba(154, 98, 0, .1); --ok-soft: rgba(18, 128, 90, .1);
-  --note-glow: none;
+  --note-glow: 0 0 11px color-mix(in srgb, var(--warn) 34%, transparent);
 }
 /* Slate: a softer dark, slate greys in Nord's spirit, only when picked. It comes after the light
    block above so it wins on a device set to light. The page is darker than the cards so they lift
