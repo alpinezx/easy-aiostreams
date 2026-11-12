@@ -29,7 +29,7 @@ const rawUrl = (f) => `${RAW_BASE}${CORE.includes(f) ? "core" : "others"}/${f}`;
 let cmp = null, cmpLoading = false, cmpAsked = false, last = null;
 
 // ---------------- the panel's own version and update ----------------
-let ver = null, verLoading = false;
+let ver = null, verLoading = false, verRecheck = 0;
 
 export async function loadPanelVersion(force) {
   verLoading = true;
@@ -39,6 +39,8 @@ export async function loadPanelVersion(force) {
   verLoading = false;
   versionChip();
   if (last) render();
+  // An update still running (started elsewhere, or just ending): ask again until it's over
+  if (ver && ver.running) { clearTimeout(verRecheck); verRecheck = setTimeout(() => loadPanelVersion(false), 3000); }
 }
 
 export function versionChip(current) {
@@ -65,7 +67,7 @@ function statusLine(terminalOn) {
     : times.length ? `Checked against GitHub${branch} ${ago(Math.min(...times))}.` : "";
   // Only a panel update that didn't finish: the panel restarted since, so this is the one place its output is left.
   // One that finished needs no line.
-  const lastLine = v.last && !v.last.ok
+  const lastLine = v.last && !v.last.ok && !v.running
     ? h("details", {}, h("summary", { text: `Last update ${ago(v.last.at)}: didn't finish. Show its output` }),
         h("pre", { text: v.last.tail.join("\n") }))
     : null;
@@ -160,7 +162,9 @@ function waitForNewPanel(oldVersion) {
       if (r.ok) j = await r.json(); else wasDown = true;
     } catch (_) { wasDown = true; }
     if (j) {
-      if (j.current !== oldVersion || (wasDown && !j.running)) { location.reload(); return; }
+      // The new panel can answer a second or two before the update job writes its last line and ends:
+      // reload only once the job is over, or the page shows Updating and "didn't finish" until a refresh.
+      if (!j.running && (j.current !== oldVersion || wasDown)) { location.reload(); return; }
       if (!j.running && j.last && j.last.at >= started - 5 && !j.last.ok) {
         note.textContent = "The update stopped before the new panel was built. Nothing was changed. Its output:";
         box.append(h("pre", { class: "veil-log", text: j.last.tail.join("\n") }),
