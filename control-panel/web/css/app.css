@@ -210,12 +210,10 @@ main { max-width: 1680px; margin: 0 auto; padding: 28px var(--gutter) 96px; }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .btn.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); font-weight: 600; }
 .btn.primary:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
-/* Stop, Remove, Reboot...: text like every other button, the warning is the red edge */
-.btn.danger { border-color: var(--bad); }
-.btn.danger:hover:not(:disabled) { border-color: var(--bad); background: var(--bad-soft); }
+/* Stop, Remove, Reboot... (.btn.danger) look like every other button: they ask first, and the
+   dialog's filled red button is the warning (.btn.primary.danger, further down) */
 .btn.quiet { background: none; color: var(--dim); }
 .btn.quiet:hover:not(:disabled) { color: var(--text); background: var(--hover); }
-.btn.quiet.danger:hover:not(:disabled) { background: var(--bad-soft); }
 .btn.small { padding: 5px 10px; font-size: .88rem; border-radius: 8px; }
 
 /* ---------- hero ---------- */
