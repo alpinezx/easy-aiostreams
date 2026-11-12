@@ -1322,8 +1322,8 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .path.folded .path-head { flex-wrap: wrap; }
   .path.folded .path-sum { order: 3; flex: 1 0 100%; margin: 2px 0 0; gap: 4px 12px; font-size: .82rem; }
   /* the other cards the same way: title and its button on top, the line under them */
-  .panel.folded .card-head, .ver-card.folded .ver-head, .sec-head.folded { flex-wrap: wrap; justify-content: space-between; }
-  .folded .fold-sum { order: 3; flex: 1 0 100%; margin: 2px 0 0; gap: 4px 12px; font-size: .82rem; }
+  .panel.folded .card-head, .ver-card.folded .ver-head, .sec-head.folded, #svc-head { flex-wrap: wrap; justify-content: space-between; }
+  .folded .fold-sum, #svc-head .fold-sum { order: 3; flex: 1 0 100%; margin: 2px 0 0; gap: 4px 12px; font-size: .82rem; }
   /* AIOStreams: its title and pages on top, the versions with Update at their right under them */
   .ver-card.folded .fold-title { flex: 1 0 100%; }
   .ver-card.folded .fold-sum { flex: 1 1 0; }
