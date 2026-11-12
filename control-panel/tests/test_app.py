@@ -653,6 +653,23 @@ def test_log_warnings(client):
     assert client.get("/api/log-warnings").json()["services"] == []
 
 
+def test_log_warnings_skip_the_panels_own_actions():
+    """Lines logged while a panel action ran, or within a minute of it ending, stay off the card:
+    the tunnel can't reach Caddy during Restart stack. Others, and lines without a time, stay."""
+    from datetime import datetime, timezone
+    import app.main as m
+    t = lambda s: datetime.strptime(s, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc).timestamp()
+    windows = [(t("2026-11-12T18:00:00") - 5, t("2026-11-12T18:00:30") + m.JOB_GRACE)]
+    svc = [{"container": "cloudflared", "name": "Cloudflare Tunnel", "lines": [
+        '2026-11-12T17:59:00.1Z ERR error="Unable to reach the origin service." before the restart',
+        '2026-11-12T18:00:10.1Z ERR error="Unable to reach the origin service." during it',
+        '2026-11-12T18:01:20.1Z ERR Request failed error="unexpected EOF" in the grace minute',
+        '2026-11-12T18:02:00.1Z ERR error="Unable to reach the origin service." well after',
+        "no time on this one"]}]
+    kept = m.outside_jobs(svc, windows)[0]["lines"]
+    assert [ln.split(" ")[-1] for ln in kept] == ["restart", "after", "one"]
+
+
 def test_log_warnings_hidden(client):
     """The card's cog: services left out are saved per install and never read."""
     login(client)

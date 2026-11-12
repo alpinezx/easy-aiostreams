@@ -210,12 +210,10 @@ main { max-width: 1680px; margin: 0 auto; padding: 28px var(--gutter) 96px; }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .btn.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); font-weight: 600; }
 .btn.primary:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
-/* Stop, Remove, Reboot...: text like every other button, the warning is the red edge */
-.btn.danger { border-color: var(--bad); }
-.btn.danger:hover:not(:disabled) { border-color: var(--bad); background: var(--bad-soft); }
+/* Stop, Remove, Reboot... (.btn.danger) look like every other button: they ask first, and the
+   dialog's filled red button is the warning (.btn.primary.danger, further down) */
 .btn.quiet { background: none; color: var(--dim); }
 .btn.quiet:hover:not(:disabled) { color: var(--text); background: var(--hover); }
-.btn.quiet.danger:hover:not(:disabled) { background: var(--bad-soft); }
 .btn.small { padding: 5px 10px; font-size: .88rem; border-radius: 8px; }
 
 /* ---------- hero ---------- */
@@ -357,7 +355,7 @@ button.chip:hover { text-decoration: underline; }
 h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: -.01em; }
 
 .rows { border: 1px solid var(--card-edge); border-radius: var(--radius); overflow: hidden; background: var(--raised); }
-.row { display: grid; grid-template-columns: minmax(120px, 1.2fr) minmax(0, 1.6fr) 62px 74px 96px 216px; gap: 14px; align-items: center; padding: 13px 16px; border-top: 1px solid var(--line-soft); }
+.row { display: grid; grid-template-columns: minmax(120px, 1.2fr) minmax(0, 1.6fr) 62px 74px 170px 142px; gap: 14px; align-items: center; padding: 13px 16px; border-top: 1px solid var(--line-soft); }
 .row:first-child { border-top: 0; }
 .row-head { padding-top: 9px; padding-bottom: 9px; color: var(--faint); font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; background: var(--sunk); }
 .row .name { font-weight: 600; }
@@ -366,9 +364,9 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .row .num { font-variant-numeric: tabular-nums; font-size: .9rem; text-align: right; }
 .row-head .num { font-size: inherit; }
 .row .img { font-family: var(--mono); font-size: .8rem; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.row .acts { display: grid; grid-template-columns: 58px 62px 74px; gap: 6px; justify-content: end; }
+.row .acts { display: grid; grid-template-columns: 62px 74px; gap: 6px; justify-content: end; }
 .row .acts .btn { width: 100%; }
-.spark { width: 96px; height: 28px; display: block; }
+.spark { width: 170px; height: 28px; display: block; }
 .spark path.area { fill: var(--accent-soft); stroke: none; }
 .spark path.line { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
 .state-word { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
@@ -1021,10 +1019,10 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   /* the name and status at the top, the buttons below with room between, so they never crowd the text */
   .row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 18px; }
   .row .img, .row .spark-cell, .row.row-head, .row .num { display: none; }
-  /* Logs on the left, Restart and Stop/Start on the right */
-  .row .acts { grid-column: 1 / -1; display: flex; }
+  /* Stop/Start and Restart on the right, Restart furthest out for the thumb; no line for a row without buttons */
+  .row .acts { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; }
   .row .acts .slot:empty { display: none; }
-  .row .acts .slot:first-child { margin-right: auto; }
+  .row .acts:not(:has(.btn)) { display: none; }
 }
 @media (max-width: 720px) {
   .item { grid-template-columns: minmax(0, 1fr) auto; }

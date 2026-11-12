@@ -63,7 +63,8 @@ function restartWhat(act) {
   return `Restart ${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}?`;
 }
 
-export async function runAction(act, params) {
+// lead: an opening line for the confirm, such as why the VPN's Restart in Services restarts the stack
+export async function runAction(act, params, lead) {
   const vpnOff = window.__vpn === "off" && ["stack.start", "stack.restart", "stack.update"].includes(act.id);
   if (act.id === "stack.update") {
     const channelNow = window.__channel || "latest";
@@ -146,7 +147,7 @@ export async function runAction(act, params) {
     params = res;
   } else if (act.confirm || vpnOff) {
     const addonsNote = act.id === "stack.restart" && window.__addons ? "Add-ons aren't restarted: use Restart on their row in Services." : null;
-    const body = [restartWhat(act), act.confirm, addonsNote, vpnOff ? VPN_OFF_NOTE : null].filter(Boolean).join(" ");
+    const body = [lead, restartWhat(act), act.confirm, addonsNote, vpnOff ? VPN_OFF_NOTE : null].filter(Boolean).join(" ");
     const ok = await ask({ title: `${act.label}?`, body, confirmLabel: act.label, danger: /stop|forget|delete|uninstall/i.test(act.id) });
     if (!ok) return;
     if (vpnOff) params = { ...(params || {}), without_vpn: true };

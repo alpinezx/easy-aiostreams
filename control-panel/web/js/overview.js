@@ -127,7 +127,7 @@ export function record(st) {
   for (const s of st.services) {
     if (s.state !== "running") { hist[s.key] = []; continue; }
     (hist[s.key] ||= []).push(s.cpu ?? 0);
-    if (hist[s.key].length > 40) hist[s.key].shift();
+    if (hist[s.key].length > 70) hist[s.key].shift();   // about 3.5 minutes at a look every 3s
   }
 }
 
@@ -568,9 +568,10 @@ function path(st) {
 }
 
 // ---------------- service rows ----------------
+const SPARK_W = 170;   // the Recent CPU graph's width, as .spark in app.css
 function spark(values) {
   const svg = document.createElementNS(SVG, "svg");
-  svg.setAttribute("class", "spark"); svg.setAttribute("viewBox", "0 0 96 28"); svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("class", "spark"); svg.setAttribute("viewBox", `0 0 ${SPARK_W} 28`); svg.setAttribute("aria-hidden", "true");
   const area = document.createElementNS(SVG, "path"); area.setAttribute("class", "area");
   const line = document.createElementNS(SVG, "path"); line.setAttribute("class", "line");
   svg.append(area, line);
@@ -581,10 +582,10 @@ function fillSpark(svg, values) {
   const v = values.length > 1 ? values : [0, 0];
   // Scaled to at least 50%, so a small burst stays small and a busy service still stands out
   const max = Math.max(50, ...v);
-  const pts = v.map((y, i) => [(i / (v.length - 1)) * 96, 26 - (y / max) * 22]);
+  const pts = v.map((y, i) => [(i / (v.length - 1)) * SPARK_W, 26 - (y / max) * 22]);
   const d = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(" ");
   svg.querySelector(".line").setAttribute("d", d);
-  svg.querySelector(".area").setAttribute("d", `${d} L96 28 L0 28 Z`);
+  svg.querySelector(".area").setAttribute("d", `${d} L${SPARK_W} 28 L0 28 Z`);
 }
 
 // Beside the title, folded or open: how many are running and any that aren't, by name, then
@@ -617,40 +618,76 @@ async function confirmPanelRestart() {
   if (ok) restartPanel();
 }
 
+// Services in order of their buttons, so they line up: none (Caddy), then Restart only (the Cloudflare Tunnel, the
+// panel), then Stop and Restart: AIOStreams and the other AIOs together, the VPN tunnel, then any other add-on.
+// Otherwise in the server's order.
+const buttons = (s) => (s.addon || s.key === "aiostreams" || s.key === "gluetun") ? 2 : (RESTARTABLE.has(s.key) || s.panel) ? 1 : 0;
+const SVC_FIRST = ["caddy", "tunnel", "aiostreams", "aiometadata", "aiomanager", "gluetun"];
+const place = (s) => { const i = SVC_FIRST.indexOf(s.key); return i < 0 ? SVC_FIRST.length : i; };
+// The VPN can't stop or restart alone (AIOStreams runs inside its network): its Stop is Turn VPN off (AIOStreams goes
+// direct) and its Restart is Restart stack, each confirm opening with why
+const VPN_RESTART_LEAD = "The VPN can't restart on its own, as AIOStreams runs inside it.";
+const VPN_STOP_LEAD = "Stopping the VPN turns it off, as Turn VPN off on its card does.";
+const VPN_START_LEAD = "Starting the VPN turns it on, as Turn VPN on on its card does.";
+// Switched off, the VPN has no container, so the server lists no row for it: one is drawn here instead, "Off" with
+// Start (Turn VPN on), so it can be started where it was stopped. Not when no config is saved: only its page asks for one.
+function servicesWithVpn(st) {
+  const noConfig = vpnInfo && vpnInfo.mode === "off" && vpnInfo.has_config === false;
+  if (st.vpn !== "off" || noConfig || st.services.some((s) => s.key === "gluetun")) return st.services;
+  return [...st.services, { key: "gluetun", container: "gluetun", name: "VPN tunnel", role: "gluetun, WireGuard",
+    present: false, state: "off", vpnOff: true }];
+}
+const byButtons = (services) => services.map((s, i) => [s, i])
+  .sort((a, b) => buttons(a[0]) - buttons(b[0]) || place(a[0]) - place(b[0]) || a[1] - b[1]).map(([s]) => s);
+
 function rows(st, goLogs) {
   svcHead(st);
   const avail = Object.fromEntries(st.actions.map((a) => [a.id, a]));
-  const key = st.services.map((s) => `${s.key}:${stateOf(s)}`).join(",") + !!st.busy;
+  const list = servicesWithVpn(st);
+  const key = list.map((s) => `${s.key}:${stateOf(s)}`).join(",") + !!st.busy;
   const el = rebuild("#rows", key, (el) => {
     el.append(h("div", { class: "row row-head" }, h("span", { text: "Service" }), h("span", { text: "Status and image" }),
       h("span", { class: "num", text: "CPU" }), h("span", { class: "num", text: "Memory" }), h("span", { class: "spark-cell", text: "Recent CPU" }), h("span")));
-    for (const s of st.services) {
+    for (const s of byButtons(list)) {
       const sx = stateOf(s);
-      // Three fixed slots (Logs, Start/Stop, Restart), left empty when a service lacks one, so the buttons line up down the table
-      const slot = [h("span", { class: "slot" }), h("span", { class: "slot" }), h("span", { class: "slot" })];
+      // Two fixed slots (Start/Stop, Restart), left empty when a service lacks one, so the buttons line up down the
+      // table. No Logs here: the Logs page, the Recent warnings card and the rail all reach them.
+      const slot = [h("span", { class: "slot" }), h("span", { class: "slot" })];
       const acts = h("div", { class: "acts" }, ...slot);
-      if (s.present) slot[0].append(h("button", { class: "btn small", type: "button", text: "Logs", onclick: () => goLogs(s.container) }));
       if ((RESTARTABLE.has(s.key) || s.panel) && s.present) {
-        slot[2].append(h("button", { class: "btn small", type: "button", text: "Restart",
+        slot[1].append(h("button", { class: "btn small", type: "button", text: "Restart",
           disabled: !!st.busy || s.state !== "running",
           title: s.state === "running" ? `Restart only ${s.name}` : "Only available while it's running",
           onclick: () => (s.panel ? confirmPanelRestart() : restartService(s)) }));
+      } else if (s.key === "gluetun" && s.present && avail["stack.restart"] && avail["stack.restart"].available) {
+        slot[1].append(h("button", { class: "btn small", type: "button", text: "Restart", disabled: !!st.busy || s.state !== "running",
+          onclick: () => runAction({ ...avail["stack.restart"], label: "Restart stack" }, null, VPN_RESTART_LEAD) }));
       }
       // AIOStreams' Start / Stop are the stack's (Stop leaves Caddy up); the add-ons have their own
       if (s.addon || s.key === "aiostreams") {
         const id = `${s.addon ? s.key : "stack"}.${s.state === "running" ? "stop" : "start"}`;
         const a = avail[id];
-        if (a && a.available) slot[1].append(h("button", { class: "btn small" + (s.state === "running" ? " danger" : ""), type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
+        if (a && a.available) slot[0].append(h("button", { class: "btn small" + (s.state === "running" ? " danger" : ""), type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
+      } else if (s.key === "gluetun" && s.present && s.state === "running") {
+        const a = avail["vpn.off"];
+        if (a && a.available) slot[0].append(h("button", { class: "btn small danger", type: "button", text: "Stop", disabled: !!st.busy,
+          onclick: () => runAction(a, null, VPN_STOP_LEAD) }));
+      } else if (s.vpnOff) {
+        const a = avail["vpn.on"];
+        if (a && a.available) slot[0].append(h("button", { class: "btn small", type: "button", text: "Start", disabled: !!st.busy,
+          onclick: () => runAction(a, null, VPN_START_LEAD) }));
+        // Greyed like a stopped service's Restart, so the row matches the others
+        slot[1].append(h("button", { class: "btn small", type: "button", text: "Restart", disabled: true }));
       }
       el.append(h("div", { class: "row", dataset: { svc: s.key } },
         // What the service does is on hover, keeping each row to the name
         // On a phone, where the CPU and Memory columns don't fit, both sit under the name
         h("div", {}, h("div", { class: "name", text: s.name, title: s.role || null }), h("div", { class: "sub pstat", dataset: { pstat: "1" } })),
-        h("div", {}, h("div", { class: "state-word", dataset: { s: sx } }, h("span", { dataset: { w: "1" } })),
+        h("div", {}, h("div", { class: "state-word", dataset: { s: sx } }, h("span", { dataset: { w: "1" }, text: s.vpnOff ? "Off, using a direct connection" : "" })),
           h("div", { class: "img", dataset: { img: "1" }, title: s.image || "" })),
         h("div", { class: "num", dataset: { cpu: "1" } }),
         h("div", { class: "num", dataset: { mem: "1" } }),
-        h("div", { class: "spark-cell" }, spark(hist[s.key] || [])),
+        h("div", { class: "spark-cell" }, s.vpnOff ? null : spark(hist[s.key] || [])),
         acts));
     }
   });
