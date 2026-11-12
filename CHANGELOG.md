@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 12 November 2026
 
+- **Fixed:** with the web terminal off, the Scripts tab showed an amber note as if something was wrong. Keeping it off is a choice, so it's now a plain line under "Checked against GitHub", with the link to switch it on. (Panel 1.55.7, [#172](https://github.com/alpinezx/easy-aiostreams/pull/172))
 - **Fixed:** after a restart or reboot, the Cloudflare Tunnel's "already connected to this server, trying another address" pair showed as errors on the Overview and in Logs. It's a connection moving to another Cloudflare server, so it's now noise, hidden by Hide noise. (Panel 1.55.6, [#171](https://github.com/alpinezx/easy-aiostreams/pull/171))
 - **New:** notes like the one at the top of Backup & Restore are a card like the others with a soft glowing amber edge (fainter in Light), instead of an amber wash that looked brown in Dark. The same goes for warnings inside dialogs. (Panel 1.55.5, [#170](https://github.com/alpinezx/easy-aiostreams/pull/170))
 - **Fixed:** the Overview's Request flow card had a slightly different background and edge from the other cards (lighter in Dark and Slate, darker in Light). It now matches them. (Panel 1.55.4, [#169](https://github.com/alpinezx/easy-aiostreams/pull/169))

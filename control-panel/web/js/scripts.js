@@ -55,7 +55,7 @@ export function versionChip(current) {
 
 // The line at the top of the page: when GitHub was last asked, the panel's last update, and the
 // page's own buttons. One Check now covers the panel and the scripts.
-function statusLine() {
+function statusLine(terminalOn) {
   const v = ver || {};
   const branch = v.branch && v.branch !== "main" ? ` (${v.branch} branch, for testing)` : "";
   const busy = verLoading || cmpLoading;
@@ -68,7 +68,13 @@ function statusLine() {
         h("pre", { text: v.last.tail.join("\n") }))
     : null;
   return h("div", { class: "scripts-status" },
-    h("div", { class: "scripts-status-text" }, checked ? h("p", { class: "dim", text: checked }) : null, lastLine),
+    h("div", { class: "scripts-status-text" }, checked ? h("p", { class: "dim", text: checked }) : null,
+      // A setting, not a fault (many keep the web terminal off), so a plain line rather than an amber note
+      terminalOn ? null : h("p", { class: "dim term-off" }, "Run in terminal is off with the web terminal. ",
+        // on phones this half takes a line of its own, so the link never splits
+        h("span", { class: "term-off-how" },
+          h("a", { href: GUIDE, target: "_blank", rel: "noopener noreferrer", text: "Switch it on over SSH" }), " if you want it.")),
+      lastLine),
     h("span", { class: "btns" },
       h("button", { class: "btn small", type: "button", text: "What's new", title: "The changes since this panel's version, from the project's changelog",
         onclick: showChangelog }),
@@ -320,13 +326,7 @@ function render() {
   // so the list doesn't read as a checklist to complete.
   const core = scripts.filter((x) => x.id === "aiostreams"), addons = scripts.filter((x) => x.id !== "aiostreams");
 
-  box.append(statusLine());
-  if (!terminalOn) {
-    box.append(h("div", { class: "note" },
-      h("p", {}, h("b", { text: "Run in terminal needs the web terminal, which is off." }), " ",
-        h("a", { href: GUIDE, target: "_blank", rel: "noopener noreferrer", text: "Switch it on over SSH" }), "."),
-      h("p", { text: "Copy and Update work without it." })));
-  }
+  box.append(statusLine(terminalOn));
   box.append(h("section", { class: "panel scripts-panel scripts-core" },
     h("ul", { class: "cmds" }, panelRow(`sudo bash ${dir}/control-panel/setup-ui.sh`, terminalOn), ...core.map(rowOf))));
   if (addons.length) {
