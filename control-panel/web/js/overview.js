@@ -618,12 +618,14 @@ async function confirmPanelRestart() {
   if (ok) restartPanel();
 }
 
-// Services in order of their buttons, so they line up: none (Caddy, then the VPN tunnel, which has no Restart of its
-// own as AIOStreams runs inside it, as low as it can go), then Restart only (the panel, the Cloudflare Tunnel), then
-// Stop and Restart: AIOStreams and the other AIOs together, then any other add-on. Otherwise in the server's order.
-const buttons = (s) => (s.addon || s.key === "aiostreams") ? 2 : (RESTARTABLE.has(s.key) || s.panel) ? 1 : 0;
-const SVC_FIRST = ["caddy", "gluetun", "aiostreams", "aiometadata", "aiomanager"];
-const place = (s) => { const i = SVC_FIRST.indexOf(s.key); return i < 0 ? SVC_FIRST.length : i; };
+// Services in order of their buttons, so they line up: none (Caddy), then Restart only (the panel, the Cloudflare
+// Tunnel, then the VPN tunnel, whose Restart is Restart stack's), then Stop and Restart: AIOStreams and the other AIOs
+// together, then any other add-on. Otherwise in the server's order.
+const buttons = (s) => (s.addon || s.key === "aiostreams") ? 2 : (RESTARTABLE.has(s.key) || s.panel || s.key === "gluetun") ? 1 : 0;
+const SVC_FIRST = ["caddy", "aiostreams", "aiometadata", "aiomanager"];
+const place = (s) => s.key === "gluetun" ? SVC_FIRST.length + 1 : SVC_FIRST.includes(s.key) ? SVC_FIRST.indexOf(s.key) : SVC_FIRST.length;
+// The VPN can't restart alone (AIOStreams runs inside its network), so its Restart is Restart stack, which says so
+const VPN_RESTART_LEAD = "The VPN can't restart on its own, as AIOStreams runs inside it.";
 const byButtons = (services) => services.map((s, i) => [s, i])
   .sort((a, b) => buttons(a[0]) - buttons(b[0]) || place(a[0]) - place(b[0]) || a[1] - b[1]).map(([s]) => s);
 
@@ -645,6 +647,9 @@ function rows(st, goLogs) {
           disabled: !!st.busy || s.state !== "running",
           title: s.state === "running" ? `Restart only ${s.name}` : "Only available while it's running",
           onclick: () => (s.panel ? confirmPanelRestart() : restartService(s)) }));
+      } else if (s.key === "gluetun" && s.present && avail["stack.restart"] && avail["stack.restart"].available) {
+        slot[1].append(h("button", { class: "btn small", type: "button", text: "Restart", disabled: !!st.busy || s.state !== "running",
+          onclick: () => runAction({ ...avail["stack.restart"], label: "Restart stack" }, null, VPN_RESTART_LEAD) }));
       }
       // AIOStreams' Start / Stop are the stack's (Stop leaves Caddy up); the add-ons have their own
       if (s.addon || s.key === "aiostreams") {
