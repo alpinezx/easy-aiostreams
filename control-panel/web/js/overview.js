@@ -269,8 +269,10 @@ function hero(st) {
       h("h1", { class: "headline", "aria-live": "polite", text: st.headline }),
       h("a", { class: "chip warn scripts-pill", id: "scripts-pill", href: "#scripts", hidden: true }),
       st.installed ? h("span", { class: "hero-btns" },
-        h("button", { class: "btn small quiet fold-all", type: "button", text: allFolded() ? "Open all cards" : "Fold all cards",
-          title: allFolded() ? "Open every card" : "Fold every card to one line", onclick: foldAll }),
+        // Its arrow points the way the cards' own do: up while they're open, down once folded
+        h("button", { class: "btn small quiet fold-all", type: "button", "aria-expanded": String(!allFolded()),
+          title: allFolded() ? "Open every card" : "Fold every card to one line", onclick: foldAll },
+          allFolded() ? "Open all cards" : "Fold all cards", chev()),
         h("button", { class: "btn small quiet", type: "button", text: "What's new",
           title: "The changes since this panel's version, from the project's changelog", onclick: showChangelog }),
         editBtn()) : null));

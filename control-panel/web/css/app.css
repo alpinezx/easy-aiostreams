@@ -1187,7 +1187,12 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 }
 
 /* What's new and Edit, beside the headline (on phones they drop below it, on the right) */
-.hero-btns { display: flex; gap: 8px; margin-left: auto; }
+.hero-btns { display: flex; gap: 4px; margin-left: auto; }
+/* Plain words like the cards' own Logs and Details: no border or fill until hovered */
+.hero-btns .btn { border-color: transparent; background: none; color: var(--dim); }
+.hero-btns .btn:hover:not(:disabled) { color: var(--text); background: var(--hover); }
+.hero-btns .fold-all { gap: 6px; }
+.fold-all[aria-expanded="true"] .path-chev svg { transform: rotate(180deg); }
 @media (max-width: 720px) { .hero-head { row-gap: 22px; } }
 .hero-edit { gap: 6px; }
 .hero-edit svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -1442,9 +1447,9 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .upd-peek .upd-peek-head { margin: 0 0 8px; font-size: .86rem; }
 .upd-done { padding: 4px 18px; }
 @media (max-width: 720px) {
-  /* Fold all cards takes the rest of the row, so the buttons span the cards' width */
-  .hero-btns:has(> .fold-all) { flex: 1 1 100%; }
-  .hero-btns .fold-all { flex: 1 1 auto; }
+  /* A row of their own, spread across the cards' width, each with room for a thumb */
+  .hero-btns:has(> .fold-all) { flex: 1 1 100%; justify-content: space-between; margin: -8px -10px; }
+  .hero-btns .btn.small { padding: 8px 10px; }
 }
 /* Scripts tab: Run in terminal and Get and run share one width */
 .run-btn { display: inline-grid; justify-items: center; }

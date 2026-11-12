@@ -4,7 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 12 November 2026
 
-- **New:** opened, the Overview's Services card keeps the line it shows folded beside its title: how many are running, any that aren't, and their CPU and memory together. (Panel 1.55.3, [#168](https://github.com/alpinezx/easy-aiostreams/pull/168))
+- **New:** opened, the Overview's Services card keeps the line it shows folded beside its title: how many are running, any that aren't, and their CPU and memory together. Fold all cards, What's new and Edit at the top are plain words like the cards' own links, and Fold all has an arrow that points the way the cards' do. (Panel 1.55.3, [#168](https://github.com/alpinezx/easy-aiostreams/pull/168))
 
 ## 11 November 2026
 
