@@ -618,10 +618,14 @@ async function confirmPanelRestart() {
   if (ok) restartPanel();
 }
 
-// Services in order of their buttons, so they line up: none (Caddy, the VPN tunnel), then Restart only (the panel,
-// the Cloudflare Tunnel), then Stop and Restart (AIOStreams, then the add-ons). Otherwise in the server's order.
+// Services in order of their buttons, so they line up: none (Caddy, then the VPN tunnel, which has no Restart of its
+// own as AIOStreams runs inside it, as low as it can go), then Restart only (the panel, the Cloudflare Tunnel), then
+// Stop and Restart: AIOStreams and the other AIOs together, then any other add-on. Otherwise in the server's order.
 const buttons = (s) => (s.addon || s.key === "aiostreams") ? 2 : (RESTARTABLE.has(s.key) || s.panel) ? 1 : 0;
-const byButtons = (services) => services.map((s, i) => [s, i]).sort((a, b) => buttons(a[0]) - buttons(b[0]) || a[1] - b[1]).map(([s]) => s);
+const SVC_FIRST = ["caddy", "gluetun", "aiostreams", "aiometadata", "aiomanager"];
+const place = (s) => { const i = SVC_FIRST.indexOf(s.key); return i < 0 ? SVC_FIRST.length : i; };
+const byButtons = (services) => services.map((s, i) => [s, i])
+  .sort((a, b) => buttons(a[0]) - buttons(b[0]) || place(a[0]) - place(b[0]) || a[1] - b[1]).map(([s]) => s);
 
 function rows(st, goLogs) {
   svcHead(st);
