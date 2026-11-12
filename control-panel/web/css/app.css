@@ -211,8 +211,8 @@ main { max-width: 1680px; margin: 0 auto; padding: 28px var(--gutter) 96px; }
 .btn.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); font-weight: 600; }
 .btn.primary:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
 /* Stop, Remove, Reboot...: text like every other button, the warning is the red edge */
-.btn.danger { border-color: color-mix(in srgb, var(--bad) 70%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bad) 70%, transparent); }   /* 2px edge, same size as the others */
+.btn.danger { border-color: var(--bad);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bad) 30%, transparent); }   /* a faint inner pixel, same size as the others */
 .btn.danger:hover:not(:disabled) { border-color: var(--bad); background: var(--bad-soft); }
 .btn.quiet { background: none; color: var(--dim); }
 .btn.quiet:hover:not(:disabled) { color: var(--text); background: var(--hover); }
