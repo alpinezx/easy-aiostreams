@@ -1448,7 +1448,7 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .upd-done { padding: 4px 18px; }
 @media (max-width: 720px) {
   /* A row of their own, spread across the cards' width, each with room for a thumb */
-  .hero-btns:has(> .fold-all) { flex: 1 1 100%; justify-content: space-between; margin: -8px -10px; }
+  .hero-btns:has(> .fold-all) { flex: 1 1 100%; justify-content: space-between; margin: -8px -7px -8px -10px; }
   .hero-btns .btn.small { padding: 8px 10px; }
 }
 /* Scripts tab: Run in terminal and Get and run share one width */
