@@ -63,8 +63,10 @@ function statusLine(terminalOn) {
   const checked = busy ? "Checking GitHub…"
     : cmp && cmp.error ? `Couldn't compare the scripts with GitHub: ${cmp.error}`
     : times.length ? `Checked against GitHub${branch} ${ago(Math.min(...times))}.` : "";
-  const lastLine = v.last
-    ? h("details", {}, h("summary", { text: `Last update ${ago(v.last.at)}: ${v.last.ok ? "finished" : "didn't finish"}. Show its output` }),
+  // Only a panel update that didn't finish: the panel restarted since, so this is the one place its output is left.
+  // One that finished needs no line.
+  const lastLine = v.last && !v.last.ok
+    ? h("details", {}, h("summary", { text: `Last update ${ago(v.last.at)}: didn't finish. Show its output` }),
         h("pre", { text: v.last.tail.join("\n") }))
     : null;
   return h("div", { class: "scripts-status" },
