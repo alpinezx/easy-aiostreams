@@ -127,7 +127,7 @@ export function record(st) {
   for (const s of st.services) {
     if (s.state !== "running") { hist[s.key] = []; continue; }
     (hist[s.key] ||= []).push(s.cpu ?? 0);
-    if (hist[s.key].length > 40) hist[s.key].shift();
+    if (hist[s.key].length > 70) hist[s.key].shift();   // about 3.5 minutes at a look every 3s
   }
 }
 
@@ -568,9 +568,10 @@ function path(st) {
 }
 
 // ---------------- service rows ----------------
+const SPARK_W = 170;   // the Recent CPU graph's width, as .spark in app.css
 function spark(values) {
   const svg = document.createElementNS(SVG, "svg");
-  svg.setAttribute("class", "spark"); svg.setAttribute("viewBox", "0 0 96 28"); svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("class", "spark"); svg.setAttribute("viewBox", `0 0 ${SPARK_W} 28`); svg.setAttribute("aria-hidden", "true");
   const area = document.createElementNS(SVG, "path"); area.setAttribute("class", "area");
   const line = document.createElementNS(SVG, "path"); line.setAttribute("class", "line");
   svg.append(area, line);
@@ -581,10 +582,10 @@ function fillSpark(svg, values) {
   const v = values.length > 1 ? values : [0, 0];
   // Scaled to at least 50%, so a small burst stays small and a busy service still stands out
   const max = Math.max(50, ...v);
-  const pts = v.map((y, i) => [(i / (v.length - 1)) * 96, 26 - (y / max) * 22]);
+  const pts = v.map((y, i) => [(i / (v.length - 1)) * SPARK_W, 26 - (y / max) * 22]);
   const d = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(" ");
   svg.querySelector(".line").setAttribute("d", d);
-  svg.querySelector(".area").setAttribute("d", `${d} L96 28 L0 28 Z`);
+  svg.querySelector(".area").setAttribute("d", `${d} L${SPARK_W} 28 L0 28 Z`);
 }
 
 // Beside the title, folded or open: how many are running and any that aren't, by name, then
