@@ -8,6 +8,7 @@ import secrets
 import threading
 import time
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, WebSocket, WebSocketDisconnect
@@ -884,15 +885,44 @@ def load_warn_hidden() -> list[str]:
     return sorted(c for c in LOGGABLE if not choices.get(c, c not in WARN_OFF_BY_DEFAULT))
 
 
+# While the panel's own action runs (Restart stack, Update, a VPN switch, a backup...) and for a
+# minute after, services complain about each other being away: the tunnel can't reach Caddy, Caddy
+# can't reach AIOStreams. Expected then, so the card leaves those lines out. The Logs page keeps them,
+# and the same lines at any other time (nothing of the panel's running) still show.
+JOB_GRACE = 60
+
+
+def _job_windows() -> list[tuple[float, float]]:
+    now = time.time()
+    with jobs.lock:
+        return [(j["started"] - 5, (j["ended"] or now) + JOB_GRACE) for j in jobs.items.values() if j.get("started")]
+
+
+def _line_time(line: str) -> float | None:
+    """Docker's timestamp at the start of a line ("2026-11-12T18:10:36.123456789Z ..."), as epoch seconds."""
+    try:
+        return datetime.strptime(line[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc).timestamp()
+    except ValueError:
+        return None
+
+
+def outside_jobs(services: list[dict], windows: list[tuple[float, float]]) -> list[dict]:
+    def keep(line):
+        t = _line_time(line)
+        return t is None or not any(a <= t <= b for a, b in windows)
+    return [{**s, "lines": [ln for ln in s["lines"] if keep(ln)]} for s in services]
+
+
 @app.get("/api/log-warnings")
 async def log_warnings(user: str = Depends(current_user)):
     """The Overview's Recent warnings & errors: each running service's lines of the last day
-    that may be warnings or errors. The browser sorts them with the Logs page's rules."""
+    that may be warnings or errors, less those logged during the panel's own actions. The
+    browser sorts them with the Logs page's rules."""
     hidden = load_warn_hidden()
     if _warn_cache["data"] is None or time.time() - _warn_cache["at"] > 30:
         _warn_cache["data"] = await asyncio.to_thread(backend.log_warnings, LOGGABLE - set(hidden))
         _warn_cache["at"] = time.time()
-    return {"services": _warn_cache["data"], "hidden": hidden}
+    return {"services": outside_jobs(_warn_cache["data"], _job_windows()), "hidden": hidden}
 
 
 @app.put("/api/log-warnings/hidden")
