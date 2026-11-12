@@ -989,7 +989,7 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
     js = (Path(__file__).resolve().parents[1] / "web" / "js" / "logs.js").read_text(encoding="utf-8")
     block = re.search(r"const QUIET = \[(.*?)\n\];", js, re.S).group(1)
     quiet = [re.compile(p) for p in re.findall(r"^\s*/(.+)/,", block, re.M)]
-    assert len(quiet) == 9
+    assert len(quiet) == 10
     grey = [
         'ERR  error="Incoming request ended abruptly: context canceled" connIndex=3 event=1 ingressRule=1 originService=http://caddy:80',
         'ERR Request failed error="Incoming request ended abruptly: context canceled" connIndex=3 dest=https://cp.example.com/api/status event=0 type=http',
@@ -1014,6 +1014,9 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
         # back up after a reboot, one connection moving off a Cloudflare server that still held its old one
         '2026-11-12T18:02:11Z ERR Connection terminated error="control stream error: already connected to this server, trying another address" connIndex=3',
         '2026-11-12T18:02:11Z ERR Unable to establish connection. error="control stream error: already connected to this server, trying another address" connIndex=3 event=0 ip=198.41.192.167',
+        # Cloudflare closing one connection with "no error"; it registers again seconds later
+        '2026-11-12T18:10:36Z WRN Serve tunnel error error="datagram manager error: Application error 0x0 (remote)" connIndex=3 event=0 ip=198.41.200.53',
+        '2026-11-12T18:10:37Z WRN Connection terminated error="datagram manager error: Application error 0x0 (remote)" connIndex=3',
     ]
     red = [
         'ERR  error="Unable to reach the origin service. dial tcp: lookup caddy on 127.0.0.11:53: server misbehaving" connIndex=3 event=1 originService=http://caddy:80',
@@ -1030,6 +1033,8 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
         '2026-11-10T20:47:13Z ERR Serve tunnel error error="failed to dial to edge with quic: timeout: no recent network activity" connIndex=0 event=0 ip=198.41.192.47',
         '2026-11-12T18:02:11Z ERR Unable to establish connection. error="failed to dial to edge with quic: timeout: no recent network activity" connIndex=3 event=0 ip=198.41.192.167',
         '2026-11-12T18:02:11Z ERR Connection terminated error="Unauthorized: Failed to get tunnel" connIndex=0',
+        '2026-11-12T18:10:36Z WRN Serve tunnel error error="datagram manager error: Application error 0x1 (remote)" connIndex=3 event=0 ip=198.41.200.53',
+        '2026-11-12T18:10:36Z WRN Serve tunnel error error="datagram manager error: Application error 0x0 (local)" connIndex=3 event=0 ip=198.41.200.53',
         '2026-11-06T21:12:30Z ERROR [vpn] cannot get version information: bad response HTTP status code: 500 500 Internal Server Error',
     ]
     for line in grey:
