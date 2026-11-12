@@ -885,7 +885,7 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .view-head .btn { margin-left: auto; }
 /* Notes: a card like the others with an amber edge, glowing in Dark and Slate
    (an amber wash turned muddy brown on the dark page) */
-.note, .dialog .switch-warn { background: var(--raised); border: 1px solid var(--warn); box-shadow: var(--note-glow); }
+.note, .dialog .switch-warn { background: var(--raised); border: 1px solid color-mix(in srgb, var(--warn) 55%, transparent); box-shadow: var(--note-glow); }
 .note { border-radius: 12px; padding: 12px 16px; color: var(--text); margin: 0 0 16px; font-size: .94rem; }
 .note b { font-weight: 650; }
 .note p { margin: 0; }
