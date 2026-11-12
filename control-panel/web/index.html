@@ -145,6 +145,7 @@
       <p><b>Hide noise</b> hides these:</p>
       <ul>
         <li><b>Error shutting down control stream</b>: the tunnel was stopping (a restart, update or reboot) and closed its connections to Cloudflare.</li>
+        <li><b>already connected to this server, trying another address</b>: back up after a restart or reboot, a connection reached a Cloudflare server that still held its old one, so it moved to another.</li>
         <li><b>stream canceled by remote with error code 0</b>: a visitor closed a page that was still loading or updating, or stopped a video.</li>
         <li><b>unexpected EOF</b> on the AIOStreams dashboard's <code class="mono">/api/v1/dashboard/…/stream</code> or this page's <code class="mono">/api/logs/…</code>: a restart, update or Reconfigure cut a page that was open. The first line of each pair is hidden too; its Request failed line shows any other address in full.</li>
       </ul>
