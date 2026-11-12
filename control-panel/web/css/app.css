@@ -1106,6 +1106,11 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .scripts-status-text { flex: 1 1 280px; min-width: 0; display: grid; gap: 6px; }
 .scripts-status .btns { margin-left: auto; display: flex; gap: 8px; }
 .scripts-status p { margin: 0; font-size: .9rem; }
+.term-off a { white-space: nowrap; }
+@media (max-width: 720px) {
+  .term-off-how { display: block; }
+  .scripts-status { row-gap: 26px; }   /* room between the status lines and the buttons wrapped under them */
+}
 .scripts-status details { min-width: 0; }
 .scripts-status details summary { cursor: pointer; font-size: .88rem; color: var(--dim); }
 .scripts-status pre { margin: 8px 0 0; max-height: 260px; overflow: auto; padding: 10px 12px; background: var(--sunk); border-radius: 8px; font-family: var(--mono); font-size: .78rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; }
