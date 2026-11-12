@@ -628,17 +628,27 @@ const place = (s) => { const i = SVC_FIRST.indexOf(s.key); return i < 0 ? SVC_FI
 // direct) and its Restart is Restart stack, each confirm opening with why
 const VPN_RESTART_LEAD = "The VPN can't restart on its own, as AIOStreams runs inside it.";
 const VPN_STOP_LEAD = "Stopping the VPN turns it off, as Turn VPN off on its card does.";
+const VPN_START_LEAD = "Starting the VPN turns it on, as Turn VPN on on its card does.";
+// Switched off, the VPN has no container, so the server lists no row for it: one is drawn here instead, "Off" with
+// Start (Turn VPN on), so it can be started where it was stopped. Not when no config is saved: only its page asks for one.
+function servicesWithVpn(st) {
+  const noConfig = vpnInfo && vpnInfo.mode === "off" && vpnInfo.has_config === false;
+  if (st.vpn !== "off" || noConfig || st.services.some((s) => s.key === "gluetun")) return st.services;
+  return [...st.services, { key: "gluetun", container: "gluetun", name: "VPN tunnel", role: "gluetun, WireGuard",
+    present: false, state: "off", vpnOff: true }];
+}
 const byButtons = (services) => services.map((s, i) => [s, i])
   .sort((a, b) => buttons(a[0]) - buttons(b[0]) || place(a[0]) - place(b[0]) || a[1] - b[1]).map(([s]) => s);
 
 function rows(st, goLogs) {
   svcHead(st);
   const avail = Object.fromEntries(st.actions.map((a) => [a.id, a]));
-  const key = st.services.map((s) => `${s.key}:${stateOf(s)}`).join(",") + !!st.busy;
+  const list = servicesWithVpn(st);
+  const key = list.map((s) => `${s.key}:${stateOf(s)}`).join(",") + !!st.busy;
   const el = rebuild("#rows", key, (el) => {
     el.append(h("div", { class: "row row-head" }, h("span", { text: "Service" }), h("span", { text: "Status and image" }),
       h("span", { class: "num", text: "CPU" }), h("span", { class: "num", text: "Memory" }), h("span", { class: "spark-cell", text: "Recent CPU" }), h("span")));
-    for (const s of byButtons(st.services)) {
+    for (const s of byButtons(list)) {
       const sx = stateOf(s);
       // Two fixed slots (Start/Stop, Restart), left empty when a service lacks one, so the buttons line up down the
       // table. No Logs here: the Logs page, the Recent warnings card and the rail all reach them.
@@ -662,16 +672,20 @@ function rows(st, goLogs) {
         const a = avail["vpn.off"];
         if (a && a.available) slot[0].append(h("button", { class: "btn small danger", type: "button", text: "Stop", disabled: !!st.busy,
           onclick: () => runAction(a, null, VPN_STOP_LEAD) }));
+      } else if (s.vpnOff) {
+        const a = avail["vpn.on"];
+        if (a && a.available) slot[0].append(h("button", { class: "btn small", type: "button", text: "Start", disabled: !!st.busy,
+          onclick: () => runAction(a, null, VPN_START_LEAD) }));
       }
       el.append(h("div", { class: "row", dataset: { svc: s.key } },
         // What the service does is on hover, keeping each row to the name
         // On a phone, where the CPU and Memory columns don't fit, both sit under the name
         h("div", {}, h("div", { class: "name", text: s.name, title: s.role || null }), h("div", { class: "sub pstat", dataset: { pstat: "1" } })),
-        h("div", {}, h("div", { class: "state-word", dataset: { s: sx } }, h("span", { dataset: { w: "1" } })),
+        h("div", {}, h("div", { class: "state-word", dataset: { s: sx } }, h("span", { dataset: { w: "1" }, text: s.vpnOff ? "Off, using a direct connection" : "" })),
           h("div", { class: "img", dataset: { img: "1" }, title: s.image || "" })),
         h("div", { class: "num", dataset: { cpu: "1" } }),
         h("div", { class: "num", dataset: { mem: "1" } }),
-        h("div", { class: "spark-cell" }, spark(hist[s.key] || [])),
+        h("div", { class: "spark-cell" }, s.vpnOff ? null : spark(hist[s.key] || [])),
         acts));
     }
   });
