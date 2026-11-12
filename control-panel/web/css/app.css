@@ -282,7 +282,8 @@ button.chip:hover { text-decoration: underline; }
 }
 
 /* ---------- signal path ---------- */
-.path { margin: 4px 0 30px; padding: 18px 16px 16px; background: var(--sunk); border: 1px solid var(--line-soft); border-radius: var(--radius); }
+/* The request flow is a card like the others: same background and edge in every theme */
+.path { margin: 4px 0 30px; padding: 18px 16px 16px; background: var(--raised); border: 1px solid var(--card-edge); border-radius: var(--radius); }
 .path-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 14px; }
 .path-title { margin: 0; font-size: .98rem; font-weight: 650; }   /* as every other card's title */
 /* The title folds the card down to one line: a dot per service and Restart stack */
