@@ -351,6 +351,9 @@ button.chip:hover { text-decoration: underline; }
   .card-cog.cog-low svg { width: 20px; height: 20px; }
   .warnc.folded .fold-sum { flex: 1 1 calc(100% - 48px); }
   .warnc.folded .card-head > .cog-low { order: 4; }
+  /* As tall as the folded AIOStreams card under it, so its two icons have room between them */
+  .panel.warnc.folded { min-height: 6.875rem; display: flex; flex-direction: column; }
+  .warnc.folded .card-head { flex: 1; align-content: space-between; }
 }
 /* Until the first status reading draws it, so empty card frames never flash up */
 #view-overview:not(.drawn) { visibility: hidden; }
