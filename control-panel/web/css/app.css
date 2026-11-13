@@ -336,15 +336,17 @@ button.chip:hover { text-decoration: underline; }
 .folded .btn.fold-act:hover:not(:disabled) { color: var(--text); text-decoration: underline; background: none; }
 .ver-card.folded .ver-head > .btn.fold-act { margin-left: auto; }
 .panel.folded .card-head > .btn.fold-act { margin-left: auto; }
-/* Their icon, shown on phones instead of the word */
+/* Icons in the cards' corners instead of words, the same on phones and wider screens (the word stays as the label) */
 .fa-icon { display: none; }
+.fold-act .fa-icon, .warn-logs .fa-icon, .card-detail .fa-icon { display: block; }
+.fold-act .fa-word, .warn-logs .fa-word, .card-detail .fa-word { display: none; }
+.folded .btn.fold-act, .warn-logs, .card-link.card-detail { padding: 4px; margin: -4px -4px -4px auto; }
+.warnc .card-acts .warn-logs { margin-left: 0; }
 .fa-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; display: block; }
 .card-cog.cog-low { display: none; }
 .warn-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .warn-foot > .warn-none, .warn-foot > .warn-more { margin-top: 6px; }
 @media (max-width: 720px) {
-  .fold-act .fa-icon, .warn-logs .fa-icon, .card-detail .fa-icon { display: block; }
-  .fold-act .fa-word, .warn-logs .fa-word, .card-detail .fa-word { display: none; }
   .folded .btn.fold-act, .warn-logs, .card-link.card-detail { padding: 8px; margin: -8px -8px -8px auto; }
   .warnc .card-acts > .card-cog { display: none; }
   .card-cog.cog-low { display: inline-flex; padding: 8px; margin: -8px -8px -8px auto; }
