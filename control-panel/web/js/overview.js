@@ -1051,7 +1051,7 @@ function warnCard(el) {
   if (!warnData) { foot(h("p", { class: "dim warn-none", text: warnLoading ? "Reading the logs…" : "Couldn't read the logs." })); return; }
   if (!rows.length) {
     const none = lastSt && lastSt.services.filter((s) => s.container).every((s) => warnHidden.includes(s.container));
-    foot(h("p", { class: "dim warn-none", text: none ? "No services picked: choose some with the cog." : "No warnings or errors in the last day." }));
+    foot(h("p", { class: "dim warn-none", text: none ? "No services picked: use the cog." : "None in the last day." }));
     return;
   }
   const now = Date.now() / 1000;
