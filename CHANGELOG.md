@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 13 November 2026
 
+- **Fixed:** Recent warnings' quiet times (a panel action and a minute after, the first three minutes after a boot) now hold back only Caddy's and the Cloudflare Tunnel's lines, the ones that complain while things behind them restart. AIOStreams, the VPN and the add-ons always reach the card, so a debrid or scraper problem at start-up isn't missed. (Panel 1.55.14, [#179](https://github.com/alpinezx/easy-aiostreams/pull/179))
 - **Fixed:** after a reboot, Recent warnings showed Caddy turning visitors away for a few seconds while AIOStreams was still starting. It now leaves out the first three minutes after the server boots, as it does for the panel's own actions; the Logs page keeps them. (Panel 1.55.13, [#178](https://github.com/alpinezx/easy-aiostreams/pull/178))
 - **New:** the request flow's Restart stack sits under the flow at the bottom right, as Reboot server does on This server, instead of beside the title. Folded, This server keeps Reboot server as a quiet link in its corner, as the request flow does with Restart stack, and shows "No backup yet" there in plain text instead of amber, as the open card does. The screenshots show a healthy install: no recent warnings, and every Phone alerts check passed. (Panel 1.55.12, [#177](https://github.com/alpinezx/easy-aiostreams/pull/177))
 
