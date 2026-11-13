@@ -681,8 +681,12 @@ def test_log_warnings_skip_the_first_minutes_after_boot(monkeypatch):
     svc = [{"container": "caddy", "name": "Caddy", "lines": [
         '2026-11-13T02:06:28.1Z {"level":"error","msg":"dial tcp 172.19.0.2:3000: connect: connection refused"} at boot',
         '2026-11-13T02:15:00.1Z {"level":"error","msg":"dial tcp 172.19.0.2:3000: connect: connection refused"} later']}]
-    kept = m.outside_jobs(svc, m._job_windows())[0]["lines"]
-    assert [ln.split(" ")[-1] for ln in kept] == ["later"]
+    svc.append({"container": "aiostreams", "name": "AIOStreams", "lines": [
+        "2026-11-13T02:06:40.1Z error: [TorBox] Invalid API key at boot"]})
+    got = m.outside_jobs(svc, m._job_windows())
+    assert [ln.split(" ")[-1] for ln in got[0]["lines"]] == ["later"]
+    # Only Caddy and the tunnel are held back: AIOStreams' start-up problems still show
+    assert got[1]["lines"] == svc[1]["lines"]
 
 
 def test_log_warnings_hidden(client):

@@ -907,8 +907,8 @@ def _boot_time() -> float | None:
 
 
 def _job_windows() -> list[tuple[float, float]]:
-    """Times whose lines stay off Recent warnings: each panel action and a minute after it,
-    and the first minutes after the server boots, when services start in turn."""
+    """Times when Caddy's and the tunnel's lines stay off Recent warnings: each panel action and
+    a minute after it, and the first minutes after the server boots, when services start in turn."""
     now = time.time()
     with jobs.lock:
         out = [(j["started"] - 5, (j["ended"] or now) + JOB_GRACE) for j in jobs.items.values() if j.get("started")]
@@ -926,11 +926,18 @@ def _line_time(line: str) -> float | None:
         return None
 
 
+# Only these complain while what sits behind them restarts, so only their lines are held back
+# in those windows. Every other service (AIOStreams' debrid and scraper checks at start-up,
+# the VPN failing to connect) always reaches the card.
+QUIET_WINDOW_SERVICES = {"caddy", "cloudflared"}
+
+
 def outside_jobs(services: list[dict], windows: list[tuple[float, float]]) -> list[dict]:
     def keep(line):
         t = _line_time(line)
         return t is None or not any(a <= t <= b for a, b in windows)
-    return [{**s, "lines": [ln for ln in s["lines"] if keep(ln)]} for s in services]
+    return [{**s, "lines": [ln for ln in s["lines"] if keep(ln)]} if s.get("container") in QUIET_WINDOW_SERVICES else s
+            for s in services]
 
 
 @app.get("/api/log-warnings")
