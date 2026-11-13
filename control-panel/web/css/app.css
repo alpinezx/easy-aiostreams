@@ -336,6 +336,22 @@ button.chip:hover { text-decoration: underline; }
 .folded .btn.fold-act:hover:not(:disabled) { color: var(--text); text-decoration: underline; background: none; }
 .ver-card.folded .ver-head > .btn.fold-act { margin-left: auto; }
 .panel.folded .card-head > .btn.fold-act { margin-left: auto; }
+/* Their icon, shown on phones instead of the word */
+.fa-icon { display: none; }
+.fa-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; display: block; }
+.card-cog.cog-low { display: none; }
+.warn-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.warn-foot > .warn-none, .warn-foot > .warn-more { margin-top: 6px; }
+@media (max-width: 720px) {
+  .fold-act .fa-icon, .warn-logs .fa-icon, .card-detail .fa-icon { display: block; }
+  .fold-act .fa-word, .warn-logs .fa-word, .card-detail .fa-word { display: none; }
+  .folded .btn.fold-act, .warn-logs, .card-link.card-detail { padding: 8px; margin: -8px -8px -8px auto; }
+  .warnc .card-acts > .card-cog { display: none; }
+  .card-cog.cog-low { display: inline-flex; padding: 8px; margin: -8px -8px -8px auto; }
+  .card-cog.cog-low svg { width: 20px; height: 20px; }
+  .warnc.folded .fold-sum { flex: 1 1 calc(100% - 48px); }
+  .warnc.folded .card-head > .cog-low { order: 4; }
+}
 /* Until the first status reading draws it, so empty card frames never flash up */
 #view-overview:not(.drawn) { visibility: hidden; }
 .sec-head { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; }
@@ -842,7 +858,7 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .lg-list .term-empty { display: grid; place-items: center; height: 100%; text-align: center; }
 @media (max-width: 720px) {
   .view-head.lg-head { flex-direction: column; gap: 10px; }
-  .lg-acts { margin-left: 0; }
+  .lg-acts { align-self: flex-end; margin-left: 0; }
   .lg-row:first-child { flex-wrap: wrap; }
   .lg-search { flex: 1 1 calc(100% - 52px); }
   .lg-svc { flex: 1; width: auto; }
@@ -1202,12 +1218,13 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 /* What's new and Edit, beside the headline (on phones they drop below it, on the right) */
 .hero-btns { display: flex; gap: 4px; margin-left: auto; }
 /* Plain words like the cards' own Logs and Details: no border or fill until hovered */
-.hero-btns .btn { border-color: transparent; background: none; color: var(--dim); }
-.hero-btns .btn:hover:not(:disabled) { color: var(--text); background: var(--hover); }
+.hero-btns .btn, .btn.hero-edit { border-color: transparent; background: none; color: var(--dim); }
+.hero-btns .btn:hover:not(:disabled), .btn.hero-edit:hover:not(:disabled) { color: var(--text); background: var(--hover); }
 .hero-btns .fold-all { gap: 6px; }
 .fold-all[aria-expanded="true"] .path-chev svg { transform: rotate(180deg); }
 @media (max-width: 720px) { .hero-head { row-gap: 22px; } }
 .hero-edit { gap: 6px; }
+@media (min-width: 721px) { .hero-btns + .hero-edit { margin-left: -8px; } }
 .hero-edit svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
 /* Edit's drawer: a card per row, its switch, and ≡ to drag it */
@@ -1346,14 +1363,12 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .ver-card.folded .fold-title { flex: 1 0 100%; }
   .ver-card.folded .fold-sum { flex: 1 1 0; }
   .ver-card.folded .ver-head > .btn { order: 4; }
-  /* Recent warnings: its long title stays on one line beside the cog. Logs makes way for it: each
-     row opens its log, and Logs is in the menu */
+  /* Recent warnings: its long title stays on one line beside the Logs icon */
   .warnc .card-head .fold-toggle { white-space: nowrap; }
-  .warnc .card-acts .card-link { display: none; }
   /* the title's line has no room on a phone, so the link sits in the corner above the pages */
   .ver-card.folded { position: relative; }
   .ver-card.folded .fold-title { padding-right: 76px; box-sizing: border-box; }
-  .ver-card.folded .ver-head > .btn.fold-act { position: absolute; top: 14px; right: 16px; }
+  .ver-card.folded .ver-head > .btn.fold-act { position: absolute; top: 5px; right: 8px; margin: 0; }
 }
 
 /* Add-ons page (ao-, never ad-: ad blockers hide ad-* classes): full-width cards like the Overview's, each value a tile (label,
@@ -1463,6 +1478,11 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   /* A row of their own, spread across the cards' width, each with room for a thumb */
   .hero-btns:has(> .fold-all) { flex: 1 1 100%; justify-content: space-between; margin: -8px -7px -8px -10px; }
   .hero-btns .btn.small { padding: 8px 10px; }
+  /* The pencil alone beside the headline, the row of buttons under it */
+  .hero-btns { order: 5; }
+  .btn.hero-edit { margin: -10px -10px -10px auto; padding: 12px; }
+  .btn.hero-edit svg { width: 19px; height: 19px; }
+  .hero-edit .fa-word { display: none; }
 }
 /* Scripts tab: Run in terminal and Get and run share one width */
 .run-btn { display: inline-grid; justify-items: center; }

@@ -198,8 +198,27 @@ function foldTitle(id, label) {
 }
 // A folded card's button (Update, Restart stack) is a quiet link in the card's top right,
 // like Details, so a page of folded cards has no buttons on it
+// On a phone it's an icon alone (the word stays as its label); wider screens show the word.
+const ICONS = {
+  "Update": '<path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/>',
+  "Restart stack": '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
+  "Reboot server": '<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/>',
+  "Details": '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  "Logs": '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>',
+};
+function iconize(b) {
+  const word = b.textContent.trim();
+  if (!ICONS[word] || b.querySelector(".fa-icon")) return b;
+  b.textContent = "";
+  const i = h("span", { class: "fa-icon", "aria-hidden": "true" });
+  i.innerHTML = `<svg viewBox="0 0 24 24">${ICONS[word]}</svg>`;
+  b.append(i, h("span", { class: "fa-word", text: word }));
+  b.setAttribute("aria-label", word);
+  if (!b.title) b.title = word;
+  return b;
+}
 function foldAct(b) {
-  if (b) b.classList.add("fold-act");
+  if (b) { b.classList.add("fold-act"); iconize(b); }
   return b;
 }
 // The folded line: [text or element, tone, tooltip], empty ones left out
@@ -274,8 +293,9 @@ function hero(st) {
           title: allFolded() ? "Open every card" : "Fold every card to one line", onclick: foldAll },
           allFolded() ? "Open all cards" : "Fold all cards", chev()),
         h("button", { class: "btn small quiet", type: "button", text: "What's new",
-          title: "The changes since this panel's version, from the project's changelog", onclick: showChangelog }),
-        editBtn()) : null));
+          title: "The changes since this panel's version, from the project's changelog", onclick: showChangelog })) : null,
+      // After the buttons on wide screens; on a phone, the pencil alone beside the headline
+      st.installed ? editBtn() : null));
     scriptsPill();
     // The certificate lives in This server; it comes up here only when it needs attention.
     const wc = worstCert(st);
@@ -312,7 +332,8 @@ function hero(st) {
 // Edit: which cards the Overview shows, and their order, in a drawer
 function editBtn() {
   const b = h("button", { class: "btn small quiet hero-edit", type: "button", title: "Show, hide or reorder the cards on this page", onclick: openLayout });
-  b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg>Edit';
+  b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg><span class="fa-word">Edit</span>';
+  b.setAttribute("aria-label", "Edit");
   return b;
 }
 
@@ -476,7 +497,7 @@ function mgrCard(st, avail) {
 function mfCard(st, avail) {
   const m = st.mediaflow;
   return addonVerCard(st, avail, { id: "mediaflow", name: "MediaFlow Proxy", rel: mfRel, version: m.version,
-    corner: h("a", { href: "#addons", class: "dim card-link", text: "Details" }) });
+    corner: iconize(h("a", { href: "#addons", class: "dim card-link card-detail", text: "Details" })) });
 }
 
 function versionCard(st, avail) {
@@ -922,7 +943,7 @@ function side(st) {
     wdFolded ? foldSum([[w.running ? "Running" : "Stopped", w.running ? "ok" : "warn"],
       [w.running ? (settling ? "Looks fine now" : failed ? "Last check failed" : nowOk ? "All passed" : "") : "", failed ? "warn" : settling ? "" : "ok"],
       [w.running && chk.at ? `Checked ${ago(chk.at)}` : ""]]) : null,
-    h("a", { href: "#alerts", class: "dim card-link", text: "Details" })));
+    iconize(h("a", { href: "#alerts", class: "dim card-link card-detail", text: "Details" }))));
   if (wdFolded) { el.append(wd); return; }
   wd.append(h("div", { class: "stat-grid" },
     stat("Watchdog", w.running ? "Running" : "Stopped", w.running ? "Checks every 2 min" : "No checks running", w.running ? "ok" : "warn"),
@@ -998,8 +1019,8 @@ async function warnPick() {
   warnAt = 0; warnData = null;
   if (lastSt) side(lastSt);
 }
-function cogBtn() {
-  const b = h("button", { class: "card-cog", type: "button", title: "Choose which services' warnings show here",
+function cogBtn(low) {
+  const b = h("button", { class: "card-cog" + (low ? " cog-low" : ""), type: "button", title: "Choose which services' warnings show here",
     "aria-label": "Choose services", onclick: warnPick });
   b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>';
   return b;
@@ -1020,13 +1041,17 @@ function warnCard(el) {
     h("h3", {}, foldTitle("warn", "Recent warnings & errors")),
     folded ? foldSum([[errs ? plural(errs, "error") : "", "bad"], [warns ? plural(warns, "warning") : "", "warn"],
       [warnData && !rows.length ? "None today" : "", "ok"]]) : null,
-    h("span", { class: "card-acts" }, cogBtn(), h("a", { href: "#logs", class: "dim card-link", text: "Logs" }))));
+    // On a phone the corner holds a Logs icon, and the cog moves down to the card's last line
+    h("span", { class: "card-acts" }, cogBtn(), iconize(h("a", { href: "#logs", class: "dim card-link warn-logs", text: "Logs" }))),
+    folded ? cogBtn(true) : null));
   el.append(card);
   if (folded) return;
-  if (!warnData) { card.append(h("p", { class: "dim warn-none", text: warnLoading ? "Reading the logs…" : "Couldn't read the logs." })); return; }
+  // The card's last line: what it says (or Show more) on the left, the phone's cog on the right
+  const foot = (...kids) => card.append(h("div", { class: "warn-foot" }, ...kids, cogBtn(true)));
+  if (!warnData) { foot(h("p", { class: "dim warn-none", text: warnLoading ? "Reading the logs…" : "Couldn't read the logs." })); return; }
   if (!rows.length) {
     const none = lastSt && lastSt.services.filter((s) => s.container).every((s) => warnHidden.includes(s.container));
-    card.append(h("p", { class: "dim warn-none", text: none ? "No services picked: choose some with the cog." : "No warnings or errors in the last day." }));
+    foot(h("p", { class: "dim warn-none", text: none ? "No services picked: choose some with the cog." : "No warnings or errors in the last day." }));
     return;
   }
   const now = Date.now() / 1000;
@@ -1039,9 +1064,9 @@ function warnCard(el) {
       h("span", { class: "warn-ago dim", text: (r.n > 1 ? `${r.n}× · ` : "") + ago(Math.min(r.at, now)) })))));
   if (rows.length > WARN_SHOWN) {
     const extra = Math.min(rows.length, WARN_MAX) - WARN_SHOWN;
-    card.append(h("button", { class: "linkish warn-more", type: "button", "aria-expanded": String(warnMore),
+    foot(h("button", { class: "linkish warn-more", type: "button", "aria-expanded": String(warnMore),
       text: warnMore ? "Show fewer" : `Show ${extra} more`, onclick: () => { warnMore = !warnMore; if (lastSt) side(lastSt); } }));
-  }
+  } else foot(h("span"));
 }
 
 // The VPN, once it's set up (on or off), like Phone alerts: whether it's connected, where
@@ -1078,7 +1103,7 @@ function vpnCard(el, st, avail) {
     folded ? null : h("span", { class: "vpnc-tunnel" }, h("span", { class: "ver-label", text: "Tunnel" }),
       h("span", { class: "vpnc-word" + (tn ? " " + tn : ""), text: word })),
     folded ? foldSum([[word, tn], [where], top ? [`gluetun ${top.tag} available`] : [""]]) : null,
-    folded && top && updBtn ? foldAct(updBtn) : h("a", { href: "#vpn", class: "dim card-link", text: "Details" })));
+    folded && top && updBtn ? foldAct(updBtn) : iconize(h("a", { href: "#vpn", class: "dim card-link card-detail", text: "Details" }))));
   el.append(card);
   if (folded) return;
   // Short values, so they fit beside their labels on a phone: the city with the country under it,
