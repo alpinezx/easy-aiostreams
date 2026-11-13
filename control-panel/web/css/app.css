@@ -360,6 +360,12 @@ button.chip:hover { text-decoration: underline; }
   .warnc:not(.folded) .card-cog.cog-low .fa-word { display: inline; }
   .warnc:not(.folded) .card-cog.cog-low:hover { text-decoration: underline; }
   .warnc:not(.folded) .warn-foot { margin-top: auto; align-items: baseline; }
+  /* With rows, the last line is theirs: Choose services moves up beside Logs */
+  .warnc.has-rows:not(.folded) .card-cog.cog-low { display: none; }
+  .warnc.has-rows:not(.folded) .card-acts > .card-cog { display: inline-flex; padding: 0; font-size: .86rem; }
+  .warnc.has-rows:not(.folded) .card-acts > .card-cog svg { display: none; }
+  .warnc.has-rows:not(.folded) .card-acts > .card-cog .fa-word { display: inline; }
+  .warnc.has-rows:not(.folded) .card-acts > .card-cog:hover { text-decoration: underline; }
 }
 .fa-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; display: block; }
 .card-cog.cog-low { display: none; }
