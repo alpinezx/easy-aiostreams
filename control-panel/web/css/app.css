@@ -335,6 +335,7 @@ button.chip:hover { text-decoration: underline; }
 .folded .btn.fold-act { background: none; border: 0; padding: 0; min-height: 0; font-size: .86rem; font-weight: 400; color: var(--dim); box-shadow: none; }
 .folded .btn.fold-act:hover:not(:disabled) { color: var(--text); text-decoration: underline; background: none; }
 .ver-card.folded .ver-head > .btn.fold-act { margin-left: auto; }
+.panel.folded .card-head > .btn.fold-act { margin-left: auto; }
 /* Until the first status reading draws it, so empty card frames never flash up */
 #view-overview:not(.drawn) { visibility: hidden; }
 .sec-head { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; }
@@ -715,6 +716,7 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .t-row[data-s="starting"] .t-state .word, .t-row[data-s="paused"] .t-state .word { color: var(--warn); }
 .t-start { color: var(--dim); font-size: .9rem; justify-content: flex-start; min-height: 26px; }
 .path-head .btn { margin-left: auto; }
+.path-acts { display: flex; justify-content: flex-end; margin-top: 14px; }
 @media (max-width: 720px) {
   .flow-tree ul { padding-left: 5px; }
   .flow-tree ul > li { padding-left: 12px; }

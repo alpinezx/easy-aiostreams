@@ -642,6 +642,8 @@ def test_log_warnings(client):
     got = warn_hints(raw)
     assert len(got) == 4 and "Sorted" not in " ".join(got)       # info lines never sent
     assert "hunter2" not in got[2] and "api_password=[hidden]" in got[2]
+    import app.main as m
+    m.backend.issues = True                     # the demo's sample lines (off by default, for clean screenshots)
     r = client.get("/api/log-warnings").json()["services"]
     assert r and all(s["lines"] and s["name"] for s in r)
     one = r[0]["container"]                     # (another test may have cleared some already)

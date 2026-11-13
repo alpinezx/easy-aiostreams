@@ -562,7 +562,9 @@ function path(st) {
       h("li", { class: "t-root" }, h("div", { class: "t-row t-start", text: "Visitors" }),
         main.length ? h("ul", {}, after(0, true)) : null));
     el.append(tree);
-    head.append(restartBtn());
+    // Under the flow at the bottom right, like Reboot server on This server
+    const b = restartBtn();
+    if (b) el.append(h("div", { class: "path-acts" }, b));
   });
   for (const s of svcs) setText(el, `[data-up="${s.key}"]`, uptime(s));
 }
@@ -770,7 +772,8 @@ function hostSum(st) {
     // Down and up together with their label (as the open card's tile), so they wrap as one
     [n ? h("span", { class: "net-pair" }, h("span", { text: "Network" }), h("span", { text: `↓ ${fmtRate(n[0])}` }), h("span", { text: `↑ ${fmtRate(n[1])}` })) : "",
       "", "The whole server's network now, down and up"],
-    [bad ? `Last scheduled backup ${bk.last.status === "skipped" ? "skipped" : "failed"}` : bk && !bk.newest ? "No backup yet" : "", "warn"]]);
+    // A scheduled backup that failed or was skipped is amber; none made yet is a plain reminder, as on the open card
+    bad ? [`Last scheduled backup ${bk.last.status === "skipped" ? "skipped" : "failed"}`, "warn"] : [bk && !bk.newest ? "No backup yet" : ""]]);
 }
 
 // HTTPS certificates. One site: a single tile. Several: one tile with the soonest expiry,
@@ -837,7 +840,9 @@ function side(st) {
   const hostFolded = isFolded("server");
   const host = h("section", { class: "panel host" + (hostFolded ? " folded" : "") },
     h("div", { class: "card-head" }, h("h3", {}, foldTitle("server", "This server"))));
-  if (hostFolded) host.firstChild.append(hostSum(st));
+  // Folded, Reboot server stays as a quiet link in the corner, as Restart stack does on the flow
+  if (hostFolded) host.firstChild.append(hostSum(st),
+    foldAct(h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer })));
   const grid = h("div", { class: "stat-grid" });
   // Top row: what you look at first. What folds out (Network, certificates) is on the
   // bottom row, so it opens under the values
