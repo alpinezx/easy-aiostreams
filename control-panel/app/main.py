@@ -892,10 +892,30 @@ def load_warn_hidden() -> list[str]:
 JOB_GRACE = 60
 
 
+BOOT_GRACE = 180   # after the server boots, while Caddy is up before AIOStreams and the VPN
+
+
+def _boot_time() -> float | None:
+    """When the server booted (the kernel's btime, the host's own even inside the container)."""
+    try:
+        for line in Path("/proc/stat").read_text().splitlines():
+            if line.startswith("btime "):
+                return float(line.split()[1])
+    except (OSError, ValueError):
+        pass
+    return None
+
+
 def _job_windows() -> list[tuple[float, float]]:
+    """Times whose lines stay off Recent warnings: each panel action and a minute after it,
+    and the first minutes after the server boots, when services start in turn."""
     now = time.time()
     with jobs.lock:
-        return [(j["started"] - 5, (j["ended"] or now) + JOB_GRACE) for j in jobs.items.values() if j.get("started")]
+        out = [(j["started"] - 5, (j["ended"] or now) + JOB_GRACE) for j in jobs.items.values() if j.get("started")]
+    boot = _boot_time()
+    if boot:
+        out.append((boot, boot + BOOT_GRACE))
+    return out
 
 
 def _line_time(line: str) -> float | None:

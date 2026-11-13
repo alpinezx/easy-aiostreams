@@ -672,6 +672,19 @@ def test_log_warnings_skip_the_panels_own_actions():
     assert [ln.split(" ")[-1] for ln in kept] == ["restart", "after", "one"]
 
 
+def test_log_warnings_skip_the_first_minutes_after_boot(monkeypatch):
+    """Caddy turning visitors away before AIOStreams is up, right after a reboot, stays off the card."""
+    from datetime import datetime, timezone
+    import app.main as m
+    boot = datetime(2026, 11, 13, 2, 6, 19, tzinfo=timezone.utc).timestamp()
+    monkeypatch.setattr(m, "_boot_time", lambda: boot)
+    svc = [{"container": "caddy", "name": "Caddy", "lines": [
+        '2026-11-13T02:06:28.1Z {"level":"error","msg":"dial tcp 172.19.0.2:3000: connect: connection refused"} at boot',
+        '2026-11-13T02:15:00.1Z {"level":"error","msg":"dial tcp 172.19.0.2:3000: connect: connection refused"} later']}]
+    kept = m.outside_jobs(svc, m._job_windows())[0]["lines"]
+    assert [ln.split(" ")[-1] for ln in kept] == ["later"]
+
+
 def test_log_warnings_hidden(client):
     """The card's cog: services left out are saved per install and never read."""
     login(client)
