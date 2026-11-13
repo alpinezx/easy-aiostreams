@@ -352,11 +352,15 @@ button.chip:hover { text-decoration: underline; }
      at any text size), Logs in the corner and the cog under it on the card's last line */
   .panel.warnc:not(.folded) { min-height: calc(4.861rem + 44px); display: flex; flex-direction: column; }
   .warnc:not(.folded) .card-acts > .card-cog { display: none; }
-  .warnc:not(.folded) .card-cog.cog-low { display: inline-flex; margin: 0 -2px 0 auto; }
-  .warnc:not(.folded) .warn-foot { margin-top: auto; }
+  .warnc:not(.folded) .card-cog.cog-low { display: inline-flex; margin: 0 0 0 auto; padding: 0; font-size: .86rem; }
+  .warnc:not(.folded) .card-cog.cog-low svg { display: none; }
+  .warnc:not(.folded) .card-cog.cog-low .fa-word { display: inline; }
+  .warnc:not(.folded) .card-cog.cog-low:hover { text-decoration: underline; }
+  .warnc:not(.folded) .warn-foot { margin-top: auto; align-items: baseline; }
 }
 .fa-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; display: block; }
 .card-cog.cog-low { display: none; }
+.card-cog .fa-word { display: none; }
 .warn-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .warn-foot > .warn-none, .warn-foot > .warn-more { margin-top: 6px; }
 @media (max-width: 720px) {
