@@ -139,6 +139,9 @@ class DemoBackend:
         self.schedule = {"every": "daily", "day": 7, "time": "04:00"}
         self.wd_topic = "aios-7f3k29xq81"
         now = time.time()
+        # Clean by default, as the docs screenshots show a healthy install. UI_DEMO_ISSUES=1 brings
+        # back Recent warnings' lines and the Phone alerts' blip and outage, to try those parts
+        self.issues = bool(os.environ.get("UI_DEMO_ISSUES"))
         # A quiet fortnight with one blip and one real outage, for the Phone alerts page
         self.wd_events = [
             {"at": int(now - 5 * 3600), "kind": "recovered", "text": "Passing again before an alert was due, so none was sent."},
@@ -150,11 +153,14 @@ class DemoBackend:
             {"at": int(now - 9 * 86400 - 60), "kind": "start", "text": "Watchdog started."},
             {"at": int(now - 9 * 86400 - 90), "kind": "topic", "text": "Alert topic set."},
         ]
+        if not self.issues:
+            self.wd_events = self.wd_events[-3:]
         day = lambda n: time.strftime("%Y-%m-%d", time.localtime(now - n * 86400))
         self.wd_tally = [{"day": day(n), "passed": 720 if n else int((now % 86400) / 120), "failed": 0} for n in range(9, -1, -1)]
-        self.wd_tally[-4]["passed"] -= 14
-        self.wd_tally[-4]["failed"] = 14
-        self.wd_tally[-1]["failed"] = 1
+        if self.issues:
+            self.wd_tally[-4]["passed"] -= 14
+            self.wd_tally[-4]["failed"] = 14
+            self.wd_tally[-1]["failed"] = 1
         self.demo_files = [
             {"kind": "file", "path": "/home/ubuntu/NL-Amsterdam.conf", "endpoint": "nl.wg.example-vpn.net", "in_use": False},
             {"kind": "file", "path": "/home/ubuntu/SE-Stockholm.conf", "endpoint": "se.wg.example-vpn.net", "in_use": False}]
@@ -475,7 +481,10 @@ class DemoBackend:
                 "streams.example.com points at this server.", "Control panel: panel.example.com points at this server."]}
 
     def log_warnings(self, loggable) -> list[dict]:
-        """Recent warnings & errors: a few real-looking lines, noise among them (the card leaves it out)."""
+        """Recent warnings & errors: a few real-looking lines, noise among them (the card leaves it out).
+        Only with UI_DEMO_ISSUES; otherwise none, as a healthy install shows."""
+        if not self.issues:
+            return []
         now = time.time()
         def at(ago):
             return datetime.fromtimestamp(now - ago, timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
