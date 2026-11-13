@@ -205,6 +205,9 @@ main { max-width: 1680px; margin: 0 auto; padding: 28px var(--gutter) 96px; }
   padding: 8px 14px; border-radius: 9px; font-weight: 500; line-height: 1.2;
   transition: background .12s, border-color .12s, transform .06s;
 }
+/* An action's icon beside its word (util.js iconButtons) */
+.btn.btn-i { gap: 7px; }
+.btn.btn-i > svg { width: 15px; height: 15px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .btn:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
 .btn:active:not(:disabled) { transform: translateY(1px); }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
@@ -1468,7 +1471,7 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .rs-phone .restart-row > [hidden] { display: none; }
   .rs-phone .restart-row .input { width: 100%; min-width: 0; }
   .rs-phone .restart-row .time-pick .input { text-align: center; }
-  .rs-phone .btn.rs-wide { display: block; width: 100%; margin-top: 12px; }
+  .rs-phone .btn.rs-wide { display: flex; width: 100%; margin-top: 12px; }
   .rs-phone .btn.rs-wide[hidden] { display: none; }
   .rs-phone .tz-wrap { display: block; max-width: none; margin-top: 12px; }
   .rs-phone .tz-box { width: 100%; }

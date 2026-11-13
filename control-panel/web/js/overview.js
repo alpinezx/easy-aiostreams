@@ -1,4 +1,4 @@
-import { $, h, clear, setText, fmtDur, fmtBytes, api, toast, ago, extIcon } from "./util.js";
+import { $, h, clear, setText, fmtDur, fmtBytes, api, toast, ago, extIcon, ICONS, iconSvg } from "./util.js";
 import { runAction, openJob, rebootServer, restartService, ask } from "./actions.js";
 import { restartPanel } from "./terminal.js";
 import { openReleases, remember, behind } from "./releases.js";
@@ -199,19 +199,12 @@ function foldTitle(id, label) {
 // A folded card's button (Update, Restart stack) is a quiet link in the card's top right,
 // like Details, so a page of folded cards has no buttons on it
 // On a phone it's an icon alone (the word stays as its label); wider screens show the word.
-const ICONS = {
-  "Update": '<path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/>',
-  "Restart stack": '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
-  "Reboot server": '<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/>',
-  "Details": '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
-  "Logs": '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>',
-};
+
 function iconize(b) {
   const word = b.textContent.trim();
   if (!ICONS[word] || b.querySelector(".fa-icon")) return b;
   b.textContent = "";
-  const i = h("span", { class: "fa-icon", "aria-hidden": "true" });
-  i.innerHTML = `<svg viewBox="0 0 24 24">${ICONS[word]}</svg>`;
+  const i = h("span", { class: "fa-icon", "aria-hidden": "true" }, iconSvg(word));
   b.append(i, h("span", { class: "fa-word", text: word }));
   b.setAttribute("aria-label", word);
   if (!b.title) b.title = word;

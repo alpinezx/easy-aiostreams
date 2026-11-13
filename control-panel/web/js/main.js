@@ -1,6 +1,6 @@
 import "./viewport.js";
 import "./select.js";
-import { $, api, toast } from "./util.js";
+import { $, api, toast, iconButtons } from "./util.js";
 import { render, record } from "./overview.js";
 import * as logs from "./logs.js";
 import { showActivity, showBackups } from "./activity.js";
@@ -13,6 +13,14 @@ import * as alerts from "./alerts.js";
 import * as maint from "./maint.js";
 import * as addons from "./addons.js";
 import { openLayout } from "./layout.js";
+
+// Pages whose buttons carry an icon beside their word (util.js ICONS), redone whenever they redraw
+for (const id of ["view-overview", "view-backups"]) {
+  const el = document.getElementById(id);
+  if (!el) continue;
+  iconButtons(el);
+  new MutationObserver(() => iconButtons(el)).observe(el, { childList: true, subtree: true, characterData: true });
+}
 
 let status = null;
 let view = "overview";
