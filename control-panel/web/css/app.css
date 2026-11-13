@@ -1446,7 +1446,7 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 @media (max-width: 720px) {
   .warn-list { grid-template-columns: auto minmax(0, 1fr) auto; }
   .warn-row { grid-template-columns: subgrid; row-gap: 4px; }
-  .warn-msg { grid-column: 2 / -1; grid-row: 2; white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .warn-msg { grid-column: 2 / -1; grid-row: 2; min-width: 0; }   /* one line, cut off: the card only points at the log */
   .warn-ago { grid-column: 3; grid-row: 1; }
 }
 
