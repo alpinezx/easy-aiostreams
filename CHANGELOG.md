@@ -2,6 +2,10 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 13 November 2026
+
+- **New:** the request flow's Restart stack sits under the flow at the bottom right, as Reboot server does on This server, instead of beside the title. Folded, This server keeps Reboot server as a quiet link in its corner, as the request flow does with Restart stack. (Panel 1.55.12, [#177](https://github.com/alpinezx/easy-aiostreams/pull/177))
+
 ## 12 November 2026
 
 - **New:** Stop, Remove, Reboot server and the like look like every other button, with no red edge. They all ask first, and the dialog's red button is the warning. Services drops its Logs buttons (the Logs page and Recent warnings have them) and lists services by their buttons, so they line up: none, then Restart, then Stop and Restart, with AIOStreams and the other AIOs together, then the VPN tunnel, then any other add-on. The VPN tunnel's row gets Stop (Turn VPN off) and Restart (Restart stack, as the VPN can't restart on its own), each saying so, and stays listed while off, with Start. Recent warnings leaves out lines logged during the panel's own actions (Restart stack, updates, VPN switches, backups) and a minute after, such as the tunnel not reaching Caddy while it restarts; the Logs page keeps them. Its Recent CPU graph is wider on desktop and shows about 3.5 minutes. Screenshots retaken. (Panel 1.55.11, [#176](https://github.com/alpinezx/easy-aiostreams/pull/176))

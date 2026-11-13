@@ -562,7 +562,9 @@ function path(st) {
       h("li", { class: "t-root" }, h("div", { class: "t-row t-start", text: "Visitors" }),
         main.length ? h("ul", {}, after(0, true)) : null));
     el.append(tree);
-    head.append(restartBtn());
+    // Under the flow at the bottom right, like Reboot server on This server
+    const b = restartBtn();
+    if (b) el.append(h("div", { class: "path-acts" }, b));
   });
   for (const s of svcs) setText(el, `[data-up="${s.key}"]`, uptime(s));
 }
@@ -837,7 +839,9 @@ function side(st) {
   const hostFolded = isFolded("server");
   const host = h("section", { class: "panel host" + (hostFolded ? " folded" : "") },
     h("div", { class: "card-head" }, h("h3", {}, foldTitle("server", "This server"))));
-  if (hostFolded) host.firstChild.append(hostSum(st));
+  // Folded, Reboot server stays as a quiet link in the corner, as Restart stack does on the flow
+  if (hostFolded) host.firstChild.append(hostSum(st),
+    foldAct(h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer })));
   const grid = h("div", { class: "stat-grid" });
   // Top row: what you look at first. What folds out (Network, certificates) is on the
   // bottom row, so it opens under the values
