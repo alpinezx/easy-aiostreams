@@ -352,8 +352,13 @@ button.chip:hover { text-decoration: underline; }
   .warnc.folded .fold-sum { flex: 1 1 calc(100% - 48px); }
   .warnc.folded .card-head > .cog-low { order: 4; }
   /* As tall as the folded AIOStreams card under it, so its two icons have room between them */
-  .panel.warnc { min-height: 6.875rem; display: flex; flex-direction: column; }
+  /* Part text, part fixed padding, like the AIOStreams card, so the two stay level at any text size.
+     The same padding open and folded, so the title doesn't move (and the page with it) when tapped */
+  .panel.warnc { min-height: calc(4.1667rem + 43px); display: flex; flex-direction: column; }
+  #view-overview .panel.warnc { padding-top: 16px; padding-bottom: 16px; }
   .warnc.folded .card-head { flex: 1; align-content: space-between; }
+  .warnc .card-head { align-content: space-between; align-items: flex-start; }
+  .warnc .card-acts .warn-logs { margin-top: -5px; }
   .warnc .warn-foot { margin-top: auto; }
 }
 /* Until the first status reading draws it, so empty card frames never flash up */
