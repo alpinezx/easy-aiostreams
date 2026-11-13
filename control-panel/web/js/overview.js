@@ -1101,7 +1101,8 @@ function vpnCard(el, st, avail) {
   const card = h("section", { class: "panel vpnc" + (folded ? " folded" : "") }, h("div", { class: "card-head" },
     h("h3", {}, foldTitle("vpn", "VPN")),
     folded ? null : h("span", { class: "vpnc-tunnel" }, h("span", { class: "ver-label", text: "Tunnel" }),
-      h("span", { class: "vpnc-word" + (tn ? " " + tn : ""), text: word })),
+      // Beside "Tunnel", the short form: Up or Down (the folded line has no label, so it keeps the long one)
+      h("span", { class: "vpnc-word" + (tn ? " " + tn : ""), text: ({ "Connected": "Up", "Not connected": "Down" })[word] || word })),
     folded ? foldSum([[word, tn], [where], top ? [`gluetun ${top.tag} available`] : [""]]) : null,
     folded && top && updBtn ? foldAct(updBtn) : iconize(h("a", { href: "#vpn", class: "dim card-link card-detail", text: "Details" }))));
   el.append(card);
