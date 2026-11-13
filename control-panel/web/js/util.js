@@ -28,49 +28,6 @@ export function extIcon() {
   return s;
 }
 
-// One icon per action word, shared by every page, so the same action looks the same wherever it is:
-// a folded card's corner icon and the open card's button carry the same picture.
-const RESTART = '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>';
-const COPY = '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>';
-const BIN = '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/>';
-export const ICONS = {
-  "Update": '<path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/>',
-  "Check now": '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
-  "All releases": '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
-  "Restart stack": RESTART, "Restart": RESTART, "Restart panel": RESTART,
-  "Reboot server": '<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/>',
-  "Stop": '<rect x="6" y="6" width="12" height="12" rx="1.5"/>',
-  "Start": '<path d="M7 4v16l13-8z"/>',
-  "Turn VPN off": '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m4 4 16 16"/>',
-  "Turn VPN on": '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
-  "Send test alert": '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
-  "Back up now": '<rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>',
-  "Set schedule": '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
-  "Restore": '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
-  "Copy restore command": COPY, "Copy scp command": COPY,
-  "Lock": '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
-  "Unlock": '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.9-1"/>',
-  "Delete": BIN,
-  "Details": '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
-  "Logs": '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>',
-};
-export function iconSvg(word) {
-  const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("aria-hidden", "true");
-  s.innerHTML = ICONS[word];
-  return s;
-}
-// A button whose whole text is a known action word gets its icon in front of the word. Run over a
-// page's buttons whenever they're drawn (main.js watches the pages that have them); a button whose
-// text changes (Checking…) loses it and gets it back with its word.
-export function iconButtons(root) {
-  for (const b of root.querySelectorAll(".btn:not(.quiet):not(.fold-act)")) {
-    if (b.firstElementChild) continue;
-    const w = b.textContent.trim();
-    if (ICONS[w]) { b.prepend(iconSvg(w)); b.classList.add("btn-i"); }
-  }
-}
-
 export function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); }
 
 export function setText(root, sel, text) {
