@@ -367,21 +367,14 @@ button.chip:hover { text-decoration: underline; }
 .warn-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .warn-foot > .warn-none, .warn-foot > .warn-more { margin-top: 6px; }
 @media (max-width: 720px) {
-  .folded .btn.fold-act, .warn-logs, .card-link.card-detail { padding: 8px; margin: -8px -8px -8px auto; }
-  .warnc .card-acts > .card-cog { display: none; }
-  .card-cog.cog-low { display: inline-flex; padding: 8px; margin: -8px -8px -8px auto; }
-  .card-cog.cog-low svg { width: 20px; height: 20px; }
-  .warnc.folded .fold-sum { flex: 1 1 calc(100% - 48px); }
-  .warnc.folded .card-head > .cog-low { order: 4; }
-  /* As tall as the folded AIOStreams card under it, so its two icons have room between them */
-  /* Part text, part fixed padding, like the AIOStreams card, so the two stay level at any text size.
+  .folded .btn.fold-act, .card-link.card-detail { padding: 8px; margin: -8px -8px -8px auto; }
+  /* Recent log alerts: the Logs icon and the cog side by side in the corner, at the card's own height.
      The same padding open and folded, so the title doesn't move (and the page with it) when tapped */
-  .panel.warnc { min-height: calc(4.1667rem + 43px); display: flex; flex-direction: column; }
   #view-overview .panel.warnc { padding-top: 16px; padding-bottom: 16px; }
-  .warnc.folded .card-head { flex: 1; align-content: space-between; }
-  .warnc .card-head { align-content: space-between; align-items: flex-start; }
-  .warnc .card-acts .warn-logs { margin-top: -5px; }
-  .warnc .warn-foot { margin-top: auto; }
+  .warnc .card-head { align-items: flex-start; }
+  .warnc .card-acts { gap: 2px; margin: -8px -8px -8px auto; }
+  .warnc .card-acts > .card-cog, .warnc .card-acts > .warn-logs { padding: 8px; margin: 0; }
+  .warnc .card-acts > .card-cog svg { width: 20px; height: 20px; }
 }
 /* Until the first status reading draws it, so empty card frames never flash up */
 #view-overview:not(.drawn) { visibility: hidden; }
@@ -1430,7 +1423,7 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .ao-btn-cell { grid-column: -2 / -1; justify-self: end; align-self: end; }
 @media (max-width: 720px) { .ao-note:empty { display: none; } }
 
-/* Recent warnings & errors: one line per row on desktop; on phones the service and
+/* Recent log alerts: one line per row on desktop; on phones the service and
    time on top, the message under them */
 .warn-list { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; column-gap: 14px; margin-top: 6px; }
 .warn-row { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; align-items: center; padding: 9px 0; color: var(--text); text-decoration: none; border-top: 1px solid var(--line-soft); }

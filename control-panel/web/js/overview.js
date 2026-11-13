@@ -967,7 +967,7 @@ function side(st) {
   el.append(wd);
 }
 
-// Recent warnings & errors: the latest from every service's log over the last day (or since
+// Recent log alerts: the latest from every service's log over the last day (or since
 // its Clear), sorted by the Logs page's own rules so noise stays out. The same message from the
 // same service is one row with a count. A row opens that log.
 let warnData = null, warnAt = 0, warnLoading = false;
@@ -1038,7 +1038,7 @@ function warnCard(el) {
   const errs = rows.filter((r) => r.cls === "error").length, warns = rows.length - errs;
   const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
   const card = h("section", { class: "panel warnc" + (folded ? " folded" : "") }, h("div", { class: "card-head" },
-    h("h3", {}, foldTitle("warn", "Recent warnings & errors")),
+    h("h3", {}, foldTitle("warn", "Recent log alerts")),
     folded ? foldSum([[errs ? plural(errs, "error") : "", "bad"], [warns ? plural(warns, "warning") : "", "warn"],
       [warnData && !rows.length ? "None today" : "", "ok"]]) : null,
     // On a phone the corner holds a Logs icon, and the cog moves down to the card's last line
