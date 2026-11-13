@@ -51,7 +51,7 @@ const MODES = {
     },
   },
   rail: {
-    items: PAGES, url: "/api/rail-layout", title: "Edit the menu",
+    items: PAGES, url: "/api/rail-layout", title: "Edit the rail",
     hint: "≡ changes the order.",
     listed: (id) => { const t = railTab(id); return !!t && !t.hidden; },
     apply(cards) {

@@ -348,6 +348,12 @@ button.chip:hover { text-decoration: underline; }
   .panel:not(.folded) .warn-logs .fa-word, .panel:not(.folded) .card-detail .fa-word { display: inline; }
   .panel:not(.folded) .card-link.card-detail { padding: 0; margin: 0 0 0 auto; }
   .panel:not(.folded) .card-acts .warn-logs { padding: 0; margin: 0; }
+  /* Recent warnings open: as tall as the AIOStreams card (part text, part padding, so they stay level
+     at any text size), Logs in the corner and the cog under it on the card's last line */
+  .panel.warnc:not(.folded) { min-height: calc(4.861rem + 44px); display: flex; flex-direction: column; }
+  .warnc:not(.folded) .card-acts > .card-cog { display: none; }
+  .warnc:not(.folded) .card-cog.cog-low { display: inline-flex; margin: 0 -2px 0 auto; }
+  .warnc:not(.folded) .warn-foot { margin-top: auto; }
 }
 .fa-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; display: block; }
 .card-cog.cog-low { display: none; }

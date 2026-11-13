@@ -332,8 +332,8 @@ function hero(st) {
 // Edit: which cards the Overview shows, and their order, in a drawer
 function editBtn() {
   const b = h("button", { class: "btn small quiet hero-edit", type: "button", title: "Show, hide or reorder the cards on this page", onclick: openLayout });
-  b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg><span class="fa-word">Edit</span>';
-  b.setAttribute("aria-label", "Edit");
+  b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg><span class="fa-word">Edit Overview</span>';
+  b.setAttribute("aria-label", "Edit Overview");
   return b;
 }
 
