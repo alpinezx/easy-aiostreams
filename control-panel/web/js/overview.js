@@ -772,7 +772,8 @@ function hostSum(st) {
     // Down and up together with their label (as the open card's tile), so they wrap as one
     [n ? h("span", { class: "net-pair" }, h("span", { text: "Network" }), h("span", { text: `↓ ${fmtRate(n[0])}` }), h("span", { text: `↑ ${fmtRate(n[1])}` })) : "",
       "", "The whole server's network now, down and up"],
-    [bad ? `Last scheduled backup ${bk.last.status === "skipped" ? "skipped" : "failed"}` : bk && !bk.newest ? "No backup yet" : "", "warn"]]);
+    // Only a scheduled backup that failed or was skipped: none made yet is plain on the open card, so it isn't a warning here
+    [bad ? `Last scheduled backup ${bk.last.status === "skipped" ? "skipped" : "failed"}` : "", "warn"]]);
 }
 
 // HTTPS certificates. One site: a single tile. Several: one tile with the soonest expiry,

@@ -4,7 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 13 November 2026
 
-- **New:** the request flow's Restart stack sits under the flow at the bottom right, as Reboot server does on This server, instead of beside the title. Folded, This server keeps Reboot server as a quiet link in its corner, as the request flow does with Restart stack. The screenshots show a healthy install: no recent warnings, and every Phone alerts check passed. (Panel 1.55.12, [#177](https://github.com/alpinezx/easy-aiostreams/pull/177))
+- **New:** the request flow's Restart stack sits under the flow at the bottom right, as Reboot server does on This server, instead of beside the title. Folded, This server keeps Reboot server as a quiet link in its corner, as the request flow does with Restart stack, and no longer shows an amber "No backup yet" there: the open card shows it plainly. The screenshots show a healthy install: no recent warnings, and every Phone alerts check passed. (Panel 1.55.12, [#177](https://github.com/alpinezx/easy-aiostreams/pull/177))
 
 ## 12 November 2026
 
