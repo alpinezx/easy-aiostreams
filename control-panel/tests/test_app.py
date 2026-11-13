@@ -614,7 +614,7 @@ def test_overview_layout(client):
     r = client.put("/api/overview-layout", json={"cards": [{"id": "services", "show": True}, {"id": "nope"},
                                                          {"id": "alerts", "show": False}, {"id": "services", "show": False}]})
     assert ids(r) == [("flow", True), ("warn", True), ("aiostreams", True), ("aiometadata", True), ("aiomanager", True), ("mediaflow", True), ("vpn", True), ("services", True), ("alerts", False), ("server", True)]
-    # a layout saved before Recent warnings & errors existed gets it straight under the request flow
+    # a layout saved before Recent log alerts existed gets it straight under the request flow
     old = [{"id": c, "show": True} for c, _ in default if c != "warn"]
     from app.main import normal_layout
     assert [c["id"] for c in normal_layout(old)][:3] == ["flow", "warn", "aiostreams"]
@@ -630,7 +630,7 @@ def test_overview_layout(client):
 
 
 def test_log_warnings(client):
-    """Recent warnings & errors: hints from each running service, and a Clear empties that one's."""
+    """Recent log alerts: hints from each running service, and a Clear empties that one's."""
     login(client)
     from app.stack import warn_hints
     raw = "\n".join([

@@ -220,7 +220,7 @@ def clean_line(line: str) -> str | None:
 _LOG_SECRET = re.compile(r"(api_password=)[^&\s\"']+")
 
 
-# The Overview's Recent warnings & errors: lines that might be a warning or an error, plus Caddy's
+# The Overview's Recent log alerts: lines that might be a warning or an error, plus Caddy's
 # stop lines (an AIOStreams cut just before a restart is noise). Deliberately broad: the browser
 # sorts them with the Logs page's own rules, so this only spares sending every line.
 WARN_HINT = re.compile(r'error|fatal|panic|exception|failed|warn|critical|"level":\s*[4-6]\d'

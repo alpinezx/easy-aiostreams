@@ -124,7 +124,7 @@ function markRestart(stop) {
   return changed;
 }
 
-// The Overview's Recent warnings & errors: a log's lines sorted with this page's own rules, so
+// The Overview's Recent log alerts: a log's lines sorted with this page's own rules, so
 // the card and Logs always agree on what is a warning, an error or noise. Oldest first, as sent.
 // Each comes back with `at` (when Docker got it, in seconds) for the card's "4 min ago".
 export function scan(raws) {

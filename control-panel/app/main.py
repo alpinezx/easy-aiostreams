@@ -858,7 +858,7 @@ _warn_cache: dict = {"at": 0.0, "data": None}
 # The services the card reads (its cog), one choice per install like the layouts.
 # The panel, Caddy, the tunnel and the VPN start on; AIOStreams and the add-ons start off.
 # A new add-on's first-run warnings (keys not entered yet) are mostly harmless, and
-# AIOStreams' own dashboard has the same Recent warnings & errors, so each is shown only
+# AIOStreams' own dashboard has the same Recent log alerts, so each is shown only
 # once switched on.
 WARN_OFF_BY_DEFAULT = {"aiostreams", "mediaflow-proxy-light", "aiometadata", "aiomanager"}
 
@@ -942,7 +942,7 @@ def outside_jobs(services: list[dict], windows: list[tuple[float, float]]) -> li
 
 @app.get("/api/log-warnings")
 async def log_warnings(user: str = Depends(current_user)):
-    """The Overview's Recent warnings & errors: each running service's lines of the last day
+    """The Overview's Recent log alerts: each running service's lines of the last day
     that may be warnings or errors, less those logged during the panel's own actions. The
     browser sorts them with the Logs page's rules."""
     hidden = load_warn_hidden()
