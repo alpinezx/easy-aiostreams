@@ -1037,7 +1037,7 @@ function warnCard(el) {
   const rows = warnData || [];
   const errs = rows.filter((r) => r.cls === "error").length, warns = rows.length - errs;
   const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
-  const card = h("section", { class: "panel warnc" + (folded ? " folded" : "") }, h("div", { class: "card-head" },
+  const card = h("section", { class: "panel warnc" + (folded ? " folded" : "") + (rows.length ? " has-rows" : "") }, h("div", { class: "card-head" },
     h("h3", {}, foldTitle("warn", "Recent log alerts")),
     folded ? foldSum([[errs ? plural(errs, "error") : "", "bad"], [warns ? plural(warns, "warning") : "", "warn"],
       [warnData && !rows.length ? "None today" : "", "ok"]]) : null,
