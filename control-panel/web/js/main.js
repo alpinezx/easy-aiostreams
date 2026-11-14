@@ -178,7 +178,7 @@ async function boot() {
   terminalOn = !!me.terminal;
   $("#tab-terminal").hidden = !terminalOn;
   $("#vpn-check").addEventListener("click", () => vpn.show(true, status));
-  for (const id of ["#restart-panel", "#restart-panel-2"]) $(id).addEventListener("click", () => {
+  $("#restart-panel-2").addEventListener("click", () => {
     if (confirm("Restart the panel? It will be unavailable for a few seconds and any open terminal will close.")) terminal.restartPanel();
   });
   logs.init();

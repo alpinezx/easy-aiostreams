@@ -1391,7 +1391,6 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .scripts-panel .sub-head { font-size: 15px; font-weight: 600; margin: 0 0 6px; }
 .scripts-panel .addons-note { margin: 0 0 4px; color: var(--text); }
 .scripts-panel .addons-note b { font-weight: 650; }
-.restart-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 16px 0 0; font-size: .9rem; }
 .scripts-panel a { color: var(--accent); }
 .chip.small-chip { font-size: .74rem; padding: 1px 8px; white-space: nowrap; }
 /* The panel's version, under the logo in the rail */
@@ -1504,7 +1503,17 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .fold-all[aria-expanded="true"] .path-chev svg { transform: rotate(180deg); }
 @media (max-width: 720px) { .hero-head { row-gap: 22px; } }
 .hero-edit { gap: 6px; }
-@media (min-width: 721px) { .hero-btns + .hero-edit { margin-left: -8px; } }
+/* What's new and Edit Overview at the top right: on desktop on the panel's name line, on phones a row above
+   the headline; Fold all cards on a line of its own under the headline, lined up with the lamp */
+.hero-head { position: relative; }
+.hero-tools { order: -1; flex: 1 1 100%; justify-content: flex-end; }
+.hero-fold { flex: 1 1 100%; margin: -4px 0 -4px -10px; }
+@media (min-width: 721px) {
+  /* the headline and Fold all sit a little lower, nearer the first card; the buttons stay on the name line */
+  .hero-head { margin-top: 12px; }
+  .hero { padding-bottom: 14px; }
+  .hero-tools { position: absolute; right: -10px; top: calc(-26px - .63rem); transform: translateY(-50%); flex: none; }
+}
 .hero-edit svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
 /* Edit's drawer: a card per row, its switch, and ≡ to drag it */
@@ -1589,7 +1598,7 @@ html:has(#theme-pane:not([hidden])) { overflow: hidden; }
   .item.bk .what .lock-tag { display: table; margin: 6px 0 2px; }
 }
 
-/* a note that follows a list (the restart-panel note under the backups) needs air above it */
+/* a note that follows a list needs air above it */
 .list + .note { margin-top: 16px; }
 
 /* set-aside folders under the backups list */
@@ -1781,12 +1790,11 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .upd-peek .upd-peek-head { margin: 0 0 8px; font-size: .86rem; }
 .upd-done { padding: 4px 18px; }
 @media (max-width: 720px) {
-  /* A row of their own, spread across the cards' width, each with room for a thumb */
-  .hero-btns:has(> .fold-all) { flex: 1 1 100%; justify-content: space-between; margin: -8px -7px -8px -10px; }
+  /* Room for a thumb on each; the row above the headline sits flush with the cards' right edge */
   .hero-btns .btn.small { padding: 8px 10px; }
-  /* The pencil alone beside the headline, the row of buttons under it */
-  .hero-btns { order: 5; }
-  .btn.hero-edit { margin: -10px -10px -10px auto; padding: 12px; }
+  .hero-tools { margin: -10px -10px -12px 0; }
+  .hero-fold { margin: -10px 0 -10px -10px; }
+  .btn.hero-edit { padding: 12px; }
   .btn.hero-edit svg { width: 16px; height: 16px; }
   .hero-edit .fa-word { display: none; }
 }
@@ -1862,10 +1870,6 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 /* its lines fill only the middle of the icon's box, so it's drawn larger to stand as tall as the F */
 .fold-all.btn-i > svg.bi { width: 1.15em; height: 1.15em; position: relative; top: -.02em; }
 .hero-btns .btn-i[data-act="What's new"] > svg.bi { width: .9em; height: .9em; position: relative; top: -.08em; }
-/* Backup & Restore's "Restored from the Terminal tab?" as a small card like the backups above it:
-   the question on the left, Restart panel on the right (under the question on narrow phones) */
-.restart-line { justify-content: space-between; padding: 12px 16px; border: 1px solid var(--card-edge); border-radius: var(--radius); background: var(--raised); }
-.restart-line > .btn { margin-left: auto; }
 /* Services' Stop and Restart columns, wide enough for the icons */
 .row .acts:has(.btn-i) { grid-template-columns: 74px 86px; }
 @media (max-width: 720px) {
@@ -1886,8 +1890,6 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   /* Scripts: two columns like the cards. Run in terminal (or Get and run) across the top, Copy and
      Update below; with two buttons, side by side. The hidden other word and the spacers aren't needed. */
   .run-btn.btn-i .run-alt { display: none; }
-  /* Restart panel spans its little card, under the question (it fills that card's empty corner) */
-  .restart-line > .btn { flex: 1 1 100%; margin-left: 0; justify-content: center; }
   /* the Traffic card's 1 hour / 24 hours / 7 days on a line of their own under the title, centred */
   .vpn-head:has(> .tr-title + .tr-ranges) { grid-template-columns: minmax(0, 1fr); row-gap: 12px; }
   .vpn-head:has(> .tr-title + .tr-ranges) > .tr-ranges { grid-column: 1; }
@@ -1900,3 +1902,6 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .vpnc-foot.btn-grid:not(:has(> .btn[data-act="Update"])) > .btn[data-act="All releases"] { grid-area: 1 / 1 / 2 / 3 !important; }
   .vpnc-foot.btn-grid:not(:has(> .btn[data-act="Update"])) > .btn.vpnc-switch { grid-area: 2 / 2 !important; }
 }
+/* Phones: a page's buttons always on a line of their own under its title, on the right,
+   so Activity, VPN and Terminal match the pages whose buttons don't fit beside it */
+@media (max-width: 720px) { .view-head > h2 { flex-basis: 100%; } }
