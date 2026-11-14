@@ -39,8 +39,6 @@
   --bad-soft: rgba(248, 113, 113, .12);
   --warn-soft: rgba(245, 158, 11, .12);
   --ok-soft: rgba(16, 185, 129, .12);
-  /* the amber glow round notes (a quarter of it in Light, where more reads as a shadow) */
-  --note-glow: 0 0 11px color-mix(in srgb, var(--warn) 34%, transparent);
   --up-line: var(--dim);   /* the traffic graph's Up line, beside Down in --accent */
   --radius: 12px;
   --font: "Inter", ui-sans-serif, system-ui, sans-serif;
@@ -60,7 +58,6 @@
     --primary: #4f43b8; --primary-hover: #4034a3; --primary-ink: #ffffff;
     --ok: #047857; --warn: #9a6200; --bad: #c42f2f;
     --bad-soft: rgba(196, 47, 47, .09); --warn-soft: rgba(154, 98, 0, .1); --ok-soft: rgba(18, 128, 90, .1);
-    --note-glow: 0 0 11px color-mix(in srgb, var(--warn) 9%, transparent);
   }
 }
 :root[data-theme="light"] {
@@ -72,7 +69,6 @@
   --primary: #4f43b8; --primary-hover: #4034a3; --primary-ink: #ffffff;
   --ok: #047857; --warn: #9a6200; --bad: #c42f2f;
   --bad-soft: rgba(196, 47, 47, .09); --warn-soft: rgba(154, 98, 0, .1); --ok-soft: rgba(18, 128, 90, .1);
-  --note-glow: 0 0 11px color-mix(in srgb, var(--warn) 9%, transparent);
 }
 /* Slate: a softer dark, slate greys in Nord's spirit, only when picked. It comes after the light
    block above so it wins on a device set to light. The page is darker than the cards so they lift
@@ -338,37 +334,32 @@ button.chip:hover { text-decoration: underline; }
 .panel.folded .card-head > .btn.fold-act { margin-left: auto; }
 /* Icons in the cards' corners instead of words, the same on phones and wider screens (the word stays as the label) */
 .fa-icon { display: none; }
-.fold-act .fa-icon, .warn-logs .fa-icon, .card-detail .fa-icon { display: block; }
-.fold-act .fa-word, .warn-logs .fa-word, .card-detail .fa-word { display: none; }
-.folded .btn.fold-act, .warn-logs, .card-link.card-detail { padding: 4px; margin: -4px -4px -4px auto; }
-.warnc .card-acts .warn-logs { margin-left: 0; }
+.fold-act .fa-icon, .warn-logs .fa-icon, .warn-clear .fa-icon, .card-detail .fa-icon { display: block; }
+.fold-act .fa-word, .warn-logs .fa-word, .warn-clear .fa-word, .card-detail .fa-word { display: none; }
+.warn-clear { background: none; border: 0; font: inherit; cursor: pointer; display: inline-flex; }
+.folded .btn.fold-act, .warn-logs, .warn-clear, .card-link.card-detail { padding: 4px; margin: -4px -4px -4px auto; }
+.warnc .card-acts .warn-logs, .warnc .card-acts .warn-clear { margin-left: 0; }
 /* Wider screens: an open card keeps its words (Logs, Details), like its buttons; icons only once folded */
 /* Details too on phones: an open card's corner says it in words */
 .panel:not(.folded) .card-detail .fa-icon { display: none; }
 .panel:not(.folded) .card-detail .fa-word { display: inline; }
 .panel:not(.folded) .card-link.card-detail { padding: 0; margin: 0 0 0 auto; }
 @media (min-width: 721px) {
-  .panel:not(.folded) .warn-logs .fa-icon { display: none; }
-  .panel:not(.folded) .warn-logs .fa-word { display: inline; }
-  .panel:not(.folded) .card-acts .warn-logs { padding: 0; margin: 0; }
+  .panel:not(.folded) .warn-logs .fa-icon, .panel:not(.folded) .warn-clear .fa-icon { display: none; }
+  .panel:not(.folded) .warn-logs .fa-word, .panel:not(.folded) .warn-clear .fa-word { display: inline; }
+  .panel:not(.folded) .card-acts .warn-logs, .panel:not(.folded) .card-acts .warn-clear { padding: 0; margin: 0; }
+  .warnc:not(.folded) .card-acts > .warn-clear { font-size: .86rem; }
+  .warn-clear:hover { color: var(--text); text-decoration: underline; }
   /* Recent warnings open: as tall as the AIOStreams card (part text, part padding, so they stay level
-     at any text size), Logs in the corner and the cog under it on the card's last line */
+     at any text size), "Choose services" and Logs side by side in the corner, rows or not */
   .panel.warnc:not(.folded) { min-height: calc(4.861rem + 44px); display: flex; flex-direction: column; }
-  .warnc:not(.folded) .card-acts > .card-cog { display: none; }
-  .warnc:not(.folded) .card-cog.cog-low { display: inline-flex; margin: 0 0 0 auto; padding: 0; font-size: .86rem; }
-  .warnc:not(.folded) .card-cog.cog-low svg { display: none; }
-  .warnc:not(.folded) .card-cog.cog-low .fa-word { display: inline; }
-  .warnc:not(.folded) .card-cog.cog-low:hover { text-decoration: underline; }
   .warnc:not(.folded) .warn-foot { margin-top: auto; align-items: baseline; }
-  /* With rows, the last line is theirs: Choose services moves up beside Logs */
-  .warnc.has-rows:not(.folded) .card-cog.cog-low { display: none; }
-  .warnc.has-rows:not(.folded) .card-acts > .card-cog { display: inline-flex; padding: 0; font-size: .86rem; }
-  .warnc.has-rows:not(.folded) .card-acts > .card-cog svg { display: none; }
-  .warnc.has-rows:not(.folded) .card-acts > .card-cog .fa-word { display: inline; }
-  .warnc.has-rows:not(.folded) .card-acts > .card-cog:hover { text-decoration: underline; }
+  .warnc:not(.folded) .card-acts > .card-cog { display: inline-flex; padding: 0; font-size: .86rem; }
+  .warnc:not(.folded) .card-acts > .card-cog svg { display: none; }
+  .warnc:not(.folded) .card-acts > .card-cog .fa-word { display: inline; }
+  .warnc:not(.folded) .card-acts > .card-cog:hover { text-decoration: underline; }
 }
-.fa-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; display: block; }
-.card-cog.cog-low { display: none; }
+.fa-icon svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; display: block; }
 .card-cog .fa-word { display: none; }
 .warn-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .warn-foot > .warn-none, .warn-foot > .warn-more { margin-top: 6px; }
@@ -377,10 +368,13 @@ button.chip:hover { text-decoration: underline; }
   /* Recent log alerts: the Logs icon and the cog side by side in the corner, at the card's own height.
      The same padding open and folded, so the title doesn't move (and the page with it) when tapped */
   #view-overview .panel.warnc { padding-top: 16px; padding-bottom: 16px; }
-  .warnc .card-head { align-items: flex-start; }
+  .warnc .card-head { align-items: flex-start; min-height: 0; }
   .warnc .card-acts { gap: 2px; margin: -8px -8px -8px auto; }
-  .warnc .card-acts > .card-cog, .warnc .card-acts > .warn-logs { padding: 8px; margin: 0; }
-  .warnc .card-acts > .card-cog svg { width: 20px; height: 20px; }
+  .warnc .card-acts > .card-cog, .warnc .card-acts > .warn-logs, .warnc .card-acts > .warn-clear { padding: 8px; margin: 0; }
+  .warnc .card-acts > .card-cog svg { width: 16px; height: 16px; }
+  /* Empty, its line sits where the folded summary does (12px gap + 2px, the summary's line height),
+     so the card is the same height open and folded */
+  .warnc .warn-foot > .warn-none { margin-top: 14px; line-height: calc(.82rem * 1.5); }
 }
 /* Until the first status reading draws it, so empty card frames never flash up */
 #view-overview:not(.drawn) { visibility: hidden; }
@@ -929,9 +923,9 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .view-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; }
 .view-head h2 { margin: 0; font-size: 1.875rem; font-weight: 700; letter-spacing: -.02em; }
 .view-head .btn { margin-left: auto; }
-/* Notes: a card like the others with an amber edge, glowing in Dark and Slate
-   (an amber wash turned muddy brown on the dark page) */
-.note, .dialog .switch-warn { background: var(--raised); border: 1px solid color-mix(in srgb, var(--warn) 55%, transparent); box-shadow: var(--note-glow); }
+/* Notes and dialog warnings: a card with an amber edge down the left that follows its rounded corners,
+   like the toasts (an amber wash turned muddy brown on the dark page) */
+.note, .dialog .switch-warn { background: var(--raised); border: 1px solid var(--line); border-left: 4px solid var(--warn); }
 .note { border-radius: 12px; padding: 12px 16px; color: var(--text); margin: 0 0 16px; font-size: .94rem; }
 .note b { font-weight: 650; }
 .note p { margin: 0; }
@@ -1511,7 +1505,7 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   /* The pencil alone beside the headline, the row of buttons under it */
   .hero-btns { order: 5; }
   .btn.hero-edit { margin: -10px -10px -10px auto; padding: 12px; }
-  .btn.hero-edit svg { width: 19px; height: 19px; }
+  .btn.hero-edit svg { width: 16px; height: 16px; }
   .hero-edit .fa-word { display: none; }
 }
 /* Scripts tab: Run in terminal and Get and run share one width */

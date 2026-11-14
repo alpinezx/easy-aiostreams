@@ -204,6 +204,7 @@ const ICONS = {
   "Restart stack": '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
   "Reboot server": '<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/>',
   "Details": '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  "Clear": '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
   "Logs": '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>',
 };
 function iconize(b) {
@@ -751,14 +752,16 @@ async function loadWdDays() {
 
 // The VPN card's details come from the VPN page's own data (the server asks from inside
 // gluetun at most once a minute), fetched again within a minute, or at once when it's switched.
-let vpnInfo = null, vpnAt = 0, vpnFor = null, vpnLoading = false;
+// vpnChecking: a press of Check now, the only time its button says Checking… (the card's own
+// refresh each minute runs quietly)
+let vpnInfo = null, vpnAt = 0, vpnFor = null, vpnLoading = false, vpnChecking = false;
 async function loadVpn(mode, fresh) {
   if (vpnLoading || (!fresh && mode === vpnFor && Date.now() - vpnAt < 60000)) return;
-  vpnLoading = true;
+  vpnLoading = true; vpnChecking = !!fresh;
   if (fresh && lastSt) side(lastSt);
   try { vpnInfo = await api(`/api/vpn${fresh ? "?fresh=1" : ""}`); }
   catch (_) { vpnInfo = null; }
-  vpnAt = Date.now(); vpnFor = mode; vpnLoading = false;
+  vpnAt = Date.now(); vpnFor = mode; vpnLoading = false; vpnChecking = false;
   if (lastSt) side(lastSt);
   if (fresh && vpnInfo) toast(vpnInfo.connected ? "The VPN is connected." : vpnInfo.error || "The VPN isn't connected.", !vpnInfo.connected);
 }
@@ -1019,8 +1022,18 @@ async function warnPick() {
   warnAt = 0; warnData = null;
   if (lastSt) side(lastSt);
 }
-function cogBtn(low) {
-  const b = h("button", { class: "card-cog" + (low ? " cog-low" : ""), type: "button", title: "Choose which services' warnings show here",
+// The card's bin: its rows leave the card (every device), the Logs page keeps them
+async function warnClear() {
+  const ok = await ask({ title: "Clear these alerts?", body: "They leave this card on every device.\nThe Logs page keeps them.",
+    confirmLabel: "Clear" });
+  if (!ok) return;
+  try { await api("/api/log-warnings/clear", { method: "POST" }); }
+  catch (e) { toast(e.message, true); return; }
+  warnAt = 0; warnData = null; warnMore = false;
+  if (lastSt) side(lastSt);
+}
+function cogBtn() {
+  const b = h("button", { class: "card-cog", type: "button", title: "Choose which services' warnings show here",
     "aria-label": "Choose services", onclick: warnPick });
   b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg><span class="fa-word">Choose services</span>';
   return b;
@@ -1041,17 +1054,18 @@ function warnCard(el) {
     h("h3", {}, foldTitle("warn", "Recent log alerts")),
     folded ? foldSum([[errs ? plural(errs, "error") : "", "bad"], [warns ? plural(warns, "warning") : "", "warn"],
       [warnData && !rows.length ? "None today" : "", "ok"]]) : null,
-    // On a phone the corner holds a Logs icon, and the cog moves down to the card's last line
-    h("span", { class: "card-acts" }, cogBtn(), iconize(h("a", { href: "#logs", class: "dim card-link warn-logs", text: "Logs" }))),
-    folded ? cogBtn(true) : null));
+    // The corner: Clear (only with rows), Choose services and Logs; icons on phones and once folded
+    h("span", { class: "card-acts" },
+      rows.length ? iconize(h("button", { class: "card-link warn-clear dim", type: "button", text: "Clear", onclick: warnClear })) : null,
+      cogBtn(), iconize(h("a", { href: "#logs", class: "dim card-link warn-logs", text: "Logs" })))));
   el.append(card);
   if (folded) return;
-  // The card's last line: what it says (or Show more) on the left, the phone's cog on the right
-  const foot = (...kids) => card.append(h("div", { class: "warn-foot" }, ...kids, cogBtn(true)));
+  // The card's last line: what it says, or Show more
+  const foot = (...kids) => card.append(h("div", { class: "warn-foot" }, ...kids));
   if (!warnData) { foot(h("p", { class: "dim warn-none", text: warnLoading ? "Reading the logs…" : "Couldn't read the logs." })); return; }
   if (!rows.length) {
     const none = lastSt && lastSt.services.filter((s) => s.container).every((s) => warnHidden.includes(s.container));
-    foot(h("p", { class: "dim warn-none", text: none ? "No services picked: use the cog." : "None in the last day." }));
+    foot(h("p", { class: "dim warn-none", text: none ? "No services picked." : "None in the last day." }));
     return;
   }
   const now = Date.now() / 1000;
@@ -1158,7 +1172,7 @@ function vpnCard(el, st, avail) {
   }
   if (updBtn) btns.append(updBtn);
   if (mode === "on") {
-    btns.append(h("button", { class: "btn small", type: "button", text: vpnLoading ? "Checking…" : "Check now", disabled: vpnLoading,
+    btns.append(h("button", { class: "btn small", type: "button", text: vpnChecking ? "Checking…" : "Check now", disabled: vpnChecking,
       title: "Ask from inside the VPN where traffic leaves now, and GitHub for gluetun's newest release",
       onclick: () => { loadVpn(mode, true); if (running) glRel.load(true); } }));
   }

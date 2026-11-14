@@ -949,7 +949,41 @@ async def log_warnings(user: str = Depends(current_user)):
     if _warn_cache["data"] is None or time.time() - _warn_cache["at"] > 30:
         _warn_cache["data"] = await asyncio.to_thread(backend.log_warnings, LOGGABLE - set(hidden))
         _warn_cache["at"] = time.time()
-    return {"services": outside_jobs(_warn_cache["data"], _job_windows()), "hidden": hidden}
+    return {"services": after_clear(outside_jobs(_warn_cache["data"], _job_windows()), _warn_cleared_at()),
+            "hidden": hidden}
+
+
+# The card's own bin: lines up to then leave the card on every device. Docker's logs and
+# the Logs page keep them (its own bin is the one that hides lines there).
+def _warn_cleared_path() -> Path:
+    return config.STATE_DIR / "warn-cleared.json"
+
+
+def _warn_cleared_at() -> float:
+    try:
+        return float(json.loads(_warn_cleared_path().read_text()).get("at") or 0)
+    except Exception:
+        return 0.0
+
+
+def after_clear(services: list[dict], at: float) -> list[dict]:
+    if not at:
+        return services
+    def keep(line):
+        t = _line_time(line)
+        return t is None or t > at
+    return [{**s, "lines": [ln for ln in s["lines"] if keep(ln)]} for s in services]
+
+
+@app.post("/api/log-warnings/clear")
+async def clear_warnings(user: str = Depends(current_user)):
+    try:
+        tmp = _warn_cleared_path().with_suffix(".tmp")
+        tmp.write_text(json.dumps({"at": time.time()}))
+        tmp.replace(_warn_cleared_path())
+    except OSError:
+        raise HTTPException(500, "Couldn't save that.")
+    return {"ok": True}
 
 
 @app.put("/api/log-warnings/hidden")

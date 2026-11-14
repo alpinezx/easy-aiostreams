@@ -32,7 +32,8 @@ export function ask({ title, body, confirmLabel, danger, options, alt }) {
     const done = (v) => { closeDialog(); resolve(v); };
     openDialog([
       h("h3", { id: "dialog-title", text: title }),
-      body ? h("p", { text: body }) : null,
+      // A "\n" in the body starts a new line
+      body ? h("p", {}, ...body.split("\n").flatMap((t, i) => i ? [h("br"), t] : [t])) : null,
       options ? options.el : null,
       h("div", { class: "btns" },
         h("button", { class: "btn", type: "button", text: "Cancel", onclick: () => done(null) }),
@@ -148,7 +149,9 @@ export async function runAction(act, params, lead) {
   } else if (act.confirm || vpnOff) {
     const addonsNote = act.id === "stack.restart" && window.__addons ? "Add-ons aren't restarted: use Restart on their row in Services." : null;
     const body = [lead, restartWhat(act), act.confirm, addonsNote, vpnOff ? VPN_OFF_NOTE : null].filter(Boolean).join(" ");
-    const ok = await ask({ title: `${act.label}?`, body, confirmLabel: act.label, danger: /stop|forget|delete|uninstall/i.test(act.id) });
+    // The stack's own action is labelled Restart (beside Start and Stop), but its confirm names what it is
+    const label = act.id === "stack.restart" ? "Restart stack" : act.label;
+    const ok = await ask({ title: `${label}?`, body, confirmLabel: label, danger: /stop|forget|delete|uninstall/i.test(act.id) });
     if (!ok) return;
     if (vpnOff) params = { ...(params || {}), without_vpn: true };
   }
