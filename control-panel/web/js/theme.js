@@ -3,5 +3,5 @@
 try {
   const t = localStorage.getItem("aios.theme");
   // Keep in step with THEMES and MORE in layout.js (a test checks)
-  if (["light", "dark", "slate", "dracula", "mocha", "tokyo", "gruvbox", "onedark", "nord", "kanagawa", "nightowl", "solardark", "ghdark", "ayu", "latte", "ghlight", "solarlight", "gruvlight", "everlight", "tokyoday", "dawn"].includes(t)) document.documentElement.dataset.theme = t;
+  if (["light", "dark", "slate", "dracula", "mocha", "tokyo", "gruvbox", "onedark", "nord", "kanagawa", "nightowl", "solardark", "ghdark", "ayu", "latte", "ghlight", "solarlight", "gruvlight", "everlight", "tokyoday", "novel", "aerogel", "dawn"].includes(t)) document.documentElement.dataset.theme = t;
 } catch (_) { /* no storage: follow the device */ }
