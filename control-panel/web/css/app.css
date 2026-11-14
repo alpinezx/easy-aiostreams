@@ -1400,12 +1400,13 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .scripts-status { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 16px; margin: -6px 0 16px; }
 .scripts-status-text { flex: 1 1 280px; min-width: 0; display: grid; gap: 6px; }
 .scripts-status .btns { margin-left: auto; display: flex; gap: 8px; }
+/* Desktop: Check now beside the last status line (the web-terminal one when it shows), not the first */
+@media (min-width: 721px) { .scripts-status { align-items: flex-end; } }
 .scripts-status p { margin: 0; font-size: .9rem; }
 .term-off a { white-space: nowrap; }
 @media (max-width: 720px) {
   .term-off-how { display: block; }
-  /* Check now nearer the cards below than the status lines above */
-  .scripts-status { row-gap: 34px; margin-bottom: 8px; }
+  .scripts-status { row-gap: 26px; }   /* room between the status lines and the buttons wrapped under them */
 }
 .scripts-status details { min-width: 0; }
 .scripts-status details summary { cursor: pointer; font-size: .88rem; color: var(--dim); }
