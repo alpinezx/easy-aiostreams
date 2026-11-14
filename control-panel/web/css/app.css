@@ -352,23 +352,15 @@ button.chip:hover { text-decoration: underline; }
   .panel:not(.folded) .warn-logs .fa-word { display: inline; }
   .panel:not(.folded) .card-acts .warn-logs { padding: 0; margin: 0; }
   /* Recent warnings open: as tall as the AIOStreams card (part text, part padding, so they stay level
-     at any text size), Logs in the corner and the cog under it on the card's last line */
+     at any text size), "Choose services" and Logs side by side in the corner, rows or not */
   .panel.warnc:not(.folded) { min-height: calc(4.861rem + 44px); display: flex; flex-direction: column; }
-  .warnc:not(.folded) .card-acts > .card-cog { display: none; }
-  .warnc:not(.folded) .card-cog.cog-low { display: inline-flex; margin: 0 0 0 auto; padding: 0; font-size: .86rem; }
-  .warnc:not(.folded) .card-cog.cog-low svg { display: none; }
-  .warnc:not(.folded) .card-cog.cog-low .fa-word { display: inline; }
-  .warnc:not(.folded) .card-cog.cog-low:hover { text-decoration: underline; }
   .warnc:not(.folded) .warn-foot { margin-top: auto; align-items: baseline; }
-  /* With rows, the last line is theirs: Choose services moves up beside Logs */
-  .warnc.has-rows:not(.folded) .card-cog.cog-low { display: none; }
-  .warnc.has-rows:not(.folded) .card-acts > .card-cog { display: inline-flex; padding: 0; font-size: .86rem; }
-  .warnc.has-rows:not(.folded) .card-acts > .card-cog svg { display: none; }
-  .warnc.has-rows:not(.folded) .card-acts > .card-cog .fa-word { display: inline; }
-  .warnc.has-rows:not(.folded) .card-acts > .card-cog:hover { text-decoration: underline; }
+  .warnc:not(.folded) .card-acts > .card-cog { display: inline-flex; padding: 0; font-size: .86rem; }
+  .warnc:not(.folded) .card-acts > .card-cog svg { display: none; }
+  .warnc:not(.folded) .card-acts > .card-cog .fa-word { display: inline; }
+  .warnc:not(.folded) .card-acts > .card-cog:hover { text-decoration: underline; }
 }
 .fa-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; display: block; }
-.card-cog.cog-low { display: none; }
 .card-cog .fa-word { display: none; }
 .warn-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .warn-foot > .warn-none, .warn-foot > .warn-more { margin-top: 6px; }
@@ -377,10 +369,13 @@ button.chip:hover { text-decoration: underline; }
   /* Recent log alerts: the Logs icon and the cog side by side in the corner, at the card's own height.
      The same padding open and folded, so the title doesn't move (and the page with it) when tapped */
   #view-overview .panel.warnc { padding-top: 16px; padding-bottom: 16px; }
-  .warnc .card-head { align-items: flex-start; }
+  .warnc .card-head { align-items: flex-start; min-height: 0; }
   .warnc .card-acts { gap: 2px; margin: -8px -8px -8px auto; }
   .warnc .card-acts > .card-cog, .warnc .card-acts > .warn-logs { padding: 8px; margin: 0; }
   .warnc .card-acts > .card-cog svg { width: 20px; height: 20px; }
+  /* Empty, its line sits where the folded summary does (12px gap + 2px, the summary's line height),
+     so the card is the same height open and folded */
+  .warnc .warn-foot > .warn-none { margin-top: 14px; line-height: calc(.82rem * 1.5); }
 }
 /* Until the first status reading draws it, so empty card frames never flash up */
 #view-overview:not(.drawn) { visibility: hidden; }

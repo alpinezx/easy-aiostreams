@@ -1019,8 +1019,8 @@ async function warnPick() {
   warnAt = 0; warnData = null;
   if (lastSt) side(lastSt);
 }
-function cogBtn(low) {
-  const b = h("button", { class: "card-cog" + (low ? " cog-low" : ""), type: "button", title: "Choose which services' warnings show here",
+function cogBtn() {
+  const b = h("button", { class: "card-cog", type: "button", title: "Choose which services' warnings show here",
     "aria-label": "Choose services", onclick: warnPick });
   b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg><span class="fa-word">Choose services</span>';
   return b;
@@ -1041,17 +1041,16 @@ function warnCard(el) {
     h("h3", {}, foldTitle("warn", "Recent log alerts")),
     folded ? foldSum([[errs ? plural(errs, "error") : "", "bad"], [warns ? plural(warns, "warning") : "", "warn"],
       [warnData && !rows.length ? "None today" : "", "ok"]]) : null,
-    // On a phone the corner holds a Logs icon, and the cog moves down to the card's last line
-    h("span", { class: "card-acts" }, cogBtn(), iconize(h("a", { href: "#logs", class: "dim card-link warn-logs", text: "Logs" }))),
-    folded ? cogBtn(true) : null));
+    // The corner: Choose services and Logs (a cog and a Logs icon on phones)
+    h("span", { class: "card-acts" }, cogBtn(), iconize(h("a", { href: "#logs", class: "dim card-link warn-logs", text: "Logs" })))));
   el.append(card);
   if (folded) return;
-  // The card's last line: what it says (or Show more) on the left, the phone's cog on the right
-  const foot = (...kids) => card.append(h("div", { class: "warn-foot" }, ...kids, cogBtn(true)));
+  // The card's last line: what it says, or Show more
+  const foot = (...kids) => card.append(h("div", { class: "warn-foot" }, ...kids));
   if (!warnData) { foot(h("p", { class: "dim warn-none", text: warnLoading ? "Reading the logs…" : "Couldn't read the logs." })); return; }
   if (!rows.length) {
     const none = lastSt && lastSt.services.filter((s) => s.container).every((s) => warnHidden.includes(s.container));
-    foot(h("p", { class: "dim warn-none", text: none ? "No services picked: use the cog." : "None in the last day." }));
+    foot(h("p", { class: "dim warn-none", text: none ? "No services picked." : "None in the last day." }));
     return;
   }
   const now = Date.now() / 1000;
