@@ -1900,3 +1900,9 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .vpnc-foot.btn-grid:not(:has(> .btn[data-act="Update"])) > .btn[data-act="All releases"] { grid-area: 1 / 1 / 2 / 3 !important; }
   .vpnc-foot.btn-grid:not(:has(> .btn[data-act="Update"])) > .btn.vpnc-switch { grid-area: 2 / 2 !important; }
 }
+/* Phones: page buttons that drop under the heading start on the left, on a line of their own */
+@media (max-width: 720px) {
+  .scripts-status .btns { margin-left: 0; }
+  #view-backups .view-head h2, #view-alerts .view-head h2 { flex-basis: 100%; }
+  #view-backups .view-head .btn, #alerts-acts { margin-left: 0; }
+}
