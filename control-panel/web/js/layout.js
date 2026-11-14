@@ -105,7 +105,7 @@ const THEMES = [["system", "System"], ["light", "Light"], ["dark", "Dark"]];
 // More…: our Slate, then well-known open-source schemes, each drawn on its own preview tile
 const MORE = [["slate", "Slate"], ["dracula", "Dracula"], ["mocha", "Catppuccin Mocha"], ["tokyo", "Tokyo Night"],
   ["gruvbox", "Gruvbox Dark"], ["onedark", "One Dark"],
-  ["nord", "Nord"], ["kanagawa", "Kanagawa Wave"], ["nightowl", "Night Owl"], ["solardark", "Solarized Dark"],
+  ["flexoki", "Flexoki Dark"], ["kanagawa", "Kanagawa Wave"], ["nightowl", "Night Owl"], ["solardark", "Solarized Dark"],
   ["ghdark", "GitHub Dark"], ["ayu", "Ayu Mirage"],
   ["latte", "Catppuccin Latte"], ["ghlight", "GitHub Light"], ["solarlight", "Solarized Light"], ["gruvlight", "Gruvbox Light"],
   ["everlight", "Everforest Light"], ["tokyoday", "Tokyo Day"],
