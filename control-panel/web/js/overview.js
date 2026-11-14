@@ -1022,7 +1022,7 @@ async function warnPick() {
 }
 // The card's bin: its rows leave the card (every device), the Logs page keeps them
 async function warnClear() {
-  const ok = await ask({ title: "Clear these alerts?", body: "They leave this card on every device. The Logs page keeps them.",
+  const ok = await ask({ title: "Clear these alerts?", body: "They leave this card on every device.\nThe Logs page keeps them.",
     confirmLabel: "Clear" });
   if (!ok) return;
   try { await api("/api/log-warnings/clear", { method: "POST" }); }

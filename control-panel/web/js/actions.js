@@ -32,7 +32,8 @@ export function ask({ title, body, confirmLabel, danger, options, alt }) {
     const done = (v) => { closeDialog(); resolve(v); };
     openDialog([
       h("h3", { id: "dialog-title", text: title }),
-      body ? h("p", { text: body }) : null,
+      // A "\n" in the body starts a new line
+      body ? h("p", {}, ...body.split("\n").flatMap((t, i) => i ? [h("br"), t] : [t])) : null,
       options ? options.el : null,
       h("div", { class: "btns" },
         h("button", { class: "btn", type: "button", text: "Cancel", onclick: () => done(null) }),
