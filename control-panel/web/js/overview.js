@@ -1159,8 +1159,8 @@ function vpnCard(el, st, avail) {
     ver.classList.add("vs-ver");
     const s = ver.lastChild;
     // append() writes a null out as "null", so only what's there
-    s.append(h("span", { class: latest[1] }, latest[1] === "warn" && top ? stIcon("up") : null, latest[0]), ...(top ? [" · ", h("button", { class: "linkish", type: "button",
-      text: "What's new", title: "What changed in each gluetun release", onclick: whatsNew })] : []));
+    // (no What's new link: All releases, under it, opens the same list)
+    s.append(h("span", { class: latest[1] }, latest[1] === "warn" && top ? stIcon("up") : null, latest[0]));
     const said = top ? h("button", { class: "linkish", type: "button", title: "What changed in each gluetun release", onclick: whatsNew }, stIcon("up"), latest[0])
       : h("span", { class: latest[1] }, latest[1] === "ok" ? `${running} up to date` : latest[0]);
     const checked = list ? `checked ${ago(rel.checked_at)}` : "";
