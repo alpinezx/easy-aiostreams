@@ -600,25 +600,17 @@ button.chip:hover { text-decoration: underline; }
 .warn-clear { background: none; border: 0; font: inherit; cursor: pointer; display: inline-flex; }
 .folded .btn.fold-act, .warn-logs, .warn-clear, .card-link.card-detail { padding: 4px; margin: -4px -4px -4px auto; }
 .warnc .card-acts .warn-logs, .warnc .card-acts .warn-clear { margin-left: 0; }
-/* Wider screens: an open card keeps its words (Logs, Details), like its buttons; icons only once folded */
-/* Details too on phones: an open card's corner says it in words */
-.panel:not(.folded) .card-detail .fa-icon { display: none; }
-.panel:not(.folded) .card-detail .fa-word { display: inline; }
-.panel:not(.folded) .card-link.card-detail { padding: 0; margin: 0 0 0 auto; }
+/* Open or folded, a card's corner links (Details, Logs, Choose services, Clear) are plain icons, their
+   names in the tooltip; buttons that act keep their words. Dashboard and Configure stay words. */
+.warn-clear:hover, .card-cog:hover { color: var(--text); }
 @media (min-width: 721px) {
-  .panel:not(.folded) .warn-logs .fa-icon, .panel:not(.folded) .warn-clear .fa-icon { display: none; }
-  .panel:not(.folded) .warn-logs .fa-word, .panel:not(.folded) .warn-clear .fa-word { display: inline; }
-  .panel:not(.folded) .card-acts .warn-logs, .panel:not(.folded) .card-acts .warn-clear { padding: 0; margin: 0; }
-  .warnc:not(.folded) .card-acts > .warn-clear { font-size: .86rem; }
-  .warn-clear:hover { color: var(--text); text-decoration: underline; }
+  .warnc .card-acts { gap: 4px; }
+  .warnc .card-acts > .card-cog, .warnc .card-acts > .warn-logs, .warnc .card-acts > .warn-clear { padding: 4px; margin: 0; }
+  .warnc .card-acts > .card-cog svg { width: 16px; height: 16px; }
   /* Recent warnings open: as tall as the AIOStreams card (part text, part padding, so they stay level
      at any text size), "Choose services" and Logs side by side in the corner, rows or not */
   .panel.warnc:not(.folded) { min-height: calc(4.861rem + 44px); display: flex; flex-direction: column; }
   .warnc:not(.folded) .warn-foot { margin-top: auto; align-items: baseline; }
-  .warnc:not(.folded) .card-acts > .card-cog { display: inline-flex; padding: 0; font-size: .86rem; }
-  .warnc:not(.folded) .card-acts > .card-cog svg { display: none; }
-  .warnc:not(.folded) .card-acts > .card-cog .fa-word { display: inline; }
-  .warnc:not(.folded) .card-acts > .card-cog:hover { text-decoration: underline; }
 }
 .fa-icon svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; display: block; }
 .card-cog .fa-word { display: none; }
@@ -657,7 +649,7 @@ button.chip:hover { text-decoration: underline; }
 h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: -.01em; }
 
 .rows { border: 1px solid var(--card-edge); border-radius: var(--radius); overflow: hidden; background: var(--raised); }
-.row { display: grid; grid-template-columns: minmax(120px, 1.2fr) minmax(0, 1.6fr) 62px 74px 170px 142px; gap: 14px; align-items: center; padding: 13px 16px; border-top: 1px solid var(--line-soft); }
+.row { display: grid; grid-template-columns: minmax(120px, 1.2fr) minmax(0, 1.6fr) 62px 74px 170px 166px; gap: 14px; align-items: center; padding: 13px 16px; border-top: 1px solid var(--line-soft); }
 .row:first-child { border-top: 0; }
 .row-head { padding-top: 9px; padding-bottom: 9px; color: var(--faint); font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; background: var(--sunk); }
 .row .name { font-weight: 600; }
@@ -704,6 +696,9 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 /* The VPN page's Traffic card: figures, the graph (down filled, up a line), the last 7 days */
 .tr-title { margin: 0; font-size: 1.05rem; font-weight: 650; }
 .tr-ranges { display: flex; gap: 6px; }
+/* The Traffic card's 1 hour / 24 hours / 7 days in the middle of the card, the title on the left */
+.vpn-head:has(> .tr-title + .tr-ranges) { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+.vpn-head:has(> .tr-title + .tr-ranges) > .tr-ranges { grid-column: 2; justify-self: center; }
 .tr-figs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .tr-sub { font-size: .84rem; margin-top: 2px; }
 .tr-now { display: flex; flex-wrap: wrap; column-gap: .6em; }
@@ -1839,4 +1834,69 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .veil-box { max-width: 300px; padding: 22px 20px; }
   .veil-box h3 { font-size: 1.05rem; }
   .veil-box p { font-size: .9rem; }
+}
+
+/* ---------- buttons: a soft fill, an icon before the word (btnicons.js) ----------
+   Every button is a soft fill with no outline; a dialog's main (primary) one keeps its colour, and
+   quiet ones stay plain. Known actions get a small icon (.btn-i). */
+.btn:not(.primary):not(.quiet):not(.fold-act):not([aria-pressed="true"]) { border-color: transparent; background: color-mix(in srgb, var(--text) 8%, transparent); }
+.btn:not(.primary):not(.quiet):not(.fold-act):not([aria-pressed="true"]):hover:not(:disabled) { border-color: transparent; background: color-mix(in srgb, var(--text) 13%, transparent); }
+.btn.small { font-size: .82rem; }
+.btn.btn-i { gap: 5px; }
+.btn.btn-i > svg.bi { width: 13px; height: 13px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.btn.btn-i > svg.bi.round { width: 12px; height: 12px; }
+.btn.rs-wide.btn-i { display: flex; justify-content: center; align-items: center; }
+.btn.rs-wide.btn-i[hidden] { display: none; }
+.run-btn.btn-i { grid-template-columns: auto auto; column-gap: 5px; align-items: center; justify-content: center; }
+.run-btn.btn-i > svg.bi { grid-area: 1 / 1; }
+.run-btn.btn-i > span { grid-area: 1 / 2; }
+/* Quiet buttons with words (a drawer's Done and Back, Reset, Clear history): the same soft fill, no outline.
+   The Overview's header links (Fold all cards, What's new, Edit) stay plain. */
+.btn.quiet:not(.fold-act):not(.hero-btns .btn):not(.hero-edit) { border-color: transparent; background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); }
+.btn.quiet:not(.fold-act):not(.hero-btns .btn):not(.hero-edit):hover:not(:disabled) { background: color-mix(in srgb, var(--text) 13%, transparent); }
+/* Scripts' Copy and Update (quiet buttons): the same soft fill as Run in terminal */
+.cmd-btns .btn.btn-i { border-color: transparent; background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); }
+.cmd-btns .btn.btn-i:hover:not(:disabled) { background: color-mix(in srgb, var(--text) 13%, transparent); }
+/* Fold all cards: the list-folding icon in front replaces the arrow after the words */
+.fold-all.btn-i .path-chev { display: none; }
+/* its lines fill only the middle of the icon's box, so it's drawn larger to stand as tall as the F */
+.fold-all.btn-i > svg.bi { width: 1.15em; height: 1.15em; position: relative; top: -.02em; }
+.hero-btns .btn-i[data-act="What's new"] > svg.bi { width: .9em; height: .9em; position: relative; top: -.08em; }
+/* Backup & Restore's "Restored from the Terminal tab?" as a small card like the backups above it:
+   the question on the left, Restart panel on the right (under the question on narrow phones) */
+.restart-line { justify-content: space-between; padding: 12px 16px; border: 1px solid var(--card-edge); border-radius: var(--radius); background: var(--raised); }
+.restart-line > .btn { margin-left: auto; }
+/* Services' Stop and Restart columns, wide enough for the icons */
+.row .acts:has(.btn-i) { grid-template-columns: 74px 86px; }
+@media (max-width: 720px) {
+  .btn.btn-i { padding-left: 8px; padding-right: 9px; }
+  /* A card's row of buttons as two even columns: pairs along the bottom, an odd one across the top */
+  .btn-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 10px 12px; justify-content: stretch; width: 100%; }
+  .btn-grid > :not(.btn) { grid-column: 1 / -1; order: -1; margin: 0; }
+  .btn-grid > .btn { width: 100%; min-width: 0; justify-self: stretch; justify-content: center; margin: 0; grid-column: auto !important; }
+  .btn-grid > .btn[hidden] { display: none; }
+  .btn-grid > .btn[data-ord="0"] { order: 0; } .btn-grid > .btn[data-ord="1"] { order: 1; }
+  .btn-grid > .btn[data-ord="2"] { order: 2; } .btn-grid > .btn[data-ord="3"] { order: 3; }
+  .btn-grid > .btn[data-ord="4"] { order: 4; } .btn-grid > .btn[data-ord="5"] { order: 5; }
+  .btn-grid > .btn.btn-alone { grid-column: 1 / -1 !important; justify-self: stretch !important; width: 100% !important; }
+  /* long words shortened in a half-width button (the full words stay its name) */
+  .btn-grid .bw[data-short] { font-size: 0; }
+  .btn-grid .bw[data-short]::after { content: attr(data-short); font-size: .82rem; }
+  /* The VPN card's four: All releases and Turn VPN off on top, Check now and Update below, as on the other cards */
+  /* Scripts: two columns like the cards. Run in terminal (or Get and run) across the top, Copy and
+     Update below; with two buttons, side by side. The hidden other word and the spacers aren't needed. */
+  .run-btn.btn-i .run-alt { display: none; }
+  /* Restart panel spans its little card, under the question (it fills that card's empty corner) */
+  .restart-line > .btn { flex: 1 1 100%; margin-left: 0; justify-content: center; }
+  /* the Traffic card's 1 hour / 24 hours / 7 days on a line of their own under the title, centred */
+  .vpn-head:has(> .tr-title + .tr-ranges) { grid-template-columns: minmax(0, 1fr); row-gap: 12px; }
+  .vpn-head:has(> .tr-title + .tr-ranges) > .tr-ranges { grid-column: 1; }
+  .scripts-panel .cmd-btns.btn-grid .btn-spacer { display: none !important; }
+  .vpnc-foot.btn-grid > .btn[data-act="All releases"] { grid-area: 1 / 1 !important; }
+  .vpnc-foot.btn-grid > .btn[data-act="Update"] { grid-area: 2 / 2 !important; }
+  .vpnc-foot.btn-grid > .btn[data-act="Check now"] { grid-area: 2 / 1 !important; }
+  .vpnc-foot.btn-grid > .btn.vpnc-switch { grid-area: 1 / 2 !important; }
+  /* without Update: All releases across the top, Check now and Turn VPN off below */
+  .vpnc-foot.btn-grid:not(:has(> .btn[data-act="Update"])) > .btn[data-act="All releases"] { grid-area: 1 / 1 / 2 / 3 !important; }
+  .vpnc-foot.btn-grid:not(:has(> .btn[data-act="Update"])) > .btn.vpnc-switch { grid-area: 2 / 2 !important; }
 }
