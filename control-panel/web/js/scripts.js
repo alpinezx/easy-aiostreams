@@ -299,8 +299,8 @@ async function updateScript(x, cmd) {
 }
 
 async function removeScript(x) {
-  const ok = await ask({ title: `Remove ${x.file}?`, confirmLabel: "Remove", danger: true,
-    body: `${x.label} isn't set up on this server, so its script only takes up a line here. Get and run fetches it again any time.` });
+  const ok = await ask({ title: "Remove script?", confirmLabel: "Remove", danger: true,
+    body: `${x.label} isn't set up on this server, so its script (${x.file}) only takes up a line here. Get and run fetches it again any time.` });
   if (!ok) return;
   try {
     await api(`/api/scripts/${encodeURIComponent(x.id)}/remove`, { method: "POST" });
