@@ -1128,13 +1128,23 @@ def test_every_colours_button_is_applied_and_styled():
     import re
     from pathlib import Path
     web = Path(__file__).resolve().parents[1] / "web"
-    themes = re.findall(r'\["(\w+)", "\w+"\]', re.search(r"const THEMES = \[(.*?)\];", (web / "js" / "layout.js").read_text(encoding="utf-8")).group(1))
+    lay = (web / "js" / "layout.js").read_text(encoding="utf-8")
+    ids = lambda name: re.findall(r'\["(\w+)", "[^"]+"\]', re.search(rf"const {name} = \[(.*?)\];", lay, re.S).group(1))
+    themes, more = ids("THEMES"), ids("MORE")
     early = (web / "js" / "theme.js").read_text(encoding="utf-8")
     css = (web / "css" / "app.css").read_text(encoding="utf-8")
-    assert themes[0] == "system" and "slate" in themes
-    for t in themes[1:]:
-        assert f'"{t}"' in early, t
-        assert t == "dark" or f':root[data-theme="{t}"] {{' in css, t
+    assert themes[0] == "system" and "slate" in more
+    # theme.js's list is exactly the buttons' (less System), so none is dropped or left over
+    listed = re.findall(r'"(\w+)"', re.search(r"\[(.*?)\]\.includes\(t\)", early).group(1))
+    assert sorted(listed) == sorted(themes[1:] + more)
+    for t in themes[1:] + more:
+        assert t == "dark" or f':root[data-theme="{t}"]' in css, t
+    # Each More… theme also colours its preview tile, with every colour the page uses
+    for t in more:
+        block = re.search(rf':root\[data-theme="{t}"\], \.theme-tile\[data-theme="{t}"\] \{{(.*?)\}}', css, re.S)
+        assert block, t
+        for var in ("--bg", "--raised", "--sunk", "--line", "--text", "--dim", "--faint", "--accent", "--primary", "--ok", "--warn", "--bad"):
+            assert var + ":" in block.group(1), (t, var)
 
 
 def test_index_preloads_every_module():

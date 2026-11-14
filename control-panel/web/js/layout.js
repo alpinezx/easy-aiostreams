@@ -101,10 +101,14 @@ const isOpen = () => !$("#lay-drawer").hidden;
 // Colours: System follows the device; Light, Dark or Slate (a softer dark) overrides it in this browser only (theme.js
 // applies it before the page paints). Kept out of the server's layouts on purpose, so a phone and
 // a desktop can differ.
-const THEMES = [["system", "System"], ["light", "Light"], ["dark", "Dark"], ["slate", "Slate"]];
+const THEMES = [["system", "System"], ["light", "Light"], ["dark", "Dark"]];
+// More…: our Slate, then well-known open-source schemes, each drawn on its own preview tile
+const MORE = [["slate", "Slate"], ["dracula", "Dracula"], ["mocha", "Catppuccin Mocha"], ["tokyo", "Tokyo Night"],
+  ["rosepine", "Rosé Pine"], ["gruvbox", "Gruvbox Dark"], ["onedark", "One Dark"], ["everforest", "Everforest Dark"],
+  ["latte", "Catppuccin Latte"]];
 function themeNow() {
   const t = document.documentElement.dataset.theme;
-  return THEMES.some(([id]) => id !== "system" && id === t) ? t : "system";
+  return [...THEMES, ...MORE].some(([id]) => id !== "system" && id === t) ? t : "system";
 }
 function setTheme(t) {
   if (t === "system") delete document.documentElement.dataset.theme;
@@ -112,6 +116,30 @@ function setTheme(t) {
   try { t === "system" ? localStorage.removeItem("aios.theme") : localStorage.setItem("aios.theme", t); } catch (_) { /* this visit only */ }
   document.dispatchEvent(new Event("aios-theme"));
   themeRow();
+  if (!$("#theme-pane").hidden) morePane();
+}
+// A small picture of the panel in a theme's own colours: page, a card with a title, a quieter
+// line, the green, amber and red dots and an accent link, and a button
+function tile(id) {
+  return h("span", { class: "theme-tile", "data-theme": id, "aria-hidden": "true" },
+    h("span", { class: "tt-card" },
+      h("i", { class: "tt-title" }), h("i", { class: "tt-dim" }),
+      h("span", { class: "tt-row" }, h("i", { class: "tt-dot ok" }), h("i", { class: "tt-dot warn" }), h("i", { class: "tt-dot bad" }),
+        h("i", { class: "tt-link" }), h("i", { class: "tt-btn" }))));
+}
+function morePane() {
+  const pane = $("#theme-pane");
+  clear(pane);
+  const now = themeNow();
+  pane.append(
+    h("div", { class: "drawer-head" },
+      h("div", {}, h("h3", { text: "More colours" }), h("p", { text: "This browser only." })),
+      h("button", { class: "btn small quiet x", type: "button", text: "Back", onclick: () => { pane.hidden = true; $("#lay-x").focus(); } })),
+    h("div", { class: "theme-grid", role: "group", "aria-label": "More colours" },
+      ...MORE.map(([id, label]) => h("button", { class: "theme-pick", type: "button", "aria-pressed": String(id === now), onclick: () => setTheme(id) },
+        tile(id), h("span", { class: "theme-name", text: label })))),
+    h("p", { class: "dim theme-credit", text: "Dracula, Catppuccin, Tokyo Night, Rosé Pine, Gruvbox, One Dark and Everforest are open-source colour schemes (MIT) by their authors." }));
+  pane.hidden = false;
 }
 function themeRow() {
   const box = $("#lay-theme");
@@ -124,7 +152,10 @@ function themeRow() {
       h("span", { class: "dim lay-sub", text: "This browser only. System follows your device." })),
     h("div", { class: "lay-theme-btns", role: "group", "aria-label": "Colours" },
       ...THEMES.map(([id, label]) => h("button", { class: "btn small", type: "button", text: label,
-        "aria-pressed": String(id === now), onclick: () => setTheme(id) }))));
+        "aria-pressed": String(id === now), onclick: () => setTheme(id) })),
+      // Shows the picked one's name once one of them is in use
+      h("button", { class: "btn small", type: "button", "aria-pressed": String(MORE.some(([id]) => id === now)),
+        text: (MORE.find(([id]) => id === now) || [, "More…"])[1], onclick: morePane })));
 }
 
 // "overview" (Edit beside the headline) or "rail" (Edit menu at the rail's foot)
@@ -145,6 +176,7 @@ export function openLayout(which = "overview") {
 export function closeLayout() {
   if (!isOpen()) return;
   $("#lay-drawer").hidden = true;
+  $("#theme-pane").hidden = true;
   if ($("#dialog").hidden && $("#drawer").hidden && $("#rel-drawer").hidden) $("#scrim").hidden = true;
   if (lastFocus && lastFocus.isConnected && lastFocus.focus) lastFocus.focus();
 }
