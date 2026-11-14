@@ -1504,7 +1504,14 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .fold-all[aria-expanded="true"] .path-chev svg { transform: rotate(180deg); }
 @media (max-width: 720px) { .hero-head { row-gap: 22px; } }
 .hero-edit { gap: 6px; }
-@media (min-width: 721px) { .hero-btns + .hero-edit { margin-left: -8px; } }
+/* What's new and Edit Overview at the top right: on desktop on the panel's name line, on phones a row above
+   the headline; Fold all cards on a line of its own under the headline, lined up with the lamp */
+.hero-head { position: relative; }
+.hero-tools { order: -1; flex: 1 1 100%; justify-content: flex-end; }
+.hero-fold { flex: 1 1 100%; margin: -4px 0 -4px -10px; }
+@media (min-width: 721px) {
+  .hero-tools { position: absolute; right: -10px; top: calc(-14px - .63rem); transform: translateY(-50%); flex: none; }
+}
 .hero-edit svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
 /* Edit's drawer: a card per row, its switch, and ≡ to drag it */
@@ -1781,12 +1788,11 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .upd-peek .upd-peek-head { margin: 0 0 8px; font-size: .86rem; }
 .upd-done { padding: 4px 18px; }
 @media (max-width: 720px) {
-  /* A row of their own, spread across the cards' width, each with room for a thumb */
-  .hero-btns:has(> .fold-all) { flex: 1 1 100%; justify-content: space-between; margin: -8px -7px -8px -10px; }
+  /* Room for a thumb on each; the row above the headline sits flush with the cards' right edge */
   .hero-btns .btn.small { padding: 8px 10px; }
-  /* The pencil alone beside the headline, the row of buttons under it */
-  .hero-btns { order: 5; }
-  .btn.hero-edit { margin: -10px -10px -10px auto; padding: 12px; }
+  .hero-tools { margin: -10px -10px -12px 0; }
+  .hero-fold { margin: -10px 0 -10px -10px; }
+  .btn.hero-edit { padding: 12px; }
   .btn.hero-edit svg { width: 16px; height: 16px; }
   .hero-edit .fa-word { display: none; }
 }

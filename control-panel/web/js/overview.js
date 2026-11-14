@@ -288,15 +288,16 @@ function hero(st) {
       h("span", { class: "lamp", dataset: { s: st.overall }, "aria-hidden": "true" }),
       h("h1", { class: "headline", "aria-live": "polite", text: st.headline }),
       h("a", { class: "chip warn scripts-pill", id: "scripts-pill", href: "#scripts", hidden: true }),
-      st.installed ? h("span", { class: "hero-btns" },
+      // What's new and Edit at the top right (on desktop, on the panel's name line), Fold all under the headline
+      st.installed ? h("span", { class: "hero-btns hero-tools" },
+        h("button", { class: "btn small quiet", type: "button", text: "What's new",
+          title: "The changes since this panel's version, from the project's changelog", onclick: showChangelog }),
+        editBtn()) : null,
+      st.installed ? h("span", { class: "hero-btns hero-fold" },
         // Its arrow points the way the cards' own do: up while they're open, down once folded
         h("button", { class: "btn small quiet fold-all", type: "button", "aria-expanded": String(!allFolded()),
           title: allFolded() ? "Open every card" : "Fold every card to one line", onclick: foldAll },
-          allFolded() ? "Open all cards" : "Fold all cards", chev()),
-        h("button", { class: "btn small quiet", type: "button", text: "What's new",
-          title: "The changes since this panel's version, from the project's changelog", onclick: showChangelog })) : null,
-      // After the buttons on wide screens; on a phone, the pencil alone beside the headline
-      st.installed ? editBtn() : null));
+          allFolded() ? "Open all cards" : "Fold all cards", chev())) : null));
     scriptsPill();
     // The certificate lives in This server; it comes up here only when it needs attention.
     const wc = worstCert(st);
