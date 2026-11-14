@@ -360,7 +360,7 @@ button.chip:hover { text-decoration: underline; }
   .warnc:not(.folded) .card-acts > .card-cog .fa-word { display: inline; }
   .warnc:not(.folded) .card-acts > .card-cog:hover { text-decoration: underline; }
 }
-.fa-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; display: block; }
+.fa-icon svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; display: block; }
 .card-cog .fa-word { display: none; }
 .warn-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .warn-foot > .warn-none, .warn-foot > .warn-more { margin-top: 6px; }
@@ -372,7 +372,7 @@ button.chip:hover { text-decoration: underline; }
   .warnc .card-head { align-items: flex-start; min-height: 0; }
   .warnc .card-acts { gap: 2px; margin: -8px -8px -8px auto; }
   .warnc .card-acts > .card-cog, .warnc .card-acts > .warn-logs { padding: 8px; margin: 0; }
-  .warnc .card-acts > .card-cog svg { width: 20px; height: 20px; }
+  .warnc .card-acts > .card-cog svg { width: 16px; height: 16px; }
   /* Empty, its line sits where the folded summary does (12px gap + 2px, the summary's line height),
      so the card is the same height open and folded */
   .warnc .warn-foot > .warn-none { margin-top: 14px; line-height: calc(.82rem * 1.5); }
@@ -1506,7 +1506,7 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   /* The pencil alone beside the headline, the row of buttons under it */
   .hero-btns { order: 5; }
   .btn.hero-edit { margin: -10px -10px -10px auto; padding: 12px; }
-  .btn.hero-edit svg { width: 19px; height: 19px; }
+  .btn.hero-edit svg { width: 16px; height: 16px; }
   .hero-edit .fa-word { display: none; }
 }
 /* Scripts tab: Run in terminal and Get and run share one width */

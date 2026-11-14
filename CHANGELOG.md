@@ -4,7 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 14 November 2026
 
-- **Fixed:** Recent log alerts keeps Choose services beside Logs in its corner on wider screens, with alerts or without, instead of moving it under Logs when the card is empty. On phones the empty card is the same height open and folded, so tapping its title no longer makes the page jump. (Panel 1.55.18, [#183](https://github.com/alpinezx/easy-aiostreams/pull/183))
+- **Fixed:** Recent log alerts keeps Choose services beside Logs in its corner on wider screens, with alerts or without, instead of moving it under Logs when the card is empty. On phones the empty card is the same height open and folded, so tapping its title no longer makes the page jump. The corner icons on folded cards, and the phone's Edit pencil, are smaller. (Panel 1.55.18, [#183](https://github.com/alpinezx/easy-aiostreams/pull/183))
 
 ## 13 November 2026
 
