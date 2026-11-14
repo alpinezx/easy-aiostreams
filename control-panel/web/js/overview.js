@@ -1134,7 +1134,7 @@ function vpnCard(el, st, avail) {
       h("span", { class: "vpnc-word" + (tn ? " " + tn : ""), text: shortWord })),
     // Folded, gluetun's version and whether a newer one is out, as the version cards show theirs
     // (one item, so the two stay together; on a phone it's a line of its own)
-    folded ? foldSum([[shortWord, tn], [where], running ? [h("span", { class: "gl-sum" }, `gluetun ${running}`,
+    folded ? foldSum([[shortWord, tn], [where], running ? [h("span", { class: "gl-sum" }, h("span", {}, h("span", { class: "gl-name", text: "Gluetun" }), ` ${running}`),
       top ? h("span", { class: "warn" }, stIcon("up"), `${top.tag} available`)
         : list ? h("span", { class: "ok" }, stIcon("ok"), "Up to date") : null)] : [""]]) : null,
     folded && top && updBtn ? foldAct(updBtn) : iconize(h("a", { href: "#vpn", class: "dim card-link card-detail", text: "Details" }))));

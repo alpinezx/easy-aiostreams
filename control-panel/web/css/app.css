@@ -1926,4 +1926,5 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .folded .btn.fold-act.primary:hover:not(:disabled) { background: var(--primary-hover); }
 /* the folded VPN card's gluetun version and its status, spaced like the version cards' */
 .gl-sum { display: inline-flex; align-items: center; gap: 12px; }
+.gl-name { color: var(--text); }   /* the name in white, its version grey */
 @media (max-width: 720px) { .fold-sum li:has(> .gl-sum) { flex-basis: 100%; } }
