@@ -338,19 +338,22 @@ button.chip:hover { text-decoration: underline; }
 .panel.folded .card-head > .btn.fold-act { margin-left: auto; }
 /* Icons in the cards' corners instead of words, the same on phones and wider screens (the word stays as the label) */
 .fa-icon { display: none; }
-.fold-act .fa-icon, .warn-logs .fa-icon, .card-detail .fa-icon { display: block; }
-.fold-act .fa-word, .warn-logs .fa-word, .card-detail .fa-word { display: none; }
-.folded .btn.fold-act, .warn-logs, .card-link.card-detail { padding: 4px; margin: -4px -4px -4px auto; }
-.warnc .card-acts .warn-logs { margin-left: 0; }
+.fold-act .fa-icon, .warn-logs .fa-icon, .warn-clear .fa-icon, .card-detail .fa-icon { display: block; }
+.fold-act .fa-word, .warn-logs .fa-word, .warn-clear .fa-word, .card-detail .fa-word { display: none; }
+.warn-clear { background: none; border: 0; font: inherit; cursor: pointer; display: inline-flex; }
+.folded .btn.fold-act, .warn-logs, .warn-clear, .card-link.card-detail { padding: 4px; margin: -4px -4px -4px auto; }
+.warnc .card-acts .warn-logs, .warnc .card-acts .warn-clear { margin-left: 0; }
 /* Wider screens: an open card keeps its words (Logs, Details), like its buttons; icons only once folded */
 /* Details too on phones: an open card's corner says it in words */
 .panel:not(.folded) .card-detail .fa-icon { display: none; }
 .panel:not(.folded) .card-detail .fa-word { display: inline; }
 .panel:not(.folded) .card-link.card-detail { padding: 0; margin: 0 0 0 auto; }
 @media (min-width: 721px) {
-  .panel:not(.folded) .warn-logs .fa-icon { display: none; }
-  .panel:not(.folded) .warn-logs .fa-word { display: inline; }
-  .panel:not(.folded) .card-acts .warn-logs { padding: 0; margin: 0; }
+  .panel:not(.folded) .warn-logs .fa-icon, .panel:not(.folded) .warn-clear .fa-icon { display: none; }
+  .panel:not(.folded) .warn-logs .fa-word, .panel:not(.folded) .warn-clear .fa-word { display: inline; }
+  .panel:not(.folded) .card-acts .warn-logs, .panel:not(.folded) .card-acts .warn-clear { padding: 0; margin: 0; }
+  .warnc:not(.folded) .card-acts > .warn-clear { font-size: .86rem; }
+  .warn-clear:hover { color: var(--text); text-decoration: underline; }
   /* Recent warnings open: as tall as the AIOStreams card (part text, part padding, so they stay level
      at any text size), "Choose services" and Logs side by side in the corner, rows or not */
   .panel.warnc:not(.folded) { min-height: calc(4.861rem + 44px); display: flex; flex-direction: column; }
@@ -371,7 +374,7 @@ button.chip:hover { text-decoration: underline; }
   #view-overview .panel.warnc { padding-top: 16px; padding-bottom: 16px; }
   .warnc .card-head { align-items: flex-start; min-height: 0; }
   .warnc .card-acts { gap: 2px; margin: -8px -8px -8px auto; }
-  .warnc .card-acts > .card-cog, .warnc .card-acts > .warn-logs { padding: 8px; margin: 0; }
+  .warnc .card-acts > .card-cog, .warnc .card-acts > .warn-logs, .warnc .card-acts > .warn-clear { padding: 8px; margin: 0; }
   .warnc .card-acts > .card-cog svg { width: 16px; height: 16px; }
   /* Empty, its line sits where the folded summary does (12px gap + 2px, the summary's line height),
      so the card is the same height open and folded */

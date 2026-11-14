@@ -689,6 +689,22 @@ def test_log_warnings_skip_the_first_minutes_after_boot(monkeypatch):
     assert got[1]["lines"] == svc[1]["lines"]
 
 
+def test_log_warnings_card_clear(client):
+    """The card's bin: lines up to then leave the card for good, newer ones still show."""
+    from datetime import datetime, timezone
+    import app.main as m
+    at = datetime(2026, 11, 14, 12, 0, 0, tzinfo=timezone.utc).timestamp()
+    svc = [{"container": "aiostreams", "name": "AIOStreams", "lines": [
+        "2026-11-14T11:59:00.1Z error: Remux DB failed before",
+        "2026-11-14T12:00:30.1Z error: Remux DB failed after"]}]
+    assert m.after_clear(svc, 0) == svc
+    assert [ln.split(" ")[-1] for ln in m.after_clear(svc, at)[0]["lines"]] == ["after"]
+    login(client)
+    assert client.post("/api/log-warnings/clear").status_code == 200
+    assert m._warn_cleared_at() > 0
+    assert client.get("/api/log-warnings").status_code == 200
+
+
 def test_log_warnings_hidden(client):
     """The card's cog: services left out are saved per install and never read."""
     login(client)

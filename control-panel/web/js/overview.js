@@ -204,6 +204,7 @@ const ICONS = {
   "Restart stack": '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
   "Reboot server": '<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/>',
   "Details": '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  "Clear": '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
   "Logs": '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>',
 };
 function iconize(b) {
@@ -1019,6 +1020,16 @@ async function warnPick() {
   warnAt = 0; warnData = null;
   if (lastSt) side(lastSt);
 }
+// The card's bin: its rows leave the card (every device), the Logs page keeps them
+async function warnClear() {
+  const ok = await ask({ title: "Clear these alerts?", body: "They leave this card on every device. The Logs page keeps them.",
+    confirmLabel: "Clear" });
+  if (!ok) return;
+  try { await api("/api/log-warnings/clear", { method: "POST" }); }
+  catch (e) { toast(e.message, true); return; }
+  warnAt = 0; warnData = null; warnMore = false;
+  if (lastSt) side(lastSt);
+}
 function cogBtn() {
   const b = h("button", { class: "card-cog", type: "button", title: "Choose which services' warnings show here",
     "aria-label": "Choose services", onclick: warnPick });
@@ -1041,8 +1052,10 @@ function warnCard(el) {
     h("h3", {}, foldTitle("warn", "Recent log alerts")),
     folded ? foldSum([[errs ? plural(errs, "error") : "", "bad"], [warns ? plural(warns, "warning") : "", "warn"],
       [warnData && !rows.length ? "None today" : "", "ok"]]) : null,
-    // The corner: Choose services and Logs (a cog and a Logs icon on phones)
-    h("span", { class: "card-acts" }, cogBtn(), iconize(h("a", { href: "#logs", class: "dim card-link warn-logs", text: "Logs" })))));
+    // The corner: Clear (only with rows), Choose services and Logs; icons on phones and once folded
+    h("span", { class: "card-acts" },
+      rows.length ? iconize(h("button", { class: "card-link warn-clear dim", type: "button", text: "Clear", onclick: warnClear })) : null,
+      cogBtn(), iconize(h("a", { href: "#logs", class: "dim card-link warn-logs", text: "Logs" })))));
   el.append(card);
   if (folded) return;
   // The card's last line: what it says, or Show more
