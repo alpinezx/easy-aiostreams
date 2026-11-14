@@ -1510,7 +1510,10 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .hero-tools { order: -1; flex: 1 1 100%; justify-content: flex-end; }
 .hero-fold { flex: 1 1 100%; margin: -4px 0 -4px -10px; }
 @media (min-width: 721px) {
-  .hero-tools { position: absolute; right: -10px; top: calc(-14px - .63rem); transform: translateY(-50%); flex: none; }
+  /* the headline and Fold all sit a little lower, nearer the first card; the buttons stay on the name line */
+  .hero-head { margin-top: 12px; }
+  .hero { padding-bottom: 14px; }
+  .hero-tools { position: absolute; right: -10px; top: calc(-26px - .63rem); transform: translateY(-50%); flex: none; }
 }
 .hero-edit svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
