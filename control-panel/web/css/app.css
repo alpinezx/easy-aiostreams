@@ -1391,7 +1391,7 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .scripts-panel .sub-head { font-size: 15px; font-weight: 600; margin: 0 0 6px; }
 .scripts-panel .addons-note { margin: 0 0 4px; color: var(--text); }
 .scripts-panel .addons-note b { font-weight: 650; }
-.restart-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 16px 0 0; font-size: .9rem; }
+.restart-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 16px 0; font-size: .9rem; }
 .scripts-panel a { color: var(--accent); }
 .chip.small-chip { font-size: .74rem; padding: 1px 8px; white-space: nowrap; }
 /* The panel's version, under the logo in the rail */
