@@ -85,11 +85,12 @@
   --up-line: #b48ead;
 }
 /* More colours (the Overview's Edit, More…): well-known open-source schemes (MIT), from each one's
-   published palette. A few reds and Latte's green and amber are deepened or lifted so status colours
-   stay readable on the cards. The same values colour each one's preview tile (.theme-tile). */
+   published palette, held to Slate's rule so none looks hazy: text near the palette's brightest, solid
+   quieter greys and a page clearly darker than the cards. A few reds and Latte's green and amber are
+   deepened or lifted so status colours stay readable. The same values colour each preview tile. */
 :root[data-theme="dracula"], .theme-tile[data-theme="dracula"] {
   color-scheme: dark;
-  --bg: #21222c; --raised: #282a36; --sunk: #303241;
+  --bg: #191a21; --raised: #282a36; --sunk: #303241;
   --line: #50536b; --line-soft: #3a3c4e; --card-edge: var(--line-soft);
   --text: #f8f8f2; --dim: #bfc3d9; --faint: #7f8bb8; --hover: rgba(248, 248, 242, 0.06);
   --accent: #bd93f9; --accent-soft: rgba(189, 147, 249, 0.14);
@@ -100,9 +101,9 @@
 }
 :root[data-theme="mocha"], .theme-tile[data-theme="mocha"] {
   color-scheme: dark;
-  --bg: #181825; --raised: #1e1e2e; --sunk: #262637;
+  --bg: #11111b; --raised: #1e1e2e; --sunk: #262637;
   --line: #45475a; --line-soft: #313244; --card-edge: var(--line-soft);
-  --text: #cdd6f4; --dim: #a6adc8; --faint: #7f849c; --hover: rgba(205, 214, 244, 0.06);
+  --text: #dae1f7; --dim: #a6adc8; --faint: #7f849c; --hover: rgba(218, 225, 247, 0.06);
   --accent: #cba6f7; --accent-soft: rgba(203, 166, 247, 0.14);
   --primary: #cba6f7; --primary-hover: color-mix(in srgb, #cba6f7 86%, white); --primary-ink: #11111b;
   --ok: #a6e3a1; --warn: #fab387; --bad: #f38ba8;
@@ -111,9 +112,9 @@
 }
 :root[data-theme="tokyo"], .theme-tile[data-theme="tokyo"] {
   color-scheme: dark;
-  --bg: #16161e; --raised: #1a1b26; --sunk: #1f2335;
+  --bg: #0c0c12; --raised: #1a1b26; --sunk: #1f2335;
   --line: #3b4261; --line-soft: #292e42; --card-edge: var(--line-soft);
-  --text: #c0caf5; --dim: #a9b1d6; --faint: #737aa2; --hover: rgba(192, 202, 245, 0.06);
+  --text: #d2d9f8; --dim: #a9b1d6; --faint: #737aa2; --hover: rgba(210, 217, 248, 0.06);
   --accent: #7aa2f7; --accent-soft: rgba(122, 162, 247, 0.14);
   --primary: #7aa2f7; --primary-hover: color-mix(in srgb, #7aa2f7 86%, white); --primary-ink: #16161e;
   --ok: #9ece6a; --warn: #e0af68; --bad: #f7768e;
@@ -122,9 +123,9 @@
 }
 :root[data-theme="rosepine"], .theme-tile[data-theme="rosepine"] {
   color-scheme: dark;
-  --bg: #191724; --raised: #1f1d2e; --sunk: #26233a;
+  --bg: #12101b; --raised: #1f1d2e; --sunk: #26233a;
   --line: #524f67; --line-soft: #403d52; --card-edge: var(--line-soft);
-  --text: #e0def4; --dim: #908caa; --faint: #6e6a86; --hover: rgba(224, 222, 244, 0.06);
+  --text: #e0def4; --dim: #aca8c6; --faint: #837f9e; --hover: rgba(224, 222, 244, 0.06);
   --accent: #c4a7e7; --accent-soft: rgba(196, 167, 231, 0.14);
   --primary: #c4a7e7; --primary-hover: color-mix(in srgb, #c4a7e7 86%, white); --primary-ink: #191724;
   --ok: #9ccfd8; --warn: #f6c177; --bad: #eb6f92;
@@ -133,9 +134,9 @@
 }
 :root[data-theme="gruvbox"], .theme-tile[data-theme="gruvbox"] {
   color-scheme: dark;
-  --bg: #1d2021; --raised: #282828; --sunk: #32302f;
+  --bg: #151718; --raised: #282828; --sunk: #32302f;
   --line: #504945; --line-soft: #3c3836; --card-edge: var(--line-soft);
-  --text: #ebdbb2; --dim: #bdae93; --faint: #928374; --hover: rgba(235, 219, 178, 0.06);
+  --text: #fbf1c7; --dim: #d5c4a1; --faint: #928374; --hover: rgba(251, 241, 199, 0.06);
   --accent: #83a598; --accent-soft: rgba(131, 165, 152, 0.14);
   --primary: #83a598; --primary-hover: color-mix(in srgb, #83a598 86%, white); --primary-ink: #1d2021;
   --ok: #b8bb26; --warn: #fabd2f; --bad: #fb5f4b;
@@ -144,9 +145,9 @@
 }
 :root[data-theme="onedark"], .theme-tile[data-theme="onedark"] {
   color-scheme: dark;
-  --bg: #21252b; --raised: #282c34; --sunk: #2c313a;
+  --bg: #1a1d22; --raised: #282c34; --sunk: #2c313a;
   --line: #4b5263; --line-soft: #3e4451; --card-edge: var(--line-soft);
-  --text: #c8ccd4; --dim: #9da5b4; --faint: #7f848e; --hover: rgba(200, 204, 212, 0.06);
+  --text: #e2e5ea; --dim: #b4bbc6; --faint: #8b919c; --hover: rgba(226, 229, 234, 0.06);
   --accent: #61afef; --accent-soft: rgba(97, 175, 239, 0.14);
   --primary: #61afef; --primary-hover: color-mix(in srgb, #61afef 86%, white); --primary-ink: #21252b;
   --ok: #98c379; --warn: #e5c07b; --bad: #e8838b;
@@ -155,9 +156,9 @@
 }
 :root[data-theme="everforest"], .theme-tile[data-theme="everforest"] {
   color-scheme: dark;
-  --bg: #272e33; --raised: #2d353b; --sunk: #343f44;
-  --line: #4f585e; --line-soft: #3d484d; --card-edge: var(--line-soft);
-  --text: #d3c6aa; --dim: #9da9a0; --faint: #859289; --hover: rgba(211, 198, 170, 0.06);
+  --bg: #1a1f22; --raised: #272e33; --sunk: #2e363c;
+  --line: #4a5459; --line-soft: #374145; --card-edge: var(--line-soft);
+  --text: #efe7d2; --dim: #bcc5bd; --faint: #959f98; --hover: rgba(239, 231, 210, 0.06);
   --accent: #7fbbb3; --accent-soft: rgba(127, 187, 179, 0.14);
   --primary: #a7c080; --primary-hover: color-mix(in srgb, #a7c080 86%, white); --primary-ink: #272e33;
   --ok: #a7c080; --warn: #dbbc7f; --bad: #e67e80;
@@ -168,14 +169,13 @@
   color-scheme: light;
   --bg: #dce0e8; --raised: #eff1f5; --sunk: #e6e9ef;
   --line: #acb0be; --line-soft: #bcc0cc; --card-edge: var(--line);
-  --text: #4c4f69; --dim: #5c5f77; --faint: #7c7f93; --hover: rgba(76, 79, 105, 0.06);
+  --text: #2f3247; --dim: #4c4f69; --faint: #6c6f85; --hover: rgba(47, 50, 71, 0.06);
   --accent: #8839ef; --accent-soft: rgba(136, 57, 239, 0.14);
   --primary: #8839ef; --primary-hover: color-mix(in srgb, #8839ef 86%, black); --primary-ink: #ffffff;
   --ok: #2b7a1d; --warn: #9a5a00; --bad: #d20f39;
   --bad-soft: rgba(210, 15, 57, 0.14); --warn-soft: rgba(154, 90, 0, 0.14); --ok-soft: rgba(43, 122, 29, 0.14);
   --up-line: #1e66f5;
 }
-
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 /* Room for the scrollbar is kept on every page, so a long page (Logs) doesn't shift sideways from a short one */
