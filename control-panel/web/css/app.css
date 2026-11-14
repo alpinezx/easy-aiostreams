@@ -523,7 +523,9 @@ button.chip:hover { text-decoration: underline; }
 .ver-value .linkish { font: inherit; color: var(--warn); text-decoration: none; background: none; border: 0; padding: 0; cursor: pointer; }
 .ver-value .linkish:hover { text-decoration: underline; }
 /* a newer release that isn't a to-do (AIOMetadata's come up to twice a day): plain, not amber */
-.ver-value .quiet, .fold-sum .quiet { color: var(--text); }
+.ver-value .quiet { color: var(--text); }
+/* folded, a newer release is amber on every card, as AIOStreams' is */
+.fold-sum .quiet { color: var(--warn); }
 .ver-value .quiet { font-weight: 600; }
 /* The middle status (Up to date, or a newer release) at the size of the lines under it, so a
    card where nothing needs doing stays calm; a newer release is amber on every card */
@@ -1922,3 +1924,6 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   vertical-align: -.12em; margin-right: .3em; flex: none; }
 .folded .btn.fold-act.primary { background: var(--primary); color: var(--primary-ink); padding: 5px; border-radius: 8px; }
 .folded .btn.fold-act.primary:hover:not(:disabled) { background: var(--primary-hover); }
+/* the folded VPN card's gluetun version and its status, spaced like the version cards' */
+.gl-sum { display: inline-flex; align-items: center; gap: 12px; }
+@media (max-width: 720px) { .fold-sum li:has(> .gl-sum) { flex-basis: 100%; } }
