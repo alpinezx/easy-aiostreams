@@ -64,7 +64,7 @@ function updateBits(st) {
     const { newer, count } = behind(rel, running);
     sub = rel.checked_at ? `Checked ${ago(rel.checked_at)}` : "";
     if (!newer.length) {
-      value = h("span", { class: "ok" }, stIcon("ok"), "Up to date");
+      value = h("span", { class: "ok", text: "Up to date" });
     } else {
       const top = newer[0];
       fresh = true;
@@ -224,8 +224,8 @@ function foldAct(b) {
 }
 // The folded line: [text or element, tone, tooltip], empty ones left out
 // An update waiting has to stand out by shape, not only colour (amber and green can look alike):
-// "available" gets an up arrow and "Up to date" a tick, and the card's Update becomes the filled button.
-const ST_ICONS = { up: '<path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>', ok: '<path d="M20 6 9 17l-5-5"/>' };
+// "available" gets an up arrow, and the card's Update becomes the filled button.
+const ST_ICONS = { up: '<path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>' };
 function stIcon(kind) {
   const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   s.setAttribute("viewBox", "0 0 24 24");
@@ -393,7 +393,7 @@ function metaCard(st, avail) {
   const mine = list && list.releases.find((r) => r.tag === running);
   const latest = !metaRel ? h("span", { class: "dim", text: "Checking…" })
     : !list ? h("span", { class: "warn", title: metaRel.error || "", text: "Couldn't check" })
-    : h("span", { class: top ? "quiet" : "ok" }, stIcon(top ? "up" : "ok"), top ? `${top.tag} available` : "Up to date");
+    : h("span", { class: top ? "quiet" : "ok" }, top ? stIcon("up") : null, top ? `${top.tag} available` : "Up to date");
   const upd = avail["aiometadata.update"];
   const updBtn = upd && upd.available ? hot(h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
     title: "Update AIOMetadata to its newest release, with a backup first", onclick: () => runAction(upd) }), top) : null;
@@ -464,7 +464,7 @@ function addonVerCard(st, avail, o) {
   const mine = list && running && list.releases.find((r) => r.tag === running);
   const latest = !rel ? h("span", { class: "dim", text: "Checking…" })
     : !list ? h("span", { class: "warn", title: rel.error || "", text: "Couldn't check" })
-    : h("span", { class: top ? "quiet" : "ok" }, stIcon(top ? "up" : "ok"), top ? `${top.tag} available` : "Up to date");
+    : h("span", { class: top ? "quiet" : "ok" }, top ? stIcon("up") : null, top ? `${top.tag} available` : "Up to date");
   const upd = avail[`${o.id}.update`];
   const updBtn = upd && upd.available ? hot(h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
     title: `Update ${o.name} to its newest release, with a backup first`, onclick: () => runAction(upd) }), top) : null;
@@ -1136,7 +1136,7 @@ function vpnCard(el, st, avail) {
     // (one item, so the two stay together; on a phone it's a line of its own)
     folded ? foldSum([[shortWord, tn], [where], running ? [h("span", { class: "gl-sum" }, h("span", {}, h("span", { class: "gl-name", text: "Gluetun" }), ` ${running}`),
       top ? h("span", { class: "warn" }, stIcon("up"), `${top.tag} available`)
-        : list ? h("span", { class: "ok" }, stIcon("ok"), "Up to date") : null)] : [""]]) : null,
+        : list ? h("span", { class: "ok", text: "Up to date" }) : null)] : [""]]) : null,
     folded && top && updBtn ? foldAct(updBtn) : iconize(h("a", { href: "#vpn", class: "dim card-link card-detail", text: "Details" }))));
   el.append(card);
   if (folded) return;
@@ -1158,10 +1158,10 @@ function vpnCard(el, st, avail) {
     ver.classList.add("vs-ver");
     const s = ver.lastChild;
     // append() writes a null out as "null", so only what's there
-    s.append(h("span", { class: latest[1] }, latest[1] === "warn" && top ? stIcon("up") : latest[1] === "ok" ? stIcon("ok") : null, latest[0]), ...(top ? [" · ", h("button", { class: "linkish", type: "button",
+    s.append(h("span", { class: latest[1] }, latest[1] === "warn" && top ? stIcon("up") : null, latest[0]), ...(top ? [" · ", h("button", { class: "linkish", type: "button",
       text: "What's new", title: "What changed in each gluetun release", onclick: whatsNew })] : []));
     const said = top ? h("button", { class: "linkish", type: "button", title: "What changed in each gluetun release", onclick: whatsNew }, stIcon("up"), latest[0])
-      : h("span", { class: latest[1] }, latest[1] === "ok" ? stIcon("ok") : null, latest[1] === "ok" ? `${running} up to date` : latest[0]);
+      : h("span", { class: latest[1] }, latest[1] === "ok" ? `${running} up to date` : latest[0]);
     const checked = list ? `checked ${ago(rel.checked_at)}` : "";
     status = h("div", { class: "vs-status" },
       h("div", { class: "ver-label", text: "gluetun" }),

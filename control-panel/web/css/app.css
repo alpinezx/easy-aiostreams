@@ -1918,7 +1918,7 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 @media (max-width: 720px) {
   .page-tools { order: -1; flex: 1 1 100%; justify-content: flex-end; margin: -10px -10px -12px 0; }
 }
-/* Version cards: an arrow before "available", a tick before "Up to date", and a filled Update while
+/* Version cards: an arrow before "available", and a filled Update while
    a newer release is out, so it stands out by shape as well as colour */
 .st-i { width: .95em; height: .95em; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round;
   vertical-align: -.12em; margin-right: .3em; flex: none; }
