@@ -368,6 +368,10 @@ a { color: var(--accent); }
 body { padding-left: var(--rail); }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 1.05rem; letter-spacing: -.01em; text-decoration: none; color: var(--text); }
 .brand svg { width: 26px; height: 26px; }
+/* The logo follows the colours: a tile in the text colour with the pulse line in the page's,
+   so it's light on dark themes and dark on light ones, tinted to match each */
+.logo-tile { fill: var(--text); }
+.logo-line { stroke: var(--bg); }
 .rail {
   position: fixed; z-index: 30; left: 0; top: 0; bottom: 0; width: var(--rail);
   display: flex; flex-direction: column; align-items: center; gap: 22px;
