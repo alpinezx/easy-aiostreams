@@ -40,11 +40,13 @@ A one-command installer for a self-hosted [AIOStreams](https://github.com/Viren0
 <sub>The control panel's demo mode, with every add-on running. Your own panel shows only what you've installed.</sub>
 
 <details>
-<summary>The same page in Light and Slate</summary>
+<summary>The same page in Light, and every colour theme</summary>
 
 ![The control panel's Overview in the Light colours](./docs/images/control-panel/readme-overview-light.png)
 
-![The control panel's Overview in the Slate colours, a softer dark](./docs/images/control-panel/readme-overview-slate.png)
+![The 24 colour themes, 12 dark and 12 light, each as a small preview](./docs/images/control-panel/readme-themes.png)
+
+<sub>The 24 themes under More… in the Overview's Edit, each picked per browser.</sub>
 
 </details>
 
