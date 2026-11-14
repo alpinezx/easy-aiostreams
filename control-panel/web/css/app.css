@@ -1905,3 +1905,12 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 /* Phones: a page's buttons always on a line of their own under its title, on the right,
    so Activity, VPN and Terminal match the pages whose buttons don't fit beside it */
 @media (max-width: 720px) { .view-head > h2 { flex-basis: 100%; } }
+/* Scripts' What's new: a quiet link at the top right, as on the Overview: on the panel's name line on
+   desktop, on a row above the title on phones */
+.view-head:has(> .page-tools) { position: relative; }
+@media (min-width: 721px) {
+  .page-tools { position: absolute; right: -10px; top: calc(-14px - .63rem); transform: translateY(-50%); }
+}
+@media (max-width: 720px) {
+  .page-tools { order: -1; flex: 1 1 100%; justify-content: flex-end; margin: -10px -10px -12px 0; }
+}

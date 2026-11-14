@@ -80,8 +80,6 @@ function statusLine(terminalOn) {
           h("a", { href: TERMINAL_GUIDE, target: "_blank", rel: "noopener noreferrer", text: "Switch it on over SSH" }), " if you want it.")),
       lastLine),
     h("span", { class: "btns" },
-      h("button", { class: "btn small", type: "button", text: "What's new", title: "The changes since this panel's version, from the project's changelog",
-        onclick: showChangelog }),
       h("button", { class: "btn small", type: "button", text: busy ? "Checking…" : "Check now", disabled: busy,
         title: "Check the panel's version and compare the scripts here with GitHub's copies now", onclick: checkAll })));
 }
@@ -116,8 +114,10 @@ function panelRow(cmd, termOn) {
       spacer("Remove")));
 }
 
-// What's new: the project's changelog, entries since this panel's version marked
+// What's new: the project's changelog, entries since this panel's version marked. On this tab it's a quiet
+// link at the top right, as on the Overview (it only opens something to read); Check now stays a button.
 let logLoading = false;
+$("#scripts-new")?.addEventListener("click", (e) => showChangelog(e));
 export async function showChangelog(e) {
   if (logLoading) return;
   logLoading = true;
