@@ -752,14 +752,16 @@ async function loadWdDays() {
 
 // The VPN card's details come from the VPN page's own data (the server asks from inside
 // gluetun at most once a minute), fetched again within a minute, or at once when it's switched.
-let vpnInfo = null, vpnAt = 0, vpnFor = null, vpnLoading = false;
+// vpnChecking: a press of Check now, the only time its button says Checking… (the card's own
+// refresh each minute runs quietly)
+let vpnInfo = null, vpnAt = 0, vpnFor = null, vpnLoading = false, vpnChecking = false;
 async function loadVpn(mode, fresh) {
   if (vpnLoading || (!fresh && mode === vpnFor && Date.now() - vpnAt < 60000)) return;
-  vpnLoading = true;
+  vpnLoading = true; vpnChecking = !!fresh;
   if (fresh && lastSt) side(lastSt);
   try { vpnInfo = await api(`/api/vpn${fresh ? "?fresh=1" : ""}`); }
   catch (_) { vpnInfo = null; }
-  vpnAt = Date.now(); vpnFor = mode; vpnLoading = false;
+  vpnAt = Date.now(); vpnFor = mode; vpnLoading = false; vpnChecking = false;
   if (lastSt) side(lastSt);
   if (fresh && vpnInfo) toast(vpnInfo.connected ? "The VPN is connected." : vpnInfo.error || "The VPN isn't connected.", !vpnInfo.connected);
 }
@@ -1170,7 +1172,7 @@ function vpnCard(el, st, avail) {
   }
   if (updBtn) btns.append(updBtn);
   if (mode === "on") {
-    btns.append(h("button", { class: "btn small", type: "button", text: vpnLoading ? "Checking…" : "Check now", disabled: vpnLoading,
+    btns.append(h("button", { class: "btn small", type: "button", text: vpnChecking ? "Checking…" : "Check now", disabled: vpnChecking,
       title: "Ask from inside the VPN where traffic leaves now, and GitHub for gluetun's newest release",
       onclick: () => { loadVpn(mode, true); if (running) glRel.load(true); } }));
   }
