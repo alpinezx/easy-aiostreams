@@ -70,7 +70,7 @@ function updateBits(st) {
       fresh = true;
       const when = top.published ? `, newest released ${ago(Date.parse(top.published) / 1000)}` : "";
       value = h("button", { class: "linkish warn", type: "button", title: `${count} behind${when}. Click for what's new; use Update to get it.`,
-        text: nightly ? "Newer nightly out" : `${top.tag} available`, onclick: () => openReleases(rel, running) });
+        onclick: () => openReleases(rel, running) }, stIcon("up"), nightly ? "Newer nightly out" : `${top.tag} available`);
     }
   }
   const btns = [h("button", { class: "btn small", type: "button", text: relLoading ? "Checking…" : "Check now",
@@ -223,6 +223,19 @@ function foldAct(b) {
   return b;
 }
 // The folded line: [text or element, tone, tooltip], empty ones left out
+// An update waiting has to stand out by shape, not only colour (amber and green can look alike):
+// "available" gets an up arrow, and the card's Update becomes the filled button.
+const ST_ICONS = { up: '<path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>' };
+function stIcon(kind) {
+  const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  s.setAttribute("viewBox", "0 0 24 24");
+  s.setAttribute("aria-hidden", "true");
+  s.setAttribute("class", "st-i");
+  s.innerHTML = ST_ICONS[kind];
+  return s;
+}
+const hot = (b, on) => { if (b && on) b.classList.add("primary"); return b; };
+
 function foldSum(items) {
   return h("ul", { class: "path-sum fold-sum" }, ...items.filter((x) => x && x[0]).map(([v, tone, title]) =>
     h("li", { class: tone || null, title: title || null }, v)));
@@ -380,10 +393,10 @@ function metaCard(st, avail) {
   const mine = list && list.releases.find((r) => r.tag === running);
   const latest = !metaRel ? h("span", { class: "dim", text: "Checking…" })
     : !list ? h("span", { class: "warn", title: metaRel.error || "", text: "Couldn't check" })
-    : h("span", { class: top ? "quiet" : "ok", text: top ? `${top.tag} available` : "Up to date" });
+    : h("span", { class: top ? "quiet" : "ok" }, top ? stIcon("up") : null, top ? `${top.tag} available` : "Up to date");
   const upd = avail["aiometadata.update"];
-  const updBtn = upd && upd.available ? h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
-    title: "Update AIOMetadata to its newest release, with a backup first", onclick: () => runAction(upd) }) : null;
+  const updBtn = upd && upd.available ? hot(h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
+    title: "Update AIOMetadata to its newest release, with a backup first", onclick: () => runAction(upd) }), top) : null;
   const title = h("div", { class: "fold-title" },
     h("h2", {}, foldTitle("aiometadata", "AIOMetadata")),
     m.domain ? cardPages(m.domain, [["Dashboard", "/dashboard"], ["Configure", "/configure"]]) : null);
@@ -451,10 +464,10 @@ function addonVerCard(st, avail, o) {
   const mine = list && running && list.releases.find((r) => r.tag === running);
   const latest = !rel ? h("span", { class: "dim", text: "Checking…" })
     : !list ? h("span", { class: "warn", title: rel.error || "", text: "Couldn't check" })
-    : h("span", { class: top ? "quiet" : "ok", text: top ? `${top.tag} available` : "Up to date" });
+    : h("span", { class: top ? "quiet" : "ok" }, top ? stIcon("up") : null, top ? `${top.tag} available` : "Up to date");
   const upd = avail[`${o.id}.update`];
-  const updBtn = upd && upd.available ? h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
-    title: `Update ${o.name} to its newest release, with a backup first`, onclick: () => runAction(upd) }) : null;
+  const updBtn = upd && upd.available ? hot(h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
+    title: `Update ${o.name} to its newest release, with a backup first`, onclick: () => runAction(upd) }), top) : null;
   const title = h("div", { class: "fold-title" },
     h("h2", {}, foldTitle(o.id, o.name)), o.pages || null);
   const shown = running || "Latest image";
@@ -505,13 +518,13 @@ function mfCard(st, avail) {
 function versionCard(st, avail) {
   const nightly = relChannel(st) === "nightly";
   const running = runningTag(st);
-  const [latest, latestSub, btns] = updateBits(st);
+  const [latest, latestSub, btns, fresh] = updateBits(st);
   const col = (value, sub) => h("div", {},
     h("div", { class: "ver-value" }, ...[value].flat()), h("div", { class: "ver-sub", text: sub || "" }));
   const upd = st.installed && avail["stack.update"];
   // Update sits with Check now, plain like every card's: the amber "available" already says a newer one is out
-  if (upd && upd.available) btns.unshift(h("button", { class: "btn small", type: "button", text: "Update",
-    disabled: !!st.busy, title: "Update AIOStreams, or switch between stable and nightly", onclick: () => runAction(upd) }));
+  if (upd && upd.available) btns.unshift(hot(h("button", { class: "btn small", type: "button", text: "Update",
+    disabled: !!st.busy, title: "Update AIOStreams, or switch between stable and nightly", onclick: () => runAction(upd) }), fresh));
   // The title folds the card like the others; its two pages are links beside it
   const title = h("div", { class: "fold-title" },
     h("h2", {}, foldTitle("aiostreams", "AIOStreams")),
@@ -1108,8 +1121,8 @@ function vpnCard(el, st, avail) {
   const latest = !running ? null : !rel ? ["Checking…", ""] : !list ? ["Couldn't check", "warn"]
     : top ? [`${top.tag} available`, "warn"] : ["Up to date", "ok"];
   const upd = avail["vpn.update"];
-  const updBtn = upd && upd.available ? h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
-    title: "Update gluetun to its newest v3 release, with a backup first", onclick: () => runAction(upd) }) : null;
+  const updBtn = upd && upd.available ? hot(h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
+    title: "Update gluetun to its newest v3 release, with a backup first", onclick: () => runAction(upd) }), top) : null;
   const folded = isFolded("vpn");
   // The tunnel's state in short: Online or Offline, open or folded
   const shortWord = ({ "Connected": "Online", "Not connected": "Offline" })[word] || word;
@@ -1119,7 +1132,11 @@ function vpnCard(el, st, avail) {
     h("h3", {}, foldTitle("vpn", "VPN")),
     folded ? null : h("span", { class: "vpnc-tunnel" }, h("span", { class: "ver-label", text: "Tunnel" }),
       h("span", { class: "vpnc-word" + (tn ? " " + tn : ""), text: shortWord })),
-    folded ? foldSum([[shortWord, tn], [where], top ? [`gluetun ${top.tag} available`] : [""]]) : null,
+    // Folded, gluetun's version and whether a newer one is out, as the version cards show theirs
+    // (one item, so the two stay together; on a phone it's a line of its own)
+    folded ? foldSum([[shortWord, tn], [where], running ? [h("span", { class: "gl-sum" }, h("span", {}, h("span", { class: "gl-name", text: "Gluetun" }), ` ${running}`),
+      top ? h("span", { class: "warn" }, stIcon("up"), `${top.tag} available`)
+        : list ? h("span", { class: "ok", text: "Up to date" }) : null)] : [""]]) : null,
     folded && top && updBtn ? foldAct(updBtn) : iconize(h("a", { href: "#vpn", class: "dim card-link card-detail", text: "Details" }))));
   el.append(card);
   if (folded) return;
@@ -1137,14 +1154,15 @@ function vpnCard(el, st, avail) {
     // A phone's list: the version, its status under it. Desktop: the status in the middle of the
     // card, as on AIOStreams' card, naming the version in use only when a newer one is out.
     const whatsNew = () => openReleases(list, running);
+    // the version white, as on the other cards; the line under it green or amber
     ver = stat("gluetun", running, "");
     ver.classList.add("vs-ver");
     const s = ver.lastChild;
     // append() writes a null out as "null", so only what's there
-    s.append(h("span", { class: latest[1] }, latest[0]), ...(top ? [" · ", h("button", { class: "linkish", type: "button",
-      text: "What's new", title: "What changed in each gluetun release", onclick: whatsNew })] : []));
-    const said = top ? h("button", { class: "linkish", type: "button", text: latest[0], title: "What changed in each gluetun release", onclick: whatsNew })
-      : h("span", { class: latest[1], text: latest[1] === "ok" ? `${running} up to date` : latest[0] });
+    // (no What's new link: All releases, under it, opens the same list)
+    s.append(h("span", { class: latest[1] }, latest[1] === "warn" && top ? stIcon("up") : null, latest[0]));
+    const said = top ? h("button", { class: "linkish", type: "button", title: "What changed in each gluetun release", onclick: whatsNew }, stIcon("up"), latest[0])
+      : h("span", { class: latest[1] }, latest[1] === "ok" ? `${running} up to date` : latest[0]);
     const checked = list ? `checked ${ago(rel.checked_at)}` : "";
     status = h("div", { class: "vs-status" },
       h("div", { class: "ver-label", text: "gluetun" }),
