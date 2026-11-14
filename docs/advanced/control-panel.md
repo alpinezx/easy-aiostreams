@@ -179,7 +179,7 @@ The **Scheduled backups** card reads `backup-schedule` and `backup-last-run` (se
 
 A restore moves your current install aside to `/opt/aiostreams.pre-restore-<date>-<time>` as a rollback copy, and the script never removes it. Those folders show up under **Set aside by restores** with a Delete button. The panel only deletes folders with exactly that name, next to the install folder.
 
-A restore run over SSH rebuilds the panel from the backup (if it was running when the backup was made), after checking its subdomain like the add-ons'. Run from the panel's own Terminal tab, the panel stays up so the restore isn't cut off; press **Restart panel** (Backup & Restore or Terminal tab) afterwards so it picks up the restored folder.
+A restore run over SSH rebuilds the panel from the backup (if it was running when the backup was made), after checking its subdomain like the add-ons'. Run from the panel's own Terminal tab, the panel stays up so the restore isn't cut off; press **Restart panel** on the Terminal tab (or Restart on the Control panel's row in Services) afterwards so it picks up the restored folder.
 
 **Reboot server** (Overview, under "This server") restarts the whole machine. When installed updates need a restart, Maintenance's System updates card and the drawer that Install updates opens offer it too. It asks first, and refuses while an action is running. Everything uses `restart: unless-stopped`, so the stack and the panel come back by themselves.
 

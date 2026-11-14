@@ -217,7 +217,7 @@ add-ons come back (see [Add-ons on restore](#add-ons-on-restore)), so you
 end up with exactly what the backup had, and nothing left running against a
 folder that moved. The one exception is the control panel when you run the
 restore from its own Terminal tab: stopping it would cut off the restore, so
-it stays up and you press **Restart panel** afterwards.
+it stays up and you press **Restart panel** on the Terminal tab afterwards.
 
 Backups made before October 2026, when installs lived in
 `/root/aiostreams`, are restored once with the
