@@ -1154,7 +1154,8 @@ function vpnCard(el, st, avail) {
     // A phone's list: the version, its status under it. Desktop: the status in the middle of the
     // card, as on AIOStreams' card, naming the version in use only when a newer one is out.
     const whatsNew = () => openReleases(list, running);
-    ver = stat("gluetun", running, "");
+    // the version and its status both green while it's the newest, both amber once a newer one is out
+    ver = stat("gluetun", running, "", latest[1] === "ok" || latest[1] === "warn" ? latest[1] : "");
     ver.classList.add("vs-ver");
     const s = ver.lastChild;
     // append() writes a null out as "null", so only what's there

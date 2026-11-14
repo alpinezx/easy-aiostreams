@@ -1928,3 +1928,6 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .gl-sum { display: inline-flex; align-items: center; gap: 12px; }
 .gl-name { color: var(--text); }   /* the name in white, its version grey */
 @media (max-width: 720px) { .fold-sum li:has(> .gl-sum) { flex-basis: 100%; } }
+/* A phone's gluetun row: version and status in one colour, green while it's the newest, amber when not */
+.vs-ver .stat-value.ok, .vs-ver .ver-sub .ok { color: var(--ok); }
+.vs-ver .stat-value.warn, .vs-ver .ver-sub .warn { color: var(--warn); }
