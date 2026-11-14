@@ -298,6 +298,39 @@
   --bad-soft: rgba(158, 31, 31, 0.14); --warn-soft: rgba(112, 76, 0, 0.14); --ok-soft: rgba(27, 98, 38, 0.14);
   --up-line: #5b3f8f;
 }
+:root[data-theme="basic"], .theme-tile[data-theme="basic"] {
+  color-scheme: light;
+  --bg: #dedede; --raised: #ffffff; --sunk: #f3f3f3;
+  --line: #bdbdbd; --line-soft: #d6d6d6; --card-edge: var(--line);
+  --text: #000000; --dim: #3c3c3c; --faint: #6a6a6a; --hover: rgba(0, 0, 0, 0.06);
+  --accent: #1f3fbf; --accent-soft: rgba(31, 63, 191, 0.14);
+  --primary: #1c1c1e; --primary-hover: color-mix(in srgb, #1c1c1e 86%, black); --primary-ink: #ffffff;
+  --ok: #008800; --warn: #a66300; --bad: #b30000;
+  --bad-soft: rgba(179, 0, 0, 0.14); --warn-soft: rgba(166, 99, 0, 0.14); --ok-soft: rgba(0, 136, 0, 0.14);
+  --up-line: #b200b2;
+}
+:root[data-theme="material"], .theme-tile[data-theme="material"] {
+  color-scheme: light;
+  --bg: #e3e8eb; --raised: #fafafa; --sunk: #f2f4f5;
+  --line: #cfd8dc; --line-soft: #e0e5e8; --card-edge: var(--line);
+  --text: #2f3b43; --dim: #4a5c6a; --faint: #63808b; --hover: rgba(47, 59, 67, 0.06);
+  --accent: #2d7d85; --accent-soft: rgba(45, 125, 133, 0.14);
+  --primary: #2e8189; --primary-hover: color-mix(in srgb, #2e8189 86%, black); --primary-ink: #ffffff;
+  --ok: #617a33; --warn: #a46209; --bad: #e0251e;
+  --bad-soft: rgba(224, 37, 30, 0.14); --warn-soft: rgba(164, 98, 9, 0.14); --ok-soft: rgba(97, 122, 51, 0.14);
+  --up-line: #7c4dff;
+}
+:root[data-theme="onelight"], .theme-tile[data-theme="onelight"] {
+  color-scheme: light;
+  --bg: #e3e4e6; --raised: #fafafa; --sunk: #f0f0f1;
+  --line: #d4d4d6; --line-soft: #e5e5e6; --card-edge: var(--line);
+  --text: #36383f; --dim: #595a5f; --faint: #797a8d; --hover: rgba(54, 56, 63, 0.06);
+  --accent: #2769f2; --accent-soft: rgba(39, 105, 242, 0.14);
+  --primary: #2c6cf2; --primary-hover: color-mix(in srgb, #2c6cf2 86%, black); --primary-ink: #ffffff;
+  --ok: #3c823b; --warn: #996a01; --bad: #d73024;
+  --bad-soft: rgba(215, 48, 36, 0.14); --warn-soft: rgba(153, 106, 1, 0.14); --ok-soft: rgba(60, 130, 59, 0.14);
+  --up-line: #a626a4;
+}
 :root[data-theme="dawn"], .theme-tile[data-theme="dawn"] {
   color-scheme: light;
   --bg: #efe6dc; --raised: #fffaf3; --sunk: #faf4ed;

@@ -109,8 +109,9 @@ const MORE = [["slate", "Slate"], ["dracula", "Dracula"], ["mocha", "Catppuccin 
   ["ghdark", "GitHub Dark"], ["ayu", "Ayu Mirage"],
   ["latte", "Catppuccin Latte"], ["ghlight", "GitHub Light"], ["solarlight", "Solarized Light"], ["gruvlight", "Gruvbox Light"],
   ["everlight", "Everforest Light"], ["tokyoday", "Tokyo Day"],
-  ["novel", "Novel"], ["aerogel", "Silver Aerogel"], ["dawn", "Rosé Pine Dawn"]];
-const MORE_LIGHT = new Set(["latte", "ghlight", "solarlight", "gruvlight", "everlight", "tokyoday", "novel", "aerogel", "dawn"]);
+  ["novel", "Novel"], ["aerogel", "Silver Aerogel"],
+  ["basic", "Basic"], ["material", "Material Light"], ["onelight", "Atom One Light"], ["dawn", "Rosé Pine Dawn"]];
+const MORE_LIGHT = new Set(["latte", "ghlight", "solarlight", "gruvlight", "everlight", "tokyoday", "novel", "aerogel", "basic", "material", "onelight", "dawn"]);
 function themeNow() {
   const t = document.documentElement.dataset.theme;
   return [...THEMES, ...MORE].some(([id]) => id !== "system" && id === t) ? t : "system";
