@@ -153,9 +153,9 @@ function themeRow() {
     h("div", { class: "lay-theme-btns", role: "group", "aria-label": "Colours" },
       ...THEMES.map(([id, label]) => h("button", { class: "btn small", type: "button", text: label,
         "aria-pressed": String(id === now), onclick: () => setTheme(id) })),
-      // Shows the picked one's name once one of them is in use
+      // Always "More…" (a theme's name here read as the old fourth button), pressed while one of them is in use
       h("button", { class: "btn small", type: "button", "aria-pressed": String(MORE.some(([id]) => id === now)),
-        text: (MORE.find(([id]) => id === now) || [, "More…"])[1], onclick: morePane })));
+        text: "More…", onclick: morePane })));
 }
 
 // "overview" (Edit beside the headline) or "rail" (Edit menu at the rail's foot)
