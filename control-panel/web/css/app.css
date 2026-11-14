@@ -39,8 +39,6 @@
   --bad-soft: rgba(248, 113, 113, .12);
   --warn-soft: rgba(245, 158, 11, .12);
   --ok-soft: rgba(16, 185, 129, .12);
-  /* the amber glow round notes (a quarter of it in Light, where more reads as a shadow) */
-  --note-glow: 0 0 11px color-mix(in srgb, var(--warn) 34%, transparent);
   --up-line: var(--dim);   /* the traffic graph's Up line, beside Down in --accent */
   --radius: 12px;
   --font: "Inter", ui-sans-serif, system-ui, sans-serif;
@@ -60,7 +58,6 @@
     --primary: #4f43b8; --primary-hover: #4034a3; --primary-ink: #ffffff;
     --ok: #047857; --warn: #9a6200; --bad: #c42f2f;
     --bad-soft: rgba(196, 47, 47, .09); --warn-soft: rgba(154, 98, 0, .1); --ok-soft: rgba(18, 128, 90, .1);
-    --note-glow: 0 0 11px color-mix(in srgb, var(--warn) 9%, transparent);
   }
 }
 :root[data-theme="light"] {
@@ -72,7 +69,6 @@
   --primary: #4f43b8; --primary-hover: #4034a3; --primary-ink: #ffffff;
   --ok: #047857; --warn: #9a6200; --bad: #c42f2f;
   --bad-soft: rgba(196, 47, 47, .09); --warn-soft: rgba(154, 98, 0, .1); --ok-soft: rgba(18, 128, 90, .1);
-  --note-glow: 0 0 11px color-mix(in srgb, var(--warn) 9%, transparent);
 }
 /* Slate: a softer dark, slate greys in Nord's spirit, only when picked. It comes after the light
    block above so it wins on a device set to light. The page is darker than the cards so they lift
@@ -927,9 +923,9 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .view-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; }
 .view-head h2 { margin: 0; font-size: 1.875rem; font-weight: 700; letter-spacing: -.02em; }
 .view-head .btn { margin-left: auto; }
-/* Notes: a card like the others with an amber edge, glowing in Dark and Slate
-   (an amber wash turned muddy brown on the dark page) */
-.note, .dialog .switch-warn { background: var(--raised); border: 1px solid color-mix(in srgb, var(--warn) 55%, transparent); box-shadow: var(--note-glow); }
+/* Notes and dialog warnings: a card with an amber edge down the left that follows its rounded corners,
+   like the toasts (an amber wash turned muddy brown on the dark page) */
+.note, .dialog .switch-warn { background: var(--raised); border: 1px solid var(--line); border-left: 4px solid var(--warn); }
 .note { border-radius: 12px; padding: 12px 16px; color: var(--text); margin: 0 0 16px; font-size: .94rem; }
 .note b { font-weight: 650; }
 .note p { margin: 0; }
