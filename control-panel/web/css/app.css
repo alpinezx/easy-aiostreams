@@ -1497,14 +1497,15 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .theme-pane { position: absolute; inset: 0; z-index: 2; background: var(--bg); display: flex; flex-direction: column; overflow-y: auto; scrollbar-width: thin; animation: slide .18s ease-out; }
 .theme-pane[hidden] { display: none; }
 /* Three across on wider screens, so all of them fit without a second scroll bar beside the page's */
-.theme-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 4px 18px 14px; }
-.theme-group { margin: 14px 20px 2px; font-size: .74rem; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+.theme-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 4px 12px 14px; }
+.theme-group { margin: 14px 18px 2px; font-size: .74rem; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
 /* While the themes are open only their own list scrolls, not the page beside it too */
 html:has(#theme-pane:not([hidden])) { overflow: hidden; }
-.theme-pick { display: flex; flex-direction: column; gap: 8px; padding: 6px; border: 1px solid transparent; border-radius: 12px; background: none; text-align: left; color: var(--text); }
+.theme-pick { display: flex; flex-direction: column; gap: 7px; padding: 5px 4px 6px; border: 1px solid transparent; border-radius: 12px; background: none; text-align: left; color: var(--text); }
 .theme-pick:hover { background: var(--hover); }
 .theme-pick[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
-.theme-name { font-size: .86rem; font-weight: 550; padding: 0 2px; line-height: 1.3; }
+/* Room for the longest name (Catppuccin Mocha) on one line, three across */
+.theme-name { font-size: .84rem; font-weight: 550; padding: 0 2px; line-height: 1.3; }
 .theme-tile { display: block; aspect-ratio: 16 / 9; border-radius: 9px; padding: 8px; background: var(--bg); border: 1px solid var(--line); }
 .tt-card { display: flex; flex-direction: column; gap: 5px; height: 100%; padding: 7px 8px; border-radius: 7px; background: var(--raised); border: 1px solid var(--card-edge); }
 .tt-card i { display: block; border-radius: 3px; height: 6px; }
