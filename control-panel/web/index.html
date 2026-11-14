@@ -34,7 +34,7 @@
 <header class="topbar">
   <button class="icon-btn" id="nav-open" type="button" aria-label="Open menu" aria-controls="nav" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
   <a class="brand" href="#overview">
-    <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#f2f2f2"/><path d="M5 17h5l3-7 5 13 3-6h6" fill="none" stroke="#0b0b0b" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect class="logo-tile" width="32" height="32" rx="8" fill="#f2f2f2"/><path class="logo-line" d="M5 17h5l3-7 5 13 3-6h6" fill="none" stroke="#0b0b0b" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
     <span>Easy AIOStreams</span>
   </a>
 </header>
@@ -43,7 +43,7 @@
   <button class="icon-btn nav-x" id="nav-x" type="button" aria-label="Close menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
   <div class="rail-top">
     <a class="rail-logo" href="#overview" aria-label="Easy AIOStreams Control Panel home">
-      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#f2f2f2"/><path d="M5 17h5l3-7 5 13 3-6h6" fill="none" stroke="#0b0b0b" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect class="logo-tile" width="32" height="32" rx="8" fill="#f2f2f2"/><path class="logo-line" d="M5 17h5l3-7 5 13 3-6h6" fill="none" stroke="#0b0b0b" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span class="rail-name">Easy <span>AIOStreams</span></span>
     </a>
     <a class="chip ver-chip" id="panel-version" href="#scripts" title="The control panel's version. Updates are on the Scripts tab." hidden></a>
@@ -262,6 +262,7 @@
   <p class="lay-hint dim" id="lay-hint">≡ changes the order.</p>
   <ul class="lay-list" id="lay-list"></ul>
   <div class="drawer-foot"><span class="dim">Changes apply to every device.</span><button class="btn small" id="lay-reset" type="button">Reset to default</button></div>
+  <div class="theme-pane" id="theme-pane" hidden></div>
 </aside>
 <div class="dialog" id="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title" hidden></div>
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
