@@ -1138,7 +1138,7 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .lg-list .term-empty { display: grid; place-items: center; height: 100%; text-align: center; }
 @media (max-width: 720px) {
   .view-head.lg-head { flex-direction: column; gap: 10px; }
-  .lg-acts { align-self: flex-end; margin-left: 0; }
+  .lg-acts { align-self: flex-start; margin-left: 0; }
   .lg-row:first-child { flex-wrap: wrap; }
   .lg-search { flex: 1 1 calc(100% - 52px); }
   .lg-svc { flex: 1; width: auto; }
