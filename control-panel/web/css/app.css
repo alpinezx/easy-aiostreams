@@ -85,9 +85,10 @@
   --up-line: #b48ead;
 }
 /* More colours (the Overview's Edit, More…): well-known open-source schemes (MIT), from each one's
-   published palette, held to Slate's rule so none looks hazy: text near the palette's brightest, solid
-   quieter greys and a page clearly darker than the cards. A few reds and Latte's green and amber are
-   deepened or lifted so status colours stay readable. The same values colour each preview tile. */
+   published palette, held to Slate's rule so none looks hazy: crisp text, solid quieter greys, a page
+   clearly apart from the cards, and green, amber and red readable on the cards. Only colours that fell
+   short were moved, lighter or darker in their own hue (most often a light theme's amber). The same
+   values colour each preview tile. */
 :root[data-theme="dracula"], .theme-tile[data-theme="dracula"] {
   color-scheme: dark;
   --bg: #191a21; --raised: #282a36; --sunk: #303241;
@@ -101,7 +102,7 @@
 }
 :root[data-theme="mocha"], .theme-tile[data-theme="mocha"] {
   color-scheme: dark;
-  --bg: #11111b; --raised: #1e1e2e; --sunk: #262637;
+  --bg: #0f0f18; --raised: #1e1e2e; --sunk: #262637;
   --line: #45475a; --line-soft: #313244; --card-edge: var(--line-soft);
   --text: #dae1f7; --dim: #a6adc8; --faint: #7f849c; --hover: rgba(218, 225, 247, 0.06);
   --accent: #cba6f7; --accent-soft: rgba(203, 166, 247, 0.14);
@@ -123,7 +124,7 @@
 }
 :root[data-theme="rosepine"], .theme-tile[data-theme="rosepine"] {
   color-scheme: dark;
-  --bg: #12101b; --raised: #1f1d2e; --sunk: #26233a;
+  --bg: #100e18; --raised: #1f1d2e; --sunk: #26233a;
   --line: #524f67; --line-soft: #403d52; --card-edge: var(--line-soft);
   --text: #e0def4; --dim: #aca8c6; --faint: #837f9e; --hover: rgba(224, 222, 244, 0.06);
   --accent: #c4a7e7; --accent-soft: rgba(196, 167, 231, 0.14);
@@ -165,6 +166,72 @@
   --bad-soft: rgba(230, 126, 128, 0.14); --warn-soft: rgba(219, 188, 127, 0.14); --ok-soft: rgba(167, 192, 128, 0.14);
   --up-line: #d699b6;
 }
+:root[data-theme="nord"], .theme-tile[data-theme="nord"] {
+  color-scheme: dark;
+  --bg: #242933; --raised: #2e3440; --sunk: #3b4252;
+  --line: #4c566a; --line-soft: #3b4252; --card-edge: var(--line-soft);
+  --text: #eff2f6; --dim: #c8d0dc; --faint: #8f9bb3; --hover: rgba(239, 242, 246, 0.06);
+  --accent: #88c0d0; --accent-soft: rgba(136, 192, 208, 0.14);
+  --primary: #81a1c1; --primary-hover: color-mix(in srgb, #81a1c1 86%, white); --primary-ink: #2e3440;
+  --ok: #a3be8c; --warn: #ebcb8b; --bad: #ce898c;
+  --bad-soft: rgba(206, 137, 140, 0.14); --warn-soft: rgba(235, 203, 139, 0.14); --ok-soft: rgba(163, 190, 140, 0.14);
+  --up-line: #b48ead;
+}
+:root[data-theme="kanagawa"], .theme-tile[data-theme="kanagawa"] {
+  color-scheme: dark;
+  --bg: #101014; --raised: #1f1f28; --sunk: #2a2a37;
+  --line: #54546d; --line-soft: #363646; --card-edge: var(--line-soft);
+  --text: #dcd7ba; --dim: #c8c093; --faint: #818073; --hover: rgba(220, 215, 186, 0.06);
+  --accent: #7e9cd8; --accent-soft: rgba(126, 156, 216, 0.14);
+  --primary: #7e9cd8; --primary-hover: color-mix(in srgb, #7e9cd8 86%, white); --primary-ink: #16161d;
+  --ok: #98bb6c; --warn: #ff9e3b; --bad: #ff5d62;
+  --bad-soft: rgba(255, 93, 98, 0.14); --warn-soft: rgba(255, 158, 59, 0.14); --ok-soft: rgba(152, 187, 108, 0.14);
+  --up-line: #957fb8;
+}
+:root[data-theme="nightowl"], .theme-tile[data-theme="nightowl"] {
+  color-scheme: dark;
+  --bg: #010e1a; --raised: #011627; --sunk: #0b2942;
+  --line: #234d70; --line-soft: #122d42; --card-edge: var(--line-soft);
+  --text: #d6deeb; --dim: #a3b4c9; --faint: #657a7a; --hover: rgba(214, 222, 235, 0.06);
+  --accent: #82aaff; --accent-soft: rgba(130, 170, 255, 0.14);
+  --primary: #82aaff; --primary-hover: color-mix(in srgb, #82aaff 86%, white); --primary-ink: #011627;
+  --ok: #addb67; --warn: #ffcb8b; --bad: #ef5350;
+  --bad-soft: rgba(239, 83, 80, 0.14); --warn-soft: rgba(255, 203, 139, 0.14); --ok-soft: rgba(173, 219, 103, 0.14);
+  --up-line: #c792ea;
+}
+:root[data-theme="solardark"], .theme-tile[data-theme="solardark"] {
+  color-scheme: dark;
+  --bg: #001d26; --raised: #002b36; --sunk: #073642;
+  --line: #2a525c; --line-soft: #0d3d4a; --card-edge: var(--line-soft);
+  --text: #eee8d5; --dim: #a5adad; --faint: #6f8a92; --hover: rgba(238, 232, 213, 0.06);
+  --accent: #3294da; --accent-soft: rgba(50, 148, 218, 0.14);
+  --primary: #2079ba; --primary-hover: color-mix(in srgb, #2079ba 86%, white); --primary-ink: #ffffff;
+  --ok: #859900; --warn: #b58900; --bad: #e8625f;
+  --bad-soft: rgba(232, 98, 95, 0.14); --warn-soft: rgba(181, 137, 0, 0.14); --ok-soft: rgba(133, 153, 0, 0.14);
+  --up-line: #6c71c4;
+}
+:root[data-theme="ghdark"], .theme-tile[data-theme="ghdark"] {
+  color-scheme: dark;
+  --bg: #010409; --raised: #0d1117; --sunk: #161b22;
+  --line: #30363d; --line-soft: #21262d; --card-edge: var(--line-soft);
+  --text: #e6edf3; --dim: #949ba3; --faint: #6e7681; --hover: rgba(230, 237, 243, 0.06);
+  --accent: #4493f8; --accent-soft: rgba(68, 147, 248, 0.14);
+  --primary: #238636; --primary-hover: color-mix(in srgb, #238636 86%, white); --primary-ink: #ffffff;
+  --ok: #3fb950; --warn: #d29922; --bad: #f85149;
+  --bad-soft: rgba(248, 81, 73, 0.14); --warn-soft: rgba(210, 153, 34, 0.14); --ok-soft: rgba(63, 185, 80, 0.14);
+  --up-line: #a371f7;
+}
+:root[data-theme="ayu"], .theme-tile[data-theme="ayu"] {
+  color-scheme: dark;
+  --bg: #181c25; --raised: #242936; --sunk: #2a303d;
+  --line: #3d4455; --line-soft: #323949; --card-edge: var(--line-soft);
+  --text: #e1e1e0; --dim: #a6aebc; --faint: #7e8997; --hover: rgba(225, 225, 224, 0.06);
+  --accent: #73d0ff; --accent-soft: rgba(115, 208, 255, 0.14);
+  --primary: #ffcc66; --primary-hover: color-mix(in srgb, #ffcc66 86%, white); --primary-ink: #1a1e28;
+  --ok: #87d96c; --warn: #ffad66; --bad: #ff6666;
+  --bad-soft: rgba(255, 102, 102, 0.14); --warn-soft: rgba(255, 173, 102, 0.14); --ok-soft: rgba(135, 217, 108, 0.14);
+  --up-line: #dfbfff;
+}
 :root[data-theme="latte"], .theme-tile[data-theme="latte"] {
   color-scheme: light;
   --bg: #dce0e8; --raised: #eff1f5; --sunk: #e6e9ef;
@@ -175,6 +242,72 @@
   --ok: #2b7a1d; --warn: #9a5a00; --bad: #d20f39;
   --bad-soft: rgba(210, 15, 57, 0.14); --warn-soft: rgba(154, 90, 0, 0.14); --ok-soft: rgba(43, 122, 29, 0.14);
   --up-line: #1e66f5;
+}
+:root[data-theme="ghlight"], .theme-tile[data-theme="ghlight"] {
+  color-scheme: light;
+  --bg: #e9edf1; --raised: #ffffff; --sunk: #f6f8fa;
+  --line: #d0d7de; --line-soft: #d8dee4; --card-edge: var(--line);
+  --text: #1f2328; --dim: #555d68; --faint: #757f90; --hover: rgba(31, 35, 40, 0.06);
+  --accent: #0969da; --accent-soft: rgba(9, 105, 218, 0.14);
+  --primary: #1f883d; --primary-hover: color-mix(in srgb, #1f883d 86%, black); --primary-ink: #ffffff;
+  --ok: #1a7f37; --warn: #9a6700; --bad: #d1242f;
+  --bad-soft: rgba(209, 36, 47, 0.14); --warn-soft: rgba(154, 103, 0, 0.14); --ok-soft: rgba(26, 127, 55, 0.14);
+  --up-line: #8250df;
+}
+:root[data-theme="solarlight"], .theme-tile[data-theme="solarlight"] {
+  color-scheme: light;
+  --bg: #ede6d1; --raised: #fdf6e3; --sunk: #f5efdc;
+  --line: #c9c1ab; --line-soft: #e3dcc8; --card-edge: var(--line);
+  --text: #073642; --dim: #4a5960; --faint: #687b7b; --hover: rgba(7, 54, 66, 0.06);
+  --accent: #1f76b6; --accent-soft: rgba(31, 118, 182, 0.14);
+  --primary: #2079ba; --primary-hover: color-mix(in srgb, #2079ba 86%, black); --primary-ink: #ffffff;
+  --ok: #687600; --warn: #8d6900; --bad: #d72825;
+  --bad-soft: rgba(215, 40, 37, 0.14); --warn-soft: rgba(141, 105, 0, 0.14); --ok-soft: rgba(104, 118, 0, 0.14);
+  --up-line: #6c71c4;
+}
+:root[data-theme="gruvlight"], .theme-tile[data-theme="gruvlight"] {
+  color-scheme: light;
+  --bg: #ebdbb2; --raised: #fbf1c7; --sunk: #f2e5bc;
+  --line: #bdae93; --line-soft: #d5c4a1; --card-edge: var(--line);
+  --text: #363332; --dim: #504945; --faint: #7c6f64; --hover: rgba(54, 51, 50, 0.06);
+  --accent: #076678; --accent-soft: rgba(7, 102, 120, 0.14);
+  --primary: #076678; --primary-hover: color-mix(in srgb, #076678 86%, black); --primary-ink: #fbf1c7;
+  --ok: #74700d; --warn: #926110; --bad: #9d0006;
+  --bad-soft: rgba(157, 0, 6, 0.14); --warn-soft: rgba(146, 97, 16, 0.14); --ok-soft: rgba(116, 112, 13, 0.14);
+  --up-line: #8f3f71;
+}
+:root[data-theme="everlight"], .theme-tile[data-theme="everlight"] {
+  color-scheme: light;
+  --bg: #e9e5cf; --raised: #fdf6e3; --sunk: #f4f0d9;
+  --line: #c9c7b0; --line-soft: #ddd8be; --card-edge: var(--line);
+  --text: #363639; --dim: #555955; --faint: #6a7e64; --hover: rgba(54, 54, 57, 0.06);
+  --accent: #30769d; --accent-soft: rgba(48, 118, 157, 0.14);
+  --primary: #6c7901; --primary-hover: color-mix(in srgb, #6c7901 86%, black); --primary-ink: #ffffff;
+  --ok: #677401; --warn: #946500; --bad: #df0a07;
+  --bad-soft: rgba(223, 10, 7, 0.14); --warn-soft: rgba(148, 101, 0, 0.14); --ok-soft: rgba(103, 116, 1, 0.14);
+  --up-line: #df69ba;
+}
+:root[data-theme="tokyoday"], .theme-tile[data-theme="tokyoday"] {
+  color-scheme: light;
+  --bg: #d0d5e3; --raised: #e9e9ed; --sunk: #e1e2e7;
+  --line: #a8aecb; --line-soft: #c4c8da; --card-edge: var(--line);
+  --text: #1d2c57; --dim: #3d4e84; --faint: #666ea1; --hover: rgba(29, 44, 87, 0.06);
+  --accent: #1664cf; --accent-soft: rgba(22, 100, 207, 0.14);
+  --primary: #1a71e9; --primary-hover: color-mix(in srgb, #1a71e9 86%, black); --primary-ink: #ffffff;
+  --ok: #557237; --warn: #a25300; --bad: #cf0a40;
+  --bad-soft: rgba(207, 10, 64, 0.14); --warn-soft: rgba(162, 83, 0, 0.14); --ok-soft: rgba(85, 114, 55, 0.14);
+  --up-line: #9854f1;
+}
+:root[data-theme="dawn"], .theme-tile[data-theme="dawn"] {
+  color-scheme: light;
+  --bg: #efe6dc; --raised: #fffaf3; --sunk: #faf4ed;
+  --line: #cecacd; --line-soft: #dfdad9; --card-edge: var(--line);
+  --text: #3b364f; --dim: #5b576b; --faint: #7d7893; --hover: rgba(59, 54, 79, 0.06);
+  --accent: #7e689d; --accent-soft: rgba(126, 104, 157, 0.14);
+  --primary: #286983; --primary-hover: color-mix(in srgb, #286983 86%, black); --primary-ink: #ffffff;
+  --ok: #286983; --warn: #a06411; --bad: #ac576e;
+  --bad-soft: rgba(172, 87, 110, 0.14); --warn-soft: rgba(160, 100, 17, 0.14); --ok-soft: rgba(40, 105, 131, 0.14);
+  --up-line: #d7827e;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -1364,7 +1497,10 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .theme-pane { position: absolute; inset: 0; z-index: 2; background: var(--bg); display: flex; flex-direction: column; overflow-y: auto; scrollbar-width: thin; animation: slide .18s ease-out; }
 .theme-pane[hidden] { display: none; }
 /* Three across on wider screens, so all of them fit without a second scroll bar beside the page's */
-.theme-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 14px 18px; }
+.theme-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 4px 18px 14px; }
+.theme-group { margin: 14px 20px 2px; font-size: .74rem; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+/* While the themes are open only their own list scrolls, not the page beside it too */
+html:has(#theme-pane:not([hidden])) { overflow: hidden; }
 .theme-pick { display: flex; flex-direction: column; gap: 8px; padding: 6px; border: 1px solid transparent; border-radius: 12px; background: none; text-align: left; color: var(--text); }
 .theme-pick:hover { background: var(--hover); }
 .theme-pick[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
@@ -1380,7 +1516,7 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .tt-card .tt-link { width: 22%; background: var(--accent); margin-left: 4px; }
 .tt-card .tt-btn { width: 24%; height: 12px; margin-left: auto; border-radius: 4px; background: var(--primary); }
 .theme-credit { margin: auto 20px 18px; font-size: .82rem; }
-@media (max-width: 720px) { .theme-grid { grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 14px; } }
+@media (max-width: 720px) { .theme-grid { grid-template-columns: 1fr 1fr; gap: 8px; padding: 4px 14px 12px; } .theme-group { margin: 12px 16px 2px; } }
 /* The hint sits above the list it explains, and stays put while the list scrolls */
 .lay-hint { flex: none; margin: 0; padding: 14px 20px 0; font-size: .9rem; }
 .lay-list { flex: 1; overflow: auto; margin: 0; padding: 10px 20px 14px; list-style: none; user-select: none; display: grid; gap: 8px; align-content: start; }

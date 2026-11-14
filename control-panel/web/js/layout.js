@@ -105,7 +105,11 @@ const THEMES = [["system", "System"], ["light", "Light"], ["dark", "Dark"]];
 // More…: our Slate, then well-known open-source schemes, each drawn on its own preview tile
 const MORE = [["slate", "Slate"], ["dracula", "Dracula"], ["mocha", "Catppuccin Mocha"], ["tokyo", "Tokyo Night"],
   ["rosepine", "Rosé Pine"], ["gruvbox", "Gruvbox Dark"], ["onedark", "One Dark"], ["everforest", "Everforest Dark"],
-  ["latte", "Catppuccin Latte"]];
+  ["nord", "Nord"], ["kanagawa", "Kanagawa Wave"], ["nightowl", "Night Owl"], ["solardark", "Solarized Dark"],
+  ["ghdark", "GitHub Dark"], ["ayu", "Ayu Mirage"],
+  ["latte", "Catppuccin Latte"], ["ghlight", "GitHub Light"], ["solarlight", "Solarized Light"], ["gruvlight", "Gruvbox Light"],
+  ["everlight", "Everforest Light"], ["tokyoday", "Tokyo Day"], ["dawn", "Rosé Pine Dawn"]];
+const MORE_LIGHT = new Set(["latte", "ghlight", "solarlight", "gruvlight", "everlight", "tokyoday", "dawn"]);
 function themeNow() {
   const t = document.documentElement.dataset.theme;
   return [...THEMES, ...MORE].some(([id]) => id !== "system" && id === t) ? t : "system";
@@ -135,10 +139,14 @@ function morePane() {
     h("div", { class: "drawer-head" },
       h("div", {}, h("h3", { text: "More colours" }), h("p", { text: "This browser only." })),
       h("button", { class: "btn small quiet x", type: "button", text: "Back", onclick: () => { pane.hidden = true; $("#lay-x").focus(); } })),
-    h("div", { class: "theme-grid", role: "group", "aria-label": "More colours" },
-      ...MORE.map(([id, label]) => h("button", { class: "theme-pick", type: "button", "aria-pressed": String(id === now), onclick: () => setTheme(id) },
-        tile(id), h("span", { class: "theme-name", text: label })))),
-    h("p", { class: "dim theme-credit", text: "Dracula, Catppuccin, Tokyo Night, Rosé Pine, Gruvbox, One Dark and Everforest are open-source colour schemes (MIT) by their authors." }));
+    ...[["Dark", false], ["Light", true]].flatMap(([group, light]) => [
+      h("p", { class: "theme-group", text: group }),
+      h("div", { class: "theme-grid", role: "group", "aria-label": group },
+        ...MORE.filter(([id]) => MORE_LIGHT.has(id) === light).map(([id, label]) =>
+          h("button", { class: "theme-pick", type: "button", "aria-pressed": String(id === now), onclick: () => setTheme(id) },
+            tile(id), h("span", { class: "theme-name", text: label }))))]),
+    h("p", { class: "dim theme-credit", text: "Slate is this panel's own. The others are open-source colour schemes (MIT) by their authors, "
+      + "with a few colours made stronger here so text and alerts stay easy to read." }));
   pane.hidden = false;
 }
 function themeRow() {
