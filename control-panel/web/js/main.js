@@ -89,7 +89,10 @@ function initNav() {
   const hide = () => { tip.hidden = true; };
   const nav = $("#nav");
   nav.addEventListener("mouseover", show);
-  nav.addEventListener("focusin", show);
+  // Focus shows it only from the keyboard: a clicked icon keeps focus, and coming back to the
+  // page focuses it again, which left its name showing with the mouse elsewhere
+  nav.addEventListener("focusin", (e) => { if (e.target.matches(":focus-visible")) show(e); });
+  window.addEventListener("blur", hide);
   nav.addEventListener("mouseleave", hide);
   nav.addEventListener("focusout", hide);
   nav.addEventListener("scroll", hide);
