@@ -1404,7 +1404,8 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .term-off a { white-space: nowrap; }
 @media (max-width: 720px) {
   .term-off-how { display: block; }
-  .scripts-status { row-gap: 26px; }   /* room between the status lines and the buttons wrapped under them */
+  /* Check now nearer the cards below than the status lines above */
+  .scripts-status { row-gap: 34px; margin-bottom: 8px; }
 }
 .scripts-status details { min-width: 0; }
 .scripts-status details summary { cursor: pointer; font-size: .88rem; color: var(--dim); }
