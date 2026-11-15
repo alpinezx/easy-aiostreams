@@ -1805,9 +1805,9 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .hero-btns .btn.small { padding: 8px 10px; }
   .hero-tools { margin: -10px -10px -12px 0; }
   .hero-fold { margin: -10px 0 -10px -10px; }
-  .btn.hero-edit { padding: 12px; }
-  .btn.hero-edit svg { width: 16px; height: 16px; }
-  .hero-edit .fa-word { display: none; }
+  /* Edit keeps its word on phones too, sized like What's new beside it */
+  .btn.hero-edit { padding: 8px 10px; }
+  .hero-tools { align-items: center; }
 }
 /* Scripts tab: Run in terminal and Get and run share one width */
 .run-btn { display: inline-grid; justify-items: center; }
