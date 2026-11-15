@@ -94,7 +94,7 @@ function gate(message, info) {
   const err = h("p", { class: "form-err" + (info ? " note-ok" : ""), role: "alert", text: message || "" });
   const input = h("input", { class: "input", type: "password", autocomplete: "off", spellcheck: "false",
     placeholder: "XXXXX-XXXXX-XXXXX-XXXXX-XXXXX", "aria-label": "Terminal key" });
-  const go = h("button", { class: "btn primary", type: "submit", text: "Open terminal" });
+  const go = h("button", { class: "btn small primary", type: "submit", text: "Open terminal" });
   const keep = h("input", { type: "checkbox", checked: true });
   const uc = userCopy();
   let asSel = null, asNote = null;

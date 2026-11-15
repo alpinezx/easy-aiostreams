@@ -669,6 +669,8 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .state-word::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
 .state-word[data-s="running"]::before { background: var(--ok); }
 .state-word[data-s="running"] { color: var(--ok); }
+/* Services: a running service's words in grey, only its dot green (less green in the list) */
+.row .state-word[data-s="running"] { color: var(--dim); }
 .state-word[data-s="starting"], .state-word[data-s="paused"] { color: var(--warn); }
 .state-word[data-s="stopped"], .state-word[data-s="missing"], .state-word[data-s="unhealthy"], .state-word[data-s="restarting"] { color: var(--bad); }
 .state-word[data-s="starting"]::before, .state-word[data-s="paused"]::before { background: var(--warn); }
@@ -1015,6 +1017,10 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .t-start { color: var(--dim); font-size: .9rem; justify-content: flex-start; min-height: 26px; }
 .path-head .btn { margin-left: auto; }
 .path-acts { display: flex; justify-content: flex-end; margin-top: 14px; }
+/* Phones: 2px further right, so its rounded box looks in line with the uptimes' last letters */
+@media (max-width: 720px) { .path-acts { margin-right: -2px; } }
+/* ...and the same for Services' Stop/Restart and This server's Reboot server */
+@media (max-width: 720px) { .row .acts, .stat-grid .grid-btn { margin-right: -2px; } }
 @media (max-width: 720px) {
   .flow-tree ul { padding-left: 5px; }
   .flow-tree ul > li { padding-left: 12px; }
@@ -1840,6 +1846,9 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .fold-sum li.svc-load { flex-basis: 100%; }
   .row .pstat { display: block; margin-top: 2px; font-variant-numeric: tabular-nums; }
   .row .pstat:empty { display: none; }
+  /* the uptime on the same line as the CPU and memory under the name */
+  .row:not(.row-head) > :nth-child(-n+2) { align-self: last baseline; }
+  .row .state-word { position: relative; top: -1.5px; }   /* its dot box sits the words 1.5px low */
 }
 @media (max-width: 720px) {
   /* The reboot and update notices: a smaller box with room around it */
@@ -1873,11 +1882,22 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .fold-all.btn-i .path-chev { display: none; }
 /* its lines fill only the middle of the icon's box, so it's drawn larger to stand as tall as the F */
 .fold-all.btn-i > svg.bi { width: 1.15em; height: 1.15em; position: relative; top: -.02em; }
-.hero-btns .btn-i[data-act="What's new"] > svg.bi { width: .9em; height: .9em; position: relative; top: -.08em; }
+.hero-btns .btn-i[data-act="What's new"] > svg.bi { width: .9em; height: .9em; position: relative; top: .03em; }
+/* the desktop's smaller words need the star a touch higher to look centred */
+@media (min-width: 721px) { .hero-btns .btn-i[data-act="What's new"] > svg.bi { top: -.03em; } }
 /* Services' Stop and Restart columns, wide enough for the icons */
 .row .acts:has(.btn-i) { grid-template-columns: 74px 86px; }
 @media (max-width: 720px) {
   .btn.btn-i { padding-left: 8px; padding-right: 9px; }
+  /* Phones: one fixed height for every button (Check now's smaller words included), so they
+     line up. Width stays as it was. Icon-only buttons (folded cards' corners, the Overview's
+     Edit pencil, Logs' icons) keep their own size, or they'd be stretched tall. */
+  .btn:not(:where(.fold-act, .hero-edit, .icon-only)), .btn.small:not(:where(.fold-act, .hero-edit, .icon-only)),
+  .cmd-btns .btn, .scripts-panel .cmd-btns .btn { height: 33px; padding-top: 0; padding-bottom: 0; }
+  /* Scripts' Check now as wide as the cards' right-hand column below it (card padding 16px +
+     1px border each side, 12px between the two columns), flush with the cards' right edge */
+  .scripts-status .btns { width: calc((100% - 46px) / 2); }
+  .scripts-status .btns .btn { width: 100%; }
   /* A card's row of buttons as two even columns: pairs along the bottom, an odd one across the top */
   .btn-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 10px 12px; justify-content: stretch; width: 100%; }
   .btn-grid > :not(.btn) { grid-column: 1 / -1; order: -1; margin: 0; }
@@ -1890,7 +1910,7 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   /* long words shortened in a half-width button (the full words stay its name) */
   .btn-grid .bw[data-short] { font-size: 0; }
   .btn-grid .bw[data-short]::after { content: attr(data-short); font-size: .82rem; }
-  /* The VPN card's four: All releases and Turn VPN off on top, Check now and Update below, as on the other cards */
+  /* The VPN card's four: Turn VPN off and Update on top, All releases and Check now below, as on the other cards */
   /* Scripts: two columns like the cards. Run in terminal (or Get and run) across the top, Copy and
      Update below; with two buttons, side by side. The hidden other word and the spacers aren't needed. */
   .run-btn.btn-i .run-alt { display: none; }
@@ -1898,13 +1918,12 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .vpn-head:has(> .tr-title + .tr-ranges) { grid-template-columns: minmax(0, 1fr); row-gap: 12px; }
   .vpn-head:has(> .tr-title + .tr-ranges) > .tr-ranges { grid-column: 1; }
   .scripts-panel .cmd-btns.btn-grid .btn-spacer { display: none !important; }
-  .vpnc-foot.btn-grid > .btn[data-act="All releases"] { grid-area: 1 / 1 !important; }
-  .vpnc-foot.btn-grid > .btn[data-act="Update"] { grid-area: 2 / 2 !important; }
-  .vpnc-foot.btn-grid > .btn[data-act="Check now"] { grid-area: 2 / 1 !important; }
-  .vpnc-foot.btn-grid > .btn.vpnc-switch { grid-area: 1 / 2 !important; }
-  /* without Update: All releases across the top, Check now and Turn VPN off below */
-  .vpnc-foot.btn-grid:not(:has(> .btn[data-act="Update"])) > .btn[data-act="All releases"] { grid-area: 1 / 1 / 2 / 3 !important; }
-  .vpnc-foot.btn-grid:not(:has(> .btn[data-act="Update"])) > .btn.vpnc-switch { grid-area: 2 / 2 !important; }
+  .vpnc-foot.btn-grid > .btn.vpnc-switch { grid-area: 1 / 1 !important; }
+  .vpnc-foot.btn-grid > .btn[data-act="Update"] { grid-area: 1 / 2 !important; }
+  .vpnc-foot.btn-grid > .btn[data-act="All releases"] { grid-area: 2 / 1 !important; }
+  .vpnc-foot.btn-grid > .btn[data-act="Check now"] { grid-area: 2 / 2 !important; }
+  /* without Update: Turn VPN off/on across the top, All releases and Check now below */
+  .vpnc-foot.btn-grid:not(:has(> .btn[data-act="Update"])) > .btn.vpnc-switch { grid-area: 1 / 1 / 2 / 3 !important; }
 }
 /* Phones: a page's buttons always on a line of their own under its title, on the right,
    so Activity, VPN and Terminal match the pages whose buttons don't fit beside it */

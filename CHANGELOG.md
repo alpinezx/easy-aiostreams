@@ -2,6 +2,10 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 15 November 2026
+
+- **New:** on phones every button with words is the same height, a little shorter than before, and the Scripts tab's Check now is as wide as the buttons under it. Version cards put Update across the top with All releases and Check now under it; the VPN card has Turn VPN off and Update, then All releases and Check now. Check now no longer moves while it reads Checking…. All releases has a stack-of-versions icon and What's new a solid star. In Services a running service's uptime is grey with only its dot green, and on phones it sits on the same line as the CPU and memory. (Panel 1.58.3, [#189](https://github.com/alpinezx/easy-aiostreams/pull/189))
+
 ## 14 November 2026
 
 - **New:** an update waiting stands out by more than colour: the version cards (AIOStreams, AIOMetadata, AIOManager, MediaFlow and the VPN's Gluetun) put an up arrow before "available", and their Update becomes the filled button, its corner icon too when folded. Folded, "available" is amber on every card, and the VPN card shows Gluetun's version like the others; on phones its open card keeps the version white with Up to date in green, and drops the What's new link that All releases already covers. The Scripts tab's What's new is a quiet link at the top right, as on the Overview, and on a computer Check now sits beside the last status line. (Panel 1.58.2, [#188](https://github.com/alpinezx/easy-aiostreams/pull/188))
