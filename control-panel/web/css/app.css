@@ -1859,6 +1859,19 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .rs-phone .tz-box { width: 100%; }
   .rs-phone .tz-sugg { left: 0; right: auto; }
   .rs-phone .maint-foot .dim { margin-right: 0; line-height: 1.5; }
+  /* Schedule first, straight under the title as on Scheduled backups; a line between it and Next reboot */
+  .rs-phone .card-head + .rs-block { border-top: 0; margin-top: 0; padding-top: 18px; }
+  .rs-phone .rs-block + .stat-grid { border-top: 1px solid var(--line-soft); margin-top: 10px; }
+  /* Folded (see maint.js): the title and Schedule's state; an out-of-sync clock or a warning still shows */
+  .maint-card.rs-phone .sched-head, .maint-card.mfold .sched-head { margin-bottom: 0; }
+  /* Free up space and Container logs (see maint.js's phoneFold) */
+  .maint-card.mfold.folded .sched-fold-word { display: inline; }
+  .maint-card.mfold.folded > .stat-grid, .maint-card.mfold.folded > .card-foot { display: none; }
+  .fold-word { font-weight: 600; }
+  .fold-word.ok { color: var(--ok); } .fold-word.warn { color: var(--warn); } .fold-word.dim { color: var(--faint); }
+  .maint-card.rs-phone.folded .sched-fold-word { display: inline; }
+  .maint-card.rs-phone.folded > .rs-block:not(.rs-keep), .maint-card.rs-phone.folded > .stat-grid,
+  .maint-card.rs-phone.folded > .card-foot:not(:has(.warn)) { display: none; }
 }
 /* System updates on a desktop: the first few waiting, under the values */
 .upd-peek { border-top: 1px solid var(--line-soft); margin-top: 4px; padding: 12px 0 4px; }
