@@ -1817,8 +1817,9 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .hero-head .hero-tools .btn.small { height: auto; padding: 10px; min-width: 38px; min-height: 38px; justify-content: center; }
   .hero-tools .fa-word { display: none; }
   /* sized so each drawing stands about as tall as Fold all's icon (the star fills its box, the pencil doesn't) */
-  .hero-tools .btn > svg { width: 16px; height: 16px; }
-  .hero-head .hero-tools .btn-i[data-act] > svg.bi { width: 14px; height: 14px; top: 0; }
+  /* 1px up: centred on their buttons they sat a touch below the middle of Fold all's words */
+  .hero-tools .btn > svg { width: 16px; height: 16px; position: relative; top: -1px; }
+  .hero-head .hero-tools .btn-i[data-act] > svg.bi { width: 14px; height: 14px; top: -1px; }
   .btn.hero-edit svg { stroke-width: 2; }
 }
 /* Scripts tab: Run in terminal and Get and run share one width */
