@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 15 November 2026
 
+- **Fixed:** on the Logs page the search box and the service list are the same height, and .* (and ⋮ on a phone) is a square of that height. On a phone the two boxes are also the same width, with the two buttons in a column at their right. (Panel 1.58.8)
 - **Fixed:** on phones, a drawer (such as Edit the Overview and its More themes) no longer shows a thin line down its left edge and along its top. (Panel 1.58.8)
 - On phones, the Scripts tab's Optional add-ons folds to one line: how many differ from GitHub, in amber, if any, otherwise how many are active. Folded until you open it, and remembered. On phones the panel's version and Up to date sit at the right of its line. On a computer and a phone, the Scripts tab's status lines are in a note card as on Backup & Restore, with Check now in the page heading as Back up now is. (Panel 1.58.8)
 - Maintenance's Scheduled server reboot starts with Schedule, then Clock, with Next reboot and Last at the bottom, on a computer and on a phone. (Panel 1.58.8)

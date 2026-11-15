@@ -1155,6 +1155,9 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .lg-regex { font-family: var(--mono); padding: 7px 10px; }
 .lg-regex[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 .lg-svc { width: 200px; flex: none; padding: 8px 10px; }
+/* The search box and the service list the same height, .* (and ⋮ on a phone) a square of it */
+.lg-search, .lg-filters .lg-row .lg-svc { height: 39px; }
+.lg-filters .lg-row .lg-regex, .lg-filters .lg-row .lg-more { width: 39px; height: 39px; padding: 0; justify-content: center; align-items: center; }
 .lg-more { display: none; }
 .lg-row2 { justify-content: space-between; flex-wrap: wrap; }
 .lg-levels { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -1201,9 +1204,10 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 @media (max-width: 720px) {
   .view-head.lg-head { flex-direction: column; gap: 10px; }
   .lg-acts { align-self: flex-end; margin-left: 0; }
-  .lg-row:first-child { flex-wrap: wrap; }
-  .lg-search { flex: 1 1 calc(100% - 52px); }
-  .lg-svc { flex: 1; width: auto; }
+  /* Search and .* on one line, the service list and ⋮ under them: the two boxes the same width and
+     height, the two buttons the same square, in one column on the right */
+  .lg-row:first-child { display: grid; grid-template-columns: minmax(0, 1fr) 39px; gap: 10px; }
+  .lg-filters .lg-row .lg-svc { width: auto; }
   .lg-more { display: inline-flex; }
   .lg-filters { position: relative; }
   /* Hide noise, Auto-scroll and Wrap open from the ⋮ button */
