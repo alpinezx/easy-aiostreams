@@ -55,8 +55,9 @@ export function versionChip(current) {
   chip.title = newer ? `Control panel ${ver.latest} is available. Update it on the Scripts tab.` : "The control panel's version. Updates are on the Scripts tab.";
 }
 
-// The line at the top of the page: when GitHub was last asked, the panel's last update, and the
-// page's own buttons. One Check now covers the panel and the scripts.
+// The note at the top of the page: when GitHub was last asked and the panel's last update. Check now
+// goes in the page heading, on the right as Back up now does (on a phone, on a line under the title).
+// One Check now covers the panel and the scripts.
 function statusLine(terminalOn) {
   const v = ver || {};
   const branch = v.branch && v.branch !== "main" ? ` (${v.branch} branch, for testing)` : "";
@@ -78,10 +79,15 @@ function statusLine(terminalOn) {
         // on phones this half takes a line of its own, so the link never splits
         h("span", { class: "term-off-how" },
           h("a", { href: TERMINAL_GUIDE, target: "_blank", rel: "noopener noreferrer", text: "Switch it on over SSH" }), " if you want it.")),
-      lastLine),
-    h("span", { class: "btns" },
-      h("button", { class: "btn small", type: "button", text: busy ? "Checking…" : "Check now", disabled: busy,
-        title: "Check the panel's version and compare the scripts here with GitHub's copies now", onclick: checkAll })));
+      lastLine));
+}
+function checkNow() {
+  const busy = verLoading || cmpLoading;
+  const acts = $("#scripts-acts");
+  if (!acts) return;
+  clear(acts);
+  acts.append(h("button", { class: "btn small", type: "button", text: busy ? "Checking…" : "Check now", disabled: busy,
+    title: "Check the panel's version and compare the scripts here with GitHub's copies now", onclick: checkAll }));
 }
 
 async function checkAll() {
@@ -106,7 +112,7 @@ function panelRow(cmd, termOn) {
   else if (v.error) state = h("span", { class: "chip warn small-chip", title: v.error, text: "Couldn't check" });
   return h("li", {},
     h("span", { class: "cmd-label" }, sdot("ok", "Running"), "Control panel",
-      v.current ? h("span", { class: "chip small-chip", text: `v${v.current}` }) : null, state),
+      v.current ? h("span", { class: "chip small-chip pr-ver", text: `v${v.current}` }) : null, state),
     h("span", { class: "cmd-btns" }, runBtn(true, cmd, termOn),
       copyBtn("Copy", cmd, "Copied. Paste it into an SSH session or the Terminal tab.", cmd),
       // Always there, like AIOStreams' row: filled when a newer panel is out, plain otherwise (it then
@@ -325,6 +331,10 @@ async function removeScript(x) {
   } catch (e) { toast(e.message || "Couldn't remove it.", true); }
 }
 
+// Phones: whether Optional add-ons is open (folded until opened, remembered per browser)
+let addonsOpen = false;
+try { addonsOpen = localStorage.getItem("aios.addonsOpen") === "1"; } catch (_) {}
+
 function render() {
   const { status, terminalOn } = last;
   const box = $("#scripts-root");
@@ -348,15 +358,33 @@ function render() {
   // so the list doesn't read as a checklist to complete.
   const core = scripts.filter((x) => x.id === "aiostreams"), addons = scripts.filter((x) => x.id !== "aiostreams");
 
+  checkNow();
   box.append(statusLine(terminalOn));
   box.append(h("section", { class: "panel scripts-panel scripts-core" },
     h("ul", { class: "cmds" }, panelRow(`sudo bash ${dir}/control-panel/setup-ui.sh`, terminalOn), ...core.map(rowOf))));
   if (addons.length) {
-    box.append(h("section", { class: "panel scripts-panel" },
-      h("h3", { class: "sub-head", text: "Optional add-ons" }),
+    // On a phone the title folds the card to one line with a summary on the right: how many differ from
+    // GitHub (amber) if any, else how many are active. Folded until opened, remembered per browser.
+    // A computer shows it all, with a plain title.
+    const nDiff = addons.filter((x) => x.present && differs(x)).length;
+    const nUp = addons.filter((x) => x.present && x.in_use !== false).length;
+    const word = nDiff ? [`${nDiff} differ${nDiff === 1 ? "s" : ""} from GitHub`, "warn"] : nUp ? [`${nUp} active`, "ok"] : ["None active", "dim"];
+    const card = h("section", { class: "panel scripts-panel addons-card" + (addonsOpen ? "" : " folded") });
+    const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
+    chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
+    const tog = h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(addonsOpen), onclick: () => {
+      addonsOpen = !addonsOpen;
+      try { localStorage.setItem("aios.addonsOpen", addonsOpen ? "1" : "0"); } catch (_) {}
+      card.classList.toggle("folded", !addonsOpen);
+      tog.setAttribute("aria-expanded", String(addonsOpen));
+    } }, "Optional add-ons", chev);
+    box.append(card);
+    card.append(
+      h("div", { class: "addons-head" }, h("h3", { class: "sub-head addons-lbl", text: "Optional add-ons" }), h("h3", { class: "sub-head addons-tog" }, tog),
+        h("span", { class: "fold-word addons-word " + word[1], text: word[0] })),
       h("p", { class: "addons-note" }, h("b", { text: "Most setups need none of these." }), " ",
         // "Read" and the link wrap together, so the link never starts a line alone
         h("span", { class: "nowrap" }, "Read ", h("a", { href: ADDONS_GUIDE, target: "_blank", rel: "noopener noreferrer", text: "what each one does" })), " first."),
-      h("ul", { class: "cmds" }, ...addons.map(rowOf))));
+      h("ul", { class: "cmds" }, ...addons.map(rowOf)));
   }
 }

@@ -23,6 +23,28 @@ function card(title, grid, note, ...btns) {
     h("div", { class: "card-foot" }, h("div", { class: "maint-foot" }, h("span", { class: "dim", text: note || "" }), ...btns)));
 }
 
+// Phones: Free up space and Container logs fold to their title and one word on the right, like
+// Scheduled server reboot: folded until opened, remembered per browser (key "aios.<id>Open")
+const PHONE_Q = window.matchMedia("(max-width: 720px)");
+function phoneFold(el, id, title, word) {
+  if (!PHONE_Q.matches) return el;
+  let open = false;
+  try { open = localStorage.getItem(`aios.${id}Open`) === "1"; } catch (_) {}
+  el.classList.add("mfold");
+  el.classList.toggle("folded", !open);
+  const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
+  chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
+  const tog = h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(open), onclick: () => {
+    open = !open;
+    try { localStorage.setItem(`aios.${id}Open`, open ? "1" : "0"); } catch (_) {}
+    el.classList.toggle("folded", !open);
+    tog.setAttribute("aria-expanded", String(open));
+  } }, title, chev);
+  el.querySelector(".card-head").replaceWith(h("div", { class: "card-head sched-head" }, h("h3", {}, tog),
+    h("span", { class: "rs-word sched-fold-word fold-word " + word[1], text: word[0] })));
+  return el;
+}
+
 function button(id, enabled) {
   const a = ((status && status.actions) || []).find((x) => x.id === id);
   if (!a || !a.available) return null;
@@ -33,12 +55,13 @@ function button(id, enabled) {
 function space(m) {
   const s = m.space;
   const total = s.images + s.build + s.journal;
-  return card("Free up space", [
+  const worth = total > 20 * 1024 * 1024;
+  return phoneFold(card("Free up space", [
     stat("Old images", fmtBytes(s.images), s.image_count ? `${s.image_count} nothing uses any more` : "None left over"),
     stat("Build leftovers", fmtBytes(s.build), "From rebuilding the panel"),
     stat("System logs", fmtBytes(s.journal), "Beyond the newest 100 MB"),
-  ], total > 20 * 1024 * 1024 ? `About ${fmtBytes(total)} can go. Nothing in use, your settings or backups.` : "Nothing worth freeing right now.",
-  button("maint.space", total > 20 * 1024 * 1024));
+  ], worth ? `About ${fmtBytes(total)} can go. Nothing in use, your settings or backups.` : "Nothing worth freeing right now.",
+  button("maint.space", worth)), "space", "Free up space", worth ? [fmtBytes(total), ""] : ["Nothing to clear", "dim"]);
 }
 
 function updates(m) {
@@ -92,17 +115,21 @@ function updPeek(u, pk) {
 function logs(m) {
   const l = m.logs;
   const sub = !l.limited ? "They can grow without limit" : l.pending ? "Some containers take it when next recreated" : "10 MB per container";
-  return card("Container logs", [
+  return phoneFold(card("Container logs", [
     stat("Size limit", l.limited ? "Set" : "Not set", sub, l.limited ? "ok" : "warn"),
     stat("Using now", fmtBytes(l.size), "All containers together"),
-  ], l.limited ? "" : "Setting it restarts every container once: a few seconds of downtime.", l.limited ? null : button("maint.logs", true));
+  ], l.limited ? "" : "Setting it restarts every container once: a few seconds of downtime.", l.limited ? null : button("maint.logs", true)),
+  "logs", "Container logs", l.limited ? ["Limit set", "ok"] : ["Not set", "warn"]);
 }
 
 // Scheduled server reboot: setup-maintenance.sh's timer restarts the server at a set time, only when an
 // update needs it or every time. With it, the clock that time goes by, and its time zone.
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 let rs = null, editing = false;
-// The card is a list: Next reboot and Last, then Schedule and Clock, each with its state on the
+// Phones: whether Scheduled server reboot is open (folded until opened, remembered per browser)
+let rebootOpen = false;
+try { rebootOpen = localStorage.getItem("aios.rebootOpen") === "1"; } catch (_) {}
+// The card is a list: Schedule, Clock, then Next reboot and Last, each with its state on the
 // right and its controls under it. On a phone the buttons are full width under the controls;
 // on a desktop they sit at the end of the controls' row.
 const PHONE = window.matchMedia("(max-width: 720px)");
@@ -176,19 +203,36 @@ function restart(r) {
     const [tzWrap, tzGo] = tzEditor(r, true);
     if (!phone) tzGo.classList.remove("rs-wide");
     if (ntp && phone) ntp.classList.add("rs-wide");
+    const sched = h("div", { class: "rs-block" },
+      h("div", { class: "rs-line" }, h("span", { class: "ver-label", text: "Schedule" }), h("span", { class: "rs-word " + word[1], text: word[0] })),
+      h("div", { class: "rs-ctl" }, h("div", { class: "wd-when-row restart-row" }, mode, every, onLbl, day, atLbl, time), setBtn));
     // Once a choice is changed or a zone typed, the page's own refreshes leave the card alone until Set
-    const cardEl = h("section", { class: "panel maint-card rs-list " + (phone ? "rs-phone" : "rs-desk"),
-      oninput: () => { editing = true; }, onchange: () => { editing = true; } },
-      h("div", { class: "card-head" }, h("h3", { text: "Scheduled server reboot" })),
-      h("div", { class: "stat-grid" }, ...cards),
-      h("div", { class: "rs-block" },
-        h("div", { class: "rs-line" }, h("span", { class: "ver-label", text: "Schedule" }), h("span", { class: "rs-word " + word[1], text: word[0] })),
-        h("div", { class: "rs-ctl" }, h("div", { class: "wd-when-row restart-row" }, mode, every, onLbl, day, atLbl, time), setBtn)),
-      h("div", { class: "rs-block" },
-        h("div", { class: "rs-line" }, h("span", { class: "ver-label", text: "Clock" }), h("span", { class: "rs-word " + clock[1], text: clock[0],
-          title: c.known && !c.synced ? (c.ntp ? "Time sync is on but hasn't reached a time server yet." : "Time sync is off, so the clock can drift.") : null })),
-        h("div", { class: "rs-ctl" }, tzWrap, tzGo, ntp)),
-      note.textContent ? h("div", { class: "card-foot" }, h("div", { class: "maint-foot" }, note)) : null);
+    // On a phone the title folds the card to one line with Schedule's state beside it, as on Scheduled
+    // backups: folded until opened, remembered per browser. A clock out of sync or a warning still shows.
+    const cardEl = h("section", { class: "panel maint-card rs-list " + (phone ? "rs-phone" : "rs-desk") + (phone && !rebootOpen ? " folded" : ""),
+      oninput: () => { editing = true; }, onchange: () => { editing = true; } });
+    let head = h("div", { class: "card-head" }, h("h3", { text: "Scheduled server reboot" }));
+    if (phone) {
+      const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
+      chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
+      const tog = h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(rebootOpen), onclick: () => {
+        rebootOpen = !rebootOpen;
+        try { localStorage.setItem("aios.rebootOpen", rebootOpen ? "1" : "0"); } catch (_) {}
+        cardEl.classList.toggle("folded", !rebootOpen);
+        tog.setAttribute("aria-expanded", String(rebootOpen));
+      } }, "Scheduled server reboot", chev);
+      head = h("div", { class: "card-head sched-head" }, h("h3", {}, tog), h("span", { class: "rs-word sched-fold-word " + word[1], text: word[0] }));
+    }
+    const clockBlk = h("div", { class: "rs-block" },
+      h("div", { class: "rs-line" }, h("span", { class: "ver-label", text: "Clock" }), h("span", { class: "rs-word " + clock[1], text: clock[0],
+        title: c.known && !c.synced ? (c.ntp ? "Time sync is on but hasn't reached a time server yet." : "Time sync is off, so the clock can drift.") : null })),
+      h("div", { class: "rs-ctl" }, tzWrap, tzGo, ntp));
+    const stats = h("div", { class: "stat-grid" }, ...cards);
+    // Schedule first, as on Backup & Restore's Scheduled backups, then Clock; Next reboot and Last close the card
+    cardEl.append(head, sched, clockBlk, stats,
+      ...(note.textContent ? [h("div", { class: "card-foot" }, h("div", { class: "maint-foot" }, note))] : []));
+    // Clock kept in view on a folded card when it's out of sync
+    if (clock[1] === "warn") clockBlk.classList.add("rs-keep");
     return cardEl;
   }
 }

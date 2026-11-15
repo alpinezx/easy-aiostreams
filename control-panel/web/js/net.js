@@ -11,25 +11,37 @@ try { source = localStorage.getItem("aios.netSource") === "vpn" ? "vpn" : "host"
 const hasVpn = () => !!st && (st.vpn === "on" || st.vpn === "off");
 const kind = () => (source === "vpn" && hasVpn() ? "vpn" : "host");
 
-// The page heading: the bin (as on Logs), then All traffic / VPN tunnel once the VPN is set up
+// The page heading: the time range (from traffic.js), then All traffic / VPN tunnel once the VPN
+// is set up; the bin (as on Logs) at the Traffic card's top right. On a phone All traffic / VPN
+// tunnel sit in the Traffic card under its title instead (a second copy; CSS shows one).
 const BIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
-function sourceSwitch() {
-  const acts = $("#net-acts");
-  clear(acts);
-  const bin = h("button", { class: "btn small icon-only", type: "button", title: "Clear traffic history",
+function bin() {
+  const b = h("button", { class: "btn small icon-only tr-bin", type: "button", title: "Clear traffic history",
     "aria-label": "Clear traffic history", onclick: async () => { if (await clearHistory(kind(), hasVpn())) show(st); } });
-  bin.innerHTML = BIN;
-  acts.append(bin);
-  if (!hasVpn()) return;
-  acts.append(h("div", { class: "tr-ranges", role: "group", "aria-label": "Show" },
+  b.innerHTML = BIN;
+  return b;
+}
+function sources() {
+  return h("div", { class: "tr-ranges", role: "group", "aria-label": "Show" },
     ...[["host", "All traffic"], ["vpn", "VPN tunnel"]].map(([k, label]) => h("button", { class: "btn small", type: "button", text: label,
       "aria-pressed": String(kind() === k), onclick: () => {
         source = k;
         try { localStorage.setItem("aios.netSource", k); } catch (_) {}
         if (location.hash !== "#net") history.replaceState(null, "", "#net");   // so #net/vpn doesn't pick the tunnel again
         show(st);
-      } }))));
+      } })));
 }
+const drawTraffic = (tbox) => trafficCard(tbox, false, kind(),
+  { ranges: $("#net-ranges"), tool: bin(), sub: hasVpn() ? h("div", { class: "tr-src" }, sources()) : null });
+function sourceSwitch() {
+  const acts = $("#net-acts");
+  clear(acts);
+  if (hasVpn()) acts.append(sources());
+}
+
+// Whether a phone shows By service open (folded until opened)
+let nsOpen = false;
+try { nsOpen = localStorage.getItem("aios.nsOpen") === "1"; } catch (_) {}
 
 // Each container's speed now, from Docker (read while the panel is open). A stream passes
 // through several on its way, so the rows add up to more than the server's total.
@@ -39,8 +51,21 @@ function services(box) {
   const rows = netOrder((st && st.services || []).filter((s) => s.state === "running"), onVpn);
   if (!rows.length) return;
   const measured = rows.some((s) => s.rx != null);
-  box.append(h("div", { class: "panel vpn-card ns-card" },
-    h("div", { class: "vpn-head" }, h("h3", { class: "tr-title", text: "By service" }), h("span", { class: "vpn-checked", text: "Right now" })),
+  // On a phone the title folds the card to one line with the count, like the Overview's cards:
+  // folded until opened, remembered per browser. A computer shows it all, with a plain title.
+  const card = h("div", { class: "panel vpn-card ns-card" + (nsOpen ? "" : " folded") });
+  const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
+  chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
+  const tog = h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(nsOpen), onclick: () => {
+    nsOpen = !nsOpen;
+    try { localStorage.setItem("aios.nsOpen", nsOpen ? "1" : "0"); } catch (_) {}
+    card.classList.toggle("folded", !nsOpen);
+    tog.setAttribute("aria-expanded", String(nsOpen));
+  } }, "By service", chev);
+  card.append(
+    h("div", { class: "vpn-head" }, h("h3", { class: "tr-title ns-lbl", text: "By service" }), h("h3", { class: "tr-title ns-tog" }, tog),
+      h("span", { class: "vpn-checked ns-now", text: "Right now" }),
+      h("span", { class: "vpn-checked ns-count", text: `${rows.length} service${rows.length === 1 ? "" : "s"}` })),
     // Laid out as the Overview's Network list: arrows in one line, each speed right after its arrow
     h("div", { class: "ns-list" },
       ...rows.map((s) => {
@@ -53,7 +78,8 @@ function services(box) {
             : [arrowed("↓", fmtRate(s.rx)), arrowed("↑", fmtRate(s.tx))]);
       })),
     h("p", { class: "vpn-note dim ns-note", text: "Includes traffic between containers. A stream passes through "
-      + (onVpn ? "the VPN tunnel" : "AIOStreams") + ", then Caddy, so it's counted on both. That's why these add up to more than All traffic." })));
+      + (onVpn ? "the VPN tunnel" : "AIOStreams") + ", then Caddy, so it's counted on both. That's why these add up to more than All traffic." }));
+  box.append(card);
 }
 
 export function show(status) {
@@ -69,7 +95,7 @@ export function show(status) {
   const tbox = h("div", { class: "net-traffic" }), sbox = h("div", { class: "net-services" });
   root.append(tbox, sbox);
   drawn = Date.now();
-  trafficCard(tbox, false, kind());
+  drawTraffic(tbox);
   services(sbox);
 }
 
@@ -82,5 +108,5 @@ export function setStatus(status) {
   const sbox = $("#net-root .net-services");
   if (sbox) services(sbox);
   const tbox = $("#net-root .net-traffic");
-  if (tbox && Date.now() - drawn > 60000) { drawn = Date.now(); trafficCard(tbox, false, kind()); }
+  if (tbox && Date.now() - drawn > 60000) { drawn = Date.now(); drawTraffic(tbox); }
 }

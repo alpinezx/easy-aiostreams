@@ -159,13 +159,32 @@ function backupRow(it, cmd, restore, status) {
       refresh();
     } });
 
-  return h("div", { class: "item bk" + (it.locked ? " locked" : "") },
-    h("span", {},
-      h("div", { class: "what mono" }, it.name,
-        it.name.includes("-scheduled-") ? h("span", { class: "lock-tag sched-tag", text: "Scheduled",
-          title: "Made by the schedule. The newest 7 are kept and older ones removed; lock one to keep it for good." }) : null,
-        it.locked ? h("span", { class: "lock-tag", text: "Locked" }) : null),
-      h("div", { class: "when", text: `${fmtBytes(it.size)}, made ${ago(it.mtime)}, saved in ${it.dirs.join(" and ")}` })),
+  // On a phone each backup folds to its name, tags, size, age and note; the chevron (or the name)
+  // opens it for where it's saved and its buttons. A computer always shows it all.
+  const row = h("div", { class: "item bk" + (it.locked ? " locked" : "") + (openBk.has(it.name) ? "" : " folded") });
+  const tog = h("button", { class: "path-toggle fold-toggle bk-tog", type: "button", "aria-expanded": String(openBk.has(it.name)),
+    "aria-label": `Show all of ${it.name}`, onclick: () => {
+      const open = !openBk.has(it.name);
+      if (open) openBk.add(it.name); else openBk.delete(it.name);
+      row.classList.toggle("folded", !open);
+      tog.setAttribute("aria-expanded", String(open));
+    } }, chev());
+  // On a phone's size line Locked is a padlock, so Scheduled and Locked fit side by side
+  const tags = (icon) => {
+    let lock = null;
+    if (it.locked && icon) {
+      lock = h("span", { class: "lock-tag lock-ic", role: "img", "aria-label": "Locked", title: "Locked" });
+      lock.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+    } else if (it.locked) lock = h("span", { class: "lock-tag", text: "Locked" });
+    return [it.name.includes("-scheduled-") ? h("span", { class: "lock-tag sched-tag", text: "Scheduled",
+      title: "Made by the schedule. The newest 7 are kept and older ones removed; lock one to keep it for good." }) : null, lock];
+  };
+  row.append(
+    h("span", { class: "bk-head", onclick: (e) => { if (!e.target.closest("button") && window.matchMedia("(max-width: 720px)").matches) tog.click(); } },
+      h("div", { class: "what mono" }, tog, it.name, tags()),
+      h("div", { class: "when" }, `${fmtBytes(it.size)}, made ${ago(it.mtime)}`, h("span", { class: "bk-where", text: `, saved in ${it.dirs.join(" and ")}` })),
+      // A phone puts the tags at the end of the size line instead, so every backup is two lines folded
+      h("span", { class: "bk-tags" }, tags(true))),
     h("div", { class: "btns" },
       h("button", { class: "btn small", type: "button", text: "Restore", disabled: !!status.busy,
         title: "Roll your AIOStreams setup back to this backup, after checking it's safe to do from here",
@@ -180,6 +199,7 @@ function backupRow(it, cmd, restore, status) {
       } }),
       del),
     noteLine);
+  return row;
 }
 
 // Scheduled backups: off, daily or weekly at a time of day, server time. setup-backup.sh's
@@ -194,6 +214,17 @@ export function scheduleText(s) {
 // state on the right, the choices under it in a row and a full-width Set button
 const PHONE = window.matchMedia("(max-width: 720px)");
 PHONE.addEventListener("change", () => { if ($("#backup-schedule").childElementCount) showSchedule().catch(() => {}); });
+
+// Phones: whether Scheduled backups is open (folded until opened, remembered), and which backups are
+// open (folded until tapped; kept while the panel is open)
+let schedOpen = false;
+try { schedOpen = localStorage.getItem("aios.schedOpen") === "1"; } catch (_) {}
+const openBk = new Set();
+function chev() {
+  const c = h("span", { class: "path-chev", "aria-hidden": "true" });
+  c.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
+  return c;
+}
 
 async function showSchedule() {
   const box = $("#backup-schedule");
@@ -248,12 +279,26 @@ async function showSchedule() {
   const word = s.every === "off" ? ["Off", "dim"] : !s.timer ? ["Not running", "warn"] : ["Active", "ok"];
   tz.className = "dim small rs-tz";
   const row = h("div", { class: "wd-when-row restart-row bk-row" }, every, onDay, day, atLbl, time);
-  box.append(h("section", { class: `panel sched-card rs-list ${phone ? "rs-phone bk-phone" : "rs-desk bk-desk"}` },
-    h("h3", { text: "Scheduled backups" }),
+  // On a phone the title folds the card to one line with the state beside it, like the Network page's
+  // cards: folded until opened, remembered per browser. A failed or skipped run still shows folded.
+  const card = h("section", { class: `panel sched-card rs-list ${phone ? "rs-phone bk-phone" : "rs-desk bk-desk"}` + (phone && !schedOpen ? " folded" : "") });
+  let title = h("h3", { text: "Scheduled backups" });
+  if (phone) {
+    const tog = h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(schedOpen), onclick: () => {
+      schedOpen = !schedOpen;
+      try { localStorage.setItem("aios.schedOpen", schedOpen ? "1" : "0"); } catch (_) {}
+      card.classList.toggle("folded", !schedOpen);
+      tog.setAttribute("aria-expanded", String(schedOpen));
+    } }, "Scheduled backups", chev());
+    title = h("div", { class: "sched-head" }, h("h3", {}, tog), h("span", { class: "rs-word sched-fold-word " + word[1], text: word[0] }));
+  }
+  box.append(card);
+  card.append(
+    title,
     h("div", { class: "rs-block" },
       h("div", { class: "rs-line" }, h("span", { class: "ver-label", text: "Schedule" }), h("span", { class: "rs-word " + word[1], text: word[0] })),
       ...(phone ? [row, tz, setBtn] : [h("div", { class: "rs-ctl" }, row, setBtn), tz])),
-    last, keep));
+    last, keep);
 }
 
 // Old installs a restore moved aside. Only shown when there are some.
