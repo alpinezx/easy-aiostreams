@@ -61,7 +61,7 @@ function space(m) {
     stat("Build leftovers", fmtBytes(s.build), "From rebuilding the panel"),
     stat("System logs", fmtBytes(s.journal), "Beyond the newest 100 MB"),
   ], worth ? `About ${fmtBytes(total)} can go. Nothing in use, your settings or backups.` : "Nothing worth freeing right now.",
-  button("maint.space", worth)), "space", "Free up space", worth ? [`${fmtBytes(total)} can go`, ""] : ["Nothing to clear", "dim"]);
+  button("maint.space", worth)), "space", "Free up space", worth ? [fmtBytes(total), ""] : ["Nothing to clear", "dim"]);
 }
 
 function updates(m) {
