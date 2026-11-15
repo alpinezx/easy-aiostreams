@@ -361,7 +361,7 @@ function render() {
     // A computer shows it all, with a plain title.
     const nDiff = addons.filter((x) => x.present && differs(x)).length;
     const nUp = addons.filter((x) => x.present && x.in_use !== false).length;
-    const word = nDiff ? [`${nDiff} differ${nDiff === 1 ? "s" : ""} from GitHub`, "warn"] : nUp ? [`${nUp} active`, ""] : ["None active", "dim"];
+    const word = nDiff ? [`${nDiff} differ${nDiff === 1 ? "s" : ""} from GitHub`, "warn"] : nUp ? [`${nUp} active`, "ok"] : ["None active", "dim"];
     const card = h("section", { class: "panel scripts-panel addons-card" + (addonsOpen ? "" : " folded") });
     const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
     chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
