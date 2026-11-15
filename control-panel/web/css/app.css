@@ -573,9 +573,9 @@ button.chip:hover { text-decoration: underline; }
 .fold-toggle[aria-expanded="true"] .path-chev svg { transform: rotate(180deg); }
 .fold-sum li.ok { color: var(--ok); } .fold-sum li.warn { color: var(--warn); } .fold-sum li.bad { color: var(--bad); }
 .fold-sum .ok { color: var(--ok); } .fold-sum .warn { color: var(--warn); }
-.fold-sum .net-pair { display: inline-flex; gap: 6px 12px; }
+.fold-sum .net-pair { display: inline-flex; gap: 6px 9px; }
 .fold-sum .svc-pair { display: inline-flex; flex-wrap: wrap; gap: 4px 16px; }
-.fold-sum .net-pair > :first-child { margin-right: -4px; }
+.fold-sum .net-pair > :first-child { margin-right: -1px; }
 .fold-sum .linkish { font: inherit; color: var(--warn); background: none; border: 0; padding: 0; cursor: pointer; }
 .fold-sum .linkish:hover { text-decoration: underline; }
 .panel.folded { padding-top: 12px; padding-bottom: 12px; }
@@ -1444,6 +1444,10 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   .cmd { display: none; }
   /* the badge drops under the name in one piece rather than squeezing beside it */
   .cmd-label { flex-wrap: wrap; row-gap: 6px; color: var(--text); font-size: .95rem; font-weight: 500; }
+  /* Scripts: the state words always on the line under the name (the break's own row gap taken
+     back); the Differs from GitHub badge keeps its place beside the name */
+  .cmd-label .lbl-brk { display: block; flex-basis: 100%; height: 0; margin-top: -6px; order: 1; }
+  .cmd-label .sdot-word { order: 2; }
   .cmd-btns .btn { flex: 1; border-color: var(--line); background: var(--raised); color: var(--text); padding: 8px 12px; }
   /* Scripts: three columns on every row, Run wider, whatever the phone's text size; a fourth
      button (Remove) takes a line of its own */
@@ -1461,6 +1465,7 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .sdot-tag[data-s="off"] .sdot { background: var(--faint); opacity: .6; }
 /* The words after a row's name: Not installed in grey, Script only in amber */
 .sdot-word { font-size: .78rem; font-weight: 500; color: var(--faint); }
+.lbl-brk { display: none; }
 .sdot-word[data-s="warn"] { color: var(--warn); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
@@ -1514,10 +1519,11 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .fold-all[aria-expanded="true"] .path-chev svg { transform: rotate(180deg); }
 @media (max-width: 720px) { .hero-head { row-gap: 22px; } }
 .hero-edit { gap: 6px; }
-/* What's new and Edit Overview at the top right: on desktop on the panel's name line, on phones a row above
-   the headline; Fold all cards on a line of its own under the headline, lined up with the lamp */
+/* Fold all cards on a line of its own under the headline, lined up with the lamp. What's new and
+   Edit Overview sit in that line: on desktop lifted to the panel's name line (top right), on phones
+   as icons at the line's right end */
 .hero-head { position: relative; }
-.hero-tools { order: -1; flex: 1 1 100%; justify-content: flex-end; }
+.hero-tools { justify-content: flex-end; }
 .hero-fold { flex: 1 1 100%; margin: -4px 0 -4px -10px; }
 @media (min-width: 721px) {
   /* the headline and Fold all sit a little lower, nearer the first card; the buttons stay on the name line */
@@ -1801,13 +1807,20 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .upd-peek .upd-peek-head { margin: 0 0 8px; font-size: .86rem; }
 .upd-done { padding: 4px 18px; }
 @media (max-width: 720px) {
-  /* Room for a thumb on each; the row above the headline sits flush with the cards' right edge */
+  /* Room for a thumb on each */
   .hero-btns .btn.small { padding: 8px 10px; }
-  .hero-tools { margin: -10px -10px -12px 0; }
-  .hero-fold { margin: -10px 0 -10px -10px; }
-  .btn.hero-edit { padding: 12px; }
-  .btn.hero-edit svg { width: 16px; height: 16px; }
-  .hero-edit .fa-word { display: none; }
+  /* What's new and Edit as icons at the right of Fold all's line (their names stay for screen
+     readers and in the tooltip), 2px in from the cards' edge, the line no taller than before */
+  .hero-fold { margin: -10px 0 -10px -10px; align-items: center; }
+  .hero-tools { align-items: center; gap: 6px; margin: -3px -8px -3px auto; }
+  /* both the same square tap area (worded buttons are 33px tall on phones) */
+  .hero-head .hero-tools .btn.small { height: auto; padding: 10px; min-width: 38px; min-height: 38px; justify-content: center; }
+  .hero-tools .fa-word { display: none; }
+  /* sized so each drawing stands about as tall as Fold all's icon (the star fills its box, the pencil doesn't) */
+  /* 1px up: centred on their buttons they sat a touch below the middle of Fold all's words */
+  .hero-tools .btn > svg { width: 16px; height: 16px; position: relative; top: -1px; }
+  .hero-head .hero-tools .btn-i[data-act] > svg.bi { width: 14px; height: 14px; top: -1px; }
+  .btn.hero-edit svg { stroke-width: 2; }
 }
 /* Scripts tab: Run in terminal and Get and run share one width */
 .run-btn { display: inline-grid; justify-items: center; }
@@ -1883,7 +1896,9 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .fold-all.btn-i .path-chev { display: none; }
 /* its lines fill only the middle of the icon's box, so it's drawn larger to stand as tall as the F */
 .fold-all.btn-i > svg.bi { width: 1.15em; height: 1.15em; position: relative; top: -.02em; }
-.hero-btns .btn-i[data-act="What's new"] > svg.bi { width: .9em; height: .9em; position: relative; top: .03em; }
+/* a thicker line than other icons, so the outlined star never looks thin (a line under a pixel
+   wide comes out faint grey on Windows) */
+.hero-btns .btn-i[data-act="What's new"] > svg.bi { width: 1em; height: 1em; stroke-width: 2.4; position: relative; top: .03em; }
 /* the desktop's smaller words need the star a touch higher to look centred */
 @media (min-width: 721px) { .hero-btns .btn-i[data-act="What's new"] > svg.bi { top: -.03em; } }
 /* Services' Stop and Restart columns, wide enough for the icons */
@@ -1948,6 +1963,14 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .gl-sum { display: inline-flex; align-items: center; gap: 12px; }
 .gl-name { color: var(--text); }   /* the name in white, its version grey */
 @media (max-width: 720px) { .fold-sum li:has(> .gl-sum) { flex-basis: 100%; } }
+/* This server folded: a line break before Network (or Disk) on phones (hidden elsewhere). The empty line's
+   own row gap is taken back so the two lines sit as close as any others */
+.fold-sum li.sum-brk { display: none; }
+@media (max-width: 720px) {
+  .fold-sum li.sum-brk { display: block; flex-basis: 100%; height: 0; margin-top: -4px; }
+  /* Its stats, and Services' CPU and Memory under it, a little closer together than other folded lines */
+  .panel.host.folded .fold-sum, .fold-sum .svc-pair { column-gap: 8px; }
+}
 /* A phone's gluetun row: the version white like the other cards', the line under it green "Up to date"
    or amber "available" (it showed grey before) */
 .vs-ver .ver-sub .ok { color: var(--ok); }

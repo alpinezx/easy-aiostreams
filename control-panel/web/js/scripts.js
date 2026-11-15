@@ -127,7 +127,10 @@ export async function showChangelog(e) {
   logLoading = true;
   // GitHub can take up to 10s to fail; say so on the button meanwhile
   const btn = e && e.currentTarget;
-  if (btn) { btn.disabled = true; btn.textContent = "Loading…"; }
+  // The Overview's button keeps its word in a span (hidden on phones, where the star shows alone):
+  // change just that, or the word comes back as plain text after loading
+  const word = btn && (btn.querySelector(".fa-word") || btn);
+  if (btn) { btn.disabled = true; word.textContent = "Loading…"; }
   try {
     const log = await api("/api/panel/changelog");
     if (!log.entries.length) toast(`Couldn't load the changelog. ${log.error || "It's empty."}`, true);
@@ -135,7 +138,7 @@ export async function showChangelog(e) {
   } catch (err) { toast(`Couldn't load the changelog. ${err.message}`, true); }
   finally {
     logLoading = false;
-    if (btn) { btn.disabled = false; btn.textContent = "What's new"; }
+    if (btn) { btn.disabled = false; word.textContent = "What's new"; }
   }
 }
 
@@ -277,7 +280,10 @@ function row(x, cmd, updateCmd, termOn) {
   const removable = idle;
   // The command itself is on Copy's tooltip; spelt out, it crowded the row (and phones)
   return h("li", {},
-    h("span", { class: "cmd-label" }, dot, x.label, ...tags),
+    // On a phone the state words go on a line of their own under the name, on every row alike,
+    // however long the name or the words (a break only phones show, put before the words by CSS
+    // order); Differs from GitHub stays beside the name
+    h("span", { class: "cmd-label" }, dot, x.label, tags[0] ? h("span", { class: "lbl-brk", "aria-hidden": "true" }) : null, ...tags),
     h("span", { class: "cmd-btns" }, runBtn(x.present, cmd, termOn),
       copyBtn("Copy", cmd, "Copied. Paste it into an SSH session or the Terminal tab.", cmd),
       updateCmd ? h("button", { class: "btn small quiet", type: "button", text: "Update",

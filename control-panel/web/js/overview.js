@@ -301,16 +301,19 @@ function hero(st) {
       h("span", { class: "lamp", dataset: { s: st.overall }, "aria-hidden": "true" }),
       h("h1", { class: "headline", "aria-live": "polite", text: st.headline }),
       h("a", { class: "chip warn scripts-pill", id: "scripts-pill", href: "#scripts", hidden: true }),
-      // What's new and Edit at the top right (on desktop, on the panel's name line), Fold all under the headline
-      st.installed ? h("span", { class: "hero-btns hero-tools" },
-        h("button", { class: "btn small quiet", type: "button", text: "What's new",
-          title: "The changes since this panel's version, from the project's changelog", onclick: showChangelog }),
-        editBtn()) : null,
+      // Fold all under the headline. What's new and Edit are on its line: on desktop CSS lifts them to
+      // the top right (the panel's name line); on phones they're icons at the line's right end
       st.installed ? h("span", { class: "hero-btns hero-fold" },
         // Its arrow points the way the cards' own do: up while they're open, down once folded
         h("button", { class: "btn small quiet fold-all", type: "button", "aria-expanded": String(!allFolded()),
           title: allFolded() ? "Open every card" : "Fold every card to one line", onclick: foldAll },
-          allFolded() ? "Open all cards" : "Fold all cards", chev())) : null));
+          allFolded() ? "Open all cards" : "Fold all cards", chev()),
+        h("span", { class: "hero-btns hero-tools" },
+          // Its word in a span, so phones can show the star alone (as Edit's pencil); the name stays for screen readers
+          h("button", { class: "btn small quiet", type: "button", "aria-label": "What's new",
+            title: "The changes since this panel's version, from the project's changelog", onclick: showChangelog },
+            h("span", { class: "fa-word", text: "What's new" })),
+          editBtn())) : null));
     scriptsPill();
     // The certificate lives in This server; it comes up here only when it needs attention.
     const wc = worstCert(st);
@@ -346,7 +349,7 @@ function hero(st) {
 
 // Edit: which cards the Overview shows, and their order, in a drawer
 function editBtn() {
-  const b = h("button", { class: "btn small quiet hero-edit", type: "button", title: "Edit Overview: show, hide or reorder its cards", onclick: openLayout });
+  const b = h("button", { class: "btn small quiet hero-edit", type: "button", "aria-label": "Edit Overview", title: "Edit Overview: show, hide or reorder its cards", onclick: openLayout });
   b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg><span class="fa-word">Edit</span>';
   b.setAttribute("aria-label", "Edit Overview");
   return b;
@@ -801,17 +804,23 @@ function hostSum(st) {
   const cpu = hs.cpu_pct != null ? hs.cpu_pct : hs.load ? (hs.load[0] / (hs.cpus || 1)) * 100 : null;
   const wc = worstCert(st);
   const n = st.net && st.net.host ? nowRate(trafficData("host"), "host") : null;
-  return foldSum([
+  const sum = foldSum([
     [wc && !wc.ok ? "Certificate: couldn't check" : wc && certTone(wc) ? `Certificate: ${wc.days_left} days left` : "",
       wc && !wc.ok ? "warn" : wc && certTone(wc)],
     [cpu == null ? "" : hs.cpu_pct != null ? `CPU ${Math.round(cpu)}%` : `Load ${hs.load[0].toFixed(2)}`, cpu != null && tone(cpu, 75, 90)],
     [hs.mem_total ? `Memory ${fmtBytes(hs.mem_used)} / ${fmtBytes(hs.mem_total)}` : "", hs.mem_total && tone(pct(hs.mem_used, hs.mem_total), 80, 90)],
-    [hs.disk_total ? `Disk ${pct(hs.disk_used, hs.disk_total)}%` : "", hs.disk_total && tone(pct(hs.disk_used, hs.disk_total), 80, 90)],
+    // Disk only once it needs a look (80% full or more); the open card always has it
+    [hs.disk_total && tone(pct(hs.disk_used, hs.disk_total), 80, 90) ? `Disk ${pct(hs.disk_used, hs.disk_total)}%` : "", hs.disk_total && tone(pct(hs.disk_used, hs.disk_total), 80, 90)],
     // Down and up together with their label (as the open card's tile), so they wrap as one
     [n ? h("span", { class: "net-pair" }, h("span", { text: "Network" }), h("span", { text: `↓ ${fmtRate(n[0])}` }), h("span", { text: `↑ ${fmtRate(n[1])}` })) : "",
       "", "The whole server's network now, down and up"],
-    // A scheduled backup that failed or was skipped is amber; none made yet is a plain reminder, as on the open card
-    bad ? [`Last scheduled backup ${bk.last.status === "skipped" ? "skipped" : "failed"}`, "warn"] : [bk && !bk.newest ? "No backup yet" : ""]]);
+    // A scheduled backup that failed or was skipped is amber; none made yet shows only on the open card
+    bad ? [`Last scheduled backup ${bk.last.status === "skipped" ? "skipped" : "failed"}`, "warn"] : null]);
+  // On a phone always two lines, CPU and Memory then Network (with Disk before it when shown),
+  // whatever the text size: a break that only phones show (CSS)
+  const second = [...sum.children].find((li) => li.textContent.startsWith("Disk ") || li.querySelector(".net-pair"));
+  if (second && second.previousElementSibling) second.before(h("li", { class: "sum-brk", "aria-hidden": "true" }));
+  return sum;
 }
 
 // HTTPS certificates. One site: a single tile. Several: one tile with the soonest expiry,
