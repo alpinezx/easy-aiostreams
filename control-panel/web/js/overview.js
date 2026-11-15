@@ -801,7 +801,7 @@ function hostSum(st) {
   const cpu = hs.cpu_pct != null ? hs.cpu_pct : hs.load ? (hs.load[0] / (hs.cpus || 1)) * 100 : null;
   const wc = worstCert(st);
   const n = st.net && st.net.host ? nowRate(trafficData("host"), "host") : null;
-  return foldSum([
+  const sum = foldSum([
     [wc && !wc.ok ? "Certificate: couldn't check" : wc && certTone(wc) ? `Certificate: ${wc.days_left} days left` : "",
       wc && !wc.ok ? "warn" : wc && certTone(wc)],
     [cpu == null ? "" : hs.cpu_pct != null ? `CPU ${Math.round(cpu)}%` : `Load ${hs.load[0].toFixed(2)}`, cpu != null && tone(cpu, 75, 90)],
@@ -812,6 +812,11 @@ function hostSum(st) {
       "", "The whole server's network now, down and up"],
     // A scheduled backup that failed or was skipped is amber; none made yet is a plain reminder, as on the open card
     bad ? [`Last scheduled backup ${bk.last.status === "skipped" ? "skipped" : "failed"}`, "warn"] : [bk && !bk.newest ? "No backup yet" : ""]]);
+  // On a phone always two lines, CPU and Memory then Disk and Network, whatever the text size:
+  // a break before Disk that only phones show (CSS)
+  const disk = [...sum.children].find((li) => li.textContent.startsWith("Disk "));
+  if (disk && disk.previousElementSibling) disk.before(h("li", { class: "sum-brk", "aria-hidden": "true" }));
+  return sum;
 }
 
 // HTTPS certificates. One site: a single tile. Several: one tile with the soonest expiry,

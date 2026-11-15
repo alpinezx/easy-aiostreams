@@ -1948,6 +1948,10 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .gl-sum { display: inline-flex; align-items: center; gap: 12px; }
 .gl-name { color: var(--text); }   /* the name in white, its version grey */
 @media (max-width: 720px) { .fold-sum li:has(> .gl-sum) { flex-basis: 100%; } }
+/* This server folded: a line break before Disk on phones (hidden elsewhere). The empty line's
+   own row gap is taken back so the two lines sit as close as any others */
+.fold-sum li.sum-brk { display: none; }
+@media (max-width: 720px) { .fold-sum li.sum-brk { display: block; flex-basis: 100%; height: 0; margin-top: -4px; } }
 /* A phone's gluetun row: the version white like the other cards', the line under it green "Up to date"
    or amber "available" (it showed grey before) */
 .vs-ver .ver-sub .ok { color: var(--ok); }
