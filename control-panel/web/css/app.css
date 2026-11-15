@@ -550,8 +550,10 @@ button.chip:hover { text-decoration: underline; }
 /* The title folds the card down to one line: a dot per service and Restart stack */
 .path-toggle { display: inline-flex; align-items: center; gap: 6px; margin: -6px -8px; padding: 6px 8px; border: 0; border-radius: 6px;
   background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
-/* Only where there's a mouse: on a phone a tap leaves the title "hovered" until the next tap elsewhere */
-@media (hover: hover) { .path-toggle:hover { color: var(--dim); background: var(--hover); } }
+/* Hovered, a fold title is a title, not a button: no box behind it, only its text moves to the mid tone
+   (a card's bright title dims a little, a faint label like HTTPS certificates brightens). Only where
+   there's a mouse: on a phone a tap leaves it "hovered" until the next tap elsewhere. */
+@media (hover: hover) { .path-toggle:hover { color: var(--dim); } }
 .path-chev svg { display: block; width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s; }
 @media (prefers-reduced-motion: reduce) { .path-chev svg { transition: none; } }
 .path.folded { padding-top: 12px; padding-bottom: 12px; }
