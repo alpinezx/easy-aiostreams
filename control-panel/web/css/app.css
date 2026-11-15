@@ -1516,6 +1516,8 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .hero-btns .btn, .btn.hero-edit { border-color: transparent; background: none; color: var(--dim); }
 .hero-btns .btn:hover:not(:disabled), .btn.hero-edit:hover:not(:disabled) { color: var(--text); background: var(--hover); border-color: transparent; }
 .hero-btns .fold-all { gap: 6px; }
+/* Fold all: on hover its words just brighten, without the highlight behind them */
+.hero-btns .fold-all:hover:not(:disabled) { background: none; }
 .fold-all[aria-expanded="true"] .path-chev svg { transform: rotate(180deg); }
 @media (max-width: 720px) { .hero-head { row-gap: 22px; } }
 .hero-edit { gap: 6px; }
