@@ -1884,7 +1884,7 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .fold-all.btn-i .path-chev { display: none; }
 /* its lines fill only the middle of the icon's box, so it's drawn larger to stand as tall as the F */
 .fold-all.btn-i > svg.bi { width: 1.15em; height: 1.15em; position: relative; top: -.02em; }
-.hero-btns .btn-i[data-act="What's new"] > svg.bi { width: .9em; height: .9em; position: relative; top: .03em; }
+.hero-btns .btn-i[data-act="What's new"] > svg.bi { width: 1em; height: 1em; stroke-width: 1.8; position: relative; top: .03em; }
 /* the desktop's smaller words need the star a touch higher to look centred */
 @media (min-width: 721px) { .hero-btns .btn-i[data-act="What's new"] > svg.bi { top: -.03em; } }
 /* Services' Stop and Restart columns, wide enough for the icons */
