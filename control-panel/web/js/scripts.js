@@ -55,8 +55,9 @@ export function versionChip(current) {
   chip.title = newer ? `Control panel ${ver.latest} is available. Update it on the Scripts tab.` : "The control panel's version. Updates are on the Scripts tab.";
 }
 
-// The line at the top of the page: when GitHub was last asked, the panel's last update, and the
-// page's own buttons. One Check now covers the panel and the scripts.
+// The note at the top of the page: when GitHub was last asked and the panel's last update. Check now
+// goes in the page heading, on the right as Back up now does (on a phone, on a line under the title).
+// One Check now covers the panel and the scripts.
 function statusLine(terminalOn) {
   const v = ver || {};
   const branch = v.branch && v.branch !== "main" ? ` (${v.branch} branch, for testing)` : "";
@@ -78,10 +79,15 @@ function statusLine(terminalOn) {
         // on phones this half takes a line of its own, so the link never splits
         h("span", { class: "term-off-how" },
           h("a", { href: TERMINAL_GUIDE, target: "_blank", rel: "noopener noreferrer", text: "Switch it on over SSH" }), " if you want it.")),
-      lastLine),
-    h("span", { class: "btns" },
-      h("button", { class: "btn small", type: "button", text: busy ? "Checking…" : "Check now", disabled: busy,
-        title: "Check the panel's version and compare the scripts here with GitHub's copies now", onclick: checkAll })));
+      lastLine));
+}
+function checkNow() {
+  const busy = verLoading || cmpLoading;
+  const acts = $("#scripts-acts");
+  if (!acts) return;
+  clear(acts);
+  acts.append(h("button", { class: "btn small", type: "button", text: busy ? "Checking…" : "Check now", disabled: busy,
+    title: "Check the panel's version and compare the scripts here with GitHub's copies now", onclick: checkAll }));
 }
 
 async function checkAll() {
@@ -352,6 +358,7 @@ function render() {
   // so the list doesn't read as a checklist to complete.
   const core = scripts.filter((x) => x.id === "aiostreams"), addons = scripts.filter((x) => x.id !== "aiostreams");
 
+  checkNow();
   box.append(statusLine(terminalOn));
   box.append(h("section", { class: "panel scripts-panel scripts-core" },
     h("ul", { class: "cmds" }, panelRow(`sudo bash ${dir}/control-panel/setup-ui.sh`, terminalOn), ...core.map(rowOf))));

@@ -1481,22 +1481,18 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .ver-chip { font-size: .7rem; padding: 1px 7px; text-decoration: none; white-space: nowrap; }
 .ver-chip:hover { color: var(--text); }
 /* minmax(0, 1fr): a long line in the update output wraps or scrolls inside its box, never widens the page */
-.scripts-status { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 16px; margin: -6px 0 16px; }
-.scripts-status-text { flex: 1 1 280px; min-width: 0; display: grid; gap: 6px; }
-.scripts-status .btns { margin-left: auto; display: flex; gap: 8px; }
-/* Desktop: Check now beside the last status line (the web-terminal one when it shows), not the first */
-@media (min-width: 721px) { .scripts-status { align-items: flex-end; } }
+/* The status lines in a note card, as Backup & Restore's note, its edge in the theme's accent (amber is
+   for warnings); Check now is in the page heading (#scripts-acts) */
+.scripts-status { margin: 0 0 16px; }
+.scripts-status-text { min-width: 0; display: grid; gap: 6px; }
+.scripts-status-text:not(:empty) { background: var(--raised); border: 1px solid var(--line); border-left: 4px solid var(--accent);
+  border-radius: 12px; padding: 12px 16px; }
+.scripts-acts { margin-left: auto; display: flex; }
+.scripts-acts:empty { display: none; }
 .scripts-status p { margin: 0; font-size: .9rem; }
 .term-off a { white-space: nowrap; }
 @media (max-width: 720px) {
   .term-off-how { display: block; }
-  /* As on Backup & Restore: Check now on the right under the title, then the status lines in a note card,
-     its edge in the theme's accent (amber is for warnings) */
-  .scripts-status { row-gap: 16px; margin-top: -4px; }
-  .scripts-status .btns { order: -1; }
-  .scripts-status-text { flex-basis: 100%; }
-  .scripts-status-text:not(:empty) { background: var(--raised); border: 1px solid var(--line); border-left: 4px solid var(--accent);
-    border-radius: 12px; padding: 12px 16px; }
   /* The panel's version and Up to date at the right end of its line, level with Run in terminal's end */
   .cmd-label .pr-ver { margin-left: auto; }
 }
@@ -2017,8 +2013,8 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .cmd-btns .btn, .scripts-panel .cmd-btns .btn { height: 33px; padding-top: 0; padding-bottom: 0; }
   /* Scripts' Check now as wide as the cards' right-hand column below it (card padding 16px +
      1px border each side, 12px between the two columns), flush with the cards' right edge */
-  .scripts-status .btns { width: calc((100% - 46px) / 2); }
-  .scripts-status .btns .btn { width: 100%; }
+  .scripts-acts { width: calc((100% - 46px) / 2); }
+  .scripts-acts .btn { width: 100%; }
   /* A card's row of buttons as two even columns: pairs along the bottom, an odd one across the top */
   .btn-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 10px 12px; justify-content: stretch; width: 100%; }
   .btn-grid > :not(.btn) { grid-column: 1 / -1; order: -1; margin: 0; }
