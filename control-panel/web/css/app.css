@@ -1514,7 +1514,7 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .hero-btns { display: flex; gap: 4px; margin-left: auto; }
 /* Plain words like the cards' own Logs and Details: no border or fill until hovered */
 .hero-btns .btn, .btn.hero-edit { border-color: transparent; background: none; color: var(--dim); }
-.hero-btns .btn:hover:not(:disabled), .btn.hero-edit:hover:not(:disabled) { color: var(--text); background: var(--hover); }
+.hero-btns .btn:hover:not(:disabled), .btn.hero-edit:hover:not(:disabled) { color: var(--text); background: var(--hover); border-color: transparent; }
 .hero-btns .fold-all { gap: 6px; }
 .fold-all[aria-expanded="true"] .path-chev svg { transform: rotate(180deg); }
 @media (max-width: 720px) { .hero-head { row-gap: 22px; } }
