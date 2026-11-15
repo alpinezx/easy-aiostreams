@@ -2075,7 +2075,7 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .page-tools .btn { color: var(--faint); }
 }
 @media (max-width: 720px) {
-  .page-tools { order: -1; flex: 1 1 100%; justify-content: flex-end; margin: -10px -10px -12px 0; }
+  .page-tools { order: -1; flex: 1 1 100%; justify-content: flex-end; margin: -10px -8px -12px 0; }   /* 2px in: level with Check now by eye, past its rounded corner */
 }
 /* Version cards: an arrow before "available", and a filled Update while
    a newer release is out, so it stands out by shape as well as colour */
