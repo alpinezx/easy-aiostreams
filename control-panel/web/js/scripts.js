@@ -106,7 +106,7 @@ function panelRow(cmd, termOn) {
   else if (v.error) state = h("span", { class: "chip warn small-chip", title: v.error, text: "Couldn't check" });
   return h("li", {},
     h("span", { class: "cmd-label" }, sdot("ok", "Running"), "Control panel",
-      v.current ? h("span", { class: "chip small-chip", text: `v${v.current}` }) : null, state),
+      v.current ? h("span", { class: "chip small-chip pr-ver", text: `v${v.current}` }) : null, state),
     h("span", { class: "cmd-btns" }, runBtn(true, cmd, termOn),
       copyBtn("Copy", cmd, "Copied. Paste it into an SSH session or the Terminal tab.", cmd),
       // Always there, like AIOStreams' row: filled when a newer panel is out, plain otherwise (it then

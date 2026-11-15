@@ -1487,7 +1487,15 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .term-off a { white-space: nowrap; }
 @media (max-width: 720px) {
   .term-off-how { display: block; }
-  .scripts-status { row-gap: 26px; }   /* room between the status lines and the buttons wrapped under them */
+  /* As on Backup & Restore: Check now on the right under the title, then the status lines in a note card,
+     its edge in the theme's accent (amber is for warnings) */
+  .scripts-status { row-gap: 16px; margin-top: -4px; }
+  .scripts-status .btns { order: -1; }
+  .scripts-status-text { flex-basis: 100%; }
+  .scripts-status-text:not(:empty) { background: var(--raised); border: 1px solid var(--line); border-left: 4px solid var(--accent);
+    border-radius: 12px; padding: 12px 16px; }
+  /* The panel's version and Up to date at the right end of its line, level with Run in terminal's end */
+  .cmd-label .pr-ver { margin-left: auto; }
 }
 .scripts-status details { min-width: 0; }
 .scripts-status details summary { cursor: pointer; font-size: .88rem; color: var(--dim); }
