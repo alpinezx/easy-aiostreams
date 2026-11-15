@@ -109,8 +109,12 @@ function panelRow(cmd, termOn) {
       v.current ? h("span", { class: "chip small-chip", text: `v${v.current}` }) : null, state),
     h("span", { class: "cmd-btns" }, runBtn(true, cmd, termOn),
       copyBtn("Copy", cmd, "Copied. Paste it into an SSH session or the Terminal tab.", cmd),
+      // Always there, like AIOStreams' row: filled when a newer panel is out, plain otherwise (it then
+      // just says there's nothing to do), greyed while an update runs
       v.newer && !v.running ? h("button", { class: "btn small primary", type: "button", text: "Update",
-          title: `Update the control panel to ${v.latest}`, onclick: () => updatePanel(v) }) : spacer("Update"),
+          title: `Update the control panel to ${v.latest}`, onclick: () => updatePanel(v) })
+        : h("button", { class: "btn small", type: "button", text: "Update", disabled: !!v.running,
+          title: "Update the control panel when a newer version is out", onclick: () => panelUpToDate(v) }),
       spacer("Remove")));
 }
 
@@ -133,6 +137,12 @@ export async function showChangelog(e) {
     logLoading = false;
     if (btn) { btn.disabled = false; btn.textContent = "What's new"; }
   }
+}
+
+// Update pressed with no newer panel out
+function panelUpToDate(v) {
+  if (v.latest) toast(`The control panel is up to date (v${v.current}). Nothing to do.`);
+  else toast("Couldn't check for a newer control panel. Try Check now.", true);
 }
 
 async function updatePanel(v) {
