@@ -129,7 +129,7 @@ let rs = null, editing = false;
 // Phones: whether Scheduled server reboot is open (folded until opened, remembered per browser)
 let rebootOpen = false;
 try { rebootOpen = localStorage.getItem("aios.rebootOpen") === "1"; } catch (_) {}
-// The card is a list: Schedule, Clock, then Next reboot and Last (Clock last on a phone), each with its state on the
+// The card is a list: Schedule, Clock, then Next reboot and Last, each with its state on the
 // right and its controls under it. On a phone the buttons are full width under the controls;
 // on a desktop they sit at the end of the controls' row.
 const PHONE = window.matchMedia("(max-width: 720px)");
@@ -228,9 +228,8 @@ function restart(r) {
         title: c.known && !c.synced ? (c.ntp ? "Time sync is on but hasn't reached a time server yet." : "Time sync is off, so the clock can drift.") : null })),
       h("div", { class: "rs-ctl" }, tzWrap, tzGo, ntp));
     const stats = h("div", { class: "stat-grid" }, ...cards);
-    // Schedule always comes first, as on Backup & Restore's Scheduled backups. On a phone Next reboot
-    // and Last follow it, then Clock; on a desktop Clock follows it and Next reboot and Last close the card.
-    cardEl.append(head, ...(phone ? [sched, stats, clockBlk] : [sched, clockBlk, stats]),
+    // Schedule first, as on Backup & Restore's Scheduled backups, then Clock; Next reboot and Last close the card
+    cardEl.append(head, sched, clockBlk, stats,
       ...(note.textContent ? [h("div", { class: "card-foot" }, h("div", { class: "maint-foot" }, note))] : []));
     // Clock kept in view on a folded card when it's out of sync
     if (clock[1] === "warn") clockBlk.classList.add("rs-keep");
