@@ -4,7 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 15 November 2026
 
-- **Fixed:** on phones, a dialog with three buttons (Clear traffic history with the VPN set up, Clear logs) no longer pushes Cancel off its left edge: the main button goes across the top, the other two side by side under it. (Panel 1.58.8)
+- **Fixed:** on phones, a dialog with three buttons (Clear traffic history with the VPN set up, Clear logs) no longer pushes Cancel off its left edge: Cancel goes across the top, the two choices side by side under it. (Panel 1.58.8)
 - On the Network page, 1 hour, 24 hours and 7 days sit in the page heading, centred over the Traffic card, and the bin that clears the traffic history is at the Traffic card's top right. On phones the time range is centred under the title and All traffic / VPN tunnel sit in the Traffic card under its title, as plain words that brighten when touched, the one shown in the accent colour and bolder, so the figures start higher. (Panel 1.58.8)
 - On a computer, the Overview's Fold all cards sits just above the first card, further from the headline, and its header buttons (Fold all cards, What's new, Edit, and the Scripts tab's What's new) just brighten when hovered, with no box or border. (Panel 1.58.7, [#194](https://github.com/alpinezx/easy-aiostreams/pull/194))
 - **Docs:** screenshots retaken for the Overview's new phone header (What's new and Edit as icons beside Open all cards) and the outlined What's new star. ([#193](https://github.com/alpinezx/easy-aiostreams/pull/193))
