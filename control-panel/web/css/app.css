@@ -1838,6 +1838,10 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .rs-list .card-foot { margin-top: 10px; }
 /* Desktop: the controls on one row, their button at its end */
 .rs-desk .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* Schedule first, straight under the title (spaced as Next reboot was); Next reboot and Last close the
+   card, a line above them like the blocks above */
+.rs-desk .card-head + .rs-block { border-top: 0; margin-top: 0; padding-top: 9px; }
+.rs-desk .rs-block + .stat-grid { border-top: 1px solid var(--line-soft); margin-top: 4px; padding-top: 21px; }
 .rs-desk .rs-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
 .rs-desk .restart-row { flex: 0 1 auto; margin: 0; padding: 0; flex-wrap: nowrap; }
 .rs-desk .restart-row .time-box { width: 5em; text-align: center; }
