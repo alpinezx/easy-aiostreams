@@ -301,16 +301,19 @@ function hero(st) {
       h("span", { class: "lamp", dataset: { s: st.overall }, "aria-hidden": "true" }),
       h("h1", { class: "headline", "aria-live": "polite", text: st.headline }),
       h("a", { class: "chip warn scripts-pill", id: "scripts-pill", href: "#scripts", hidden: true }),
-      // What's new and Edit at the top right (on desktop, on the panel's name line), Fold all under the headline
-      st.installed ? h("span", { class: "hero-btns hero-tools" },
-        h("button", { class: "btn small quiet", type: "button", text: "What's new",
-          title: "The changes since this panel's version, from the project's changelog", onclick: showChangelog }),
-        editBtn()) : null,
+      // Fold all under the headline. What's new and Edit are on its line: on desktop CSS lifts them to
+      // the top right (the panel's name line); on phones they're icons at the line's right end
       st.installed ? h("span", { class: "hero-btns hero-fold" },
         // Its arrow points the way the cards' own do: up while they're open, down once folded
         h("button", { class: "btn small quiet fold-all", type: "button", "aria-expanded": String(!allFolded()),
           title: allFolded() ? "Open every card" : "Fold every card to one line", onclick: foldAll },
-          allFolded() ? "Open all cards" : "Fold all cards", chev())) : null));
+          allFolded() ? "Open all cards" : "Fold all cards", chev()),
+        h("span", { class: "hero-btns hero-tools" },
+          // Its word in a span, so phones can show the star alone (as Edit's pencil); the name stays for screen readers
+          h("button", { class: "btn small quiet", type: "button", "aria-label": "What's new",
+            title: "The changes since this panel's version, from the project's changelog", onclick: showChangelog },
+            h("span", { class: "fa-word", text: "What's new" })),
+          editBtn())) : null));
     scriptsPill();
     // The certificate lives in This server; it comes up here only when it needs attention.
     const wc = worstCert(st);
@@ -346,7 +349,7 @@ function hero(st) {
 
 // Edit: which cards the Overview shows, and their order, in a drawer
 function editBtn() {
-  const b = h("button", { class: "btn small quiet hero-edit", type: "button", title: "Edit Overview: show, hide or reorder its cards", onclick: openLayout });
+  const b = h("button", { class: "btn small quiet hero-edit", type: "button", "aria-label": "Edit Overview", title: "Edit Overview: show, hide or reorder its cards", onclick: openLayout });
   b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg><span class="fa-word">Edit</span>';
   b.setAttribute("aria-label", "Edit Overview");
   return b;

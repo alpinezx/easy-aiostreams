@@ -1519,10 +1519,11 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .fold-all[aria-expanded="true"] .path-chev svg { transform: rotate(180deg); }
 @media (max-width: 720px) { .hero-head { row-gap: 22px; } }
 .hero-edit { gap: 6px; }
-/* What's new and Edit Overview at the top right: on desktop on the panel's name line, on phones a row above
-   the headline; Fold all cards on a line of its own under the headline, lined up with the lamp */
+/* Fold all cards on a line of its own under the headline, lined up with the lamp. What's new and
+   Edit Overview sit in that line: on desktop lifted to the panel's name line (top right), on phones
+   as icons at the line's right end */
 .hero-head { position: relative; }
-.hero-tools { order: -1; flex: 1 1 100%; justify-content: flex-end; }
+.hero-tools { justify-content: flex-end; }
 .hero-fold { flex: 1 1 100%; margin: -4px 0 -4px -10px; }
 @media (min-width: 721px) {
   /* the headline and Fold all sit a little lower, nearer the first card; the buttons stay on the name line */
@@ -1806,14 +1807,17 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .upd-peek .upd-peek-head { margin: 0 0 8px; font-size: .86rem; }
 .upd-done { padding: 4px 18px; }
 @media (max-width: 720px) {
-  /* Room for a thumb on each; the row above the headline sits flush with the cards' right edge */
+  /* Room for a thumb on each */
   .hero-btns .btn.small { padding: 8px 10px; }
-  /* 2px in from the cards' edge: a word ending right on it looks further out than the card's border */
-  .hero-tools { margin: -10px -8px -12px 0; }
-  .hero-fold { margin: -10px 0 -10px -10px; }
-  /* Edit keeps its word on phones too, sized like What's new beside it */
-  .btn.hero-edit { padding: 8px 10px; }
-  .hero-tools { align-items: center; }
+  /* What's new and Edit as icons at the right of Fold all's line (their names stay for screen
+     readers and in the tooltip), 2px in from the cards' edge, the line no taller than before */
+  .hero-fold { margin: -10px 0 -10px -10px; align-items: center; }
+  .hero-tools { align-items: center; gap: 6px; margin: -3px -8px -3px auto; }
+  /* both the same square tap area (worded buttons are 33px tall on phones) */
+  .hero-head .hero-tools .btn.small { height: auto; padding: 10px; }
+  .hero-tools .fa-word { display: none; }
+  .hero-tools .btn > svg, .hero-head .hero-tools .btn-i[data-act] > svg.bi { width: 17px; height: 17px; top: 0; }
+  .btn.hero-edit svg { stroke-width: 2; }
 }
 /* Scripts tab: Run in terminal and Get and run share one width */
 .run-btn { display: inline-grid; justify-items: center; }
