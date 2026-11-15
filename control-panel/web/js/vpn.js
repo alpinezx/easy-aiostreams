@@ -314,7 +314,7 @@ function render(v) {
   clear(box);
   btn.disabled = v.mode !== "on";
   const [lamp, word] = v.mode !== "on" ? ["", v.has_config === false ? "Off, no config saved" : "Off, using a direct connection"]
-    : v.connected ? ["ok", "Connected"] : ["down", "Not connected"];
+    : v.connected ? ["ok", "Connected"] : ["down", "Disconnected"];
   const card = h("div", { class: "panel vpn-card" },
     h("div", { class: "vpn-head" },
       h("div", { class: "vpn-state" }, h("span", { class: "lamp", dataset: { s: lamp }, "aria-hidden": "true" }), h("span", { text: word })),

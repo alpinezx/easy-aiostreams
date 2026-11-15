@@ -1112,7 +1112,7 @@ function vpnCard(el, st, avail) {
     : vpnLoading && !v ? ["On", "Checking…", ""]
     : !v ? ["On", "Couldn't check", "warn"]
     : v.connected ? ["Connected", v.checked_at ? `Checked ${ago(v.checked_at)}` : "", "ok"]
-    : ["Not connected", (v.error || "").slice(0, 70), "bad"];
+    : ["Disconnected", (v.error || "").slice(0, 70), "bad"];
   // gluetun's release, and the newest on GitHub, as on the add-ons' cards: a newer one is a plain line
   const running = v && v.version ? `v${v.version}` : null;
   if (running && !glRel.list) glRel.load(false);
@@ -1124,8 +1124,8 @@ function vpnCard(el, st, avail) {
   const updBtn = upd && upd.available ? hot(h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
     title: "Update gluetun to its newest v3 release, with a backup first", onclick: () => runAction(upd) }), top) : null;
   const folded = isFolded("vpn");
-  // The tunnel's state in short: Online or Offline, open or folded
-  const shortWord = ({ "Connected": "Online", "Not connected": "Offline" })[word] || word;
+  // The tunnel's state, open or folded: Connected or Disconnected
+  const shortWord = word;
   // Open, the tunnel's state sits beside the title, which leaves the card's middle to gluetun's
   // status, where AIOStreams' card has its own
   const card = h("section", { class: "panel vpnc" + (folded ? " folded" : "") }, h("div", { class: "card-head" },
@@ -1169,7 +1169,7 @@ function vpnCard(el, st, avail) {
       h("div", { class: "ver-value" }, said),
       h("div", { class: "ver-sub", text: top ? `On ${running} · ${checked}` : checked.replace(/^c/, "C") }));
   }
-  // Not connected, or not checked: why, under the title's word
+  // Disconnected, or not checked: why, under the title's word
   const why = tn && tn !== "ok" && sub ? h("p", { class: "vpn-note", text: sub }) : null;
   let exit = null;
   if (up) {

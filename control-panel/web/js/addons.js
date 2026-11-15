@@ -172,12 +172,12 @@ function vpnCard(v) {
   const on = v.mode === "on";
   const down = on && v.connected === false;
   const rows = [
-    on ? { label: "Exit location", text: down ? "Not connected" : [v.city, country(v.country)].filter(Boolean).join(", ") || "Unknown",
+    on ? { label: "Exit location", text: down ? "Disconnected" : [v.city, country(v.country)].filter(Boolean).join(", ") || "Unknown",
       note: v.exit_ip || "", tone: down ? "bad" : "" }
       : { label: "Exit location", text: "This server's own IP", note: "The VPN is off" },
     { label: "VPN server", text: v.endpoint_host || v.endpoint_ip || "No config", note: v.endpoint_host && v.endpoint_ip ? v.endpoint_ip : "" },
   ];
-  const chip = !on ? ["Off", ""] : down ? ["Not connected", "bad"] : ["Connected", "ok"];
+  const chip = !on ? ["Off", ""] : down ? ["Disconnected", "bad"] : ["Connected", "ok"];
   return card({ id: "vpn", name: "VPN", chip, rows, page: ["#vpn", "VPN page"] });
 }
 
