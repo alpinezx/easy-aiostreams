@@ -1444,8 +1444,10 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   .cmd { display: none; }
   /* the badge drops under the name in one piece rather than squeezing beside it */
   .cmd-label { flex-wrap: wrap; row-gap: 6px; color: var(--text); font-size: .95rem; font-weight: 500; }
-  /* Scripts: the state and chips always on the line under the name (the break's own row gap taken back) */
-  .cmd-label .lbl-brk { display: block; flex-basis: 100%; height: 0; margin-top: -6px; }
+  /* Scripts: the state words always on the line under the name (the break's own row gap taken
+     back); the Differs from GitHub badge keeps its place beside the name */
+  .cmd-label .lbl-brk { display: block; flex-basis: 100%; height: 0; margin-top: -6px; order: 1; }
+  .cmd-label .sdot-word { order: 2; }
   .cmd-btns .btn { flex: 1; border-color: var(--line); background: var(--raised); color: var(--text); padding: 8px 12px; }
   /* Scripts: three columns on every row, Run wider, whatever the phone's text size; a fourth
      button (Remove) takes a line of its own */
