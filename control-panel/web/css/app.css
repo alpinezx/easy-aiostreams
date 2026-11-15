@@ -1884,11 +1884,11 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .fold-all.btn-i .path-chev { display: none; }
 /* its lines fill only the middle of the icon's box, so it's drawn larger to stand as tall as the F */
 .fold-all.btn-i > svg.bi { width: 1.15em; height: 1.15em; position: relative; top: -.02em; }
-.hero-btns .btn-i[data-act="What's new"] > svg.bi { width: 1em; height: 1em; stroke-width: 1.8; position: relative; top: .03em; }
+/* a thicker line than other icons, so the outlined star never looks thin (a line under a pixel
+   wide comes out faint grey on Windows) */
+.hero-btns .btn-i[data-act="What's new"] > svg.bi { width: 1em; height: 1em; stroke-width: 2.4; position: relative; top: .03em; }
 /* the desktop's smaller words need the star a touch higher to look centred */
-/* there the star is drawn smaller, so a thicker line keeps it from looking thin (a line under a
-   pixel wide comes out faint grey on Windows) */
-@media (min-width: 721px) { .hero-btns .btn-i[data-act="What's new"] > svg.bi { top: -.03em; stroke-width: 2.4; } }
+@media (min-width: 721px) { .hero-btns .btn-i[data-act="What's new"] > svg.bi { top: -.03em; } }
 /* Services' Stop and Restart columns, wide enough for the icons */
 .row .acts:has(.btn-i) { grid-template-columns: 74px 86px; }
 @media (max-width: 720px) {
