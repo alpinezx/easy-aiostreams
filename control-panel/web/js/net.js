@@ -39,6 +39,10 @@ function sourceSwitch() {
   if (hasVpn()) acts.append(sources());
 }
 
+// Whether a phone shows By service open (folded until opened)
+let nsOpen = false;
+try { nsOpen = localStorage.getItem("aios.nsOpen") === "1"; } catch (_) {}
+
 // Each container's speed now, from Docker (read while the panel is open). A stream passes
 // through several on its way, so the rows add up to more than the server's total.
 function services(box) {
@@ -47,8 +51,21 @@ function services(box) {
   const rows = netOrder((st && st.services || []).filter((s) => s.state === "running"), onVpn);
   if (!rows.length) return;
   const measured = rows.some((s) => s.rx != null);
-  box.append(h("div", { class: "panel vpn-card ns-card" },
-    h("div", { class: "vpn-head" }, h("h3", { class: "tr-title", text: "By service" }), h("span", { class: "vpn-checked", text: "Right now" })),
+  // On a phone the title folds the card to one line with the count, like the Overview's cards:
+  // folded until opened, remembered per browser. A computer shows it all, with a plain title.
+  const card = h("div", { class: "panel vpn-card ns-card" + (nsOpen ? "" : " folded") });
+  const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
+  chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
+  const tog = h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(nsOpen), onclick: () => {
+    nsOpen = !nsOpen;
+    try { localStorage.setItem("aios.nsOpen", nsOpen ? "1" : "0"); } catch (_) {}
+    card.classList.toggle("folded", !nsOpen);
+    tog.setAttribute("aria-expanded", String(nsOpen));
+  } }, "By service", chev);
+  card.append(
+    h("div", { class: "vpn-head" }, h("h3", { class: "tr-title ns-lbl", text: "By service" }), h("h3", { class: "tr-title ns-tog" }, tog),
+      h("span", { class: "vpn-checked ns-now", text: "Right now" }),
+      h("span", { class: "vpn-checked ns-count", text: `${rows.length} service${rows.length === 1 ? "" : "s"}` })),
     // Laid out as the Overview's Network list: arrows in one line, each speed right after its arrow
     h("div", { class: "ns-list" },
       ...rows.map((s) => {
@@ -61,7 +78,8 @@ function services(box) {
             : [arrowed("↓", fmtRate(s.rx)), arrowed("↑", fmtRate(s.tx))]);
       })),
     h("p", { class: "vpn-note dim ns-note", text: "Includes traffic between containers. A stream passes through "
-      + (onVpn ? "the VPN tunnel" : "AIOStreams") + ", then Caddy, so it's counted on both. That's why these add up to more than All traffic." })));
+      + (onVpn ? "the VPN tunnel" : "AIOStreams") + ", then Caddy, so it's counted on both. That's why these add up to more than All traffic." }));
+  box.append(card);
 }
 
 export function show(status) {
