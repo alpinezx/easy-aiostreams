@@ -1,6 +1,6 @@
 // Icons before the words on the pages' action buttons, and on phones a card's row of buttons as
-// two even columns: pairs along the bottom, an odd one out on its own above them (All releases on
-// a version card). One pass over each page whenever it redraws, so the pages' own code stays as it
+// two even columns: pairs along the bottom, an odd one out on its own above them (Update on a
+// version card). One pass over each page whenever it redraws, so the pages' own code stays as it
 // is. Dialogs and drawers (outside the pages), filters, toggles and quiet links keep plain words.
 
 const RESTART = '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>';
@@ -22,7 +22,9 @@ const TICK = '<path d="M20 6 9 17l-5-5"/>';
 const ICONS = {
   "Update": UPDATE, "Update VPN": UPDATE, "Install updates": UPDATE,
   "Check now": CHECK,
-  "All releases": LIST, "List updates": LIST,
+  // All releases: a stack of sheets, one version on another; List updates stays a list (of packages)
+  "All releases": '<path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/>',
+  "List updates": LIST,
   "Restart stack": RESTART, "Restart": RESTART, "Restart panel": RESTART,
   "Reboot server": '<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/>',
   "Stop": STOP, "Stop watchdog": STOP,
@@ -39,7 +41,8 @@ const ICONS = {
   "Set limits": SLIDERS, "Change config": SLIDERS,
   "Change server": '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
   "Use": TICK, "Set": TICK,
-  "What's new": '<path d="M12 2.5l2.2 6.8 7.1 2.7-7.1 2.7L12 21.5l-2.2-6.8L2.7 12l7.1-2.7z"/>',
+  // a solid five-pointed star (filled, so it stays clear at small sizes and in the light themes)
+  "What's new": '<path fill="currentColor" d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>',
   "Run in terminal": TERMINAL, "Get and run": TERMINAL,
   "Fold all cards": CARDS, "Open all cards": CARDS,
 };
@@ -53,13 +56,15 @@ const SKIP = ".fold-act, .icon-only, .hero-edit, .tr-ranges .btn, .lg-row .btn, 
 // Phones: these rows laid out as two columns, in this order (lower first). With an odd number,
 // the first sits on its own above the pairs; the rest go in pairs, the action on the right.
 const GRIDS = ".ver-btns, .vpnc-foot, .card-foot, .vpn-card-acts, .maint-foot, .scripts-panel .cmd-btns";
+// Version cards: Update across the top, All releases and Check now under it
 const ORDER = {
-  "All releases": 0, "Check now": 1, "Update": 2,
+  "Update": 0, "All releases": 1, "Check now": 2,
   "List updates": 0, "Install updates": 1,
   "Send test alert": 0, "Stop": 1, "Start": 1,
   "Change config": 0, "Change server": 1, "Update VPN": 2,
-  "Run in terminal": 0, "Get and run": 0, "Copy": 1, "Remove": 3,
 };
+// Scripts' rows: Run in terminal (or Get and run) first, then Copy, Update, Remove
+const SCRIPTS_ORDER = { "Run in terminal": 0, "Get and run": 0, "Copy": 1, "Update": 2, "Remove": 3 };
 
 function svg(word) {
   const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -77,9 +82,14 @@ function wordOf(b) {
   return b.textContent.trim();
 }
 
+// A button redrawn mid-check reads Checking…: it's still Check now, so it keeps its icon and place
+// (one that already had a word, like Restore while its backup is checked, stays what it was)
+const ALIAS = { "Checking…": "Check now" };
+
 function iconize(b) {
   if (b.matches(SKIP)) return;
-  const word = wordOf(b);
+  const shown = wordOf(b);
+  const word = ALIAS[shown] ? (b.dataset.act || ALIAS[shown]) : shown;
   if (!ICONS[word]) return;
   b.dataset.act = word;   // kept while the word reads Checking…, so the button keeps its place
   b.classList.add("btn-i");
@@ -101,10 +111,12 @@ function gridRows(view) {
     const btns = [...row.children].filter(b => b.classList.contains("btn-i") && !b.hidden && !b.classList.contains("btn-spacer"));
     if (btns.length < 2) { row.classList.remove("btn-grid"); continue; }
     row.classList.add("btn-grid");
-    const sorted = [...btns].sort((a, b) => (ORDER[a.dataset.act] ?? 5) - (ORDER[b.dataset.act] ?? 5));
+    const isScripts = row.matches(".scripts-panel .cmd-btns");
+    const order = isScripts ? SCRIPTS_ORDER : ORDER;
+    const sorted = [...btns].sort((a, b) => (order[a.dataset.act] ?? 5) - (order[b.dataset.act] ?? 5));
     // Scripts: Run in terminal (or Get and run) always across the top; an odd one left over (Remove,
     // when there's an Update too) across the next row; the pairs (Copy and Update) along the bottom
-    const runTop = row.matches(".scripts-panel .cmd-btns") && btns.length > 2;
+    const runTop = isScripts && btns.length > 2;
     if (runTop && (btns.length - 1) % 2 === 1) sorted.splice(1, 0, sorted.pop());
     sorted.forEach((b, i) => {
       b.dataset.ord = i;
