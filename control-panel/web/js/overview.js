@@ -811,8 +811,8 @@ function hostSum(st) {
     // Down and up together with their label (as the open card's tile), so they wrap as one
     [n ? h("span", { class: "net-pair" }, h("span", { text: "Network" }), h("span", { text: `↓ ${fmtRate(n[0])}` }), h("span", { text: `↑ ${fmtRate(n[1])}` })) : "",
       "", "The whole server's network now, down and up"],
-    // A scheduled backup that failed or was skipped is amber; none made yet is a plain reminder, as on the open card
-    bad ? [`Last scheduled backup ${bk.last.status === "skipped" ? "skipped" : "failed"}`, "warn"] : [bk && !bk.newest ? "No backup yet" : ""]]);
+    // A scheduled backup that failed or was skipped is amber; none made yet shows only on the open card
+    bad ? [`Last scheduled backup ${bk.last.status === "skipped" ? "skipped" : "failed"}`, "warn"] : null]);
   // On a phone always two lines, CPU and Memory then Network (with Disk before it when shown),
   // whatever the text size: a break that only phones show (CSS)
   const second = [...sum.children].find((li) => li.textContent.startsWith("Disk ") || li.querySelector(".net-pair"));
