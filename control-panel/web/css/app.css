@@ -1459,6 +1459,19 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .scripts-panel .sub-head { font-size: 15px; font-weight: 600; margin: 0 0 6px; }
 .scripts-panel .addons-note { margin: 0 0 4px; color: var(--text); }
 .scripts-panel .addons-note b { font-weight: 650; }
+/* Optional add-ons: a plain title on a computer; on a phone the title folds the card to one line with a
+   summary on the right (see scripts.js) */
+.addons-tog, .addons-word { display: none; }
+@media (max-width: 720px) {
+  .addons-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 6px; }
+  .addons-head .sub-head { margin: 0; }
+  .addons-lbl { display: none; }
+  .scripts-panel .addons-tog { display: block; font-size: .98rem; font-weight: 650; }   /* as the other folded cards' titles */
+  .addons-word { font-size: 14px; }
+  .addons-card.folded .addons-head { margin-bottom: 0; }
+  .addons-card.folded .addons-word { display: inline; }
+  .addons-card.folded .addons-note, .addons-card.folded .cmds { display: none; }
+}
 .scripts-panel a { color: var(--accent); }
 .chip.small-chip { font-size: .74rem; padding: 1px 8px; white-space: nowrap; }
 /* The panel's version, under the logo in the rail */

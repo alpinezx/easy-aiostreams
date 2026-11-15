@@ -325,6 +325,10 @@ async function removeScript(x) {
   } catch (e) { toast(e.message || "Couldn't remove it.", true); }
 }
 
+// Phones: whether Optional add-ons is open (folded until opened, remembered per browser)
+let addonsOpen = false;
+try { addonsOpen = localStorage.getItem("aios.addonsOpen") === "1"; } catch (_) {}
+
 function render() {
   const { status, terminalOn } = last;
   const box = $("#scripts-root");
@@ -352,11 +356,28 @@ function render() {
   box.append(h("section", { class: "panel scripts-panel scripts-core" },
     h("ul", { class: "cmds" }, panelRow(`sudo bash ${dir}/control-panel/setup-ui.sh`, terminalOn), ...core.map(rowOf))));
   if (addons.length) {
-    box.append(h("section", { class: "panel scripts-panel" },
-      h("h3", { class: "sub-head", text: "Optional add-ons" }),
+    // On a phone the title folds the card to one line with a summary on the right: how many differ from
+    // GitHub (amber) if any, else how many are set up. Folded until opened, remembered per browser.
+    // A computer shows it all, with a plain title.
+    const nDiff = addons.filter((x) => x.present && differs(x)).length;
+    const nUp = addons.filter((x) => x.present && x.in_use !== false).length;
+    const word = nDiff ? [`${nDiff} differ${nDiff === 1 ? "s" : ""} from GitHub`, "warn"] : nUp ? [`${nUp} set up`, ""] : ["None set up", "dim"];
+    const card = h("section", { class: "panel scripts-panel addons-card" + (addonsOpen ? "" : " folded") });
+    const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
+    chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
+    const tog = h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(addonsOpen), onclick: () => {
+      addonsOpen = !addonsOpen;
+      try { localStorage.setItem("aios.addonsOpen", addonsOpen ? "1" : "0"); } catch (_) {}
+      card.classList.toggle("folded", !addonsOpen);
+      tog.setAttribute("aria-expanded", String(addonsOpen));
+    } }, "Optional add-ons", chev);
+    box.append(card);
+    card.append(
+      h("div", { class: "addons-head" }, h("h3", { class: "sub-head addons-lbl", text: "Optional add-ons" }), h("h3", { class: "sub-head addons-tog" }, tog),
+        h("span", { class: "fold-word addons-word " + word[1], text: word[0] })),
       h("p", { class: "addons-note" }, h("b", { text: "Most setups need none of these." }), " ",
         // "Read" and the link wrap together, so the link never starts a line alone
         h("span", { class: "nowrap" }, "Read ", h("a", { href: ADDONS_GUIDE, target: "_blank", rel: "noopener noreferrer", text: "what each one does" })), " first."),
-      h("ul", { class: "cmds" }, ...addons.map(rowOf))));
+      h("ul", { class: "cmds" }, ...addons.map(rowOf)));
   }
 }

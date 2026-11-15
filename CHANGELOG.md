@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 15 November 2026
 
+- On phones, the Scripts tab's Optional add-ons folds to one line: how many differ from GitHub, in amber, if any, otherwise how many are set up. Folded until you open it, and remembered. (Panel 1.58.8)
 - Maintenance's Scheduled server reboot starts with Schedule, then Clock, with Next reboot and Last at the bottom, on a computer and on a phone. (Panel 1.58.8)
 - On phones, the Maintenance page is shorter: Scheduled server reboot folds to its title and state; Free up space and Container logs fold to their title and how much space can be freed or whether a limit is set. Each is folded until you open it, and remembered; an out-of-sync clock or a warning still shows. (Panel 1.58.8)
 - On phones, the Backup & Restore page is shorter: Scheduled backups folds to its title and state (folded until you open it, and remembered; a failed or skipped run still shows), and each backup folds to its name, size, age and note, opening for where it's saved and its buttons. Its Scheduled tag sits at the end of the size line, with Locked as a padlock beside it. (Panel 1.58.8)
