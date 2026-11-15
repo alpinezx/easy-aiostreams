@@ -282,8 +282,8 @@ export function updateNow() {
 
 // A Traffic card, drawn into box (and again once a minute while its page is open): the VPN's
 // tunnel ("vpn") or the server's own network card ("host")
-// The 1 hour / 24 hours / 7 days in the card's head, and in the page heading too when opts.ranges is given;
-// opts.tool (the Network page's bin, shown on a computer) at the card head's right
+// The 1 hour / 24 hours / 7 days go in the page heading (opts.ranges) when given, else in the card's head;
+// opts.tool (the Network page's bin) at the card head's right; opts.sub on a line under the head
 export async function trafficCard(box, force, kind = "vpn", opts = {}) {
   let d;
   try { d = await loadTraffic(force, kind); } catch (_) { return; }
@@ -298,12 +298,12 @@ export async function trafficCard(box, force, kind = "vpn", opts = {}) {
         try { localStorage.setItem("aios.vpnRange", k); } catch (_) {}
         trafficCard(box, false, kind, opts);
       } })));
-  // A copy for the page heading too: CSS shows that one on a computer and the card's on a phone
   if (opts.ranges) { clear(opts.ranges); opts.ranges.append(ranges()); }
   const label = RANGES[range][0];
   const what = kind === "vpn" ? "Everything through the VPN" : "Everything in and out of this server";
   box.append(h("div", { class: "panel vpn-card tr-card" },
-    h("div", { class: "vpn-head" }, h("h3", { class: "tr-title", text: "Traffic" }), ranges(), opts.tool || null),
+    h("div", { class: "vpn-head" }, h("h3", { class: "tr-title", text: "Traffic" }), opts.ranges ? null : ranges(), opts.tool || null),
+    opts.sub || null,
     h("div", { class: "vpn-grid tr-figs" },
       nowFigs[kind] = nowFig(n),
       fig("Peak", s.peak && s.peak[1] ? `↓ ${fmtRate(s.peak[1])}` : "None", s.peak && s.peak[1] ? `${s.peak[2] ? "Busiest minute, " : ""}${when(s.peak[0])}` : ""),

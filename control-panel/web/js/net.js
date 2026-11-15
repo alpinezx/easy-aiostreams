@@ -11,9 +11,9 @@ try { source = localStorage.getItem("aios.netSource") === "vpn" ? "vpn" : "host"
 const hasVpn = () => !!st && (st.vpn === "on" || st.vpn === "off");
 const kind = () => (source === "vpn" && hasVpn() ? "vpn" : "host");
 
-// The page heading: the bin (as on Logs), then All traffic / VPN tunnel once the VPN is set up.
-// On a computer the time range sits in the heading's middle (from traffic.js) and the bin at the
-// Traffic card's top right instead; CSS shows one copy of each.
+// The page heading: the time range (from traffic.js), then All traffic / VPN tunnel once the VPN
+// is set up; the bin (as on Logs) at the Traffic card's top right. On a phone All traffic / VPN
+// tunnel sit in the Traffic card under its title instead (a second copy; CSS shows one).
 const BIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
 function bin() {
   const b = h("button", { class: "btn small icon-only tr-bin", type: "button", title: "Clear traffic history",
@@ -21,20 +21,22 @@ function bin() {
   b.innerHTML = BIN;
   return b;
 }
-const drawTraffic = (tbox) => trafficCard(tbox, false, kind(), { ranges: $("#net-ranges"), tool: bin() });
-function sourceSwitch() {
-  const acts = $("#net-acts");
-  clear(acts);
-  acts.append(bin());
-  if (!hasVpn()) return;
-  acts.append(h("div", { class: "tr-ranges", role: "group", "aria-label": "Show" },
+function sources() {
+  return h("div", { class: "tr-ranges", role: "group", "aria-label": "Show" },
     ...[["host", "All traffic"], ["vpn", "VPN tunnel"]].map(([k, label]) => h("button", { class: "btn small", type: "button", text: label,
       "aria-pressed": String(kind() === k), onclick: () => {
         source = k;
         try { localStorage.setItem("aios.netSource", k); } catch (_) {}
         if (location.hash !== "#net") history.replaceState(null, "", "#net");   // so #net/vpn doesn't pick the tunnel again
         show(st);
-      } }))));
+      } })));
+}
+const drawTraffic = (tbox) => trafficCard(tbox, false, kind(),
+  { ranges: $("#net-ranges"), tool: bin(), sub: hasVpn() ? h("div", { class: "tr-src" }, sources()) : null });
+function sourceSwitch() {
+  const acts = $("#net-acts");
+  clear(acts);
+  if (hasVpn()) acts.append(sources());
 }
 
 // Each container's speed now, from Docker (read while the panel is open). A stream passes
