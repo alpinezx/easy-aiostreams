@@ -2011,6 +2011,8 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 .view-head:has(> .page-tools) { position: relative; }
 @media (min-width: 721px) {
   .page-tools { position: absolute; right: -10px; top: calc(-14px - .63rem); transform: translateY(-50%); }
+  /* in Control Panel's grey, as the Overview's What's new and Edit; full text when hovered */
+  .page-tools .btn { color: var(--faint); }
 }
 @media (max-width: 720px) {
   .page-tools { order: -1; flex: 1 1 100%; justify-content: flex-end; margin: -10px -10px -12px 0; }
