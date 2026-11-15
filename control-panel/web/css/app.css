@@ -1260,6 +1260,9 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .drawer[hidden] { display: none; }
 @keyframes slide { from { transform: translateX(24px); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .drawer { animation: none; } }
+/* Phones: a drawer fills the screen, so no left border or shadow (they showed as a seam down the left),
+   and it starts 1px above the top, so a fraction-of-a-pixel gap there can't show the page behind as a line */
+@media (max-width: 720px) { .drawer { border-left: 0; box-shadow: none; top: -1px; } }
 .drawer-head { padding: 18px 20px 14px; display: flex; align-items: flex-start; gap: 12px; border-bottom: 1px solid var(--line-soft); }
 .drawer-head h3 { margin: 0; font-size: 1.25rem; font-weight: 700; letter-spacing: -.01em; }
 .drawer-head p { margin: 2px 0 0; font-size: .9rem; color: var(--dim); }
