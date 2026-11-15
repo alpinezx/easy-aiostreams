@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 15 November 2026
 
+- **New:** the VPN's tunnel reads Connected or Disconnected everywhere, instead of Online and Offline on its card and Not connected on the VPN and Add-ons pages. On the open VPN card, Tunnel sits as close to the title as AIOStreams' Dashboard does. (Panel 1.58.4, [#190](https://github.com/alpinezx/easy-aiostreams/pull/190))
 - **New:** on phones every button with words is the same height, a little shorter than before, and the Scripts tab's Check now is as wide as the buttons under it. Version cards put Update across the top with All releases and Check now under it; the VPN card has Turn VPN off and Update, then All releases and Check now. Check now no longer moves while it reads Checking…. All releases has a stack-of-versions icon and What's new a solid star. In Services a running service's uptime is grey with only its dot green, and on phones it sits on the same line as the CPU and memory. (Panel 1.58.3, [#189](https://github.com/alpinezx/easy-aiostreams/pull/189))
 
 ## 14 November 2026
