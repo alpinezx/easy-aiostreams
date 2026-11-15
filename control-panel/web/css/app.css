@@ -1803,7 +1803,8 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
 @media (max-width: 720px) {
   /* Room for a thumb on each; the row above the headline sits flush with the cards' right edge */
   .hero-btns .btn.small { padding: 8px 10px; }
-  .hero-tools { margin: -10px -10px -12px 0; }
+  /* 2px in from the cards' edge: a word ending right on it looks further out than the card's border */
+  .hero-tools { margin: -10px -8px -12px 0; }
   .hero-fold { margin: -10px 0 -10px -10px; }
   /* Edit keeps its word on phones too, sized like What's new beside it */
   .btn.hero-edit { padding: 8px 10px; }
