@@ -4,7 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 15 November 2026
 
-- On phones, the Backup & Restore page is shorter: Scheduled backups folds to its title and state (folded until you open it, and remembered; a failed or skipped run still shows), and each backup folds to its name, tags, size, age and note, opening for where it's saved and its buttons. (Panel 1.58.8)
+- On phones, the Backup & Restore page is shorter: Scheduled backups folds to its title and state (folded until you open it, and remembered; a failed or skipped run still shows), and each backup folds to its name, size, age and note, opening for where it's saved and its buttons. Its Scheduled tag sits at the end of the size line, with Locked as a padlock beside it. (Panel 1.58.8)
 - On a computer, the Overview's What's new and Edit and the Scripts tab's What's new, words and icons, are in the same grey as Control Panel beside the panel's name, and brighten when hovered. (Panel 1.58.8)
 - **Fixed:** on the Network page, Right now and the bin stand level with their card titles; they sat a little lower. Fold titles (the Overview's card titles, This server's Network and HTTPS certificates) no longer get a box behind them when hovered, only a change of shade, and on phones a tapped one no longer keeps a highlight afterwards. (Panel 1.58.8)
 - **Fixed:** on phones, a dialog with three buttons (Clear traffic history with the VPN set up, Clear logs) no longer pushes Cancel off its left edge: Cancel goes across the top, the two choices side by side under it. (Panel 1.58.8)

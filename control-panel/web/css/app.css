@@ -960,7 +960,7 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .sched-last.warn { color: var(--warn); }
 /* Phones: Scheduled backups folds to its title and state; each backup to its name, tags, size, age and
    note, a chevron at the right of its name (see activity.js). A computer shows them whole. */
-.bk-tog, .sched-fold-word { display: none; }
+.bk-tog, .sched-fold-word, .bk-tags { display: none; }
 @media (max-width: 720px) {
   .sched-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
   .sched-head h3 { margin: 0; }
@@ -971,6 +971,14 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
   .item.bk .what { position: relative; padding-right: 30px; }
   .bk-tog { display: inline-flex; position: absolute; top: 0; right: 0; margin: -6px -8px 0 0; }
   .item.bk.folded .btns, .item.bk.folded .bk-where, .item.bk.folded .bk-note:has(.bk-note-btn.empty) { display: none; }
+  /* the tags at the right end of the size line, not under the name */
+  .item.bk .bk-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; align-items: center; }
+  .item.bk .bk-head .what { grid-column: 1 / -1; }
+  .item.bk .bk-head .what .lock-tag { display: none; }
+  .item.bk .bk-tags:not(:empty) { display: flex; gap: 6px; }
+  .item.bk .bk-tags .lock-tag { margin: 0; }
+  .item.bk .bk-tags .lock-ic { display: inline-flex; align-items: center; padding: 3px 8px; }
+  .lock-ic svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 }
 .lock-tag.sched-tag { color: var(--dim); background: var(--raised); box-shadow: inset 0 0 0 1px var(--line); }
 .wd-opts h3 { margin-bottom: 4px; }

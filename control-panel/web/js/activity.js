@@ -169,13 +169,22 @@ function backupRow(it, cmd, restore, status) {
       row.classList.toggle("folded", !open);
       tog.setAttribute("aria-expanded", String(open));
     } }, chev());
+  // On a phone's size line Locked is a padlock, so Scheduled and Locked fit side by side
+  const tags = (icon) => {
+    let lock = null;
+    if (it.locked && icon) {
+      lock = h("span", { class: "lock-tag lock-ic", role: "img", "aria-label": "Locked", title: "Locked" });
+      lock.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+    } else if (it.locked) lock = h("span", { class: "lock-tag", text: "Locked" });
+    return [it.name.includes("-scheduled-") ? h("span", { class: "lock-tag sched-tag", text: "Scheduled",
+      title: "Made by the schedule. The newest 7 are kept and older ones removed; lock one to keep it for good." }) : null, lock];
+  };
   row.append(
     h("span", { class: "bk-head", onclick: (e) => { if (!e.target.closest("button") && window.matchMedia("(max-width: 720px)").matches) tog.click(); } },
-      h("div", { class: "what mono" }, tog, it.name,
-        it.name.includes("-scheduled-") ? h("span", { class: "lock-tag sched-tag", text: "Scheduled",
-          title: "Made by the schedule. The newest 7 are kept and older ones removed; lock one to keep it for good." }) : null,
-        it.locked ? h("span", { class: "lock-tag", text: "Locked" }) : null),
-      h("div", { class: "when" }, `${fmtBytes(it.size)}, made ${ago(it.mtime)}`, h("span", { class: "bk-where", text: `, saved in ${it.dirs.join(" and ")}` }))),
+      h("div", { class: "what mono" }, tog, it.name, tags()),
+      h("div", { class: "when" }, `${fmtBytes(it.size)}, made ${ago(it.mtime)}`, h("span", { class: "bk-where", text: `, saved in ${it.dirs.join(" and ")}` })),
+      // A phone puts the tags at the end of the size line instead, so every backup is two lines folded
+      h("span", { class: "bk-tags" }, tags(true))),
     h("div", { class: "btns" },
       h("button", { class: "btn small", type: "button", text: "Restore", disabled: !!status.busy,
         title: "Roll your AIOStreams setup back to this backup, after checking it's safe to do from here",
