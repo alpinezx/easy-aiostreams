@@ -550,7 +550,8 @@ button.chip:hover { text-decoration: underline; }
 /* The title folds the card down to one line: a dot per service and Restart stack */
 .path-toggle { display: inline-flex; align-items: center; gap: 6px; margin: -6px -8px; padding: 6px 8px; border: 0; border-radius: 6px;
   background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
-.path-toggle:hover { color: var(--dim); background: var(--hover); }
+/* Only where there's a mouse: on a phone a tap leaves the title "hovered" until the next tap elsewhere */
+@media (hover: hover) { .path-toggle:hover { color: var(--dim); background: var(--hover); } }
 .path-chev svg { display: block; width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s; }
 @media (prefers-reduced-motion: reduce) { .path-chev svg { transition: none; } }
 .path.folded { padding-top: 12px; padding-bottom: 12px; }
@@ -1994,7 +1995,11 @@ html.kb-open, html.kb-open body { overflow: hidden; overscroll-behavior: none; }
   .tr-src + .vpn-grid { margin-top: 14px; }
   #net-ranges .tr-ranges, .tr-src .tr-ranges { gap: 8px; }
   #net-ranges .btn, #net-root .tr-src .btn, #net-root .tr-bin { background: none; border-color: transparent; color: var(--dim); }
-  #net-ranges .btn:hover:not(:disabled), #net-root .tr-src .btn:hover:not(:disabled), #net-root .tr-bin:hover:not(:disabled) { background: none; border-color: transparent; color: var(--text); }
+  #net-ranges .btn:hover:not(:disabled), #net-root .tr-src .btn:hover:not(:disabled), #net-root .tr-bin:hover:not(:disabled) { background: none; border-color: transparent; }
+  @media (hover: hover) {
+    #net-ranges .btn:hover:not(:disabled):not([aria-pressed="true"]), #net-root .tr-src .btn:hover:not(:disabled):not([aria-pressed="true"]),
+    #net-root .tr-bin:hover:not(:disabled) { color: var(--text); }
+  }
   #net-ranges .btn[aria-pressed="true"], #net-root .tr-src .btn[aria-pressed="true"] { color: var(--accent); font-weight: 650; }
 }
 /* Scripts' What's new: a quiet link at the top right, as on the Overview: on the panel's name line on
