@@ -806,16 +806,17 @@ function hostSum(st) {
       wc && !wc.ok ? "warn" : wc && certTone(wc)],
     [cpu == null ? "" : hs.cpu_pct != null ? `CPU ${Math.round(cpu)}%` : `Load ${hs.load[0].toFixed(2)}`, cpu != null && tone(cpu, 75, 90)],
     [hs.mem_total ? `Memory ${fmtBytes(hs.mem_used)} / ${fmtBytes(hs.mem_total)}` : "", hs.mem_total && tone(pct(hs.mem_used, hs.mem_total), 80, 90)],
-    [hs.disk_total ? `Disk ${pct(hs.disk_used, hs.disk_total)}%` : "", hs.disk_total && tone(pct(hs.disk_used, hs.disk_total), 80, 90)],
+    // Disk only once it needs a look (80% full or more); the open card always has it
+    [hs.disk_total && tone(pct(hs.disk_used, hs.disk_total), 80, 90) ? `Disk ${pct(hs.disk_used, hs.disk_total)}%` : "", hs.disk_total && tone(pct(hs.disk_used, hs.disk_total), 80, 90)],
     // Down and up together with their label (as the open card's tile), so they wrap as one
     [n ? h("span", { class: "net-pair" }, h("span", { text: "Network" }), h("span", { text: `↓ ${fmtRate(n[0])}` }), h("span", { text: `↑ ${fmtRate(n[1])}` })) : "",
       "", "The whole server's network now, down and up"],
     // A scheduled backup that failed or was skipped is amber; none made yet is a plain reminder, as on the open card
     bad ? [`Last scheduled backup ${bk.last.status === "skipped" ? "skipped" : "failed"}`, "warn"] : [bk && !bk.newest ? "No backup yet" : ""]]);
-  // On a phone always two lines, CPU and Memory then Disk and Network, whatever the text size:
-  // a break before Disk that only phones show (CSS)
-  const disk = [...sum.children].find((li) => li.textContent.startsWith("Disk "));
-  if (disk && disk.previousElementSibling) disk.before(h("li", { class: "sum-brk", "aria-hidden": "true" }));
+  // On a phone always two lines, CPU and Memory then Network (with Disk before it when shown),
+  // whatever the text size: a break that only phones show (CSS)
+  const second = [...sum.children].find((li) => li.textContent.startsWith("Disk ") || li.querySelector(".net-pair"));
+  if (second && second.previousElementSibling) second.before(h("li", { class: "sum-brk", "aria-hidden": "true" }));
   return sum;
 }
 
