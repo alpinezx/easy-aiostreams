@@ -1612,8 +1612,9 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   /* Fold all cards just above the first card, apart from the headline; the cards stay put */
   .hero-fold { margin-top: 8px; margin-bottom: -16px; }
   .hero-tools { position: absolute; right: -10px; top: calc(-26px - .63rem); transform: translateY(-50%); flex: none; }
-  /* What's new and Edit, words and icons, in the same grey as Control Panel beside the name; full text when hovered */
-  .hero-tools .btn { color: var(--faint); }
+  /* What's new, Edit and Fold all cards, words and icons, in the same grey as Control Panel beside the name;
+     full text when hovered */
+  .hero-tools .btn, .hero-fold .fold-all { color: var(--faint); }
 }
 .hero-edit svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
