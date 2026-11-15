@@ -732,6 +732,14 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .tr-key.down::before { background: var(--accent); } .tr-key.up::before { background: var(--up-line); }
 .tr-step { margin-left: auto; }
 .tr-days { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
+/* Last 7 days: a plain label on a computer; on a phone the label folds the list (see traffic.js) */
+.tr-days-tog { display: none; }
+@media (max-width: 720px) {
+  .tr-days-lbl { display: none; }
+  .tr-days-tog { display: block; }
+  .tr-days.folded .tr-day { display: none; }
+  .tr-days.folded .tr-days-tog { margin-bottom: 0; }
+}
 .tr-day { display: grid; grid-template-columns: 110px minmax(0, 1fr) max-content; align-items: center; gap: 14px; padding: 5px 0; font-size: .9rem; }
 .tr-bar { height: 8px; border-radius: 4px; background: var(--line-soft); overflow: hidden; }
 .tr-bar i { display: block; height: 100%; background: var(--accent); opacity: .7; border-radius: 4px; }

@@ -233,6 +233,9 @@ function chart(s, key) {
 const fig = (label, value, sub) => h("div", { class: "vpn-cell" }, h("div", { class: "vpn-label", text: label }),
   h("div", { class: "vpn-value", text: value }), h("div", { class: "tr-sub dim", text: sub || "" }));
 
+// Whether a phone shows the last 7 days (folded until opened)
+let daysOpen = false;
+try { daysOpen = localStorage.getItem("aios.trDaysOpen") === "1"; } catch (_) {}
 // The last 7 days, newest first, each a bar of how much came down
 function days(d) {
   const by = new Map();
@@ -248,7 +251,18 @@ function days(d) {
     rows.push(by.get(day.toDateString()) || [day.getTime() / 1000, null, null]);
   }
   const most = Math.max(1, ...rows.map((r) => r[1] || 0));
-  return h("div", { class: "tr-days" }, h("div", { class: "vpn-label", text: "Last 7 days" }),
+  // On a phone the label folds the list away, like This server's Network: folded until opened,
+  // remembered per browser. A computer has room, so there it's a plain label and the list always shows.
+  const box = h("div", { class: "tr-days" + (daysOpen ? "" : " folded") });
+  const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
+  chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
+  const tog = h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(daysOpen), onclick: () => {
+    daysOpen = !daysOpen;
+    try { localStorage.setItem("aios.trDaysOpen", daysOpen ? "1" : "0"); } catch (_) {}
+    box.classList.toggle("folded", !daysOpen);
+    tog.setAttribute("aria-expanded", String(daysOpen));
+  } }, "Last 7 days", chev);
+  box.append(h("div", { class: "vpn-label tr-days-lbl", text: "Last 7 days" }), h("div", { class: "vpn-label cert-fold tr-days-tog" }, tog),
     ...rows.map((r) => {
       const bar = h("i");
       bar.style.width = `${r[1] ? Math.max(1, (r[1] / most) * 100) : 0}%`;   // set here: the page's CSP blocks style attributes
@@ -258,6 +272,7 @@ function days(d) {
         r[1] == null ? h("span", { class: "tr-day-tot dim", text: "No data" })
           : h("span", { class: "tr-day-tot" }, arrowed("↓", fmtBytes(r[1])), arrowed("↑", fmtBytes(r[2]))));
     }));
+  return box;
 }
 
 // The Traffic card's Now: down and up at the same size, side by side (each on its own line
