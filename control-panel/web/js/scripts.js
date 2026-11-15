@@ -127,7 +127,10 @@ export async function showChangelog(e) {
   logLoading = true;
   // GitHub can take up to 10s to fail; say so on the button meanwhile
   const btn = e && e.currentTarget;
-  if (btn) { btn.disabled = true; btn.textContent = "Loading…"; }
+  // The Overview's button keeps its word in a span (hidden on phones, where the star shows alone):
+  // change just that, or the word comes back as plain text after loading
+  const word = btn && (btn.querySelector(".fa-word") || btn);
+  if (btn) { btn.disabled = true; word.textContent = "Loading…"; }
   try {
     const log = await api("/api/panel/changelog");
     if (!log.entries.length) toast(`Couldn't load the changelog. ${log.error || "It's empty."}`, true);
@@ -135,7 +138,7 @@ export async function showChangelog(e) {
   } catch (err) { toast(`Couldn't load the changelog. ${err.message}`, true); }
   finally {
     logLoading = false;
-    if (btn) { btn.disabled = false; btn.textContent = "What's new"; }
+    if (btn) { btn.disabled = false; word.textContent = "What's new"; }
   }
 }
 
