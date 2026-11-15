@@ -11,15 +11,21 @@ try { source = localStorage.getItem("aios.netSource") === "vpn" ? "vpn" : "host"
 const hasVpn = () => !!st && (st.vpn === "on" || st.vpn === "off");
 const kind = () => (source === "vpn" && hasVpn() ? "vpn" : "host");
 
-// The page heading: the bin (as on Logs), then All traffic / VPN tunnel once the VPN is set up
+// The page heading: the bin (as on Logs), then All traffic / VPN tunnel once the VPN is set up.
+// On a computer the time range sits in the heading's middle (from traffic.js) and the bin at the
+// Traffic card's top right instead; CSS shows one copy of each.
 const BIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
+function bin() {
+  const b = h("button", { class: "btn small icon-only tr-bin", type: "button", title: "Clear traffic history",
+    "aria-label": "Clear traffic history", onclick: async () => { if (await clearHistory(kind(), hasVpn())) show(st); } });
+  b.innerHTML = BIN;
+  return b;
+}
+const drawTraffic = (tbox) => trafficCard(tbox, false, kind(), { ranges: $("#net-ranges"), tool: bin() });
 function sourceSwitch() {
   const acts = $("#net-acts");
   clear(acts);
-  const bin = h("button", { class: "btn small icon-only", type: "button", title: "Clear traffic history",
-    "aria-label": "Clear traffic history", onclick: async () => { if (await clearHistory(kind(), hasVpn())) show(st); } });
-  bin.innerHTML = BIN;
-  acts.append(bin);
+  acts.append(bin());
   if (!hasVpn()) return;
   acts.append(h("div", { class: "tr-ranges", role: "group", "aria-label": "Show" },
     ...[["host", "All traffic"], ["vpn", "VPN tunnel"]].map(([k, label]) => h("button", { class: "btn small", type: "button", text: label,
@@ -69,7 +75,7 @@ export function show(status) {
   const tbox = h("div", { class: "net-traffic" }), sbox = h("div", { class: "net-services" });
   root.append(tbox, sbox);
   drawn = Date.now();
-  trafficCard(tbox, false, kind());
+  drawTraffic(tbox);
   services(sbox);
 }
 
@@ -82,5 +88,5 @@ export function setStatus(status) {
   const sbox = $("#net-root .net-services");
   if (sbox) services(sbox);
   const tbox = $("#net-root .net-traffic");
-  if (tbox && Date.now() - drawn > 60000) { drawn = Date.now(); trafficCard(tbox, false, kind()); }
+  if (tbox && Date.now() - drawn > 60000) { drawn = Date.now(); drawTraffic(tbox); }
 }
