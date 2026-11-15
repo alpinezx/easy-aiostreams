@@ -1282,6 +1282,12 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .check { display: flex; gap: 10px; align-items: center; }
 .check input { width: 18px; height: 18px; flex: none; accent-color: var(--accent); }
 .dialog .btns { display: flex; justify-content: flex-end; gap: 8px; }
+/* Phones: a dialog with three buttons (such as the Network page's Clear traffic history with the VPN) doesn't
+   fit them on a line: the main one across the top, the other two side by side under it, as on the version cards */
+@media (max-width: 720px) {
+  .dialog .btns:has(> .btn:nth-child(3)) { display: grid; grid-template-columns: 1fr 1fr; }
+  .dialog .btns:has(> .btn:nth-child(3)) > .btn.primary { grid-area: 1 / 1 / 2 / 3; }
+}
 .dialog .check-list { margin: 0 0 4px; padding-left: 20px; font-size: .9rem; display: grid; gap: 4px; }
 .dialog > .check-list { margin-bottom: 18px; }
 .dialog .check-list li::marker { color: var(--warn); }
