@@ -277,7 +277,9 @@ function row(x, cmd, updateCmd, termOn) {
   const removable = idle;
   // The command itself is on Copy's tooltip; spelt out, it crowded the row (and phones)
   return h("li", {},
-    h("span", { class: "cmd-label" }, dot, x.label, ...tags),
+    // On a phone the state and chips go on a line of their own under the name, on every row
+    // alike, however long the name or the words (a break only phones show)
+    h("span", { class: "cmd-label" }, dot, x.label, tags.some(Boolean) ? h("span", { class: "lbl-brk", "aria-hidden": "true" }) : null, ...tags),
     h("span", { class: "cmd-btns" }, runBtn(x.present, cmd, termOn),
       copyBtn("Copy", cmd, "Copied. Paste it into an SSH session or the Terminal tab.", cmd),
       updateCmd ? h("button", { class: "btn small quiet", type: "button", text: "Update",
