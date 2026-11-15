@@ -1514,10 +1514,9 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .hero-btns { display: flex; gap: 4px; margin-left: auto; }
 /* Plain words like the cards' own Logs and Details: no border or fill until hovered */
 .hero-btns .btn, .btn.hero-edit { border-color: transparent; background: none; color: var(--dim); }
-.hero-btns .btn:hover:not(:disabled), .btn.hero-edit:hover:not(:disabled) { color: var(--text); background: var(--hover); border-color: transparent; }
+/* on hover their words and icons just brighten, with no highlight or border (Scripts' What's new too) */
+.hero-btns .btn:hover:not(:disabled), .btn.hero-edit:hover:not(:disabled) { color: var(--text); background: none; border-color: transparent; }
 .hero-btns .fold-all { gap: 6px; }
-/* Fold all: on hover its words just brighten, without the highlight behind them */
-.hero-btns .fold-all:hover:not(:disabled) { background: none; }
 .fold-all[aria-expanded="true"] .path-chev svg { transform: rotate(180deg); }
 @media (max-width: 720px) { .hero-head { row-gap: 22px; } }
 .hero-edit { gap: 6px; }
