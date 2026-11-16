@@ -165,11 +165,13 @@ async def logout(response: Response):
 
 @app.get("/api/me")
 async def me(user: str = Depends(current_user)):
-    return {"user": user, "demo": config.DEMO, "version": config.VERSION}
+    # boot: changes each time this process starts, so a page can tell the panel restarted
+    return {"user": user, "demo": config.DEMO, "version": config.VERSION, "boot": BOOT_ID}
 
 
 # ---- status --------------------------------------------------------------
 
+BOOT_ID = uuid.uuid4().hex[:12]
 _status_cache: tuple[float, dict] | None = None
 
 
@@ -1071,11 +1073,11 @@ class Jobs:
         except Exception:
             pass
 
-    def _save(self):
+    def _save(self, path: Path | None = None):
         try:
             done = [self.items[i] for i in self.order if self.items[i]["ended"]][-self.KEEP:]
             slim = [{**j, "lines": j["lines"][-400:]} for j in done]
-            self._path().write_text(json.dumps(slim))
+            (path or self._path()).write_text(json.dumps(slim))
         except Exception:
             pass
 
@@ -1114,11 +1116,32 @@ class Jobs:
                 after()
             except Exception:
                 pass
+        # A restore moves the install folder aside, and this container's folders go with it
+        # (a bind mount follows the folder, not its name). So once one succeeds, the panel
+        # restarts itself onto the restored install. Not when the backup has no panel.
+        restart = False
+        if action.id == "stack.restore" and code == 0:
+            restart = config.DEMO or (_restored_state() / "config").is_file()
+            emit("==> Restarting the control panel in a few seconds, so it uses the restored install." if restart
+                 else "==> The backup has no control panel, so this one keeps running as it is.")
+        job["panel_restart"] = restart
         job["code"] = code
         job["ended"] = time.time()
         global _status_cache
         _status_cache = None  # next poll reflects what the action changed
         self._save()
+        if restart and not config.DEMO:
+            threading.Thread(target=self._restart_onto_restored, daemon=True).start()
+
+    def _restart_onto_restored(self):
+        # The history so far, this restore included, goes into the restored folder too:
+        # the copy above went to the folder that was moved aside.
+        self._save(_restored_state() / "history.json")
+        time.sleep(5)           # let the page get the last lines first
+        try:
+            backend.client.containers.get("aios-ui").restart(timeout=5)
+        except Exception:
+            pass
 
     def clear_finished(self) -> int:
         with self.lock:
@@ -1142,6 +1165,12 @@ class Jobs:
 
     def summary(self, j) -> dict:
         return {k: j[k] for k in ("id", "action", "label", "running", "done", "started", "ended", "code")}
+
+
+def _restored_state() -> Path:
+    """The live install's ui-state as the host sees it (PID 1's root, this container shares
+    the host's processes), even when this container's own /state is the folder a restore moved aside."""
+    return Path("/proc/1/root") / str(config.INSTALL_DIR).lstrip("/") / "ui-state"
 
 
 jobs = Jobs()
@@ -1270,7 +1299,7 @@ async def stream_job(job_id: str, request: Request, start: int = 0, user: str = 
                 i += 1
                 idle = 0
             if j["ended"] and i >= len(j["lines"]):
-                yield sse({"done": True, "code": j["code"], "ended": j["ended"]})
+                yield sse({"done": True, "code": j["code"], "ended": j["ended"], "restart": bool(j.get("panel_restart"))})
                 return
             if await request.is_disconnected():
                 return
@@ -1334,7 +1363,10 @@ async def service_restart(key: str, request: Request, user: str = Depends(curren
 @app.post("/api/panel/restart")
 async def panel_restart(request: Request, user: str = Depends(current_user)):
     """Restarting this container re-resolves its bind mounts, which a restore
-    (it moves the install folder aside) leaves pointing at the old folder."""
+    (it moves the install folder aside) leaves pointing at the old folder.
+    Refused while an action runs: the action's script would be killed with it."""
+    if jobs.current_id():
+        raise HTTPException(409, "An action is still running. Wait for it to finish first.")
     if config.DEMO:
         return {"ok": True, "demo": True}
     def go():

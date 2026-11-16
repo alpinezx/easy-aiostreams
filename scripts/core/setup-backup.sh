@@ -1776,7 +1776,7 @@ do_restore() {
                 [[ -n "$script" ]] && { bash "$script" start-aiomanager < /dev/null || true; } ;;
             panel)
                 if run_by_panel; then
-                    summary+=("$name$where: restart it (Restart on the Control panel's row in Services) so it picks up the restored install.")
+                    summary+=("$name$where: it restarts itself once the restore finishes, to pick up the restored install.")
                     continue
                 fi
                 script="$INSTALL_DIR/control-panel/setup-ui.sh"

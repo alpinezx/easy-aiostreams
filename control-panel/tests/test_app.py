@@ -345,6 +345,30 @@ def test_restore_needs_the_typed_word_and_a_real_backup(client):
     assert r.status_code == 200
     j = wait_job(client, r.json()["id"])
     assert j["code"] == 0 and j["action"] == "stack.restore"
+    # A good restore tells the page the panel restarts itself onto the restored install
+    from app import main
+    assert main.jobs.items[j["id"]]["panel_restart"] is True
+    stream = client.get(f"/api/jobs/{j['id']}/stream").text
+    done = json.loads(stream.strip().splitlines()[-1].removeprefix("data: "))
+    assert done["done"] and done["restart"] is True
+    assert "Restarting the control panel in a few seconds" in stream
+
+
+def test_panel_restart_is_refused_while_an_action_runs(client):
+    """Restarting the panel kills a running action's script with it (a restore would be cut off halfway)."""
+    from app import main
+    login(client)
+    boot = client.get("/api/me").json()["boot"]
+    assert boot and client.get("/api/me").json()["boot"] == boot     # the same until the panel restarts
+    main.jobs.items["busy1"] = {"id": "busy1", "action": "stack.restore", "label": "Restore", "running": "Restoring",
+                                "done": "Restore finished", "started": time.time(), "ended": None, "code": None, "lines": []}
+    main.jobs.order.append("busy1")
+    try:
+        r = client.post("/api/panel/restart")
+        assert r.status_code == 409 and "still running" in r.json()["detail"]
+    finally:
+        main.jobs.items.pop("busy1"); main.jobs.order.remove("busy1")
+    assert client.post("/api/panel/restart").json()["ok"] is True                # demo: nothing really restarts
 
 
 def test_start_restart_update_can_go_on_without_the_vpn():
