@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 16 November 2026
 
+- **Docs:** control panel screenshots retaken: no Terminal tab or Run in terminal buttons, and the current Backup & Restore, Network, Phone alerts, Logs and Maintenance pages.
 - **Fixed:** when System updates updated Docker, Docker's restart took the panel with it and the drawer closed by itself, before saying whether a reboot was needed. It now stays open, says the output was cut short, offers Reboot server when one is needed, and closes with Close as usual. Any other job cut short this way stays open too. (Panel 1.59.2)
 - **Fixed:** a drawer (such as What's new) or the phone menu could open invisibly, only dimming the page. Firefox can stop a tab's animations, seen after the panel reloads itself, and their slide-in then never got past its first, invisible frame. A slide-in that hasn't moved is now finished at once. (Panel 1.59.1, [#197](https://github.com/alpinezx/easy-aiostreams/pull/197))
 - **The web terminal is gone from the control panel: it was too unreliable on phones.** Gone with it are its Terminal tab, the Scripts tab's Run in terminal and Get and run buttons, and option 8 in `setup-ui.sh`'s menu (Uninstall is now 8 and Exit 9). Copy still gives each script's command to run over SSH. Updating removes the old terminal key. (Panel 1.59.0, [#196](https://github.com/alpinezx/easy-aiostreams/pull/196))
