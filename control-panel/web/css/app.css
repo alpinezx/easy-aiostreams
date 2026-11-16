@@ -1769,6 +1769,13 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 .ao-head-r .dim { font-size: .86rem; }
 .ao-btn-cell { grid-column: -2 / -1; justify-self: end; align-self: end; }
 @media (max-width: 720px) { .ao-note:empty { display: none; } }
+/* Phones: each add-on folds to its title and status chip (see addons.js); a value in amber or red stays */
+@media (max-width: 720px) {
+  .ao-fold.folded .ao-mem, .ao-fold.folded .ao-foot, .ao-fold.folded .ao-btn-cell { display: none; }
+  .ao-fold.folded .ao-row:not(:has(.ao-val.warn, .ao-val.bad)) { display: none; }
+  .ao-fold.folded .ao-rows:not(:has(.ao-val.warn, .ao-val.bad)) { display: none; }
+  .ao-fold .card-head h3 { margin: 0; }
+}
 
 /* Recent log alerts: one line per row on desktop; on phones the service and
    time on top, the message under them */

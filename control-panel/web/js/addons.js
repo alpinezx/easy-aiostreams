@@ -9,6 +9,7 @@ import { ask, openJob } from "./actions.js";
 // their settings on their own pages.
 
 let st = null, data = null, loading = false;
+const PHONE_Q = window.matchMedia("(max-width: 720px)");
 
 const ICON = {
   copy: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>',
@@ -198,13 +199,33 @@ function card(a) {
   // With nothing to say at the foot, Uninstall sits bottom right among the values, as on the Overview
   const foot = a.page ? h("span", { class: "dim" }, "Settings are on the ", h("a", { href: a.page[0], text: a.page[1] }), ".")
     : a.foot ? h("span", { class: "dim", text: a.foot }) : null;
-  return h("section", { class: "panel ao-card" },
+  // On a phone the title folds the card to its title and status chip, each card remembered on its
+  // own (folded until opened). A value in amber or red still shows folded. A computer shows it all.
+  const phone = PHONE_Q.matches;
+  let open = false;
+  try { open = localStorage.getItem(`aios.ao-${a.id}Open`) === "1"; } catch (_) {}
+  const el = h("section", { class: "panel ao-card" + (phone ? " ao-fold" + (open ? "" : " folded") : "") });
+  let title = h("h3", { text: a.name });
+  if (phone) {
+    const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
+    chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
+    const tog = h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(open), onclick: () => {
+      open = !open;
+      try { localStorage.setItem(`aios.ao-${a.id}Open`, open ? "1" : "0"); } catch (_) {}
+      el.classList.toggle("folded", !open);
+      tog.setAttribute("aria-expanded", String(open));
+    } }, a.name, chev);
+    title = h("h3", {}, tog);
+  }
+  el.append(
     h("div", { class: "card-head" },
-      h("h3", { text: a.name }),
-      h("span", { class: "ao-head-r" }, a.mem ? h("span", { class: "dim", text: a.mem, title: "Memory in use" }) : null,
+      title,
+      h("span", { class: "ao-head-r" }, a.mem ? h("span", { class: "dim ao-mem", text: a.mem, title: "Memory in use" }) : null,
         h("span", { class: "chip " + a.chip[1], text: a.chip[0] }))),
     h("div", { class: "ao-rows" }, ...a.rows.map(tile), foot ? null : h("div", { class: "ao-btn-cell" }, btn)),
-    foot ? h("div", { class: "card-foot ao-foot" }, foot, btn) : null);
+    // native append writes a null out as the word "null", so the foot only when there is one
+    ...(foot ? [h("div", { class: "card-foot ao-foot" }, foot, btn)] : []));
+  return el;
 }
 
 // ---- uninstall ----

@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 16 November 2026
 
+- On phones, each card on the Add-ons page folds to its name and status (Running, Connected, Watching). Each starts folded and is remembered on its own; a value in amber or red still shows when folded. (Panel 1.59.0)
 - On phones, Activity's bins are plain icons, the same size on every row and lined up with the time above, rather than grey buttons as wide as the time. (Panel 1.59.0)
 - The Network page's By service note is two short lines: "These add up to more than All traffic." and why. (Panel 1.59.0)
 - On phones, the Scripts tab's Optional add-ons has a faint line under its note, like the ones between the scripts. (Panel 1.59.0)
