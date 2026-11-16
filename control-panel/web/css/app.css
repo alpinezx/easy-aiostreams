@@ -1897,10 +1897,10 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 @media (max-width: 720px) {
   /* Services: folded, the CPU and memory of them all on a line of their own; open, under each name */
   .fold-sum li.svc-load { flex-basis: 100%; }
-  .row .pstat { display: block; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .row .pstat { display: block; margin-top: 2px; font-variant-numeric: tabular-nums; white-space: pre-line; }
   .row .pstat:empty { display: none; }
-  /* the uptime on the same line as the CPU and memory under the name */
-  .row:not(.row-head) > :nth-child(-n+2) { align-self: last baseline; }
+  /* the status and uptime on the name's line, CPU and Mem each on a line under the name */
+  .row:not(.row-head) > :nth-child(-n+2) { align-self: first baseline; }
   .row .state-word { position: relative; top: -1.5px; }   /* its dot box sits the words 1.5px low */
 }
 @media (max-width: 720px) {

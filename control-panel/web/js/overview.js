@@ -749,7 +749,9 @@ function rows(st, goLogs) {
     const cpuEl = row.querySelector("[data-cpu]");
     if (cpuEl) cpuEl.className = "num " + cpuTone(hist[s.key], cpus);
     setText(row, "[data-mem]", s.state === "running" && s.mem != null ? fmtBytes(s.mem) : "");
-    setText(row, "[data-pstat]", s.state === "running" && s.cpu != null ? `CPU ${Math.round((s.cpu / cpus) * 10) / 10}%` + (s.mem != null ? ` · ${fmtBytes(s.mem)}` : "") : "");
+    // Phones: CPU and memory on two lines under the name (pre-line in the CSS)
+    setText(row, "[data-pstat]", s.state === "running" && s.cpu != null ? `CPU ${Math.round((s.cpu / cpus) * 10) / 10}%` + (s.mem != null ? `
+Mem ${fmtBytes(s.mem)}` : "") : "");
     const sv = row.querySelector("svg.spark");
     if (sv) fillSpark(sv, hist[s.key] || []);
   }
