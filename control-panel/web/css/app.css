@@ -1275,6 +1275,8 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .drawer[hidden] { display: none; }
 @keyframes slide { from { transform: translateX(24px); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .drawer { animation: none; } }
+/* No animation clock in this tab (see unstick.js): show things at once rather than stuck mid-slide */
+html.still *, html.still *::after { animation: none !important; transition: none !important; }
 /* Phones: a drawer fills the screen, so no left border or shadow (they showed as a seam down the left),
    and it starts 1px above the top, so a fraction-of-a-pixel gap there can't show the page behind as a line */
 @media (max-width: 720px) { .drawer { border-left: 0; box-shadow: none; top: -1px; } }

@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 16 November 2026
 
+- **Fixed:** a drawer (such as What's new) or the phone menu could open invisibly, only dimming the page. Firefox can stop a tab's animations, seen after the panel reloads itself, and their slide-in then never got past its first, invisible frame. A slide-in that hasn't moved is now finished at once. (Panel 1.59.1, [#197](https://github.com/alpinezx/easy-aiostreams/pull/197))
 - **The web terminal is gone from the control panel: it was too unreliable on phones.** Gone with it are its Terminal tab, the Scripts tab's Run in terminal and Get and run buttons, and option 8 in `setup-ui.sh`'s menu (Uninstall is now 8 and Exit 9). Copy still gives each script's command to run over SSH. Updating removes the old terminal key. (Panel 1.59.0, [#196](https://github.com/alpinezx/easy-aiostreams/pull/196))
 - Backup & Restore's Scheduled backups note is shorter: "Keeps the newest 7 scheduled backups. Only unlocked scheduled ones are ever removed." (Panel 1.59.0, [#196](https://github.com/alpinezx/easy-aiostreams/pull/196))
 - **Fixed:** on phones, the menu button could sometimes only dim the page without the menu showing, until the tab was closed. The menu now measures the screen each time it opens. (Panel 1.59.0, [#196](https://github.com/alpinezx/easy-aiostreams/pull/196))

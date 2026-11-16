@@ -1,4 +1,5 @@
 import { fit as fitViewport } from "./viewport.js";
+import "./unstick.js";
 import "./select.js";
 import "./btnicons.js";
 import { $, api, toast } from "./util.js";
