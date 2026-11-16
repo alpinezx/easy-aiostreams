@@ -1409,6 +1409,12 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   .item .when-col { grid-column: 1 / -1; }
   .item > .chip { justify-self: start; }
   .item.job { grid-template-columns: minmax(0, 1fr) auto; }
+  /* Activity's bin: a plain icon in a fixed square at the right end of the Done line, like the Network
+     page's bin, not a filled button as wide as the time above it. Red when touched. */
+  #jobs .item.job > .btn.job-x { justify-self: end; width: 33px; height: 33px; padding: 0; display: inline-flex;
+    align-items: center; justify-content: center; background: none; border-color: transparent; color: var(--faint);
+    margin-right: -8.5px; }   /* the icon, not its tap square, lines up with the time's end */
+  #jobs .item.job > .btn.job-x:active:not(:disabled) { color: var(--bad); }
 }
 
 .form-err { color: var(--bad); min-height: 1.2em; font-size: .9rem; }
