@@ -765,6 +765,9 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .ns-name { font-weight: 600; min-width: 0; }
 .ns-shared { grid-column: 2 / -1; font-size: .86rem; }
 .ns-note { font-size: .84rem; }
+/* balance: no lone word left at a line's end or start (pretty where the browser has it) */
+.ns-note p { margin: 0; text-wrap: balance; text-wrap: pretty; }
+.ns-note p + p { margin-top: 6px; }
 /* By service: a plain title on a computer; on a phone the title folds the card to one line with the
    count in place of Right now (see net.js) */
 .ns-tog, .ns-count { display: none; }

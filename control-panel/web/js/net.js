@@ -77,8 +77,10 @@ function services(box) {
             : s.rx == null ? h("span", { class: "ns-shared dim", text: measured ? "" : "Measuring…" })
             : [arrowed("↓", fmtRate(s.rx)), arrowed("↑", fmtRate(s.tx))]);
       })),
-    h("p", { class: "vpn-note dim ns-note", text: "Includes traffic between containers. A stream passes through "
-      + (onVpn ? "the VPN tunnel" : "AIOStreams") + ", then Caddy, so it's counted on both. That's why these add up to more than All traffic." }));
+    // Two short lines rather than one block: what you see, then why
+    h("div", { class: "vpn-note dim ns-note" },
+      h("p", { text: "These add up to more than All traffic." }),
+      h("p", { text: `A stream is counted twice: in ${onVpn ? "the VPN tunnel" : "AIOStreams"}, then again in Caddy.` })));
   box.append(card);
 }
 

@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 16 November 2026
 
+- The Network page's By service note is two short lines: "These add up to more than All traffic." and why. (Panel 1.59.0)
 - On phones, the Scripts tab's Optional add-ons has a faint line under its note, like the ones between the scripts. (Panel 1.59.0)
 - On phones, each service on the Overview shows its status and uptime beside its name, with CPU and memory ("Mem") on a line each under it. (Panel 1.59.0)
 - On phones, Backup & Restore's note puts its second sentence on a line of its own, shortened to "Moving to a new one? Guide.", and a folded backup shows only how long ago it was made, so Scheduled and the padlock beside it never push that line onto two. The size shows when you open it, and that line sits a little lower, clear of the name. (Panel 1.59.0)
