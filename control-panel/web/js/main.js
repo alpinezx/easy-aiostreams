@@ -1,4 +1,4 @@
-import "./viewport.js";
+import { fit as fitViewport } from "./viewport.js";
 import "./select.js";
 import "./btnicons.js";
 import { $, api, toast } from "./util.js";
@@ -55,6 +55,7 @@ function enter() {
 function navOpen(open) {
   const nav = $("#nav");
   if (nav.classList.contains("open") === open) return;
+  if (open) fitViewport();   // fresh numbers: a stale or zero height would open it 0px tall
   nav.classList.toggle("open", open);
   $("#nav-scrim").hidden = !open;
   $("#nav-open").setAttribute("aria-expanded", String(open));
