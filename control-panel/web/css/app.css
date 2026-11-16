@@ -2005,6 +2005,8 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 /* A note's second sentence: as written on a computer; on a phone a shorter one on its own line */
 .note .ph-line { display: none; }
 @media (max-width: 720px) { .note .desk-line { display: none; } .note .ph-line { display: block; } }
+/* Maintenance: a card's two-sentence note, a line each on a phone */
+@media (max-width: 720px) { .maint-foot .note-2 > span { display: block; text-wrap: balance; } }
 /* The Network page's All traffic / VPN tunnel inside the Traffic card: phones only */
 .tr-src { display: none; }
 /* Phones: the Network page's time range centred under the title; All traffic / VPN tunnel centred in the

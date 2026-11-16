@@ -20,7 +20,10 @@ function card(title, grid, note, ...btns) {
   return h("section", { class: "panel maint-card" },
     h("div", { class: "card-head" }, h("h3", { text: name }), corner ? h("span", { class: "dim card-corner", text: corner }) : null),
     h("div", { class: "stat-grid" }, ...grid),
-    h("div", { class: "card-foot" }, h("div", { class: "maint-foot" }, h("span", { class: "dim", text: note || "" }), ...btns)));
+    // A note given as two sentences: one line on a computer, a line each on a phone
+    h("div", { class: "card-foot" }, h("div", { class: "maint-foot" }, Array.isArray(note)
+      ? h("span", { class: "dim note-2" }, h("span", { text: note[0] }), " ", h("span", { text: note[1] }))
+      : h("span", { class: "dim", text: note || "" }), ...btns)));
 }
 
 // Phones: Free up space and Container logs fold to their title and one word on the right, like
@@ -58,9 +61,9 @@ function space(m) {
   const worth = total > 20 * 1024 * 1024;
   return phoneFold(card("Free up space", [
     stat("Old images", fmtBytes(s.images), s.image_count ? `${s.image_count} nothing uses any more` : "None left over"),
-    stat("Build leftovers", fmtBytes(s.build), "From rebuilding the panel"),
+    stat("Build leftovers", fmtBytes(s.build), "Panel rebuilds"),
     stat("System logs", fmtBytes(s.journal), "Beyond the newest 100 MB"),
-  ], worth ? `About ${fmtBytes(total)} can go. Nothing in use, your settings or backups.` : "Nothing worth freeing right now.",
+  ], worth ? [`About ${fmtBytes(total)} can go.`, "Settings, backups and what's in use stay."] : "Nothing worth freeing right now.",
   button("maint.space", worth)), "space", "Free up space", worth ? [fmtBytes(total), ""] : ["Nothing to clear", "dim"]);
 }
 
