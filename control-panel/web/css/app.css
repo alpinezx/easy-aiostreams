@@ -39,7 +39,7 @@
   --bad-soft: rgba(248, 113, 113, .12);
   --warn-soft: rgba(245, 158, 11, .12);
   --ok-soft: rgba(16, 185, 129, .12);
-  --up-line: var(--dim);   /* the traffic graph's Up line, beside Down in --accent */
+  --up-line: #5eead4;   /* the traffic graph's Up line, set apart from Down in --accent by hue and strength */
   --radius: 12px;
   --font: "Inter", ui-sans-serif, system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
@@ -58,6 +58,7 @@
     --primary: #4f43b8; --primary-hover: #4034a3; --primary-ink: #ffffff;
     --ok: #047857; --warn: #9a6200; --bad: #c42f2f;
     --bad-soft: rgba(196, 47, 47, .09); --warn-soft: rgba(154, 98, 0, .1); --ok-soft: rgba(18, 128, 90, .1);
+    --up-line: #0e7490;
   }
 }
 :root[data-theme="light"] {
@@ -69,6 +70,7 @@
   --primary: #4f43b8; --primary-hover: #4034a3; --primary-ink: #ffffff;
   --ok: #047857; --warn: #9a6200; --bad: #c42f2f;
   --bad-soft: rgba(196, 47, 47, .09); --warn-soft: rgba(154, 98, 0, .1); --ok-soft: rgba(18, 128, 90, .1);
+  --up-line: #0e7490;
 }
 /* Slate: a softer dark, slate greys in Nord's spirit, only when picked. It comes after the light
    block above so it wins on a device set to light. The page is darker than the cards so they lift
@@ -82,7 +84,7 @@
   --primary: #5779a8; --primary-hover: #6587b6; --primary-ink: #ffffff;
   --ok: #9fcb7f; --warn: #f0c86e; --bad: #ec7a84;
   --bad-soft: rgba(236, 122, 132, .14); --warn-soft: rgba(240, 200, 110, .14); --ok-soft: rgba(159, 203, 127, .14);
-  --up-line: #b48ead;
+  --up-line: #e98bd1;
 }
 /* More colours (the Overview's Edit, More…): well-known open-source schemes (MIT), from each one's
    published palette, held to Slate's rule so none looks hazy: crisp text, solid quieter greys, a page
@@ -98,7 +100,7 @@
   --primary: #bd93f9; --primary-hover: color-mix(in srgb, #bd93f9 86%, white); --primary-ink: #21222c;
   --ok: #50fa7b; --warn: #ffb86c; --bad: #ff6e6e;
   --bad-soft: rgba(255, 110, 110, 0.14); --warn-soft: rgba(255, 184, 108, 0.14); --ok-soft: rgba(80, 250, 123, 0.14);
-  --up-line: #ff79c6;
+  --up-line: #8be9fd;
 }
 :root[data-theme="mocha"], .theme-tile[data-theme="mocha"] {
   color-scheme: dark;
@@ -109,7 +111,7 @@
   --primary: #cba6f7; --primary-hover: color-mix(in srgb, #cba6f7 86%, white); --primary-ink: #11111b;
   --ok: #a6e3a1; --warn: #fab387; --bad: #f38ba8;
   --bad-soft: rgba(243, 139, 168, 0.14); --warn-soft: rgba(250, 179, 135, 0.14); --ok-soft: rgba(166, 227, 161, 0.14);
-  --up-line: #89b4fa;
+  --up-line: #94e2d5;
 }
 :root[data-theme="tokyo"], .theme-tile[data-theme="tokyo"] {
   color-scheme: dark;
@@ -120,7 +122,7 @@
   --primary: #7aa2f7; --primary-hover: color-mix(in srgb, #7aa2f7 86%, white); --primary-ink: #16161e;
   --ok: #9ece6a; --warn: #e0af68; --bad: #f7768e;
   --bad-soft: rgba(247, 118, 142, 0.14); --warn-soft: rgba(224, 175, 104, 0.14); --ok-soft: rgba(158, 206, 106, 0.14);
-  --up-line: #bb9af7;
+  --up-line: #73daca;
 }
 :root[data-theme="gruvbox"], .theme-tile[data-theme="gruvbox"] {
   color-scheme: dark;
@@ -153,7 +155,7 @@
   --primary: #da702c; --primary-hover: color-mix(in srgb, #da702c 86%, white); --primary-ink: #100f0f;
   --ok: #879a39; --warn: #d0a215; --bad: #d55d51;
   --bad-soft: rgba(213, 93, 81, 0.14); --warn-soft: rgba(208, 162, 21, 0.14); --ok-soft: rgba(135, 154, 57, 0.14);
-  --up-line: #8b7ec8;
+  --up-line: #ce5d97;
 }
 :root[data-theme="kanagawa"], .theme-tile[data-theme="kanagawa"] {
   color-scheme: dark;
@@ -164,7 +166,7 @@
   --primary: #7e9cd8; --primary-hover: color-mix(in srgb, #7e9cd8 86%, white); --primary-ink: #16161d;
   --ok: #98bb6c; --warn: #ff9e3b; --bad: #ff5d62;
   --bad-soft: rgba(255, 93, 98, 0.14); --warn-soft: rgba(255, 158, 59, 0.14); --ok-soft: rgba(152, 187, 108, 0.14);
-  --up-line: #957fb8;
+  --up-line: #e9a6c8;
 }
 :root[data-theme="nightowl"], .theme-tile[data-theme="nightowl"] {
   color-scheme: dark;
@@ -175,7 +177,7 @@
   --primary: #82aaff; --primary-hover: color-mix(in srgb, #82aaff 86%, white); --primary-ink: #011627;
   --ok: #addb67; --warn: #ffcb8b; --bad: #ef5350;
   --bad-soft: rgba(239, 83, 80, 0.14); --warn-soft: rgba(255, 203, 139, 0.14); --ok-soft: rgba(173, 219, 103, 0.14);
-  --up-line: #c792ea;
+  --up-line: #ff79c6;
 }
 :root[data-theme="solardark"], .theme-tile[data-theme="solardark"] {
   color-scheme: dark;
@@ -186,7 +188,7 @@
   --primary: #2079ba; --primary-hover: color-mix(in srgb, #2079ba 86%, white); --primary-ink: #ffffff;
   --ok: #859900; --warn: #b58900; --bad: #e8625f;
   --bad-soft: rgba(232, 98, 95, 0.14); --warn-soft: rgba(181, 137, 0, 0.14); --ok-soft: rgba(133, 153, 0, 0.14);
-  --up-line: #6c71c4;
+  --up-line: #d33682;
 }
 :root[data-theme="ghdark"], .theme-tile[data-theme="ghdark"] {
   color-scheme: dark;
@@ -197,7 +199,7 @@
   --primary: #238636; --primary-hover: color-mix(in srgb, #238636 86%, white); --primary-ink: #ffffff;
   --ok: #3fb950; --warn: #d29922; --bad: #f85149;
   --bad-soft: rgba(248, 81, 73, 0.14); --warn-soft: rgba(210, 153, 34, 0.14); --ok-soft: rgba(63, 185, 80, 0.14);
-  --up-line: #a371f7;
+  --up-line: #db61a2;
 }
 :root[data-theme="ayu"], .theme-tile[data-theme="ayu"] {
   color-scheme: dark;
@@ -208,7 +210,7 @@
   --primary: #ffcc66; --primary-hover: color-mix(in srgb, #ffcc66 86%, white); --primary-ink: #1a1e28;
   --ok: #87d96c; --warn: #ffad66; --bad: #ff6666;
   --bad-soft: rgba(255, 102, 102, 0.14); --warn-soft: rgba(255, 173, 102, 0.14); --ok-soft: rgba(135, 217, 108, 0.14);
-  --up-line: #dfbfff;
+  --up-line: #f29fd4;
 }
 :root[data-theme="latte"], .theme-tile[data-theme="latte"] {
   color-scheme: light;
@@ -219,7 +221,7 @@
   --primary: #8839ef; --primary-hover: color-mix(in srgb, #8839ef 86%, black); --primary-ink: #ffffff;
   --ok: #2b7a1d; --warn: #9a5a00; --bad: #d20f39;
   --bad-soft: rgba(210, 15, 57, 0.14); --warn-soft: rgba(154, 90, 0, 0.14); --ok-soft: rgba(43, 122, 29, 0.14);
-  --up-line: #1e66f5;
+  --up-line: #179299;
 }
 :root[data-theme="ghlight"], .theme-tile[data-theme="ghlight"] {
   color-scheme: light;
@@ -230,7 +232,7 @@
   --primary: #1f883d; --primary-hover: color-mix(in srgb, #1f883d 86%, black); --primary-ink: #ffffff;
   --ok: #1a7f37; --warn: #9a6700; --bad: #d1242f;
   --bad-soft: rgba(209, 36, 47, 0.14); --warn-soft: rgba(154, 103, 0, 0.14); --ok-soft: rgba(26, 127, 55, 0.14);
-  --up-line: #8250df;
+  --up-line: #bf3989;
 }
 :root[data-theme="solarlight"], .theme-tile[data-theme="solarlight"] {
   color-scheme: light;
@@ -241,7 +243,7 @@
   --primary: #2079ba; --primary-hover: color-mix(in srgb, #2079ba 86%, black); --primary-ink: #ffffff;
   --ok: #687600; --warn: #8d6900; --bad: #d72825;
   --bad-soft: rgba(215, 40, 37, 0.14); --warn-soft: rgba(141, 105, 0, 0.14); --ok-soft: rgba(104, 118, 0, 0.14);
-  --up-line: #6c71c4;
+  --up-line: #d33682;
 }
 :root[data-theme="gruvlight"], .theme-tile[data-theme="gruvlight"] {
   color-scheme: light;
@@ -263,7 +265,7 @@
   --primary: #6c7901; --primary-hover: color-mix(in srgb, #6c7901 86%, black); --primary-ink: #ffffff;
   --ok: #677401; --warn: #946500; --bad: #df0a07;
   --bad-soft: rgba(223, 10, 7, 0.14); --warn-soft: rgba(148, 101, 0, 0.14); --ok-soft: rgba(103, 116, 1, 0.14);
-  --up-line: #df69ba;
+  --up-line: #c4579f;
 }
 :root[data-theme="tokyoday"], .theme-tile[data-theme="tokyoday"] {
   color-scheme: light;
@@ -274,7 +276,7 @@
   --primary: #1a71e9; --primary-hover: color-mix(in srgb, #1a71e9 86%, black); --primary-ink: #ffffff;
   --ok: #557237; --warn: #a25300; --bad: #cf0a40;
   --bad-soft: rgba(207, 10, 64, 0.14); --warn-soft: rgba(162, 83, 0, 0.14); --ok-soft: rgba(85, 114, 55, 0.14);
-  --up-line: #9854f1;
+  --up-line: #118c74;
 }
 :root[data-theme="novel"], .theme-tile[data-theme="novel"] {
   color-scheme: light;
@@ -296,7 +298,7 @@
   --primary: #2b2b2e; --primary-hover: color-mix(in srgb, #2b2b2e 86%, black); --primary-ink: #ffffff;
   --ok: #1b6226; --warn: #704c00; --bad: #9e1f1f;
   --bad-soft: rgba(158, 31, 31, 0.14); --warn-soft: rgba(112, 76, 0, 0.14); --ok-soft: rgba(27, 98, 38, 0.14);
-  --up-line: #5b3f8f;
+  --up-line: #a33d6b;
 }
 :root[data-theme="basic"], .theme-tile[data-theme="basic"] {
   color-scheme: light;
@@ -340,7 +342,7 @@
   --primary: #286983; --primary-hover: color-mix(in srgb, #286983 86%, black); --primary-ink: #ffffff;
   --ok: #286983; --warn: #a06411; --bad: #ac576e;
   --bad-soft: rgba(172, 87, 110, 0.14); --warn-soft: rgba(160, 100, 17, 0.14); --ok-soft: rgba(40, 105, 131, 0.14);
-  --up-line: #d7827e;
+  --up-line: #c46f5c;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
