@@ -270,14 +270,17 @@ async function restartNote(id, lead, wait = false, tries = 0) {
   try { r = await api("/api/server/reboot-needed"); } catch (_) { /* the panel may be settling */ }
   const foot = $("#drawer-foot");
   if (openId !== id || foot.querySelector(".danger")) return;
+  // The answer on a line of its own under the note: green when none is needed, amber when one is
+  const answer = (text, cls) => { const sub = $("#drawer-sub"); sub.textContent = lead;
+    sub.append(h("span", { class: `restart-line ${cls}`, text })); };
   if (r && r.needed) {
-    $("#drawer-sub").textContent = `${lead} A restart is needed to finish installing them.`;
+    answer("A restart is needed to finish installing them.", "warn");
     const btn = h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer });
     btn.style.marginLeft = "auto";
     foot.append(btn);
     return;
   }
-  if (r && (!wait || !r.busy)) { $("#drawer-sub").textContent = `${lead} No restart needed.`; return; }
+  if (r && (!wait || !r.busy)) { answer("No restart needed.", "ok"); return; }
   if (!wait) return;
   if (tries < 90) { setTimeout(() => restartNote(id, lead, true, tries + 1), 2000); return; }
   $("#drawer-sub").textContent = `${lead} The updates are taking a while; System updates shows whether a restart is needed.`;

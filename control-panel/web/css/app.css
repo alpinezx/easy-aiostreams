@@ -1283,6 +1283,9 @@ html.still *, html.still *::after { animation: none !important; transition: none
 .drawer-head { padding: 18px 20px 14px; display: flex; align-items: flex-start; gap: 12px; border-bottom: 1px solid var(--line-soft); }
 .drawer-head h3 { margin: 0; font-size: 1.25rem; font-weight: 700; letter-spacing: -.01em; }
 .drawer-head p { margin: 2px 0 0; font-size: .9rem; color: var(--dim); }
+/* After System updates: whether a restart is needed, on a line of its own */
+.drawer-head .restart-line { display: block; margin-top: 4px; font-weight: 600; }
+.drawer-head .restart-line.ok { color: var(--ok); } .drawer-head .restart-line.warn { color: var(--warn); }
 .drawer-head .x { margin-left: auto; }
 .drawer .term { flex: 1; height: auto; border: 0; border-radius: 0; margin: 0; }
 .drawer-foot { padding: 12px 20px; border-top: 1px solid var(--line-soft); display: flex; gap: 10px; align-items: center; }

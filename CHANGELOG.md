@@ -4,7 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 16 November 2026
 
-- A finished job's drawer has one Close, at the top right, instead of a second one at the bottom. After System updates the drawer always says whether a restart is needed ("No restart needed." too, not only when one is), and the 1.59.1 fix for invisible drawers also covers a drawer that opens a moment after the click. (Panel 1.59.2)
+- A finished job's drawer has one Close, at the top right, instead of a second one at the bottom. After System updates the drawer always says whether a restart is needed, on a line of its own under the note: "No restart needed." in green, or that one is needed in amber, and the 1.59.1 fix for invisible drawers also covers a drawer that opens a moment after the click. (Panel 1.59.2)
 - Backup & Restore's Scheduled backups says when the schedule "Last ran" rather than "Last one made", so it still reads true once that backup has been moved off the server or deleted. (Panel 1.59.2)
 - **Docs:** control panel screenshots retaken: no Terminal tab or Run in terminal buttons, and the current Backup & Restore, Network, Phone alerts, Logs and Maintenance pages.
 - **Fixed:** when System updates updated Docker, Docker's restart took the panel with it and the drawer closed by itself, before saying whether a reboot was needed. It now stays open, says the output was cut short, and says whether a restart is needed, with Reboot server when it is. Any other job cut short this way stays open too. (Panel 1.59.2)
