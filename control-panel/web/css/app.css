@@ -975,7 +975,8 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
   .item.bk.folded .bk-size, .item.bk.folded .bk-made { display: none; }
   .item.bk.folded .bk-made-cap { display: inline; }
   /* the tags at the right end of the size line, not under the name */
-  .item.bk .bk-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; align-items: center; }
+  /* row-gap: room between the name and the Made line, so its Scheduled and padlock pills don't touch the name */
+  .item.bk .bk-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; row-gap: 6px; align-items: center; }
   .item.bk .bk-head .what { grid-column: 1 / -1; }
   .item.bk .bk-head .what .lock-tag { display: none; }
   .item.bk .bk-tags:not(:empty) { display: flex; gap: 6px; }
