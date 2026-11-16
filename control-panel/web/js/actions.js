@@ -257,23 +257,59 @@ function finish(job, code, restart = false) {
   if (!ok && job.action === "stack.restore") {
     $("#drawer-sub").textContent = "If the output ends with Nothing was changed, nothing was. Otherwise your previous install is kept as a set-aside folder on Backup & Restore.";
   }
-  foot.append(...[h("span", { class: "result " + (ok ? "ok" : "bad"), text: ok ? "Done" : `Exited with code ${code}` }),
-    h("button", { class: "btn small", style: null, type: "button", text: "Close", onclick: closeDrawer })].filter(Boolean));
-  foot.children[1].style.marginLeft = "auto";
-  // Updates that need a restart (a new kernel, say) can be finished from here
-  if (ok && job.action === "maint.updates") offerReboot(job.id);
+  // The drawer's own Close, top right, closes it: no second Close down here
+  foot.append(h("span", { class: "result " + (ok ? "ok" : "bad"), text: ok ? "Done" : `Exited with code ${code}` }));
+  // After System updates, say whether a restart is needed, with Reboot server when it is
+  if (ok && job.action === "maint.updates") restartNote(job.id, "Finished without errors.");
 }
 
-async function offerReboot(id) {
-  let r;
-  try { r = await api("/api/server/reboot-needed"); } catch (_) { return; }
-  if (!r.needed || openId !== id) return;
-  $("#drawer-sub").textContent = "Finished without errors. A restart is needed to finish installing them.";
+// lead: what the drawer already says. wait: apt may still be running (the panel lost track of the
+// update), so ask every 2s until the server says it isn't, and only then say "No restart needed".
+async function restartNote(id, lead, wait = false, tries = 0) {
+  let r = null;
+  try { r = await api("/api/server/reboot-needed"); } catch (_) { /* the panel may be settling */ }
   const foot = $("#drawer-foot");
-  const btn = h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer });
-  btn.style.marginLeft = "auto";
-  foot.children[1].style.marginLeft = "";
-  foot.insertBefore(btn, foot.children[1]);
+  if (openId !== id || foot.querySelector(".danger")) return;
+  // The answer on a line of its own under the note: green when none is needed, amber when one is
+  const answer = (text, cls) => { const sub = $("#drawer-sub"); sub.textContent = lead;
+    sub.append(h("span", { class: `restart-line ${cls}`, text })); };
+  if (r && r.needed) {
+    answer("A restart is needed to finish installing them.", "warn");
+    const btn = h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer });
+    btn.style.marginLeft = "auto";
+    foot.append(btn);
+    return;
+  }
+  if (r && (!wait || !r.busy)) { answer("No restart needed.", "ok"); return; }
+  if (!wait) return;
+  if (tries < 90) { setTimeout(() => restartNote(id, lead, true, tries + 1), 2000); return; }
+  $("#drawer-sub").textContent = `${lead} The updates are taking a while; System updates shows whether a restart is needed.`;
+}
+
+// The panel restarted while a job ran (a System update that updates Docker restarts every
+// container, this panel too) and the new panel doesn't know the job. The job carried on on the
+// server, so the drawer stays open and says so rather than vanishing. After System updates it
+// still says whether a restart is needed, with Reboot server when it is.
+let seenJob = null;
+function lostJob(id) {
+  const job = seenJob && seenJob.id === id ? seenJob : null;
+  $("#drawer-title").textContent = job ? `${job.label}: the panel restarted` : "The panel restarted";
+  $("#drawer-sub").textContent = job && job.action === "maint.updates"
+    ? "Docker was updated, which restarted this panel, so the output stops here. The updates carry on by themselves; System updates shows what's left."
+    : "Docker restarted while this ran, and this panel with it, so the output stops here. The job carries on on the server; the cards on this page show how it ended.";
+  const foot = $("#drawer-foot"); clear(foot);
+  foot.append(h("span", { class: "result", text: "Output cut short" }));
+  window.dispatchEvent(new CustomEvent("job-finished"));
+  // The heading and the bar under the log change height: show where the output stopped
+  const term = $("#drawer-term");
+  requestAnimationFrame(() => { term.scrollTop = term.scrollHeight; });
+  setTimeout(() => { term.scrollTop = term.scrollHeight; }, 100);
+  // apt may still be finishing: say whether a restart is needed once it has
+  if (job && job.action === "maint.updates") {
+    const lead = "Docker was updated, which restarted this panel, so the output stops here.";
+    $("#drawer-sub").textContent = `${lead} The updates carry on by themselves. Checking whether a restart is needed…`;
+    restartNote(id, lead, true);
+  }
 }
 
 // before: { text, id } for a job that ran first and led to this one (Back up first, before an
@@ -283,19 +319,14 @@ export async function openJob(id, reconnecting, before) {
   if (!reconnecting) lastFocus = document.activeElement;
   openId = id;
   let job;
-  try { job = await api(`/api/jobs/${id}`); }
+  try { job = await api(`/api/jobs/${id}`); seenJob = job; }
   catch (e) {
     if (!reconnecting) { toast(e.message, true); return; }
     // The panel itself restarted (a maintenance job restarts Docker). A job it ran
     // outside itself carries on; once the panel's back it no longer knows this one.
     if (openId !== id || $("#drawer").hidden) return;
     const foot = $("#drawer-foot"); clear(foot);
-    if (e.status === 404) {
-      closeDrawer();
-      toast("The panel restarted while that ran. How it ended is under the cards on this page.");
-      window.dispatchEvent(new CustomEvent("job-finished"));
-      return;
-    }
+    if (e.status === 404) { lostJob(id); return; }
     $("#drawer-sub").textContent = "The panel is restarting with Docker. The job carries on on the server; this reconnects by itself.";
     foot.append(h("span", { class: "spin", "aria-hidden": "true" }), h("span", { class: "dim", text: "Reconnecting" }));
     setTimeout(() => openJob(id, true, before), 3000);
@@ -317,7 +348,8 @@ export async function openJob(id, reconnecting, before) {
     return;
   }
   $("#drawer-title").textContent = `${job.running}…`;
-  $("#drawer-sub").textContent = "Running the same script you'd run over SSH. You can close this; it keeps going.";
+  const sub = $("#drawer-sub"); sub.textContent = "";
+  sub.append(h("span", { class: "sub-ssh", text: "Running the same script you'd run over SSH. " }), "You can close this; it keeps going.");
   // A quiet log looked like a crash: say a long job is expected to pause
   const wait = job.action === "stack.restore"
     ? "Working. A restore takes a few minutes, and the output pauses while things restart."

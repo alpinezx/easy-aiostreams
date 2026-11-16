@@ -1315,8 +1315,10 @@ async def stream_job(job_id: str, request: Request, start: int = 0, user: str = 
 
 @app.get("/api/server/reboot-needed")
 async def server_reboot_needed(user: str = Depends(current_user)):
-    """Whether an update is waiting for a restart, for the Reboot button after Install updates."""
-    return {"needed": await asyncio.to_thread(backend.reboot_needed)}
+    """Whether an update is waiting for a restart, for the Reboot button after Install updates,
+    and whether apt is still running (busy), so the drawer knows when its answer is final."""
+    needed, busy = await asyncio.gather(asyncio.to_thread(backend.reboot_needed), asyncio.to_thread(backend.updates_running))
+    return {"needed": needed, "busy": busy}
 
 
 @app.post("/api/server/reboot")

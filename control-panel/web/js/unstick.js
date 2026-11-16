@@ -26,7 +26,7 @@ function check() {
   return stuck;
 }
 
-// Whatever opens something is a click or a key (or a page change): look twice after each one
+// Whatever opens something is a click or a key (or a page change): look again shortly after
 let timer = null;
 function soon() {
   clearTimeout(timer);
@@ -37,3 +37,10 @@ function soon() {
 document.addEventListener("click", soon, true);
 document.addEventListener("keydown", soon, true);
 window.addEventListener("hashchange", soon);
+// and whenever a drawer, dialog or the menu opens, which can be well after the click that asked
+// for it (a job's drawer opens once the job has started)
+const opened = new MutationObserver(soon);
+for (const id of ["drawer", "rel-drawer", "lay-drawer", "dialog", "nav"]) {
+  const el = document.getElementById(id);
+  if (el) opened.observe(el, { attributes: true, attributeFilter: ["hidden", "class"] });
+}

@@ -160,10 +160,20 @@ async function tick(first) {
     if (view === "addons") addons.setStatus(status);
     lastBusy = status.busy;
   } catch (e) {
-    if (e.message !== "signed out") $("#offline").hidden = false;
+    if (e.message !== "signed out" && !leaving) $("#offline").hidden = false;
   }
   timer = setTimeout(tick, document.hidden ? 15000 : status && status.busy ? 1500 : 3000);
 }
+
+// Reloading or leaving cancels the status request in flight, which reads as the server being out of
+// reach for a split second before the page goes. Hold the badge back only from then, and for 3s at
+// most, in case the page stays after all; a real outage shows on the next check as before.
+let leaving = false;
+window.addEventListener("beforeunload", () => {
+  leaving = true;
+  setTimeout(() => { leaving = false; }, 3000);
+});
+window.addEventListener("pageshow", () => { leaving = false; });
 
 async function boot() {
   const firstStatus = api("/api/status");

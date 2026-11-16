@@ -348,8 +348,12 @@
 [hidden] { display: none !important; }
 /* Room for the scrollbar is kept on every page, so a long page (Logs) doesn't shift sideways from a short one */
 html { -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; }
+/* Takes the window's colour back from the page's inline style (as specific as its theme rules, and later),
+   so the theme's background fills it, short pages too */
+html:root { background: var(--bg); }
 body {
   margin: 0; background: var(--bg); color: var(--text);
+  visibility: visible; animation: none;   /* the page's inline style hides it until this file has loaded */
   font: 400 14px/1.5 var(--font); font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
 }
@@ -847,7 +851,14 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .pick-list li.off { color: var(--faint); cursor: default; background: none; }
 select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .maint-last { margin-top: 16px; }
-.maint-last summary { cursor: pointer; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.maint-last summary { cursor: pointer; display: grid; gap: 8px; list-style: none; }
+.maint-last summary::-webkit-details-marker { display: none; }
+.maint-last .ml-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.maint-last .ml-toggle { display: inline-flex; align-items: center; gap: 6px; justify-self: start; color: var(--accent); font-size: .9rem; }
+.maint-last .ml-hide, .maint-last[open] .ml-show { display: none; }
+.maint-last[open] .ml-hide { display: inline; }
+.maint-last[open] .ml-toggle .path-chev svg { transform: rotate(180deg); }
+@media (hover: hover) { .maint-last summary:hover .ml-toggle { text-decoration: underline; } }
 .maint-last pre { margin: 12px 0 0; max-height: 320px; overflow: auto; padding: 10px 12px; background: var(--sunk); border-radius: 8px; font-family: var(--mono); font-size: .78rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (max-width: 1140px) { .maint-grid { grid-template-columns: minmax(0, 1fr); } }
 .card-link { font-size: .86rem; text-decoration: none; }
@@ -1283,6 +1294,11 @@ html.still *, html.still *::after { animation: none !important; transition: none
 .drawer-head { padding: 18px 20px 14px; display: flex; align-items: flex-start; gap: 12px; border-bottom: 1px solid var(--line-soft); }
 .drawer-head h3 { margin: 0; font-size: 1.25rem; font-weight: 700; letter-spacing: -.01em; }
 .drawer-head p { margin: 2px 0 0; font-size: .9rem; color: var(--dim); }
+/* After System updates: whether a restart is needed, on a line of its own */
+/* Phones: a running job's note keeps only "You can close this; it keeps going." */
+@media (max-width: 720px) { .drawer-head .sub-ssh { display: none; } }
+.drawer-head .restart-line { display: block; margin-top: 4px; font-weight: 600; }
+.drawer-head .restart-line.ok { color: var(--ok); } .drawer-head .restart-line.warn { color: var(--warn); }
 .drawer-head .x { margin-left: auto; }
 .drawer .term { flex: 1; height: auto; border: 0; border-radius: 0; margin: 0; }
 .drawer-foot { padding: 12px 20px; border-top: 1px solid var(--line-soft); display: flex; gap: 10px; align-items: center; }
@@ -1651,6 +1667,10 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .theme-group { margin: 14px 18px 2px; font-size: .74rem; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
 /* While the themes are open only their own list scrolls, not the page beside it too */
 html:has(#theme-pane:not([hidden])) { overflow: hidden; }
+/* A drawer or dialog holds the page behind it still, so only the drawer's own list scrolls and
+   shows a scrollbar. The page's scrollbar space goes too: kept, it would be an undimmed strip
+   down the right edge beside a dialog or the Edit drawer (the page under the dimming just widens) */
+html:has(> body > .drawer:not([hidden]), > body > #dialog:not([hidden])) { overflow: hidden; scrollbar-gutter: auto; }
 .theme-pick { display: flex; flex-direction: column; gap: 7px; padding: 5px 4px 6px; border: 1px solid transparent; border-radius: 12px; background: none; text-align: left; color: var(--text); }
 .theme-pick:hover { background: var(--hover); }
 .theme-pick[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }

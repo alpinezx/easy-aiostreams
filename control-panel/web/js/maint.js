@@ -304,9 +304,15 @@ function lastRun(m) {
   const j = m.last;
   if (!j) return null;
   const state = j.running ? ["Running", ""] : j.code === 0 ? ["Finished", "ok"] : ["Failed", "bad"];
+  // What ran and when, its state at the right like a card's, then a plain Show output toggle
+  const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
+  chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
   return h("details", { class: "panel maint-last" },
-    h("summary", {}, h("span", { class: "chip " + state[1], text: state[0] }),
-      h("span", { text: ` ${j.what}, ${j.running ? "started " : ""}${ago(j.at)}` }), h("span", { class: "dim", text: " · Output" })),
+    h("summary", {},
+      h("span", { class: "ml-head" }, h("span", { class: "ml-what", text: `${j.what}, ${j.running ? "started " : ""}${ago(j.at)}` }),
+        h("span", { class: "chip " + state[1], text: state[0] })),
+      h("span", { class: "ml-toggle" }, h("span", { class: "ml-show", text: "Show output" }),
+        h("span", { class: "ml-hide", text: "Hide output" }), chev)),
     h("pre", { text: j.tail.join("\n") }));
 }
 
