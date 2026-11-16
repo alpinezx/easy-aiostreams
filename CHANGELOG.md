@@ -4,7 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 16 November 2026
 
-- The Network page's Traffic graph draws Up in a colour clearly apart from Down in every theme (most had a blue Down beside a purple Up), still readable on the cards and clear of each theme's green, amber and red. (Panel 1.59.0)
+- The Network page's Traffic graph draws Up in orange in every theme, so it stays clearly apart from Down with colour blindness too (most themes had a blue Down beside a purple Up). Readable on the cards and clear of each theme's green, amber and red. (Panel 1.59.0)
 - On phones, each card on the Add-ons page folds to its name and status (Running, Connected, Watching). Each starts folded and is remembered on its own; a value in amber or red still shows when folded. (Panel 1.59.0)
 - On phones, Activity's bins are plain icons, the same size on every row and lined up with the time above, rather than grey buttons as wide as the time. (Panel 1.59.0)
 - The Network page's By service note is two short lines: "These add up to more than All traffic." and why. (Panel 1.59.0)
