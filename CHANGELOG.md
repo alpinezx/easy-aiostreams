@@ -5,7 +5,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 ## 16 November 2026
 
 - **Fixed:** on phones, the menu button could sometimes only dim the page without the menu showing, until the tab was closed. The menu now measures the screen each time it opens. (Panel 1.59.0)
-- Maintenance's Free up space reads more neatly on phones: Build leftovers says "Panel rebuilds", and the summary is two short lines, "About 836 MB can go." and "Settings, backups and what's in use stay." (Panel 1.59.0)
+- Maintenance's Free up space reads more neatly on phones: Build leftovers says "Panel rebuilds", System logs "Over the 100 MB kept", and the summary is two short lines, "About 836 MB can go." and "Settings, backups and what's in use stay." (Panel 1.59.0)
 - **Fixed:** on phones, with Network open in the Overview's This server, HTTPS certificates under it has its faint line again, so the two no longer run together. (Panel 1.59.0)
 - **Fixed:** after restarting the Cloudflare Tunnel (or anything that cuts the panel off for a moment), "The panel is briefly out of reach" shows once, not again when a request held up during the restart fails after the panel is back. (Panel 1.59.0)
 - The Network page's Traffic graph draws Up in orange in every theme, so it stays clearly apart from Down with colour blindness too (most themes had a blue Down beside a purple Up). Readable on the cards and clear of each theme's green, amber and red. (Panel 1.59.0)

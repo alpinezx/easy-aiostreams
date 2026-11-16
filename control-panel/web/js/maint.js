@@ -62,7 +62,7 @@ function space(m) {
   return phoneFold(card("Free up space", [
     stat("Old images", fmtBytes(s.images), s.image_count ? `${s.image_count} nothing uses any more` : "None left over"),
     stat("Build leftovers", fmtBytes(s.build), "Panel rebuilds"),
-    stat("System logs", fmtBytes(s.journal), "Beyond the newest 100 MB"),
+    stat("System logs", fmtBytes(s.journal), "Over the 100 MB kept"),
   ], worth ? [`About ${fmtBytes(total)} can go.`, "Settings, backups and what's in use stay."] : "Nothing worth freeing right now.",
   button("maint.space", worth)), "space", "Free up space", worth ? [fmtBytes(total), ""] : ["Nothing to clear", "dim"]);
 }
