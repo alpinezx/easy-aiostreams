@@ -7,6 +7,8 @@
 <title>Sign in - Easy AIOStreams Control Panel</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <script src="/js/theme.js"></script>
+<!-- Until the stylesheet has loaded: the page's colour, and nothing drawn on it, so a slow load never flashes a white page with a black logo. app.css shows the page; after 4s it shows anyway, should the stylesheet never come -->
+<style>html{background:#070707}@media (prefers-color-scheme:light){html:not([data-theme]){background:#e4e7eb}}html:is([data-theme=light],[data-theme=latte],[data-theme=ghlight],[data-theme=solarlight],[data-theme=gruvlight],[data-theme=everlight],[data-theme=tokyoday],[data-theme=novel],[data-theme=aerogel],[data-theme=basic],[data-theme=material],[data-theme=onelight],[data-theme=dawn]){background:#e4e7eb}body{visibility:hidden;animation:aios-show 0s 4s forwards}@keyframes aios-show{to{visibility:visible}}</style>
 <link rel="stylesheet" href="/css/app.css">
 </head>
 <body class="bare">

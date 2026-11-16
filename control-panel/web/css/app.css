@@ -350,6 +350,7 @@
 html { -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; }
 body {
   margin: 0; background: var(--bg); color: var(--text);
+  visibility: visible; animation: none;   /* the page's inline style hides it until this file has loaded */
   font: 400 14px/1.5 var(--font); font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
 }
