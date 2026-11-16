@@ -1469,6 +1469,10 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   .addons-card.folded .addons-head { margin-bottom: 0; }
   .addons-card.folded .addons-word { display: inline; }
   .addons-card.folded .addons-note, .addons-card.folded .cmds { display: none; }
+  /* the note set apart from the first script by the same faint line as between the scripts */
+  .addons-card .addons-note { margin-bottom: 0; }
+  .addons-card .cmds { margin-top: 12px; }
+  .addons-card .cmds li:first-child { border-top: 1px solid var(--line-soft); padding-top: 12px; }
 }
 .scripts-panel a { color: var(--accent); }
 .chip.small-chip { font-size: .74rem; padding: 1px 8px; white-space: nowrap; }
