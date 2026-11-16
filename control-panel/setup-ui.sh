@@ -275,62 +275,6 @@ do_install() {
     print_unlock
 }
 
-# True when this script is running inside the panel's own web terminal. Those
-# processes live in the panel container, so stopping or rebuilding it from
-# there would kill the very command doing it.
-in_panel_terminal() {
-    [[ "${AIOS_UI_TERMINAL:-}" == "1" ]] && return 0
-    # The terminal joins the host's namespaces but not its cgroup namespace. A login
-    # shell or sudo drops AIOS_UI_TERMINAL, so this is the check that survives them.
-    [[ "$(readlink /proc/self/ns/cgroup)" != "$(readlink /proc/1/ns/cgroup)" ]] && return 0
-    local id
-    id=$(docker inspect -f '{{.Id}}' "$CONTAINER_NAME" 2>/dev/null) || return 1
-    [[ -n "$id" ]] && grep -q "$id" /proc/self/cgroup 2>/dev/null
-}
-
-refuse_in_terminal() {
-    if in_panel_terminal; then
-        warn "You're inside the panel's own web terminal, so this would cut itself off halfway."
-        warn "Run it from an SSH session instead (the Restart panel button covers a plain restart)."
-        return 0
-    fi
-    return 1
-}
-
-terminal_state() {
-    [[ -f "$STATE_DIR/terminal.json" ]] && echo on || echo off
-}
-
-# Makes (or replaces) the terminal key. Only a hash is stored; the key is shown once.
-make_terminal_key() {
-    local key
-    key=$(docker run --rm -v "$STATE_DIR:/state" "$IMAGE_NAME" python -m app.setup_terminal on 2>/dev/null) \
-        || { warn "The panel image doesn't have the terminal yet. Run option 4 (Update) first, then try again."; return 1; }
-    echo ""
-    echo "  Terminal key (shown once, store it in a password manager):"
-    echo ""
-    echo "      $key"
-    echo ""
-    echo "  Anyone with your login AND this key can get a root shell on the server."
-    echo "  Your dashboard login and unlock link alone are not enough."
-}
-
-do_terminal() {
-    echo ""
-    echo "Web terminal is currently: $(terminal_state)"
-    echo "  1) Turn on (makes a new key)"
-    echo "  2) Make a new key (the old key stops working)"
-    echo "  3) Turn off"
-    echo "  4) Back"
-    read -rp "Choose an option [1-4]: " T
-    case "$T" in
-        1|2) make_terminal_key ;;
-        3) docker run --rm -v "$STATE_DIR:/state" "$IMAGE_NAME" python -m app.setup_terminal off \
-               && echo "Terminal is off. The tab is gone and nothing can open a shell." ;;
-        *) ;;
-    esac
-}
-
 do_status() {
     echo ""
     if docker ps --format '{{.Names}}' | grep -qx "$CONTAINER_NAME"; then
@@ -339,7 +283,6 @@ do_status() {
         echo "Panel:   STOPPED"
     fi
     echo "Address: https://$(grep -oP '^DOMAIN=\K.*' "$CONFIG_FILE")"
-    echo "Terminal: $(terminal_state)"
     [[ -f "$CADDY_SNIPPET" ]] && echo "Caddy:   site is enabled" || echo "Caddy:   site is NOT enabled (snippet missing)"
 }
 
@@ -350,7 +293,6 @@ do_start() {
 }
 
 do_stop() {
-    refuse_in_terminal && return
     (cd "$STATE_DIR" && docker compose -f "$UI_COMPOSE" stop)
     echo "Stopped. AIOStreams is not affected."
 }
@@ -361,7 +303,6 @@ do_stop() {
 # Update button runs it that way, through systemd-run, so it isn't inside the
 # panel container it replaces.
 do_update() {
-    refuse_in_terminal && return
     local C tmp
     if [[ "${1:-}" == yes ]]; then
         C=y
@@ -418,8 +359,9 @@ build_image() {
 }
 
 do_rebuild() {
-    refuse_in_terminal && return
     info "Rebuilding from $PANEL_DIR"
+    # The web terminal was removed in panel 1.59.0; its key's hash has nothing left to open
+    rm -f "$STATE_DIR/terminal.json"
     require_panel_dir
     write_compose
     build_image && (cd "$STATE_DIR" && docker compose -f "$UI_COMPOSE" up -d --force-recreate)
@@ -429,7 +371,6 @@ do_rebuild() {
 }
 
 do_reset_password() {
-    refuse_in_terminal && return
     set_credentials rotate
     (cd "$STATE_DIR" && docker compose -f "$UI_COMPOSE" restart)
     echo "Password changed. Every browser has been signed out."
@@ -446,7 +387,6 @@ do_new_link() {
 }
 
 do_uninstall() {
-    refuse_in_terminal && return
     read -rp "Remove the control panel? Your AIOStreams stack isn't touched. [y/N]: " C
     [[ "$C" =~ ^[Yy]$ ]] || { echo "Cancelled."; return; }
     (cd "$STATE_DIR" && docker compose -f "$UI_COMPOSE" down) || true
@@ -493,10 +433,9 @@ while true; do
     echo "5) Make a new unlock link"
     echo "6) Change username/password"
     echo "7) Show the unlock link"
-    echo "8) Web terminal ($(terminal_state)): turn on/off, new key"
-    echo "9) Uninstall"
-    echo "10) Exit"
-    read -rp "Choose an option [1-10]: " CHOICE
+    echo "8) Uninstall"
+    echo "9) Exit"
+    read -rp "Choose an option [1-9]: " CHOICE
     case "$CHOICE" in
         1) do_status ;;
         2) do_start ;;
@@ -505,9 +444,8 @@ while true; do
         5) do_new_link ;;
         6) do_reset_password ;;
         7) print_unlock ;;
-        8) do_terminal ;;
-        9) do_uninstall ;;
-        10) exit 0 ;;
+        8) do_uninstall ;;
+        9) exit 0 ;;
         *) warn "Not a valid option." ;;
     esac
 done

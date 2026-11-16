@@ -164,6 +164,18 @@ export async function runAction(act, params, lead) {
   }
 }
 
+// The panel restarts itself and this page reloads once the new process answers.
+export async function restartPanel() {
+  try {
+    await api("/api/panel/restart", { method: "POST" });
+  } catch (e) { toast(e.message || "Couldn't restart the panel.", true); return; }
+  toast("Restarting the panel. This page will reload in a few seconds.");
+  setTimeout(async function poll(n = 0) {
+    try { await fetch("/api/me", { credentials: "same-origin" }); location.reload(); }
+    catch (_) { if (n < 30) setTimeout(() => poll(n + 1), 1500); }
+  }, 4000);
+}
+
 export async function restartService(s) {
   const ok = await ask({ title: `Restart ${s.name}?`, confirmLabel: "Restart",
     body: `Only ${s.name} restarts. Everything else keeps running. It can take up to 15 seconds.` });
@@ -212,7 +224,7 @@ function finish(job, code) {
   }
   foot.append(...[h("span", { class: "result " + (ok ? "ok" : "bad"), text: ok ? "Done" : `Exited with code ${code}` }),
     restored ? h("button", { class: "btn small primary", type: "button", text: "Restart panel",
-      onclick: () => window.dispatchEvent(new CustomEvent("restart-panel")) }) : null,
+      onclick: restartPanel }) : null,
     h("button", { class: "btn small", style: null, type: "button", text: "Close", onclick: closeDrawer })].filter(Boolean));
   foot.children[1].style.marginLeft = "auto";
   // Updates that need a restart (a new kernel, say) can be finished from here

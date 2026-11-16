@@ -6,7 +6,6 @@ import { render, record } from "./overview.js";
 import * as logs from "./logs.js";
 import { showActivity, showBackups } from "./activity.js";
 import { ask, currentJobId, openJob } from "./actions.js";
-import * as terminal from "./terminal.js";
 import * as scripts from "./scripts.js";
 import * as vpn from "./vpn.js";
 import * as net from "./net.js";
@@ -22,15 +21,14 @@ let lastBusy = null;
 let jobStarted = false;   // a job started since the last look: it may be over already
 let timer = null;
 
-const VIEWS = ["overview", "logs", "net", "activity", "backups", "scripts", "vpn", "alerts", "addons", "maint", "terminal"];
-let terminalOn = false;
+const VIEWS = ["overview", "logs", "net", "activity", "backups", "scripts", "vpn", "alerts", "addons", "maint"];
 let vpnSetUp = false;     // the VPN page shows once setup-vpn-gluetun.sh has set the VPN up
 let alertsSetUp = false;  // and Phone alerts once setup-watchdog.sh has been set up
 let addonsIn = false;     // and Add-ons once any optional add-on is (those two included)
 
 function route() {
   const v = location.hash.slice(1).split("/")[0];
-  view = VIEWS.includes(v) && (v !== "terminal" || terminalOn) && (v !== "vpn" || vpnSetUp) && (v !== "alerts" || alertsSetUp) && (v !== "addons" || addonsIn) ? v : "overview";
+  view = VIEWS.includes(v) && (v !== "vpn" || vpnSetUp) && (v !== "alerts" || alertsSetUp) && (v !== "addons" || addonsIn) ? v : "overview";
   for (const name of VIEWS) $(`#view-${name}`).hidden = name !== view;
   document.querySelectorAll(".tab").forEach((t) => t.toggleAttribute("aria-current", false));
   const active = document.querySelector(`.tab[data-view="${view}"]`);
@@ -44,8 +42,7 @@ function enter() {
   if (view === "activity") showActivity().catch(() => {});
   if (view === "backups") showBackups(status).catch(() => {});
   if (view === "overview") render(status, goLogs);
-  if (view === "scripts") scripts.show(status, terminalOn);
-  if (view === "terminal") terminal.show(status);
+  if (view === "scripts") scripts.show(status);
   if (view === "net") net.show(status);
   if (view === "vpn") vpn.show(false, status);
   if (view === "alerts") alerts.show(status);
@@ -175,12 +172,7 @@ async function boot() {
   scripts.versionChip(me.version);
   scripts.loadPanelVersion(false);      // the header chip turns amber when there's an update
   $("#demo").hidden = !me.demo;
-  terminalOn = !!me.terminal;
-  $("#tab-terminal").hidden = !terminalOn;
   $("#vpn-check").addEventListener("click", () => vpn.show(true, status));
-  $("#restart-panel-2").addEventListener("click", () => {
-    if (confirm("Restart the panel? It will be unavailable for a few seconds and any open terminal will close.")) terminal.restartPanel();
-  });
   logs.init();
   initNav();
   // Asked first: it sits at the rail's foot, easy to hit by mistake
@@ -192,7 +184,6 @@ async function boot() {
   window.addEventListener("hashchange", route);
   window.addEventListener("job-started", () => { jobStarted = true; tick(); });
   window.addEventListener("job-finished", tick);
-  window.addEventListener("restart-panel", () => terminal.restartPanel());
   document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
   window.addEventListener("resize", () => { if (status && view === "overview") { /* trunk position */ render(status, goLogs); } });
   route();

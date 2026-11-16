@@ -83,7 +83,7 @@ def parse_restore_check(out: str, code: int) -> dict:
     if not any(l.startswith("Result:") for l in lines):
         return {"ok": False, "notes": [], "reasons": [
             "This server's setup-backup.sh is from before restores could start here. "
-            "Update it on the Terminal tab (AIOStreams menu, Update), then try again."]}
+            "Update it with the AIOStreams command on the Scripts tab, then try again."]}
     reasons = [l.strip()[4:] for l in lines if l.strip().startswith("no: ")]
     notes = [l.strip()[4:] for l in lines if l.strip().startswith("ok: ")]
     # A question the panel asks itself (code 4): starting without a VPN that was switched off

@@ -189,7 +189,7 @@ function backupRow(it, cmd, restore, status) {
       h("button", { class: "btn small", type: "button", text: "Restore", disabled: !!status.busy,
         title: "Roll your AIOStreams setup back to this backup, after checking it's safe to do from here",
         onclick: (e) => startRestore(it, restore, e.currentTarget) }),
-      h("button", { class: "btn small", type: "button", text: "Copy restore command", onclick: () => copy(restore, "Copied. Paste it into the Terminal tab or an SSH session to restore from this backup.") }),
+      h("button", { class: "btn small", type: "button", text: "Copy restore command", onclick: () => copy(restore, "Copied. Paste it into an SSH session to restore from this backup.") }),
       h("button", { class: "btn small", type: "button", text: "Copy scp command", onclick: () => copy(cmd, cmd.includes("@YOUR_SERVER:")
         ? "Copied. Replace YOUR_SERVER with your server's address."
         : "Copied. Run it in a terminal on your own computer to download this backup.") }),

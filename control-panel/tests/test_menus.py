@@ -149,8 +149,8 @@ def test_scripts_sit_in_their_folders():
 
 
 def test_panel_terminal_is_spotted_in_a_login_shell():
-    """AIOS_UI_TERMINAL doesn't survive runuser or sudo, so each guard needs the namespace check too."""
-    for name in ("control-panel/setup-ui.sh", "setup-backup.sh", "setup-aiostreams.sh"):
+    """The panel's Restore sets AIOS_UI_TERMINAL; the namespace check is the fallback for a shell inside the container."""
+    for name in ("setup-backup.sh", "setup-aiostreams.sh"):
         text = script_path(name).read_text(encoding="utf-8")
         assert '"$(readlink /proc/self/ns/cgroup)" != "$(readlink /proc/1/ns/cgroup)"' in text, name
 

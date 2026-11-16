@@ -384,10 +384,10 @@ def catalog() -> list[Action]:
                                      build_set_topic("aios-example-topic"), build_route("mediaflow", True)] + [build_addon_uninstall(a, False) for a in ADDON_UNINSTALL]
 
 
-# The stack's scripts, in the order the Terminal tab lists them. Only the first
+# The stack's scripts, in the order the Scripts tab lists them. Only the first
 # is always there; the others are downloaded on their own, so the panel checks.
 # setup-backup.sh isn't listed: the AIOStreams menu runs it (options 7 and 8)
-# and the Terminal tab updates it together with setup-aiostreams.sh.
+# and the Scripts tab updates it together with setup-aiostreams.sh.
 SCRIPTS = [
     ("aiostreams", "AIOStreams", "setup-aiostreams.sh"),
     ("aiometadata", "AIOMetadata", "setup-aiometadata.sh"),

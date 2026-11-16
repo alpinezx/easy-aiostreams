@@ -14,7 +14,7 @@ A private web dashboard for the Easy AIOStreams stack. It shows what's running, 
 | Path | What's there |
 | --- | --- |
 | `/opt/aiostreams/control-panel` | The panel's code and `setup-ui.sh`. It's built straight from here. |
-| `/opt/aiostreams/ui-state` | Its settings, login, unlock token, terminal key hash, activity history, terminal log, the Overview's and the rail's layouts (`overview-layout.json`, `rail-layout.json`) and traffic history (`host-traffic.json`, `vpn-traffic.json`). Part of every backup. |
+| `/opt/aiostreams/ui-state` | Its settings, login, unlock token, activity history, a log of what was done from the panel (`panel.log`), the Overview's and the rail's layouts (`overview-layout.json`, `rail-layout.json`) and traffic history (`host-traffic.json`, `vpn-traffic.json`). Part of every backup. |
 | `/opt/aiostreams/caddy.d/60-ui.caddy` | Its Caddy site, picked up by the main Caddy through the drop-in folder. |
 
 It runs as one container, `aios-ui`, on the shared `aios_shared` network, with no published ports: only Caddy can reach it.
@@ -32,7 +32,7 @@ sudo bash /opt/aiostreams/control-panel/setup-ui.sh
 
 After that the same command opens the menu. **4) Update** downloads the newest `control-panel` folder from the `main` branch into place (replacing `app/`, `web/` and `tests/` so removed files don't linger) and rebuilds with the new copy of `setup-ui.sh`. Answer **n** to rebuild from the files already there instead, for example after editing them. Login, unlock link and terminal key are kept. A failed or incomplete download changes nothing. To try the `dev` branch: `sudo AIOS_UI_BRANCH=dev bash /opt/aiostreams/control-panel/setup-ui.sh`.
 
-**9) Uninstall** stops and removes the container, its Caddy site and its image, and deletes `ui-state` (login, unlock token, terminal key, history). It then asks whether to delete `control-panel` too: say **n** to reinstall straight away from the same files, **y** to leave nothing behind. AIOStreams isn't touched either way. Delete the panel's DNS record afterwards if you're not reinstalling.
+**8) Uninstall** stops and removes the container, its Caddy site and its image, and deletes `ui-state` (login, unlock token, history). It then asks whether to delete `control-panel` too: say **n** to reinstall straight away from the same files, **y** to leave nothing behind. AIOStreams isn't touched either way. Delete the panel's DNS record afterwards if you're not reinstalling.
 
 ## How it's locked down
 
@@ -42,7 +42,6 @@ After that the same command opens the menu. **4) Update** downloads the newest `
 - **SameSite=Lax** on both cookies, so a link opened from another app (tapping a phone alert) gets in. Browsers still never send them with another site's POSTs, and everything that changes something in the panel is a POST. A rebuild brings Caddy's site file up to date, reloading Caddy only if it changed.
 - **No free-form commands.** The browser can only ask for actions from a fixed list (`app/actions.py`). It can't type a command, and logs are limited to the stack's own containers.
 - **No secrets shown.** `SECRET_KEY` and logins are never sent to the browser. Backups can be listed, created and deleted (delete removes every copy, after a confirm; a locked backup can't be deleted until you unlock it), but not downloaded: copy them off with `scp`.
-- **Web terminal (off by default).** Behind a second key, separate from the login and the unlock link. See below.
 - **In the browser.** Every request that changes something needs the panel's own header and a same-site origin. A strict Content-Security-Policy allows only the panel's own scripts. Anything that comes from outside (container names, log lines, release notes from GitHub) is put on the page as plain text, never as HTML.
 
 It is still root-equivalent on your server, because it has to run the scripts and talk to Docker (the container is privileged and shares the host's process namespace, so it can run scripts on the host through `nsenter`). Treat the unlock link and the password like SSH credentials.
@@ -179,23 +178,9 @@ The **Scheduled backups** card reads `backup-schedule` and `backup-last-run` (se
 
 A restore moves your current install aside to `/opt/aiostreams.pre-restore-<date>-<time>` as a rollback copy, and the script never removes it. Those folders show up under **Set aside by restores** with a Delete button. The panel only deletes folders with exactly that name, next to the install folder.
 
-A restore run over SSH rebuilds the panel from the backup (if it was running when the backup was made), after checking its subdomain like the add-ons'. Run from the panel's own Terminal tab, the panel stays up so the restore isn't cut off; press **Restart panel** on the Terminal tab (or Restart on the Control panel's row in Services) afterwards so it picks up the restored folder.
+A restore run over SSH rebuilds the panel from the backup (if it was running when the backup was made), after checking its subdomain like the add-ons'. Run from the panel's own **Restore** button, the panel stays up so the restore isn't cut off; press Restart on the Control panel's row in Services afterwards so it picks up the restored folder.
 
 **Reboot server** (Overview, under "This server") restarts the whole machine. When installed updates need a restart, Maintenance's System updates card and the drawer that Install updates opens offer it too. It asks first, and refuses while an action is running. Everything uses `restart: unless-stopped`, so the stack and the panel come back by themselves.
-
-## Web terminal
-
-Off until you switch it on: menu option 8, then "Turn on". It prints a terminal key **once** (only a hash is stored).
-
-- The key is separate from the login. 3 wrong keys locks that address out for an hour.
-- The key is swapped for a one-time ticket (60 seconds) that opens the WebSocket. It never goes in a URL.
-- **Open the shell as** your login user (the one with a `~/aiostreams` shortcut, e.g. `ubuntu`) or root. As the user it's the same as SSHing in as them. The unlock screen says whether that user's sudo needs a password; the panel never changes sudo settings. **Switch to ...** in the terminal bar ends the shell and opens one as the other user.
-- On phones and tablets, swipe to scroll. Long-press for **Paste** or **Select text**. A row under the text adds the keys a phone keyboard lacks: **Ctrl**, **Esc**, **Tab** and the arrows (hold an arrow to repeat it). **Ctrl** applies to the next key you press and shows a green border while it's on: tap it, then **C** to stop what's running.
-- **Stay unlocked while I'm signed in on this device** means you type the key once per login. It's a signed cookie tied to that login and the current key, and never contains the key.
-- One session at a time. It closes after 10 idle minutes (output counts as activity, so a running restore isn't cut off) or 2 hours. Closing the tab doesn't kill the shell; unlock again and you're back in it with recent output replayed. A shell nobody returns to is closed after 30 minutes.
-- Sessions (opened, closed, address, length) are logged to `ui-state/terminal.log`. Keystrokes are not.
-
-From inside the web terminal, `setup-ui.sh` refuses stop, rebuild, password change and uninstall, since they would cut off the shell running them. Do those over SSH.
 
 ---
 

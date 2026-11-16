@@ -2,6 +2,10 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 16 November 2026
+
+- The web terminal is gone from the control panel: its Terminal tab, the Scripts tab's Run in terminal and Get and run buttons, and option 8 in `setup-ui.sh`'s menu (Uninstall is now 8 and Exit 9). Copy still gives each script's command to run over SSH. Updating removes the old terminal key. (Panel 1.59.0)
+
 ## 15 November 2026
 
 - **Fixed:** on the Logs page the search box and the service list are the same height, and .* (and ⋮ on a phone) is a square of that height. On a phone the two boxes are also the same width, with the two buttons in a column at their right. (Panel 1.58.8, [#195](https://github.com/alpinezx/easy-aiostreams/pull/195))

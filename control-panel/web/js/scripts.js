@@ -1,12 +1,10 @@
 // The Scripts tab: the stack's setup scripts, whether each is on this server and matches
-// GitHub's main, and the commands to run or update them, over SSH or in the panel's terminal.
+// GitHub's main, and the commands to run or update them over SSH.
 import { $, h, api, clear, toast, ago } from "./util.js";
-import { shellAs, runInTerminal } from "./terminal.js";
 import { ask } from "./actions.js";
 import { openChangelog } from "./releases.js";
 
 const REPO = "https://github.com/alpinezx/easy-aiostreams";
-const TERMINAL_GUIDE = `${REPO}/blob/main/docs/basic/control-panel.md#turning-on-the-terminal`;
 const ADDONS_GUIDE = `${REPO}/blob/main/docs/other-scripts.md`;
 const RAW_BASE = "https://raw.githubusercontent.com/alpinezx/easy-aiostreams/refs/heads/main/scripts/";
 const FALLBACK = [
@@ -58,7 +56,7 @@ export function versionChip(current) {
 // The note at the top of the page: when GitHub was last asked and the panel's last update. Check now
 // goes in the page heading, on the right as Back up now does (on a phone, on a line under the title).
 // One Check now covers the panel and the scripts.
-function statusLine(terminalOn) {
+function statusLine() {
   const v = ver || {};
   const branch = v.branch && v.branch !== "main" ? ` (${v.branch} branch, for testing)` : "";
   const busy = verLoading || cmpLoading;
@@ -74,11 +72,6 @@ function statusLine(terminalOn) {
     : null;
   return h("div", { class: "scripts-status" },
     h("div", { class: "scripts-status-text" }, checked ? h("p", { class: "dim", text: checked }) : null,
-      // A setting, not a fault (many keep the web terminal off), so a plain line rather than an amber note
-      terminalOn ? null : h("p", { class: "dim term-off" }, "Run in terminal is off with the web terminal. ",
-        // on phones this half takes a line of its own, so the link never splits
-        h("span", { class: "term-off-how" },
-          h("a", { href: TERMINAL_GUIDE, target: "_blank", rel: "noopener noreferrer", text: "Switch it on over SSH" }), " if you want it.")),
       lastLine));
 }
 function checkNow() {
@@ -101,8 +94,8 @@ async function checkAll() {
 }
 
 // The panel's own row. Its Update rebuilds the panel, so unlike a script's it only appears when
-// there's a newer version. setup-ui.sh refuses from the panel's terminal whatever would cut it off.
-function panelRow(cmd, termOn) {
+// there's a newer version.
+function panelRow(cmd) {
   const v = ver || {};
   let state;
   if (verLoading && !ver) state = h("span", { class: "chip small-chip", text: "Checking…" });
@@ -113,8 +106,8 @@ function panelRow(cmd, termOn) {
   return h("li", {},
     h("span", { class: "cmd-label" }, sdot("ok", "Running"), "Control panel",
       v.current ? h("span", { class: "chip small-chip pr-ver", text: `v${v.current}` }) : null, state),
-    h("span", { class: "cmd-btns" }, runBtn(true, cmd, termOn),
-      copyBtn("Copy", cmd, "Copied. Paste it into an SSH session or the Terminal tab.", cmd),
+    h("span", { class: "cmd-btns" },
+      copyBtn("Copy", cmd, "Copied. Paste it into an SSH session.", cmd),
       // Always there, like AIOStreams' row: filled when a newer panel is out, plain otherwise (it then
       // just says there's nothing to do), greyed while an update runs
       v.newer && !v.running ? h("button", { class: "btn small primary", type: "button", text: "Update",
@@ -232,8 +225,8 @@ export function pill() {
   }
 }
 
-export function show(status, terminalOn) {
-  last = { status, terminalOn };
+export function show(status) {
+  last = { status };
   if (!cmpAsked) { cmpAsked = true; loadCompare(false); }
   if (!ver && !verLoading) loadPanelVersion(false);
   render();
@@ -256,28 +249,18 @@ function copyBtn(text, cmd, msg, title) {
 // An invisible stand-in keeps the buttons lined up down the list.
 const spacer = (text) => h("span", { class: "btn small quiet btn-spacer", "aria-hidden": "true", "data-for": text, text });
 
-// Run in terminal and Get and run are the same width: each holds the other's words, unseen
-function runBtn(present, cmd, termOn) {
-  const [label, other] = present ? ["Run in terminal", "Get and run"] : ["Get and run", "Run in terminal"];
-  return h("button", { class: "btn small run-btn", type: "button", disabled: !termOn,
-    title: !termOn ? "Needs the panel's web terminal, which is switched off (see the note above)."
-      : present ? "Types the command into the panel's terminal. Check it, then press Enter."
-      : "Types the command into the panel's terminal: it downloads the script, then runs it. Check it, then press Enter.",
-    onclick: () => runInTerminal(cmd) }, h("span", { text: label }), h("span", { class: "run-alt", "aria-hidden": "true", text: other }));
-}
-
 // Each row's state as a dot before its name: green, set up here; amber, the script is here but
 // its add-on isn't set up (Remove deletes it); grey, not on this server
 function sdot(s, why) {
   return h("span", { class: "sdot-tag", "data-s": s, title: why }, h("i", { class: "sdot", "aria-hidden": "true" }), h("span", { class: "sr-only", text: why }));
 }
 
-function row(x, cmd, updateCmd, termOn) {
+function row(x, cmd, updateCmd) {
   const idle = x.present && x.in_use === false && x.id !== "aiostreams";
   const dot = !x.present ? sdot("off", "Not on this server") : idle ? sdot("warn", `The script is here, but ${x.label} isn't set up`) : sdot("ok", "Set up on this server");
   const tags = [!x.present ? h("span", { class: "sdot-word", "data-s": "off", text: "Not downloaded or installed" })
     : idle ? h("span", { class: "sdot-word", "data-s": "warn", text: "Downloaded, not set up",
-      title: `${x.file} is on this server, but ${x.label} isn't set up. Get it going with Run in terminal, or Remove deletes the script.` }) : null];
+      title: `${x.file} is on this server, but ${x.label} isn't set up. Copy gives the command to set it up over SSH, or Remove deletes the script.` }) : null];
   if (x.present && differs(x)) {
     tags.push(h("span", { class: "chip warn small-chip", text: "Differs from GitHub",
       title: `This copy doesn't match the one on GitHub (${(cmp && cmp.branch) || "main"} branch). Update fetches GitHub's.` }));
@@ -290,8 +273,8 @@ function row(x, cmd, updateCmd, termOn) {
     // however long the name or the words (a break only phones show, put before the words by CSS
     // order); Differs from GitHub stays beside the name
     h("span", { class: "cmd-label" }, dot, x.label, tags[0] ? h("span", { class: "lbl-brk", "aria-hidden": "true" }) : null, ...tags),
-    h("span", { class: "cmd-btns" }, runBtn(x.present, cmd, termOn),
-      copyBtn("Copy", cmd, "Copied. Paste it into an SSH session or the Terminal tab.", cmd),
+    h("span", { class: "cmd-btns" },
+      copyBtn("Copy", cmd, "Copied. Paste it into an SSH session.", cmd),
       updateCmd ? h("button", { class: "btn small quiet", type: "button", text: "Update",
           title: `Replace it with GitHub's newest copy (${(cmp && cmp.branch) || "main"} branch)`, onclick: () => updateScript(x, updateCmd) })
         : spacer("Update"),
@@ -305,7 +288,7 @@ function row(x, cmd, updateCmd, termOn) {
 async function updateScript(x, cmd) {
   const files = [x.file, ...(UPDATE_WITH[x.id] || [])].join(" and ");
   const copy = h("button", { class: "btn small quiet", type: "button", text: "Copy the command instead", onclick: async () => {
-    try { await navigator.clipboard.writeText(cmd); toast("Copied. Paste it into an SSH session or the Terminal tab."); } catch (_) { toast(cmd); }
+    try { await navigator.clipboard.writeText(cmd); toast("Copied. Paste it into an SSH session."); } catch (_) { toast(cmd); }
   } });
   const ok = await ask({ title: `Update ${x.label}?`, confirmLabel: "Update",
     body: `Replaces ${files} on this server with GitHub's newest copy (the ${(cmp && cmp.branch) || "main"} branch, which this panel follows). `
@@ -316,18 +299,18 @@ async function updateScript(x, cmd) {
     const r = await api(`/api/scripts/${encodeURIComponent(x.id)}/update`, { method: "POST" });
     toast(`Updated ${r.updated.join(" and ")}.` + (r.note ? ` ${r.note}` : ""), false);
     await loadCompare(false);
-    show(await api("/api/status"), last.terminalOn);
+    show(await api("/api/status"));
   } catch (e) { toast(e.message || "Couldn't update it.", true); }
 }
 
 async function removeScript(x) {
   const ok = await ask({ title: "Remove script?", confirmLabel: "Remove", danger: true,
-    body: `${x.label} isn't set up on this server, so its script (${x.file}) only takes up a line here. Get and run fetches it again any time.` });
+    body: `${x.label} isn't set up on this server, so its script (${x.file}) only takes up a line here. Copy gives the command to fetch it again any time.` });
   if (!ok) return;
   try {
     await api(`/api/scripts/${encodeURIComponent(x.id)}/remove`, { method: "POST" });
     toast(`Removed ${x.file}.`);
-    show(await api("/api/status"), last.terminalOn);
+    show(await api("/api/status"));
   } catch (e) { toast(e.message || "Couldn't remove it.", true); }
 }
 
@@ -336,13 +319,13 @@ let addonsOpen = false;
 try { addonsOpen = localStorage.getItem("aios.addonsOpen") === "1"; } catch (_) {}
 
 function render() {
-  const { status, terminalOn } = last;
+  const { status } = last;
   const box = $("#scripts-root");
   clear(box);
   const dir = (status && status.install_dir) || "/opt/aiostreams";
   const scripts = (status && status.scripts) || FALLBACK;
   const uc = status && status.user_copy;
-  const asUser = uc && shellAs(status) !== "root";
+  const asUser = !!uc;   // over SSH as the login user, so the install folder needs sudo
   // Scripts live in the install folder, which only root can write to, so as the user every step
   // goes through sudo. Fetch to a temporary name first, so a failed download never leaves a broken script.
   const fetchCmd = (f) => `curl -fsSL ${rawUrl(f)} -o ${f}.new && chmod 755 ${f}.new && mv ${f}.new ${f}`;
@@ -352,16 +335,16 @@ function render() {
     return `${files.map(fetchTo).join(" && ")} && echo "Updated ${files.join(" and ")}"`;
   };
   const rowOf = (x) => x.present
-    ? row(x, `sudo bash ${dir}/${x.file}`, updateOf(x), terminalOn)
-    : row(x, `${fetchTo(x.file)} && sudo bash ${dir}/${x.file}`, null, terminalOn);
+    ? row(x, `sudo bash ${dir}/${x.file}`, updateOf(x))
+    : row(x, `${fetchTo(x.file)} && sudo bash ${dir}/${x.file}`, null);
   // The panel and the AIOStreams script come with every install; the rest are optional extras, kept apart
   // so the list doesn't read as a checklist to complete.
   const core = scripts.filter((x) => x.id === "aiostreams"), addons = scripts.filter((x) => x.id !== "aiostreams");
 
   checkNow();
-  box.append(statusLine(terminalOn));
+  box.append(statusLine());
   box.append(h("section", { class: "panel scripts-panel scripts-core" },
-    h("ul", { class: "cmds" }, panelRow(`sudo bash ${dir}/control-panel/setup-ui.sh`, terminalOn), ...core.map(rowOf))));
+    h("ul", { class: "cmds" }, panelRow(`sudo bash ${dir}/control-panel/setup-ui.sh`), ...core.map(rowOf))));
   if (addons.length) {
     // On a phone the title folds the card to one line with a summary on the right: how many differ from
     // GitHub (amber) if any, else how many are active. Folded until opened, remembered per browser.

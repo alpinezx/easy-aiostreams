@@ -25,7 +25,6 @@ const PAGES = {
   vpn: ["VPN", "The tunnel, its server and configs"],
   alerts: ["Phone alerts", "The watchdog and its alerts"],
   scripts: ["Scripts", "The setup scripts and panel updates"],
-  terminal: ["Terminal", "A shell on the server"],
 };
 
 let hasAlerts = false;    // the Phone alerts card only exists once the watchdog is set up

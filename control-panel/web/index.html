@@ -7,7 +7,6 @@
 <title>Easy AIOStreams Control Panel</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <script src="/js/theme.js"></script>
-<link rel="stylesheet" href="/vendor/xterm.css">
 <link rel="stylesheet" href="/css/app.css">
 <!-- Every module main.js pulls in, so the browser fetches them all at once, not one import layer at a time -->
 <link rel="modulepreload" href="/js/main.js">
@@ -25,7 +24,6 @@
 <link rel="modulepreload" href="/js/releases.js">
 <link rel="modulepreload" href="/js/scripts.js">
 <link rel="modulepreload" href="/js/select.js">
-<link rel="modulepreload" href="/js/terminal.js">
 <link rel="modulepreload" href="/js/traffic.js">
 <link rel="modulepreload" href="/js/util.js">
 <link rel="modulepreload" href="/js/viewport.js">
@@ -61,7 +59,6 @@
     <a class="tab" href="#vpn" data-view="vpn" id="tab-vpn" data-tip="VPN" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 4.6 3.4 8 8 9 4.6-1 8-4.4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg><span class="lbl">VPN</span></a>
     <a class="tab" href="#alerts" data-view="alerts" id="tab-alerts" data-tip="Phone alerts" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg><span class="lbl">Phone alerts</span></a>
     <a class="tab" href="#scripts" data-view="scripts" data-tip="Scripts"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg><span class="lbl">Scripts</span></a>
-    <a class="tab" href="#terminal" data-view="terminal" id="tab-terminal" data-tip="Terminal" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 17 6-5-6-5M12 19h8"/></svg><span class="lbl">Terminal</span></a>
   </div>
   <div class="rail-end">
     <button class="tab" id="rail-edit" type="button" data-tip="Edit rail"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg><span class="lbl">Edit rail</span></button>
@@ -220,12 +217,6 @@
     <div class="view-head vpn-headrow"><h2>VPN</h2><div class="vpn-acts"><button class="btn small" id="vpn-toggle" type="button" hidden></button><button class="btn small" id="vpn-check" type="button">Check now</button></div></div>
     <div id="vpn-root"></div>
   </section>
-
-  <section class="view" id="view-terminal" aria-label="Terminal" hidden>
-    <div class="view-head"><h2>Terminal</h2><button class="btn small" id="restart-panel-2" type="button">Restart panel</button></div>
-    <p class="dim term-scripts-hint">The commands for the setup scripts are on the <a href="#scripts">Scripts</a> tab, with Run in terminal to type them in here.</p>
-    <div id="term-root"></div>
-  </section>
 </main>
 
 <div class="scrim" id="scrim" hidden></div>
@@ -267,8 +258,6 @@
 <div class="dialog" id="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title" hidden></div>
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="/vendor/xterm.js"></script>
-<script src="/vendor/addon-fit.js"></script>
 <script type="module" src="/js/main.js"></script>
 </body>
 </html>

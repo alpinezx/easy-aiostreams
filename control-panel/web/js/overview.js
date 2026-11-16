@@ -1,6 +1,5 @@
 import { $, h, clear, setText, fmtDur, fmtBytes, api, toast, ago, extIcon } from "./util.js";
-import { runAction, openJob, rebootServer, restartService, ask } from "./actions.js";
-import { restartPanel } from "./terminal.js";
+import { runAction, openJob, rebootServer, restartService, restartPanel, ask } from "./actions.js";
 import { openReleases, remember, behind } from "./releases.js";
 import { days, todayLine, parseCheck } from "./alerts.js";
 import { pill as scriptsPill, showChangelog } from "./scripts.js";
