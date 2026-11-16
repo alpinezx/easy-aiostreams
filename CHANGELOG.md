@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 16 November 2026
 
+- Backup & Restore's Scheduled backups says when the schedule "Last ran" rather than "Last one made", so it still reads true once that backup has been moved off the server or deleted. (Panel 1.59.2)
 - **Docs:** control panel screenshots retaken: no Terminal tab or Run in terminal buttons, and the current Backup & Restore, Network, Phone alerts, Logs and Maintenance pages.
 - **Fixed:** when System updates updated Docker, Docker's restart took the panel with it and the drawer closed by itself, before saying whether a reboot was needed. It now stays open, says the output was cut short, offers Reboot server when one is needed, and closes with Close as usual. Any other job cut short this way stays open too. (Panel 1.59.2)
 - **Fixed:** a drawer (such as What's new) or the phone menu could open invisibly, only dimming the page. Firefox can stop a tab's animations, seen after the panel reloads itself, and their slide-in then never got past its first, invisible frame. A slide-in that hasn't moved is now finished at once. (Panel 1.59.1, [#197](https://github.com/alpinezx/easy-aiostreams/pull/197))

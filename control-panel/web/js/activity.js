@@ -272,7 +272,7 @@ async function showSchedule() {
   let last = null;
   if (s.every !== "off" && l) {
     if (l.status === "running") last = h("p", { class: "dim sched-last", text: "Making one now…" });
-    else if (l.status === "ok") last = h("p", { class: "dim sched-last", text: `Last one made ${ago(l.at)}.` });
+    else if (l.status === "ok") last = h("p", { class: "dim sched-last", text: `Last ran ${ago(l.at)}.` });
     else last = h("p", { class: "sched-last warn", text: `The last one ${l.status === "skipped" ? "was skipped" : "failed"} ${ago(l.at)}: ${l.text}` });
   } else if (s.every !== "off" && !s.timer) {
     last = h("p", { class: "sched-last warn", text: "The timer isn't running. Press Set to start it again." });
