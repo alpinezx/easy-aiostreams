@@ -348,6 +348,9 @@
 [hidden] { display: none !important; }
 /* Room for the scrollbar is kept on every page, so a long page (Logs) doesn't shift sideways from a short one */
 html { -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; }
+/* Takes the window's colour back from the page's inline style (as specific as its theme rules, and later),
+   so the theme's background fills it, short pages too */
+html:root { background: var(--bg); }
 body {
   margin: 0; background: var(--bg); color: var(--text);
   visibility: visible; animation: none;   /* the page's inline style hides it until this file has loaded */
