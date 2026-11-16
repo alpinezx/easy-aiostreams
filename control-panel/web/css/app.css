@@ -1472,12 +1472,9 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .ver-chip { font-size: .7rem; padding: 1px 7px; text-decoration: none; white-space: nowrap; }
 .ver-chip:hover { color: var(--text); }
 /* minmax(0, 1fr): a long line in the update output wraps or scrolls inside its box, never widens the page */
-/* The status lines in a note card, as Backup & Restore's note, its edge in the theme's accent (amber is
-   for warnings); Check now is in the page heading (#scripts-acts) */
-.scripts-status { margin: 0 0 16px; }
+/* The status lines: plain quiet text just above the first card. Check now is in the page heading (#scripts-acts) */
+.scripts-status { margin: -6px 0 12px; }
 .scripts-status-text { min-width: 0; display: grid; gap: 6px; }
-.scripts-status-text:not(:empty) { background: var(--raised); border: 1px solid var(--line); border-left: 4px solid var(--accent);
-  border-radius: 12px; padding: 12px 16px; }
 .scripts-acts { margin-left: auto; display: flex; }
 .scripts-acts:empty { display: none; }
 .scripts-status p { margin: 0; font-size: .9rem; }
