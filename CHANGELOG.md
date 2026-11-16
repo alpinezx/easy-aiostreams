@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 16 November 2026
 
+- Backup & Restore's Scheduled backups note is shorter: "Keeps the newest 7 scheduled backups. Only unlocked scheduled ones are ever removed." (Panel 1.59.0)
 - **Fixed:** on phones, the menu button could sometimes only dim the page without the menu showing, until the tab was closed. The menu now measures the screen each time it opens. (Panel 1.59.0)
 - Maintenance's Free up space reads more neatly on phones: Build leftovers says "Panel rebuilds", System logs "Over the 100 MB kept", and the summary is two short lines, "About 836 MB can go." and "Settings, backups and what's in use stay." (Panel 1.59.0)
 - **Fixed:** on phones, with Network open in the Overview's This server, HTTPS certificates under it has its faint line again, so the two no longer run together. (Panel 1.59.0)

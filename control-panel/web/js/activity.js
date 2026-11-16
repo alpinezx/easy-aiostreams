@@ -277,7 +277,7 @@ async function showSchedule() {
   } else if (s.every !== "off" && !s.timer) {
     last = h("p", { class: "sched-last warn", text: "The timer isn't running. Press Set to start it again." });
   }
-  const keep = h("p", { class: "dim small", text: "Keeps the newest 7 scheduled backups. Yours, ones made before an update and locked ones are never removed." });
+  const keep = h("p", { class: "dim small", text: "Keeps the newest 7 scheduled backups. Only unlocked scheduled ones are ever removed." });
   // Laid out like Maintenance's Scheduled server reboot: Schedule with its state on the right, then the
   // choices; Set is full width under them on a phone, at the end of their row on a desktop
   const word = s.every === "off" ? ["Off", "dim"] : !s.timer ? ["Not running", "warn"] : ["Active", "ok"];
