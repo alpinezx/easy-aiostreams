@@ -914,7 +914,7 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .nsv-go { grid-column: 1 / -1; justify-self: start; margin-top: 4px; font-size: .84rem; text-decoration: none; }
 .nsv-go:hover { color: var(--text); text-decoration: underline; }
 @media (max-width: 720px) {
-  .stat-grid > .net-sec { order: 0; padding-top: 2px; margin-bottom: 4px; }
+  .stat-grid > .net-sec { order: 0; padding-top: 2px; padding-bottom: 10px; }   /* the same room above the next line as each value has */
   /* Phones: the name on a line of its own and the speeds under it, so neither squeezes the other */
   .stat-grid > .net-sec { grid-template-columns: max-content max-content minmax(0, 1fr); column-gap: 24px; }
   .nsv-row { row-gap: 3px; }
@@ -933,6 +933,8 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
   .stat-grid { grid-template-columns: minmax(0, 1fr); gap: 0; margin-top: 6px; }
   .stat { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 16px; align-items: baseline; padding: 10px 0; }
   .stat + .stat { border-top: 1px solid var(--line-soft); }
+  /* and the value after an opened Network list (that list sits between the two values) */
+  .stat-grid > .net-sec + .stat { border-top: 1px solid var(--line-soft); }
   .stat .ver-label { margin: 0; }
   .stat .stat-value { text-align: right; }
   .stat .ver-sub { grid-column: 2; text-align: right; min-height: 0; }

@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 16 November 2026
 
+- **Fixed:** on phones, with Network open in the Overview's This server, HTTPS certificates under it has its faint line again, so the two no longer run together. (Panel 1.59.0)
 - **Fixed:** after restarting the Cloudflare Tunnel (or anything that cuts the panel off for a moment), "The panel is briefly out of reach" shows once, not again when a request held up during the restart fails after the panel is back. (Panel 1.59.0)
 - The Network page's Traffic graph draws Up in orange in every theme, so it stays clearly apart from Down with colour blindness too (most themes had a blue Down beside a purple Up). Readable on the cards and clear of each theme's green, amber and red. (Panel 1.59.0)
 - On phones, each card on the Add-ons page folds to its name and status (Running, Connected, Watching). Each starts folded and is remembered on its own; a value in amber or red still shows when folded. (Panel 1.59.0)
