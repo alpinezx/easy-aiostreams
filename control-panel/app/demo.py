@@ -531,6 +531,9 @@ class DemoBackend:
     def reboot_needed(self) -> bool:
         return self.reboot_pending
 
+    def updates_running(self) -> bool:
+        return False
+
     def restart_schedule(self) -> dict:
         r = self.restart
         nxt = None

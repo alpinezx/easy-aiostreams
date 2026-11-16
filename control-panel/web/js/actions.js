@@ -260,24 +260,27 @@ function finish(job, code, restart = false) {
   // The drawer's own Close, top right, closes it: no second Close down here
   foot.append(h("span", { class: "result " + (ok ? "ok" : "bad"), text: ok ? "Done" : `Exited with code ${code}` }));
   // After System updates, say whether a restart is needed, with Reboot server when it is
-  if (ok && job.action === "maint.updates") restartNote(job.id, "Finished without errors.", true);
+  if (ok && job.action === "maint.updates") restartNote(job.id, "Finished without errors.");
 }
 
-// lead: what the drawer already says. final: say "No restart needed" when none is (a check made
-// while apt may still be running says nothing until it's sure).
-async function restartNote(id, lead, final) {
-  let r;
-  try { r = await api("/api/server/reboot-needed"); } catch (_) { return; }
+// lead: what the drawer already says. wait: apt may still be running (the panel lost track of the
+// update), so ask every 2s until the server says it isn't, and only then say "No restart needed".
+async function restartNote(id, lead, wait = false, tries = 0) {
+  let r = null;
+  try { r = await api("/api/server/reboot-needed"); } catch (_) { /* the panel may be settling */ }
   const foot = $("#drawer-foot");
   if (openId !== id || foot.querySelector(".danger")) return;
-  if (!r.needed) {
-    if (final) $("#drawer-sub").textContent = `${lead} No restart needed.`;
+  if (r && r.needed) {
+    $("#drawer-sub").textContent = `${lead} A restart is needed to finish installing them.`;
+    const btn = h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer });
+    btn.style.marginLeft = "auto";
+    foot.append(btn);
     return;
   }
-  $("#drawer-sub").textContent = `${lead} A restart is needed to finish installing them.`;
-  const btn = h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer });
-  btn.style.marginLeft = "auto";
-  foot.append(btn);
+  if (r && (!wait || !r.busy)) { $("#drawer-sub").textContent = `${lead} No restart needed.`; return; }
+  if (!wait) return;
+  if (tries < 90) { setTimeout(() => restartNote(id, lead, true, tries + 1), 2000); return; }
+  $("#drawer-sub").textContent = `${lead} The updates are taking a while; System updates shows whether a restart is needed.`;
 }
 
 // The panel restarted while a job ran (a System update that updates Docker restarts every
@@ -294,12 +297,15 @@ function lostJob(id) {
   const foot = $("#drawer-foot"); clear(foot);
   foot.append(h("span", { class: "result", text: "Output cut short" }));
   window.dispatchEvent(new CustomEvent("job-finished"));
-  // apt may still be finishing: ask about a restart now, and give the final word a little later
+  // The heading and the bar under the log change height: show where the output stopped
+  const term = $("#drawer-term");
+  requestAnimationFrame(() => { term.scrollTop = term.scrollHeight; });
+  setTimeout(() => { term.scrollTop = term.scrollHeight; }, 100);
+  // apt may still be finishing: say whether a restart is needed once it has
   if (job && job.action === "maint.updates") {
     const lead = "Docker was updated, which restarted this panel, so the output stops here.";
     $("#drawer-sub").textContent = `${lead} The updates carry on by themselves. Checking whether a restart is needed…`;
-    restartNote(id, lead, false);
-    setTimeout(() => restartNote(id, lead, true), 30000);
+    restartNote(id, lead, true);
   }
 }
 

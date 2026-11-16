@@ -1826,6 +1826,19 @@ class Backend:
         """Whether an installed update is waiting for a restart (REBOOT_CHECK)."""
         return bool(self._on_host("sh", "-c", REBOOT_CHECK).strip())
 
+    def updates_running(self) -> bool:
+        """Whether apt or dpkg is running on the server (this container shares the host's
+        processes), so the panel can tell when an update it lost track of has finished."""
+        for d in Path("/proc").iterdir():
+            if not d.name.isdigit():
+                continue
+            try:
+                if (d / "comm").read_text().strip() in ("apt", "apt-get", "dpkg"):
+                    return True
+            except OSError:
+                continue
+        return False
+
     def reboot_host(self) -> None:
         """Reboot the whole server through the host's own systemd. Everything
         here has restart: unless-stopped, so the stack and this panel come back."""
