@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 16 November 2026
 
+- **Fixed:** Backup & Restore's Scheduled backups card no longer shows the word "null" when there's no record of a last scheduled run (after a restore, say). The note at the top of the page keeps only its Restore line; the backup drawer already says a backup holds your passwords and keys. (Panel 1.59.0)
 - The Scripts tab's "Checked against GitHub" line is plain text above the first card again, without the note card around it. (Panel 1.59.0)
 - After a Restore from the panel, the panel now restarts itself onto the restored install, with the drawer and its summary left open; there's no Restart panel button to press, and the Restore stays in Activity. Restart on the Control panel's row is refused while an action is running, since restarting the panel mid-restore would cut the restore off. (Panel 1.59.0)
 - The web terminal is gone from the control panel: its Terminal tab, the Scripts tab's Run in terminal and Get and run buttons, and option 8 in `setup-ui.sh`'s menu (Uninstall is now 8 and Exit 9). Copy still gives each script's command to run over SSH. Updating removes the old terminal key. (Panel 1.59.0)

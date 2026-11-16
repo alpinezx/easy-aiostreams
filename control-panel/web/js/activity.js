@@ -298,7 +298,8 @@ async function showSchedule() {
     h("div", { class: "rs-block" },
       h("div", { class: "rs-line" }, h("span", { class: "ver-label", text: "Schedule" }), h("span", { class: "rs-word " + word[1], text: word[0] })),
       ...(phone ? [row, tz, setBtn] : [h("div", { class: "rs-ctl" }, row, setBtn), tz])),
-    last, keep);
+    // native append writes a null out as the word "null", so the last-run line only when there is one
+    ...(last ? [last] : []), keep);
 }
 
 // Old installs a restore moved aside. Only shown when there are some.
