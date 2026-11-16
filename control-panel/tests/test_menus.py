@@ -148,10 +148,13 @@ def test_scripts_sit_in_their_folders():
     assert all(f'"{f}"' in js[js.index("const UPDATE_WITH"):js.index("const CORE")] for f in WITH_MAIN)
 
 
-def test_panel_terminal_is_spotted_in_a_login_shell():
-    """The panel's Restore sets AIOS_UI_TERMINAL; the namespace check is the fallback for a shell inside the container."""
+def test_scripts_spot_when_the_panel_runs_them():
+    """The panel's Restore sets AIOS_FROM_PANEL (and the old AIOS_UI_TERMINAL for older scripts).
+    The scripts take either, and the cgroup namespace check spots the panel even without them."""
     for name in ("setup-backup.sh", "setup-aiostreams.sh"):
         text = script_path(name).read_text(encoding="utf-8")
+        assert "run_by_panel()" in text and "in_panel_terminal" not in text, name
+        assert '"${AIOS_FROM_PANEL:-}" == "1" || "${AIOS_UI_TERMINAL:-}" == "1"' in text, name
         assert '"$(readlink /proc/self/ns/cgroup)" != "$(readlink /proc/1/ns/cgroup)"' in text, name
 
 

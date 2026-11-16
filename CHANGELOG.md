@@ -4,7 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 16 November 2026
 
-- The web terminal is gone from the control panel: its Terminal tab, the Scripts tab's Run in terminal and Get and run buttons, and option 8 in `setup-ui.sh`'s menu (Uninstall is now 8 and Exit 9). Copy still gives each script's command to run over SSH. Updating removes the old terminal key. (Panel 1.59.0)
+- The web terminal is gone from the control panel: its Terminal tab, the Scripts tab's Run in terminal and Get and run buttons, and option 8 in `setup-ui.sh`'s menu (Uninstall is now 8 and Exit 9). Copy still gives each script's command to run over SSH. Updating removes the old terminal key. After a Restore from the panel, the summary now says to restart the panel from its row in Services. (Panel 1.59.0)
 
 ## 15 November 2026
 

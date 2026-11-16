@@ -230,12 +230,13 @@ def build_vpn_update(backup: bool) -> Action:
 def build_restore(path: str, without_vpn: bool = False) -> Action:
     """A same-server rollback to the backup at path, which the caller has
     matched against the backups actually on the server. --same-server runs
-    the check first and refuses rather than asks. AIOS_UI_TERMINAL tells it
-    the panel is running it, so it leaves the panel running."""
+    the check first and refuses rather than asks. AIOS_FROM_PANEL tells it
+    the panel is running it, so it leaves the panel running; AIOS_UI_TERMINAL
+    says the same to scripts from before panel 1.59.0 (drop it in 2027)."""
     return Action("stack.restore", "Restore", "Restoring", "Restore finished", AIO,
                   args=("restore", "--same-server") + (("--without-vpn",) if without_vpn else ()) + (path,),
                   timeout=1800, needs=(AIO,),
-                  env=("AIOS_UI_TERMINAL=1",))
+                  env=("AIOS_FROM_PANEL=1", "AIOS_UI_TERMINAL=1"))
 
 
 def build_use_address(ip) -> Action:
