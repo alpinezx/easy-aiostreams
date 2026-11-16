@@ -1977,8 +1977,9 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 /* Phones: a page's buttons always on a line of their own under its title, on the right,
    so Activity and VPN match the pages whose buttons don't fit beside it */
 @media (max-width: 720px) { .view-head > h2 { flex-basis: 100%; } }
-/* Phones: a note's second sentence starts its own line rather than wrapping mid-sentence */
-@media (max-width: 720px) { .note .ph-line { display: block; } }
+/* A note's second sentence: as written on a computer; on a phone a shorter one on its own line */
+.note .ph-line { display: none; }
+@media (max-width: 720px) { .note .desk-line { display: none; } .note .ph-line { display: block; } }
 /* The Network page's All traffic / VPN tunnel inside the Traffic card: phones only */
 .tr-src { display: none; }
 /* Phones: the Network page's time range centred under the title; All traffic / VPN tunnel centred in the
