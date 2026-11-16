@@ -182,7 +182,11 @@ function backupRow(it, cmd, restore, status) {
   row.append(
     h("span", { class: "bk-head", onclick: (e) => { if (!e.target.closest("button") && window.matchMedia("(max-width: 720px)").matches) tog.click(); } },
       h("div", { class: "what mono" }, tog, it.name, tags()),
-      h("div", { class: "when" }, `${fmtBytes(it.size)}, made ${ago(it.mtime)}`, h("span", { class: "bk-where", text: `, saved in ${it.dirs.join(" and ")}` })),
+      // Folded on a phone, only "Made 3 min ago", so the tags beside it never push it onto two lines;
+      // the size comes back when it's opened
+      h("div", { class: "when" }, h("span", { class: "bk-size", text: `${fmtBytes(it.size)}, ` }),
+        h("span", { class: "bk-made", text: "made" }), h("span", { class: "bk-made-cap", text: "Made" }), ` ${ago(it.mtime)}`,
+        h("span", { class: "bk-where", text: `, saved in ${it.dirs.join(" and ")}` })),
       // A phone puts the tags at the end of the size line instead, so every backup is two lines folded
       h("span", { class: "bk-tags" }, tags(true))),
     h("div", { class: "btns" },
