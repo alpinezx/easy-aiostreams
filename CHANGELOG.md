@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 16 November 2026
 
+- While a drawer (What's new, a job's output, Edit) or a dialog is open, the page behind it stays still and its scrollbar goes, so only the drawer's own list scrolls, with one scrollbar. (Panel 1.59.2)
 - **Fixed:** reloading the panel no longer flashes the red "Can't reach the server" badge for a split second: the request the browser cancels on the way out isn't taken for the server being out of reach. A real outage still shows on the next check. (Panel 1.59.2)
 - **Fixed:** reloading the panel could flash a white page with a large black logo for a moment, when its stylesheet was slow to arrive. The page now starts in its theme's background colour and shows once the stylesheet is in (after 4 seconds anyway, should it never come). (Panel 1.59.2)
 - Maintenance's line for the last job reads what ran and when, with Finished (or Running, Failed) at the right, and a Show output toggle under it in place of a faint "Output". On phones a running job's drawer just says "You can close this; it keeps going." (Panel 1.59.2)

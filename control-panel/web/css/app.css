@@ -1667,6 +1667,10 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 .theme-group { margin: 14px 18px 2px; font-size: .74rem; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
 /* While the themes are open only their own list scrolls, not the page beside it too */
 html:has(#theme-pane:not([hidden])) { overflow: hidden; }
+/* A drawer or dialog holds the page behind it still, so only the drawer's own list scrolls and
+   shows a scrollbar. The page's scrollbar space goes too: kept, it would be an undimmed strip
+   down the right edge beside a dialog or the Edit drawer (the page under the dimming just widens) */
+html:has(> body > .drawer:not([hidden]), > body > #dialog:not([hidden])) { overflow: hidden; scrollbar-gutter: auto; }
 .theme-pick { display: flex; flex-direction: column; gap: 7px; padding: 5px 4px 6px; border: 1px solid transparent; border-radius: 12px; background: none; text-align: left; color: var(--text); }
 .theme-pick:hover { background: var(--hover); }
 .theme-pick[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
