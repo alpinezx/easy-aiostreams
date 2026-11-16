@@ -264,16 +264,41 @@ function finish(job, code, restart = false) {
   if (ok && job.action === "maint.updates") offerReboot(job.id);
 }
 
-async function offerReboot(id) {
+async function offerReboot(id, sub = "Finished without errors. A restart is needed to finish installing them.") {
   let r;
   try { r = await api("/api/server/reboot-needed"); } catch (_) { return; }
-  if (!r.needed || openId !== id) return;
-  $("#drawer-sub").textContent = "Finished without errors. A restart is needed to finish installing them.";
+  if (!r.needed || openId !== id || $("#drawer-foot").querySelector(".danger")) return;
+  $("#drawer-sub").textContent = sub;
   const foot = $("#drawer-foot");
   const btn = h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer });
   btn.style.marginLeft = "auto";
   foot.children[1].style.marginLeft = "";
   foot.insertBefore(btn, foot.children[1]);
+}
+
+// The panel restarted while a job ran (a System update that updates Docker restarts every
+// container, this panel too) and the new panel doesn't know the job. The job carried on on the
+// server, so the drawer stays open and says so, with Close as usual, rather than vanishing.
+// After System updates it still offers Reboot server when one is needed.
+let seenJob = null;
+function lostJob(id) {
+  const job = seenJob && seenJob.id === id ? seenJob : null;
+  $("#drawer-title").textContent = job ? `${job.label}: the panel restarted` : "The panel restarted";
+  $("#drawer-sub").textContent = job && job.action === "maint.updates"
+    ? "Docker was updated, which restarted this panel, so the output stops here. The updates carry on by themselves; System updates shows what's left."
+    : "Docker restarted while this ran, and this panel with it, so the output stops here. The job carries on on the server; the cards on this page show how it ended.";
+  const foot = $("#drawer-foot"); clear(foot);
+  foot.append(h("span", { class: "result", text: "Output cut short" }),
+    h("button", { class: "btn small", type: "button", text: "Close", onclick: closeDrawer }));
+  foot.children[1].style.marginLeft = "auto";
+  window.dispatchEvent(new CustomEvent("job-finished"));
+  // apt may still be finishing, so ask about a reboot now and once more a little later
+  if (job && job.action === "maint.updates") {
+    const sub = "Docker was updated, which restarted this panel, so the output stops here. "
+      + "A restart is needed to finish installing the updates.";
+    offerReboot(id, sub);
+    setTimeout(() => offerReboot(id, sub), 30000);
+  }
 }
 
 // before: { text, id } for a job that ran first and led to this one (Back up first, before an
@@ -283,19 +308,14 @@ export async function openJob(id, reconnecting, before) {
   if (!reconnecting) lastFocus = document.activeElement;
   openId = id;
   let job;
-  try { job = await api(`/api/jobs/${id}`); }
+  try { job = await api(`/api/jobs/${id}`); seenJob = job; }
   catch (e) {
     if (!reconnecting) { toast(e.message, true); return; }
     // The panel itself restarted (a maintenance job restarts Docker). A job it ran
     // outside itself carries on; once the panel's back it no longer knows this one.
     if (openId !== id || $("#drawer").hidden) return;
     const foot = $("#drawer-foot"); clear(foot);
-    if (e.status === 404) {
-      closeDrawer();
-      toast("The panel restarted while that ran. How it ended is under the cards on this page.");
-      window.dispatchEvent(new CustomEvent("job-finished"));
-      return;
-    }
+    if (e.status === 404) { lostJob(id); return; }
     $("#drawer-sub").textContent = "The panel is restarting with Docker. The job carries on on the server; this reconnects by itself.";
     foot.append(h("span", { class: "spin", "aria-hidden": "true" }), h("span", { class: "dim", text: "Reconnecting" }));
     setTimeout(() => openJob(id, true, before), 3000);
