@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 16 November 2026
 
+- Maintenance's line for the last job reads what ran and when, with Finished (or Running, Failed) at the right, and a Show output toggle under it in place of a faint "Output". On phones a running job's drawer just says "You can close this; it keeps going." (Panel 1.59.2)
 - A finished job's drawer has one Close, at the top right, instead of a second one at the bottom. After System updates the drawer always says whether a restart is needed, on a line of its own under the note: "No restart needed." in green, or that one is needed in amber, and the 1.59.1 fix for invisible drawers also covers a drawer that opens a moment after the click. (Panel 1.59.2)
 - Backup & Restore's Scheduled backups says when the schedule "Last ran" rather than "Last one made", so it still reads true once that backup has been moved off the server or deleted. (Panel 1.59.2)
 - **Docs:** control panel screenshots retaken: no Terminal tab or Run in terminal buttons, and the current Backup & Restore, Network, Phone alerts, Logs and Maintenance pages.

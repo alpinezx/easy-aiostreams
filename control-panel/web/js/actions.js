@@ -348,7 +348,8 @@ export async function openJob(id, reconnecting, before) {
     return;
   }
   $("#drawer-title").textContent = `${job.running}…`;
-  $("#drawer-sub").textContent = "Running the same script you'd run over SSH. You can close this; it keeps going.";
+  const sub = $("#drawer-sub"); sub.textContent = "";
+  sub.append(h("span", { class: "sub-ssh", text: "Running the same script you'd run over SSH. " }), "You can close this; it keeps going.");
   // A quiet log looked like a crash: say a long job is expected to pause
   const wait = job.action === "stack.restore"
     ? "Working. A restore takes a few minutes, and the output pauses while things restart."

@@ -847,7 +847,14 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .pick-list li.off { color: var(--faint); cursor: default; background: none; }
 select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .maint-last { margin-top: 16px; }
-.maint-last summary { cursor: pointer; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.maint-last summary { cursor: pointer; display: grid; gap: 8px; list-style: none; }
+.maint-last summary::-webkit-details-marker { display: none; }
+.maint-last .ml-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.maint-last .ml-toggle { display: inline-flex; align-items: center; gap: 6px; justify-self: start; color: var(--accent); font-size: .9rem; }
+.maint-last .ml-hide, .maint-last[open] .ml-show { display: none; }
+.maint-last[open] .ml-hide { display: inline; }
+.maint-last[open] .ml-toggle .path-chev svg { transform: rotate(180deg); }
+@media (hover: hover) { .maint-last summary:hover .ml-toggle { text-decoration: underline; } }
 .maint-last pre { margin: 12px 0 0; max-height: 320px; overflow: auto; padding: 10px 12px; background: var(--sunk); border-radius: 8px; font-family: var(--mono); font-size: .78rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (max-width: 1140px) { .maint-grid { grid-template-columns: minmax(0, 1fr); } }
 .card-link { font-size: .86rem; text-decoration: none; }
@@ -1284,6 +1291,8 @@ html.still *, html.still *::after { animation: none !important; transition: none
 .drawer-head h3 { margin: 0; font-size: 1.25rem; font-weight: 700; letter-spacing: -.01em; }
 .drawer-head p { margin: 2px 0 0; font-size: .9rem; color: var(--dim); }
 /* After System updates: whether a restart is needed, on a line of its own */
+/* Phones: a running job's note keeps only "You can close this; it keeps going." */
+@media (max-width: 720px) { .drawer-head .sub-ssh { display: none; } }
 .drawer-head .restart-line { display: block; margin-top: 4px; font-weight: 600; }
 .drawer-head .restart-line.ok { color: var(--ok); } .drawer-head .restart-line.warn { color: var(--warn); }
 .drawer-head .x { margin-left: auto; }
