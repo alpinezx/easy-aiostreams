@@ -49,11 +49,13 @@ compose_image_refs() {
 # plain line, e.g. echo "some text $(hl "the important bit") more text".
 hl() { printf '\033[1;31m%s\033[0m' "$1"; }
 
-# True when this runs inside the control panel's own web terminal.
-in_panel_terminal() {
-    [[ "${AIOS_UI_TERMINAL:-}" == "1" ]] && return 0
-    # The terminal joins the host's namespaces but not its cgroup namespace. A login
-    # shell or sudo drops AIOS_UI_TERMINAL, so this is the check that survives them.
+# True when the control panel started this script (its buttons run the scripts on
+# the host), rather than someone over SSH.
+run_by_panel() {
+    # The panel sets AIOS_FROM_PANEL; panels before 1.59.0 set AIOS_UI_TERMINAL instead
+    [[ "${AIOS_FROM_PANEL:-}" == "1" || "${AIOS_UI_TERMINAL:-}" == "1" ]] && return 0
+    # The panel starts scripts through nsenter, which joins the host's namespaces but not
+    # its cgroup namespace, so this spots one even if the variable above didn't arrive.
     [[ "$(readlink /proc/self/ns/cgroup)" != "$(readlink /proc/1/ns/cgroup)" ]] && return 0
     return 1
 }
@@ -1284,9 +1286,10 @@ if [[ -f "$COMPOSE_FILE" ]]; then
         9)
             echo ""
             echo "=== AIOStreams Uninstall ==="
-            # It removes the control panel too, which would cut its own terminal off halfway
-            if in_panel_terminal; then
-                warn "You're inside the control panel's web terminal, which this removes. Run it from SSH instead."
+            # It removes the control panel too, which would cut off the panel running it.
+            # The panel has no button for this, so it's only a safety net.
+            if run_by_panel; then
+                warn "The control panel can't uninstall itself. Run this over SSH instead."
                 continue
             fi
             read -rp "Are you sure you want to completely remove AIOStreams? [y/N]: " CONFIRM_UNINSTALL

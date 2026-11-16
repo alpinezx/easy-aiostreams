@@ -182,14 +182,18 @@ function backupRow(it, cmd, restore, status) {
   row.append(
     h("span", { class: "bk-head", onclick: (e) => { if (!e.target.closest("button") && window.matchMedia("(max-width: 720px)").matches) tog.click(); } },
       h("div", { class: "what mono" }, tog, it.name, tags()),
-      h("div", { class: "when" }, `${fmtBytes(it.size)}, made ${ago(it.mtime)}`, h("span", { class: "bk-where", text: `, saved in ${it.dirs.join(" and ")}` })),
+      // Folded on a phone, only "Made 3 min ago", so the tags beside it never push it onto two lines;
+      // the size comes back when it's opened
+      h("div", { class: "when" }, h("span", { class: "bk-size", text: `${fmtBytes(it.size)}, ` }),
+        h("span", { class: "bk-made", text: "made" }), h("span", { class: "bk-made-cap", text: "Made" }), ` ${ago(it.mtime)}`,
+        h("span", { class: "bk-where", text: `, saved in ${it.dirs.join(" and ")}` })),
       // A phone puts the tags at the end of the size line instead, so every backup is two lines folded
       h("span", { class: "bk-tags" }, tags(true))),
     h("div", { class: "btns" },
       h("button", { class: "btn small", type: "button", text: "Restore", disabled: !!status.busy,
         title: "Roll your AIOStreams setup back to this backup, after checking it's safe to do from here",
         onclick: (e) => startRestore(it, restore, e.currentTarget) }),
-      h("button", { class: "btn small", type: "button", text: "Copy restore command", onclick: () => copy(restore, "Copied. Paste it into the Terminal tab or an SSH session to restore from this backup.") }),
+      h("button", { class: "btn small", type: "button", text: "Copy restore command", onclick: () => copy(restore, "Copied. Paste it into an SSH session to restore from this backup.") }),
       h("button", { class: "btn small", type: "button", text: "Copy scp command", onclick: () => copy(cmd, cmd.includes("@YOUR_SERVER:")
         ? "Copied. Replace YOUR_SERVER with your server's address."
         : "Copied. Run it in a terminal on your own computer to download this backup.") }),
@@ -273,7 +277,7 @@ async function showSchedule() {
   } else if (s.every !== "off" && !s.timer) {
     last = h("p", { class: "sched-last warn", text: "The timer isn't running. Press Set to start it again." });
   }
-  const keep = h("p", { class: "dim small", text: "Keeps the newest 7 scheduled backups. Yours, ones made before an update and locked ones are never removed." });
+  const keep = h("p", { class: "dim small", text: "Keeps the newest 7 scheduled backups. Only unlocked scheduled ones are ever removed." });
   // Laid out like Maintenance's Scheduled server reboot: Schedule with its state on the right, then the
   // choices; Set is full width under them on a phone, at the end of their row on a desktop
   const word = s.every === "off" ? ["Off", "dim"] : !s.timer ? ["Not running", "warn"] : ["Active", "ok"];
@@ -298,7 +302,8 @@ async function showSchedule() {
     h("div", { class: "rs-block" },
       h("div", { class: "rs-line" }, h("span", { class: "ver-label", text: "Schedule" }), h("span", { class: "rs-word " + word[1], text: word[0] })),
       ...(phone ? [row, tz, setBtn] : [h("div", { class: "rs-ctl" }, row, setBtn), tz])),
-    last, keep);
+    // native append writes a null out as the word "null", so the last-run line only when there is one
+    ...(last ? [last] : []), keep);
 }
 
 // Old installs a restore moved aside. Only shown when there are some.

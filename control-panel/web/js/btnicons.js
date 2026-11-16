@@ -12,7 +12,6 @@ const START = '<path d="M7 4v16l13-8z"/>';
 const SHIELD = '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>';
 const BELL = '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>';
 const CLOCK = '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>';
-const TERMINAL = '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>';
 const CHECK = '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>';
 const LIST = '<path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/>';
 const SLIDERS = '<path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/>';
@@ -43,7 +42,6 @@ const ICONS = {
   "Use": TICK, "Set": TICK,
   // a five-pointed star with rounded points, outlined like the pencil beside it
   "What's new": '<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>',
-  "Run in terminal": TERMINAL, "Get and run": TERMINAL,
   "Fold all cards": CARDS, "Open all cards": CARDS,
 };
 // Round icons read larger than square ones at the same size, so they're drawn a touch smaller
@@ -51,7 +49,7 @@ const ROUND = new Set(["Check now", "Restart stack", "Restart", "Restart panel",
   "Set schedule", "Set time zone", "Change server"]);
 const SHORT = {};
 // Buttons left alone: filters and toggles, header links, the log viewer's own controls
-const SKIP = ".fold-act, .icon-only, .hero-edit, .tr-ranges .btn, .lg-row .btn, .lg-acts .btn, .term-gate .btn, .wd-today-wrap .btn, .wd-sub .btn";
+const SKIP = ".fold-act, .icon-only, .hero-edit, .tr-ranges .btn, .lg-row .btn, .lg-acts .btn, .wd-today-wrap .btn, .wd-sub .btn";
 
 // Phones: these rows laid out as two columns, in this order (lower first). With an odd number,
 // the first sits on its own above the pairs; the rest go in pairs, the action on the right.
@@ -63,8 +61,8 @@ const ORDER = {
   "Send test alert": 0, "Stop": 1, "Start": 1,
   "Change config": 0, "Change server": 1, "Update VPN": 2,
 };
-// Scripts' rows: Run in terminal (or Get and run) first, then Copy, Update, Remove
-const SCRIPTS_ORDER = { "Run in terminal": 0, "Get and run": 0, "Copy": 1, "Update": 2, "Remove": 3 };
+// Scripts' rows: Copy, Update, Remove
+const SCRIPTS_ORDER = { "Copy": 0, "Update": 1, "Remove": 2 };
 
 function svg(word) {
   const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -75,7 +73,7 @@ function svg(word) {
   return s;
 }
 
-// The button's word: its first label for buttons holding two (Run in terminal / Get and run)
+// The button's word: its first label for buttons holding two
 function wordOf(b) {
   const first = b.querySelector(":scope > span");
   if (first && first.textContent.trim()) return first.textContent.trim();
@@ -114,14 +112,9 @@ function gridRows(view) {
     const isScripts = row.matches(".scripts-panel .cmd-btns");
     const order = isScripts ? SCRIPTS_ORDER : ORDER;
     const sorted = [...btns].sort((a, b) => (order[a.dataset.act] ?? 5) - (order[b.dataset.act] ?? 5));
-    // Scripts: Run in terminal (or Get and run) always across the top; an odd one left over (Remove,
-    // when there's an Update too) across the next row; the pairs (Copy and Update) along the bottom
-    const runTop = isScripts && btns.length > 2;
-    if (runTop && (btns.length - 1) % 2 === 1) sorted.splice(1, 0, sorted.pop());
     sorted.forEach((b, i) => {
       b.dataset.ord = i;
-      const wide = runTop ? i === 0 || ((btns.length - 1) % 2 === 1 && i === 1) : btns.length % 2 === 1 && i === 0;
-      b.classList.toggle("btn-alone", wide);
+      b.classList.toggle("btn-alone", btns.length % 2 === 1 && i === 0);
     });
   }
 }

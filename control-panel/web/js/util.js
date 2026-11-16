@@ -89,7 +89,13 @@ export function ago(ts) {
 
 export const OUT_OF_REACH = "The panel is briefly out of reach while things restart. It comes back by itself.";
 
+// One "out of reach" notice per outage: a restart cuts off every request in flight, and one can fail
+// long after the panel is back (stuck in the tunnel, say). So the notice isn't repeated within 30s,
+// and a request that fails after another has got through since it was sent says nothing.
+let lastOk = 0, reachNoticeAt = 0, staleFailAt = 0;
+
 export async function api(path, opts = {}) {
+  const sent = Date.now();
   const res = await fetch(path, {
     credentials: "same-origin",
     ...opts,
@@ -100,14 +106,21 @@ export async function api(path, opts = {}) {
     // A gateway error with no reason from the panel: Caddy (or the tunnel) couldn't reach it for a
     // moment, as when the VPN is switched or the stack restarts. Not a fault, so not worded like one.
     let msg = [502, 503, 504].includes(res.status) ? OUT_OF_REACH : `Request failed (${res.status})`;
+    if (msg === OUT_OF_REACH && lastOk > sent) staleFailAt = Date.now();
     try { const body = await res.json(); msg = body.detail || body.error || msg; } catch (_) {}
     const err = new Error(msg); err.status = res.status; throw err;
   }
+  lastOk = Date.now();
   return res.json();
 }
 
 export function toast(text, bad = false) {
-  if (text === OUT_OF_REACH) bad = false;   // expected during a restart, so never shown as an error
+  if (text === OUT_OF_REACH) {
+    bad = false;   // expected during a restart, so never shown as an error
+    const now = Date.now();
+    if (now - staleFailAt < 1500 || now - reachNoticeAt < 30000) return;
+    reachNoticeAt = now;
+  }
   const t = h("div", { class: "toast" + (bad ? " bad" : ""), text });
   $("#toasts").append(t);
   setTimeout(() => t.remove(), bad ? 7000 : 4000);

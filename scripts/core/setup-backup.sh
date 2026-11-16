@@ -933,13 +933,16 @@ valid_domain() {
     [[ "$1" =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+$ ]]
 }
 
-# True when this runs inside the control panel's own web terminal. Stopping
-# the panel from there would kill the shell running this restore.
-in_panel_terminal() {
-    [[ "${AIOS_UI_TERMINAL:-}" == "1" ]] && return 0
-    # The terminal joins the host's namespaces but not its cgroup namespace. A login
-    # shell or sudo drops AIOS_UI_TERMINAL, so this is the check that survives them.
+# True when the control panel started this script (its Restore button), rather
+# than someone over SSH. The panel then stays up, so the restore isn't cut off
+# and its page can follow it to the end.
+run_by_panel() {
+    # The panel sets AIOS_FROM_PANEL; panels before 1.59.0 set AIOS_UI_TERMINAL instead
+    [[ "${AIOS_FROM_PANEL:-}" == "1" || "${AIOS_UI_TERMINAL:-}" == "1" ]] && return 0
+    # The panel starts scripts through nsenter, which joins the host's namespaces but not
+    # its cgroup namespace, so this spots one even if the variable above didn't arrive.
     [[ "$(readlink /proc/self/ns/cgroup)" != "$(readlink /proc/1/ns/cgroup)" ]] && return 0
+    # And a process still in the panel container's own cgroup
     local id
     id=$(docker inspect -f '{{.Id}}' aios-ui 2>/dev/null) || return 1
     [[ -n "$id" ]] && grep -q "$id" /proc/self/cgroup 2>/dev/null
@@ -976,13 +979,13 @@ current_addons() {
 
 # Stops and removes the add-ons of the install about to be set aside, so
 # nothing keeps running against a folder that has moved. The backup's own
-# add-ons come back further down. The panel is left running when this runs
-# inside its own terminal.
+# add-ons come back further down. The panel is left running when it started
+# this restore.
 retire_current_addons() {
     local main="$1"
     if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx aios-ui; then
-        if in_panel_terminal; then
-            echo "Leaving the control panel running, since this restore runs inside it."
+        if run_by_panel; then
+            echo "Leaving the control panel running, since it started this restore."
         else
             docker rm -f aios-ui >/dev/null 2>&1 && echo "Stopped the current control panel."
         fi
@@ -1772,12 +1775,8 @@ do_restore() {
                 script=$(find_script setup-aiomanager.sh)
                 [[ -n "$script" ]] && { bash "$script" start-aiomanager < /dev/null || true; } ;;
             panel)
-                if in_panel_terminal; then
-                    if $UNATTENDED; then
-                        summary+=("$name$where: restart it (Restart panel) so it picks up the restored install.")
-                    else
-                        summary+=("$name$where: press Restart panel (Terminal tab) so it picks up the restored install.")
-                    fi
+                if run_by_panel; then
+                    summary+=("$name$where: it restarts itself once the restore finishes, to pick up the restored install.")
                     continue
                 fi
                 script="$INSTALL_DIR/control-panel/setup-ui.sh"

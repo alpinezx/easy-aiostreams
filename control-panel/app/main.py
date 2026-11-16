@@ -11,11 +11,11 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, config, panelupdate, releases, scriptsync, serverip, terminal
+from . import audit, auth, config, panelupdate, releases, scriptsync, serverip
 from .actions import SCRIPTS, BadAction, build_delete_config, build_restore, build_use_file, resolve
 from .proxy import CaddyProxyHeaders
 from .stack import BACKUP_NAME, RESTARTABLE, WITH_MAIN, backup_path
@@ -160,17 +160,18 @@ async def login(request: Request, response: Response):
 @app.post("/api/logout")
 async def logout(response: Response):
     response.delete_cookie(COOKIE, path="/")
-    response.delete_cookie(terminal.UNLOCK_COOKIE, path="/api/terminal")
     return {"ok": True}
 
 
 @app.get("/api/me")
 async def me(user: str = Depends(current_user)):
-    return {"user": user, "demo": config.DEMO, "terminal": terminal.enabled(), "version": config.VERSION}
+    # boot: changes each time this process starts, so a page can tell the panel restarted
+    return {"user": user, "demo": config.DEMO, "version": config.VERSION, "boot": BOOT_ID}
 
 
 # ---- status --------------------------------------------------------------
 
+BOOT_ID = uuid.uuid4().hex[:12]
 _status_cache: tuple[float, dict] | None = None
 
 
@@ -222,7 +223,7 @@ async def panel_update(request: Request, user: str = Depends(current_user)):
         await asyncio.to_thread(panelupdate.start)
     except RuntimeError as e:
         raise HTTPException(409, str(e))
-    terminal.log(f"panel update started by {user} from {client_ip(request)}")
+    audit.log(f"panel update started by {user} from {client_ip(request)}")
     return {"ok": True}
 
 
@@ -547,7 +548,7 @@ async def backups(user: str = Depends(current_user)):
 # The default order: the request flow, AIOStreams, the add-ons' cards, then This server and the services
 OVERVIEW_CARDS = ["flow", "warn", "aiostreams", "aiometadata", "aiomanager", "mediaflow", "vpn", "alerts", "server", "services"]
 # The rail's default: everyday pages, upkeep, Add-ons with each add-on's own page under it, then tools
-RAIL_PAGES = ["logs", "activity", "net", "backups", "maint", "addons", "vpn", "alerts", "scripts", "terminal"]
+RAIL_PAGES = ["logs", "activity", "net", "backups", "maint", "addons", "vpn", "alerts", "scripts"]
 LAYOUTS = {"overview": (OVERVIEW_CARDS, "overview-layout.json"), "rail": (RAIL_PAGES, "rail-layout.json")}
 _layout_lock = threading.Lock()
 
@@ -671,7 +672,7 @@ async def server_timezone(request: Request, user: str = Depends(current_user)):
         tz = await asyncio.to_thread(backend.set_timezone, body.get("timezone"))
     except ValueError as e:
         raise HTTPException(400, str(e))
-    terminal.log(f"time zone set to {tz} by {user} from {client_ip(request)}")
+    audit.log(f"time zone set to {tz} by {user} from {client_ip(request)}")
     return {"timezone": tz}
 
 
@@ -1072,11 +1073,11 @@ class Jobs:
         except Exception:
             pass
 
-    def _save(self):
+    def _save(self, path: Path | None = None):
         try:
             done = [self.items[i] for i in self.order if self.items[i]["ended"]][-self.KEEP:]
             slim = [{**j, "lines": j["lines"][-400:]} for j in done]
-            self._path().write_text(json.dumps(slim))
+            (path or self._path()).write_text(json.dumps(slim))
         except Exception:
             pass
 
@@ -1115,11 +1116,32 @@ class Jobs:
                 after()
             except Exception:
                 pass
+        # A restore moves the install folder aside, and this container's folders go with it
+        # (a bind mount follows the folder, not its name). So once one succeeds, the panel
+        # restarts itself onto the restored install. Not when the backup has no panel.
+        restart = False
+        if action.id == "stack.restore" and code == 0:
+            restart = config.DEMO or (_restored_state() / "config").is_file()
+            emit("==> Restarting the control panel in a few seconds, so it uses the restored install." if restart
+                 else "==> The backup has no control panel, so this one keeps running as it is.")
+        job["panel_restart"] = restart
         job["code"] = code
         job["ended"] = time.time()
         global _status_cache
         _status_cache = None  # next poll reflects what the action changed
         self._save()
+        if restart and not config.DEMO:
+            threading.Thread(target=self._restart_onto_restored, daemon=True).start()
+
+    def _restart_onto_restored(self):
+        # The history so far, this restore included, goes into the restored folder too:
+        # the copy above went to the folder that was moved aside.
+        self._save(_restored_state() / "history.json")
+        time.sleep(5)           # let the page get the last lines first
+        try:
+            backend.client.containers.get("aios-ui").restart(timeout=5)
+        except Exception:
+            pass
 
     def clear_finished(self) -> int:
         with self.lock:
@@ -1143,6 +1165,12 @@ class Jobs:
 
     def summary(self, j) -> dict:
         return {k: j[k] for k in ("id", "action", "label", "running", "done", "started", "ended", "code")}
+
+
+def _restored_state() -> Path:
+    """The live install's ui-state as the host sees it (PID 1's root, this container shares
+    the host's processes), even when this container's own /state is the folder a restore moved aside."""
+    return Path("/proc/1/root") / str(config.INSTALL_DIR).lstrip("/") / "ui-state"
 
 
 jobs = Jobs()
@@ -1271,7 +1299,7 @@ async def stream_job(job_id: str, request: Request, start: int = 0, user: str = 
                 i += 1
                 idle = 0
             if j["ended"] and i >= len(j["lines"]):
-                yield sse({"done": True, "code": j["code"], "ended": j["ended"]})
+                yield sse({"done": True, "code": j["code"], "ended": j["ended"], "restart": bool(j.get("panel_restart"))})
                 return
             if await request.is_disconnected():
                 return
@@ -1283,145 +1311,6 @@ async def stream_job(job_id: str, request: Request, start: int = 0, user: str = 
 
     return StreamingResponse(gen(), media_type="text/event-stream",
                              headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"})
-
-
-# ---- web terminal (only when setup-ui.sh switched it on) -----------------
-
-def _need_terminal():
-    if not terminal.enabled():
-        raise HTTPException(404, "Not found")
-
-
-@app.post("/api/terminal/unlock")
-async def terminal_unlock(request: Request, user: str = Depends(current_user)):
-    _need_terminal()
-    ip = client_ip(request)
-    wait = terminal.unlock_lockout.locked_for(ip)
-    if wait:
-        raise HTTPException(429, f"Too many wrong terminal keys. Try again in {wait // 60 + 1} minutes.")
-    try:
-        payload = await request.json()
-        key = str(payload.get("key", ""))
-        remember = payload.get("remember") is True
-    except Exception:
-        raise HTTPException(400, "Bad request")
-    ok = await asyncio.to_thread(terminal.check_key, key)
-    if not ok:
-        terminal.unlock_lockout.record_fail(ip)
-        terminal.log(f"bad terminal key from {ip}")
-        await asyncio.sleep(1)
-        raise HTTPException(403, "Wrong terminal key.")
-    terminal.unlock_lockout.clear(ip)
-    body = {"ticket": terminal.tickets.issue(user), "idle_minutes": terminal.idle_seconds() // 60}
-    resp = JSONResponse(body)
-    if remember:
-        cfg = auth.load_auth()
-        login_token = request.cookies.get(COOKIE, "")
-        resp.set_cookie(terminal.UNLOCK_COOKIE, terminal.make_unlock(cfg.secret, user, login_token, config.SESSION_DAYS * 86400),
-                        max_age=config.SESSION_DAYS * 86400, httponly=True, secure=request.url.scheme == "https",
-                        samesite="strict", path="/api/terminal")
-        terminal.log(f"terminal unlocked and remembered for {user} from {ip}")
-    return resp
-
-
-@app.post("/api/terminal/ticket")
-async def terminal_ticket(request: Request, user: str = Depends(current_user)):
-    """A new ticket without the key, if this browser was left unlocked."""
-    _need_terminal()
-    cfg = auth.load_auth()
-    if not terminal.read_unlock(cfg.secret, request.cookies.get(terminal.UNLOCK_COOKIE), user, request.cookies.get(COOKIE, "")):
-        raise HTTPException(403, "Locked")
-    return {"ticket": terminal.tickets.issue(user), "idle_minutes": terminal.idle_seconds() // 60}
-
-
-@app.post("/api/terminal/lock")
-async def terminal_lock(response: Response, user: str = Depends(current_user)):
-    response.delete_cookie(terminal.UNLOCK_COOKIE, path="/api/terminal")
-    return {"ok": True}
-
-
-@app.websocket("/api/terminal/ws")
-async def terminal_ws(ws: WebSocket, ticket: str = "", as_: str = Query("root", alias="as")):
-    origin, host = ws.headers.get("origin"), ws.headers.get("host", "")
-    # Only root or the detected login user (the one with a ~/aiostreams shortcut). Never an arbitrary name.
-    if as_ != "root":
-        uc = await asyncio.to_thread(backend.user_copy)
-        if not uc or as_ != uc.get("user"):
-            as_ = "root"
-    cfg = auth.load_auth()
-    user = auth.read_session(cfg.secret, ws.cookies.get(COOKIE)) if cfg else None
-    if (not terminal.enabled() or not user or not origin
-            or origin.split("://", 1)[-1] != host or not terminal.tickets.redeem(ticket, user)):
-        await ws.close(code=4403)
-        return
-    ip = ws.client.host if ws.client else "unknown"
-    await ws.accept()
-    q: asyncio.Queue = asyncio.Queue()
-    # If the browser goes away while the session is still being attached, the
-    # attach finishes in its thread anyway; make sure it doesn't stay claimed.
-    guard = {"lock": threading.Lock(), "cancelled": False, "got": None}
-    loop = asyncio.get_running_loop()
-
-    def do_attach():
-        got = terminal.attach(loop, q, user, ip, as_)
-        with guard["lock"]:
-            guard["got"] = got
-            if guard["cancelled"] and got:
-                terminal.detach(got[0], q)
-        return got
-
-    try:
-        got = await asyncio.to_thread(do_attach)
-    except asyncio.CancelledError:
-        with guard["lock"]:
-            guard["cancelled"] = True
-            if guard["got"]:
-                terminal.detach(guard["got"][0], q)
-        raise
-    if got is None:
-        await ws.send_text(json.dumps({"end": "Another terminal window already has this session open."}))
-        await ws.close(code=1000)
-        return
-    sess, replay, resumed = got
-    ended = False
-
-    async def pump():
-        nonlocal ended
-        if resumed:
-            await ws.send_text(json.dumps({"resumed": True}))
-            if replay:
-                await ws.send_bytes(replay)
-        while True:
-            item = await q.get()
-            if isinstance(item, tuple):
-                ended = True
-                await ws.send_text(json.dumps({"end": f"Session ended: {item[1]}."}))
-                return
-            await ws.send_bytes(item)
-
-    async def listen():
-        while True:
-            msg = json.loads(await ws.receive_text())
-            if "i" in msg:
-                await asyncio.to_thread(sess.write, str(msg["i"]).encode())
-            elif "r" in msg:
-                sess.shell.resize(*msg["r"][:2])
-            elif msg.get("x"):
-                sess.end("ended by you")
-
-    tasks = [asyncio.create_task(pump()), asyncio.create_task(listen())]
-    try:
-        await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-    finally:
-        for t in tasks:
-            t.cancel()
-        if not ended:
-            terminal.detach(sess, q)      # shell keeps running; unlock again to come back
-        try:
-            await asyncio.gather(*tasks, return_exceptions=True)
-            await ws.close(code=1000)
-        except BaseException:
-            pass
 
 
 @app.get("/api/server/reboot-needed")
@@ -1440,7 +1329,7 @@ async def server_reboot(request: Request, user: str = Depends(current_user)):
         raise HTTPException(400, "Type reboot to confirm.")
     if jobs.current_id():
         raise HTTPException(409, "An action is still running. Wait for it to finish before rebooting.")
-    terminal.log(f"server reboot requested by {user} from {client_ip(request)}")
+    audit.log(f"server reboot requested by {user} from {client_ip(request)}")
 
     def go():
         time.sleep(2)           # let this response reach the browser first
@@ -1467,14 +1356,17 @@ async def service_restart(key: str, request: Request, user: str = Depends(curren
         if e.__class__.__name__ == "NotFound":
             raise HTTPException(404, "That service isn't installed.")
         raise HTTPException(500, "Docker couldn't restart it.")
-    terminal.log(f"{name} restarted on its own by {user} from {client_ip(request)}")
+    audit.log(f"{name} restarted on its own by {user} from {client_ip(request)}")
     return {"ok": True, "name": name}
 
 
 @app.post("/api/panel/restart")
 async def panel_restart(request: Request, user: str = Depends(current_user)):
     """Restarting this container re-resolves its bind mounts, which a restore
-    (it moves the install folder aside) leaves pointing at the old folder."""
+    (it moves the install folder aside) leaves pointing at the old folder.
+    Refused while an action runs: the action's script would be killed with it."""
+    if jobs.current_id():
+        raise HTTPException(409, "An action is still running. Wait for it to finish first.")
     if config.DEMO:
         return {"ok": True, "demo": True}
     def go():
@@ -1487,7 +1379,6 @@ async def panel_restart(request: Request, user: str = Depends(current_user)):
 app.mount("/css", StaticFiles(directory=config.WEB_DIR / "css"), name="css")
 app.mount("/js", StaticFiles(directory=config.WEB_DIR / "js"), name="js")
 app.mount("/fonts", StaticFiles(directory=config.WEB_DIR / "fonts"), name="fonts")
-app.mount("/vendor", StaticFiles(directory=config.WEB_DIR / "vendor"), name="vendor")
 
 
 @app.get("/favicon.svg", include_in_schema=False)

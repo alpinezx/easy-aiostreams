@@ -4,7 +4,7 @@ Optional add-ons on top of the main install. Each is its own standalone script, 
 
 ### Control Panel (beta)
 
-- **Rather manage your server from a web page than over SSH?** A private dashboard on its own subdomain: see what's running, start, stop, update and back up with a button, read the logs, and optionally open a terminal from your phone. Locked behind a secret unlock link plus its own login. Run with `control-panel/setup-ui.sh`. → [Basic](./basic/control-panel.md) · [Advanced](./advanced/control-panel.md)
+- **Rather manage your server from a web page than over SSH?** A private dashboard on its own subdomain: see what's running, start, stop, update and back up with a button, and read the logs. Locked behind a secret unlock link plus its own login. Run with `control-panel/setup-ui.sh`. → [Basic](./basic/control-panel.md) · [Advanced](./advanced/control-panel.md)
 
 ### AIOMetadata
 

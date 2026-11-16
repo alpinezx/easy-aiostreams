@@ -164,6 +164,53 @@ export async function runAction(act, params, lead) {
   }
 }
 
+// After a restore: the panel restarts itself onto the restored install. Waits until a new
+// process answers (its boot id changes), then says so in the drawer. A restored backup with a
+// different login signs this browser out: then it says to sign in again.
+async function awaitPanelRestart() {
+  const sub = $("#drawer-sub");
+  sub.textContent = "Restarting the panel so it uses the restored install…";
+  const me = async () => {
+    try {
+      const r = await fetch("/api/me", { credentials: "same-origin", cache: "no-store" });
+      return r.status === 401 ? { out: true } : r.ok ? await r.json() : null;
+    } catch (_) { return null; }
+  };
+  const before = await me();
+  const started = Date.now();
+  (async function poll() {
+    const now = await me();
+    if (now && now.out) {
+      sub.textContent = "The panel restarted with the restored install, which has a different login. Sign in again.";
+      $("#drawer-foot").append(h("button", { class: "btn small primary", type: "button", text: "Sign in",
+        onclick: () => { location.href = "/login"; } }));
+      return;
+    }
+    if (now && (!before || now.boot !== before.boot || now.demo)) {
+      sub.textContent = "The panel restarted itself and is using the restored install.";
+      window.dispatchEvent(new CustomEvent("job-finished"));
+      return;
+    }
+    if (Date.now() - started > 120000) {
+      sub.textContent = "The panel hasn't come back yet. Reload this page in a minute.";
+      return;
+    }
+    setTimeout(poll, 1500);
+  })();
+}
+
+// The panel restarts itself and this page reloads once the new process answers.
+export async function restartPanel() {
+  try {
+    await api("/api/panel/restart", { method: "POST" });
+  } catch (e) { toast(e.message || "Couldn't restart the panel.", true); return; }
+  toast("Restarting the panel. This page will reload in a few seconds.");
+  setTimeout(async function poll(n = 0) {
+    try { await fetch("/api/me", { credentials: "same-origin" }); location.reload(); }
+    catch (_) { if (n < 30) setTimeout(() => poll(n + 1), 1500); }
+  }, 4000);
+}
+
 export async function restartService(s) {
   const ok = await ask({ title: `Restart ${s.name}?`, confirmLabel: "Restart",
     body: `Only ${s.name} restarts. Everything else keeps running. It can take up to 15 seconds.` });
@@ -199,20 +246,18 @@ function addLine(term, k, t) {
   if (stick) term.scrollTop = term.scrollHeight;
 }
 
-function finish(job, code) {
+function finish(job, code, restart = false) {
   const ok = code === 0;
   $("#drawer-title").textContent = ok ? job.done : `${job.label} failed`;
   $("#drawer-sub").textContent = ok ? "Finished without errors." : "Open the lines marked red to see why.";
   const foot = $("#drawer-foot"); clear(foot);
-  // A restore leaves this panel looking at the folder it moved aside, until it restarts.
-  const restored = ok && job.action === "stack.restore";
-  if (restored) $("#drawer-sub").textContent = "Restart the panel now, so it picks up the restored install.";
+  // A restore leaves this panel looking at the folder it moved aside, so the panel restarts
+  // itself a few seconds after one succeeds. This waits for it to come back.
+  if (ok && job.action === "stack.restore" && restart) awaitPanelRestart();
   if (!ok && job.action === "stack.restore") {
     $("#drawer-sub").textContent = "If the output ends with Nothing was changed, nothing was. Otherwise your previous install is kept as a set-aside folder on Backup & Restore.";
   }
   foot.append(...[h("span", { class: "result " + (ok ? "ok" : "bad"), text: ok ? "Done" : `Exited with code ${code}` }),
-    restored ? h("button", { class: "btn small primary", type: "button", text: "Restart panel",
-      onclick: () => window.dispatchEvent(new CustomEvent("restart-panel")) }) : null,
     h("button", { class: "btn small", style: null, type: "button", text: "Close", onclick: closeDrawer })].filter(Boolean));
   foot.children[1].style.marginLeft = "auto";
   // Updates that need a restart (a new kernel, say) can be finished from here
@@ -281,7 +326,7 @@ export async function openJob(id, reconnecting, before) {
   es = new EventSource(`/api/jobs/${id}/stream`);
   es.onmessage = (ev) => {
     const m = JSON.parse(ev.data);
-    if (m.done) { es.close(); es = null; finish(job, m.code); window.dispatchEvent(new CustomEvent("job-finished")); return; }
+    if (m.done) { es.close(); es = null; finish(job, m.code, m.restart && Date.now() / 1000 - m.ended < 60); window.dispatchEvent(new CustomEvent("job-finished")); return; }
     addLine(term, m.k, m.t);
   };
   es.onerror = () => { /* EventSource reconnects by itself; stream resumes from the start, so avoid duplicates */

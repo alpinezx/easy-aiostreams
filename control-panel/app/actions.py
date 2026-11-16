@@ -230,12 +230,13 @@ def build_vpn_update(backup: bool) -> Action:
 def build_restore(path: str, without_vpn: bool = False) -> Action:
     """A same-server rollback to the backup at path, which the caller has
     matched against the backups actually on the server. --same-server runs
-    the check first and refuses rather than asks. AIOS_UI_TERMINAL tells it
-    the panel is running it, so it leaves the panel running."""
+    the check first and refuses rather than asks. AIOS_FROM_PANEL tells it
+    the panel is running it, so it leaves the panel running; AIOS_UI_TERMINAL
+    says the same to scripts from before panel 1.59.0 (drop it in 2027)."""
     return Action("stack.restore", "Restore", "Restoring", "Restore finished", AIO,
                   args=("restore", "--same-server") + (("--without-vpn",) if without_vpn else ()) + (path,),
                   timeout=1800, needs=(AIO,),
-                  env=("AIOS_UI_TERMINAL=1",))
+                  env=("AIOS_FROM_PANEL=1", "AIOS_UI_TERMINAL=1"))
 
 
 def build_use_address(ip) -> Action:
@@ -384,10 +385,10 @@ def catalog() -> list[Action]:
                                      build_set_topic("aios-example-topic"), build_route("mediaflow", True)] + [build_addon_uninstall(a, False) for a in ADDON_UNINSTALL]
 
 
-# The stack's scripts, in the order the Terminal tab lists them. Only the first
+# The stack's scripts, in the order the Scripts tab lists them. Only the first
 # is always there; the others are downloaded on their own, so the panel checks.
 # setup-backup.sh isn't listed: the AIOStreams menu runs it (options 7 and 8)
-# and the Terminal tab updates it together with setup-aiostreams.sh.
+# and the Scripts tab updates it together with setup-aiostreams.sh.
 SCRIPTS = [
     ("aiostreams", "AIOStreams", "setup-aiostreams.sh"),
     ("aiometadata", "AIOMetadata", "setup-aiometadata.sh"),

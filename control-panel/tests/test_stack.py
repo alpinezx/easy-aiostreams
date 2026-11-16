@@ -361,7 +361,7 @@ def test_parse_restore_check():
     # a setup-backup.sh from before --check treats it as a file name and fails
     old = "\x1b[1;34m==>\x1b[0m Restore from backup\n\x1b[1;31mXX \x1b[0m File not found: --check\n"
     got = stack.parse_restore_check(old, 1)
-    assert got["ok"] is False and "Update it on the Terminal tab" in got["reasons"][0]
+    assert got["ok"] is False and "Update it with the AIOStreams command on the Scripts tab" in got["reasons"][0]
     assert stack.parse_restore_check("Result: OK\n", 3)["ok"] is False          # the exit code has the last word
 
 

@@ -633,7 +633,7 @@ class DemoBackend:
             for l in ["Checking the backup for a same-server restore. Nothing is changed.", "  ok: streams.example.com points at this server.",
                       "Result: OK, it can be restored here without questions.", "==> Restore from backup",
                       "Moving the current install aside (same-server restore).", "==> Extracting backup", "==> Starting the restored stack",
-                      "==> Restore complete!", "  - Control panel (panel.example.com): restart it (Restart panel) so it picks up the restored install."]:
+                      "==> Restore complete!", "  - Control panel (panel.example.com): it restarts itself once the restore finishes, to pick up the restored install."]:
                 say(l, 0.4)
         elif action.id in ("vpn.on", "vpn.off"):
             on = action.id == "vpn.on"
