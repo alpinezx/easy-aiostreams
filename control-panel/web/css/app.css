@@ -2116,7 +2116,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   #view-overview .ver-btns .btn:not(.primary), #view-overview .card-foot .btn:not(.primary),
   #view-overview #rows .row .acts .btn {
     display: inline-flex; align-items: center; gap: 6px; background: none; border-color: transparent; box-shadow: none;
-    padding: 4px 6px; min-height: 0; font-size: .86rem; font-weight: 600; color: var(--text); text-decoration: none; }
+    padding: 4px 6px; min-height: 0; font-size: .86rem; font-weight: 600; color: var(--dim); text-decoration: none; }
   #view-overview .btn.fold-act, #view-overview .card-link.card-detail { margin: -4px -6px -4px auto; }
   /* Details and Update side by side in the corner: only the first is pushed right */
   #view-overview .card-link.card-detail + .btn.fold-act { margin-left: 10px; }
@@ -2124,6 +2124,8 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   #view-overview .warnc .card-acts > .card-cog, #view-overview .warnc .card-acts > .warn-logs { padding: 4px 6px; margin: 0; }
   #view-overview .card-cog svg, #view-overview .fa-icon svg { width: 15px; height: 15px; }
   #view-overview .ver-btns, #view-overview #rows .row .acts { gap: 8px; }
+  /* Stop and Restart: their words sit on the Recent CPU graph's baseline, not the row's middle */
+  #view-overview #rows .row .acts { position: relative; top: 5px; }
   /* a newer release: Update filled, with its arrow, wherever it is */
   #view-overview .btn.fold-act.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); padding: 4px 10px; border-radius: 8px; }
   @media (hover: hover) {
