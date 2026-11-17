@@ -117,10 +117,8 @@ function panelRow(cmd) {
       spacer("Remove")));
 }
 
-// What's new: the project's changelog, entries since this panel's version marked. On this tab it's a quiet
-// link at the top right, as on the Overview (it only opens something to read); Check now stays a button.
+// What's new: the project's changelog, entries since this panel's version marked (the Overview's button)
 let logLoading = false;
-$("#scripts-new")?.addEventListener("click", (e) => showChangelog(e));
 export async function showChangelog(e) {
   if (logLoading) return;
   logLoading = true;

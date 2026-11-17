@@ -2001,6 +2001,8 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   /* Scripts' Check now as wide as the cards' right-hand column below it (card padding 16px +
      1px border each side, 12px between the two columns), flush with the cards' right edge */
   .scripts-acts { width: calc((100% - 46px) / 2); }
+  /* Check now 10px nearer the title, so the Checked against GitHub line under it has more room */
+  .scripts-acts { margin-top: -10px; margin-bottom: 10px; }
   .scripts-acts .btn { width: 100%; }
   /* A card's row of buttons as two even columns: pairs along the bottom, an odd one across the top */
   .btn-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 10px 12px; justify-content: stretch; width: 100%; }
