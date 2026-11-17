@@ -221,6 +221,15 @@ function foldAct(b) {
   if (b) { b.classList.add("fold-act"); iconize(b); }
   return b;
 }
+// Open, phones keep a card's corner icon (wider screens keep the button below instead):
+// make(), called twice, gives the corner copy; the one below is marked to hide on phones
+function phCorner(below, make) {
+  if (!below) return null;
+  const b = foldAct(make());
+  b.classList.add("ph-corner");
+  below.classList.add("ver-upd");
+  return b;
+}
 // The folded line: [text or element, tone, tooltip], empty ones left out
 // An update waiting has to stand out by shape, not only colour (amber and green can look alike):
 // "available" gets an up arrow, and the card's Update becomes the filled button.
@@ -397,8 +406,9 @@ function metaCard(st, avail) {
     : !list ? h("span", { class: "warn", title: metaRel.error || "", text: "Couldn't check" })
     : h("span", { class: top ? "quiet" : "ok" }, top ? stIcon("up") : null, top ? `${top.tag} available` : "Up to date");
   const upd = avail["aiometadata.update"];
-  const updBtn = upd && upd.available ? hot(h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
+  const mkUpd = () => upd && upd.available ? hot(h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
     title: "Update AIOMetadata to its newest release, with a backup first", onclick: () => runAction(upd) }), top) : null;
+  const updBtn = mkUpd();
   const title = h("div", { class: "fold-title" },
     h("h2", {}, foldTitle("aiometadata", "AIOMetadata")),
     m.domain ? cardPages(m.domain, [["Dashboard", "/dashboard"], ["Configure", "/configure"]]) : null);
@@ -408,7 +418,7 @@ function metaCard(st, avail) {
   }
   const col = (value, sub) => h("div", {}, h("div", { class: "ver-value" }, value), h("div", { class: "ver-sub", text: sub || "" }));
   return h("section", { class: "panel ver-card", "aria-label": "AIOMetadata version" },
-    h("div", { class: "ver-head" }, title),
+    h("div", { class: "ver-head" }, title, phCorner(updBtn, mkUpd)),
     h("div", { class: "ver-grid" },
       col(running, mine && mine.published ? `Released ${ago(Date.parse(mine.published) / 1000)}` : ""),
       h("div", { class: "ver-right" },
@@ -468,8 +478,9 @@ function addonVerCard(st, avail, o) {
     : !list ? h("span", { class: "warn", title: rel.error || "", text: "Couldn't check" })
     : h("span", { class: top ? "quiet" : "ok" }, top ? stIcon("up") : null, top ? `${top.tag} available` : "Up to date");
   const upd = avail[`${o.id}.update`];
-  const updBtn = upd && upd.available ? hot(h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
+  const mkUpd = () => upd && upd.available ? hot(h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
     title: `Update ${o.name} to its newest release, with a backup first`, onclick: () => runAction(upd) }), top) : null;
+  const updBtn = mkUpd();
   const title = h("div", { class: "fold-title" },
     h("h2", {}, foldTitle(o.id, o.name)), o.pages || null);
   const shown = running || "Latest image";
@@ -479,7 +490,9 @@ function addonVerCard(st, avail, o) {
   }
   const col = (value, sub) => h("div", {}, h("div", { class: "ver-value" }, value), h("div", { class: "ver-sub", text: sub || "" }));
   return h("section", { class: "panel ver-card", "aria-label": `${o.name} version` },
-    h("div", { class: "ver-head" }, title, o.corner || null),
+    // Phones show Update in the corner as folded does, so a corner only for the open card (Details) goes
+    h("div", { class: "ver-head" }, title, o.corner && updBtn && o.corner !== o.foldCorner ? cls(o.corner, "ph-hide") : o.corner || null,
+      phCorner(updBtn, mkUpd)),
     h("div", { class: "ver-grid" },
       col(shown, mine && mine.published ? `Released ${ago(Date.parse(mine.published) / 1000)}`
         : running ? "" : "Pinned to a release at its next Update or Start"),
@@ -525,8 +538,9 @@ function versionCard(st, avail) {
     h("div", { class: "ver-value" }, ...[value].flat()), h("div", { class: "ver-sub", text: sub || "" }));
   const upd = st.installed && avail["stack.update"];
   // Update sits with Check now, plain like every card's: the amber "available" already says a newer one is out
-  if (upd && upd.available) btns.unshift(hot(h("button", { class: "btn small", type: "button", text: "Update",
-    disabled: !!st.busy, title: "Update AIOStreams, or switch between stable and nightly", onclick: () => runAction(upd) }), fresh));
+  const mkUpd = () => hot(h("button", { class: "btn small", type: "button", text: "Update",
+    disabled: !!st.busy, title: "Update AIOStreams, or switch between stable and nightly", onclick: () => runAction(upd) }), fresh);
+  if (upd && upd.available) btns.unshift(mkUpd());
   // The title folds the card like the others; its two pages are links beside it
   const title = h("div", { class: "fold-title" },
     h("h2", {}, foldTitle("aiostreams", "AIOStreams")),
@@ -539,7 +553,7 @@ function versionCard(st, avail) {
         btns[0] && btns[0].textContent === "Update" ? foldAct(btns[0]) : null));
   }
   return h("section", { class: "panel ver-card", "aria-label": "AIOStreams version" },
-    h("div", { class: "ver-head" }, title),
+    h("div", { class: "ver-head" }, title, upd && upd.available ? phCorner(btns[0], mkUpd) : null),
     h("div", { class: "ver-grid" },
       // The channel as a word beside the version, not a pill
       col([`v${st.version}`, h("span", { class: "ver-chan", text: nightly ? "Nightly" : "Stable",
@@ -1136,9 +1150,13 @@ function vpnCard(el, st, avail) {
   const latest = !running ? null : !rel ? ["Checking…", ""] : !list ? ["Couldn't check", "warn"]
     : top ? [`${top.tag} available`, "warn"] : ["Up to date", "ok"];
   const upd = avail["vpn.update"];
-  const updBtn = upd && upd.available ? hot(h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
+  const mkUpd = () => upd && upd.available ? hot(h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
     title: "Update gluetun to its newest v3 release, with a backup first", onclick: () => runAction(upd) }), top) : null;
+  const updBtn = mkUpd();
   const folded = isFolded("vpn");
+  // Open with a newer gluetun out, phones show Update in the corner, where Details is otherwise
+  const corner = !folded && top ? phCorner(updBtn, mkUpd) : null;
+  const details = iconize(h("a", { href: "#vpn", class: "dim card-link card-detail" + (corner ? " ph-hide" : ""), text: "Details" }));
   // The tunnel's state, open or folded: Connected or Disconnected
   const shortWord = word;
   // Open, the tunnel's state sits beside the title, which leaves the card's middle to gluetun's
@@ -1152,7 +1170,7 @@ function vpnCard(el, st, avail) {
     folded ? foldSum([[shortWord, tn], [where], running ? [h("span", { class: "gl-sum" }, h("span", {}, h("span", { class: "gl-name", text: "Gluetun" }), ` ${running}`),
       top ? h("span", { class: "warn" }, stIcon("up"), `${top.tag} available`)
         : list ? h("span", { class: "ok", text: "Up to date" }) : null)] : [""]]) : null,
-    folded && top && updBtn ? foldAct(updBtn) : iconize(h("a", { href: "#vpn", class: "dim card-link card-detail", text: "Details" }))));
+    folded && top && updBtn ? foldAct(updBtn) : details, corner));
   el.append(card);
   if (folded) return;
   // Short values, so they fit beside their labels on a phone: the city with the country under it,

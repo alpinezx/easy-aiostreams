@@ -106,7 +106,8 @@ function iconize(b) {
 
 function gridRows(view) {
   for (const row of view.querySelectorAll(GRIDS)) {
-    const btns = [...row.children].filter(b => b.classList.contains("btn-i") && !b.hidden && !b.classList.contains("btn-spacer"));
+    // .ver-upd: an open card's Update, which phones show as the corner icon instead
+    const btns = [...row.children].filter(b => b.classList.contains("btn-i") && !b.hidden && !b.classList.contains("btn-spacer") && !b.classList.contains("ver-upd"));
     if (btns.length < 2) { row.classList.remove("btn-grid"); continue; }
     row.classList.add("btn-grid");
     const isScripts = row.matches(".scripts-panel .cmd-btns");
