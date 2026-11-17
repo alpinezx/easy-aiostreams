@@ -92,6 +92,10 @@ export function show(status) {
     try { localStorage.setItem("aios.netSource", "vpn"); } catch (_) {}
   }
   sourceSwitch();
+  // Phones: the bin at the end of the heading's Traffic line (a computer has it in the card's corner)
+  const pb = $("#net-pbin");
+  clear(pb);
+  pb.append(bin());
   const root = $("#net-root");
   clear(root);
   const tbox = h("div", { class: "net-traffic" }), sbox = h("div", { class: "net-services" });

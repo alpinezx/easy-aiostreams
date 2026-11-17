@@ -2277,7 +2277,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 .vs-switch { display: none; }
 @media (max-width: 720px) {
   #view-overview .stat.vs-ver > .vs-switch { display: inline-flex; align-items: center; gap: 6px; grid-column: 1; grid-row: 2; justify-self: start;
-    align-self: baseline; height: auto; line-height: inherit; background: none; border-color: transparent; box-shadow: none; padding: 0;
+    align-self: last baseline; height: auto; line-height: inherit;   /* its words' baseline, not the icon's */ background: none; border-color: transparent; box-shadow: none; padding: 0;
     min-height: 0; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
   #view-overview .vpnc-foot > .vpnc-switch.vs-moved { display: none !important; }
   /* the line under gluetun's version, and Turn VPN off beside it, a little further from the line above */
@@ -2352,3 +2352,26 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 }
 /* Phones: Phone alerts' Clear history 3px in from the card's edge below it, like the heading tools */
 @media (max-width: 720px) { #view-alerts .wd-sub .btn { margin-right: 3px; } }
+.toast { white-space: pre-line; }   /* toast() puts each sentence on a line of its own */
+/* The Network page on phones: Traffic, the time range (1h 24h 7d) and the bin on one line above the
+   card, like Phone alerts' Recent events; the card starts with All traffic / VPN tunnel (with the VPN)
+   or the figures. A computer keeps the title and bin in the card. */
+.net-ptitle, .net-pbin { display: none; }
+@media (max-width: 720px) {
+  #view-net .view-head.net-head { display: grid; grid-template-columns: auto 1fr auto; align-items: center; row-gap: 14px; }
+  #view-net .net-head > h2 { grid-column: 1 / -1; }
+  /* a quiet label like the card's NOW and LAST 7 DAYS, so it neither outshines Network nor looks like a fourth choice */
+  #view-net .net-ptitle { display: block; grid-column: 1; margin: 0; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em;
+    font-weight: 500; color: var(--dim); }
+  #view-net .net-head > .net-ranges { grid-column: 2; justify-self: center; margin-top: 0; }
+  #view-net .net-pbin { display: flex; grid-column: 3; margin-right: 3px; }
+  #view-net #net-ranges .btn { font-size: 0; }
+  #view-net #net-ranges .btn::after { content: attr(data-short); font-size: .86rem; }
+  #view-net #net-ranges .tr-ranges { gap: 14px; }
+  #view-net #net-pbin .tr-bin { background: none; border-color: transparent; box-shadow: none; padding: 6px 0; width: auto; height: auto;
+    min-height: 0; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+  #view-net #net-pbin .tr-bin svg { width: 17px; height: 17px; stroke-width: 2; }
+  #view-net #net-pbin .tr-bin:active { color: var(--text); }
+  #net-root .tr-card > .vpn-head { display: none; }
+  #net-root .tr-card > .tr-src { margin-top: 0; }
+}

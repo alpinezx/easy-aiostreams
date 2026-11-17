@@ -121,7 +121,9 @@ export function toast(text, bad = false) {
     if (now - staleFailAt < 1500 || now - reachNoticeAt < 30000) return;
     reachNoticeAt = now;
   }
-  const t = h("div", { class: "toast" + (bad ? " bad" : ""), text });
+  // Starts with a capital (a name like gluetun too: it reads cleaner), each sentence on a line of its own
+  const shown = (text.charAt(0).toUpperCase() + text.slice(1)).split(/(?<=[.!?])\s+(?=[A-Z0-9"'(])/).join("\n");
+  const t = h("div", { class: "toast" + (bad ? " bad" : ""), text: shown });
   $("#toasts").append(t);
   setTimeout(() => t.remove(), bad ? 7000 : 4000);
 }

@@ -307,7 +307,7 @@ export async function trafficCard(box, force, kind = "vpn", opts = {}) {
   const s = series(d, range);
   const n = nowRate(d, kind);
   const ranges = () => h("div", { class: "tr-ranges", role: "group", "aria-label": "Time range" },
-    ...Object.entries(RANGES).map(([k, [label]]) => h("button", { class: "btn small", type: "button", text: label,
+    ...Object.entries(RANGES).map(([k, [label]]) => h("button", { class: "btn small", type: "button", text: label, "data-short": k,   // 1h, 24h, 7d on a phone's Network page
       "aria-pressed": String(k === range), onclick: () => {
         range = k;
         try { localStorage.setItem("aios.vpnRange", k); } catch (_) {}
