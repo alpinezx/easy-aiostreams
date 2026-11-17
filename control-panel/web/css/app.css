@@ -2158,3 +2158,13 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
     #view-logs .lg-acts .btn:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
   }
 }
+/* Activity on a computer: Clear activity is a side tool, plain icon and word like Logs' (it asks first),
+   3px in from the card's edge */
+@media (min-width: 721px) {
+  #view-activity #clear-activity { display: inline-flex; align-items: center; gap: 6px; background: none; border-color: transparent;
+    box-shadow: none; padding: 4px 6px; min-height: 0; margin-right: -3px; font-size: .86rem; font-weight: 600;
+    color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+  @media (hover: hover) {
+    #view-activity #clear-activity:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+  }
+}
