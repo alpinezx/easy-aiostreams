@@ -2059,6 +2059,8 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   #net-ranges .tr-ranges, .tr-src .tr-ranges { gap: 8px; }
   #net-ranges .btn, #net-root .tr-src .btn, #net-root .tr-bin { background: none; border-color: transparent; color: var(--dim); }
   #net-ranges .btn:hover:not(:disabled), #net-root .tr-src .btn:hover:not(:disabled), #net-root .tr-bin:hover:not(:disabled) { background: none; border-color: transparent; }
+  /* The bare bin as large as the other cards' corner icons (Recent log alerts' cog) */
+  #net-root .tr-bin svg { width: 17px; height: 17px; stroke-width: 2; }
   @media (hover: hover) {
     #net-ranges .btn:hover:not(:disabled):not([aria-pressed="true"]), #net-root .tr-src .btn:hover:not(:disabled):not([aria-pressed="true"]),
     #net-root .tr-bin:hover:not(:disabled) { color: var(--text); }
