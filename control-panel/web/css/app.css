@@ -2375,3 +2375,12 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   #net-root .tr-card > .vpn-head { display: none; }
   #net-root .tr-card > .tr-src { margin-top: 0; }
 }
+/* Activity on phones: the bin in the row's top right corner, like the cards' corner icons, and the state
+   pill with the time beside it on the line under the name ("Done  5 hours ago") */
+@media (max-width: 720px) {
+  #jobs .item.job { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "t t x" "c w w"; column-gap: 10px; row-gap: 8px; }
+  #jobs .item.job > .job-open { grid-area: t; }
+  #jobs .item.job > .btn.job-x { grid-area: x; align-self: center; }
+  #jobs .item.job > .chip { grid-area: c; font-size: .74rem; padding: 1px 8px; }   /* the small pill size, like Recent events */
+  #jobs .item.job > .when { grid-area: w; justify-self: start; }
+}
