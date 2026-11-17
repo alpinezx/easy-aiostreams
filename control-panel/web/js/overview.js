@@ -230,6 +230,11 @@ function phCorner(below, make) {
   below.classList.add("ver-upd");
   return b;
 }
+// Update on a card already running the newest release (as checked): say so, as the control panel's Update
+// does, rather than a backup and an update with nothing to fetch. Not checked, or couldn't check: as before.
+function updOrSay(upd, name, list, top, running) {
+  return () => (list && running && !top ? toast(`${name} is up to date (${running}). Nothing to do.`) : runAction(upd));
+}
 // The folded line: [text or element, tone, tooltip], empty ones left out
 // An update waiting has to stand out by shape, not only colour (amber and green can look alike):
 // "available" gets an up arrow, and the card's Update becomes the filled button.
@@ -407,7 +412,7 @@ function metaCard(st, avail) {
     : h("span", { class: top ? "quiet" : "ok" }, top ? stIcon("up") : null, top ? `${top.tag} available` : "Up to date");
   const upd = avail["aiometadata.update"];
   const mkUpd = () => upd && upd.available ? hot(h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
-    title: "Update AIOMetadata to its newest release, with a backup first", onclick: () => runAction(upd) }), top) : null;
+    title: "Update AIOMetadata to its newest release, with a backup first", onclick: updOrSay(upd, "AIOMetadata", list, top, running) }), top) : null;
   const updBtn = mkUpd();
   const title = h("div", { class: "fold-title" },
     h("h2", {}, foldTitle("aiometadata", "AIOMetadata")),
@@ -479,7 +484,7 @@ function addonVerCard(st, avail, o) {
     : h("span", { class: top ? "quiet" : "ok" }, top ? stIcon("up") : null, top ? `${top.tag} available` : "Up to date");
   const upd = avail[`${o.id}.update`];
   const mkUpd = () => upd && upd.available ? hot(h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
-    title: `Update ${o.name} to its newest release, with a backup first`, onclick: () => runAction(upd) }), top) : null;
+    title: `Update ${o.name} to its newest release, with a backup first`, onclick: updOrSay(upd, o.name, list, top, running) }), top) : null;
   const updBtn = mkUpd();
   const title = h("div", { class: "fold-title" },
     h("h2", {}, foldTitle(o.id, o.name)), o.pages || null);
@@ -1128,7 +1133,7 @@ function vpnCard(el, st, avail) {
     : top ? [`${top.tag} available`, "warn"] : ["Up to date", "ok"];
   const upd = avail["vpn.update"];
   const mkUpd = () => upd && upd.available ? hot(h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
-    title: "Update gluetun to its newest v3 release, with a backup first", onclick: () => runAction(upd) }), top) : null;
+    title: "Update gluetun to its newest v3 release, with a backup first", onclick: updOrSay(upd, "gluetun", list, top, running) }), top) : null;
   const updBtn = mkUpd();
   const folded = isFolded("vpn");
   // Phones always show Update in the corner, open or folded, filled when a newer gluetun is out, as the
