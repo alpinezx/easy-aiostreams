@@ -2149,7 +2149,10 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   .lg-acts { gap: 10px; }
   #view-logs .lg-acts .btn { display: inline-flex; align-items: center; gap: 6px; width: auto; background: none; border-color: transparent;
     box-shadow: none; padding: 4px 6px; min-height: 0; font-size: .86rem; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
-  #view-logs .lg-acts .btn:last-child { margin-right: -6px; }
+  /* level with the Logs title, and 3px in from the card's edge so the rounded corner doesn't make
+     them look past it (optical alignment) */
+  #view-logs .lg-acts { position: relative; top: 16px; }
+  #view-logs .lg-acts .btn:last-child { margin-right: -3px; }
   .lg-acts .lg-word { display: inline; }
   @media (hover: hover) {
     #view-logs .lg-acts .btn:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
