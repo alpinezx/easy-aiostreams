@@ -1154,8 +1154,9 @@ function vpnCard(el, st, avail) {
     title: "Update gluetun to its newest v3 release, with a backup first", onclick: () => runAction(upd) }), top) : null;
   const updBtn = mkUpd();
   const folded = isFolded("vpn");
-  // Open with a newer gluetun out, phones show Update in the corner, where Details is otherwise
-  const corner = !folded && top ? phCorner(updBtn, mkUpd) : null;
+  // Phones always show Update in the corner, open or folded, filled when a newer gluetun is out, as the
+  // version cards do (wider screens keep Details there unless a folded card has a newer one)
+  const corner = updBtn && !(folded && top) ? phCorner(updBtn, mkUpd) : null;
   const details = iconize(h("a", { href: "#vpn", class: "dim card-link card-detail" + (corner ? " ph-hide" : ""), text: "Details" }));
   // The tunnel's state, open or folded: Connected or Disconnected
   const shortWord = word;
