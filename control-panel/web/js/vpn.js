@@ -55,9 +55,9 @@ function fillAddresses(list, r, pick, before) {
     list.append(h("label", { class: "addr" }, radio,
       h("span", { class: "mono", text: a.ip }),
       h("span", { class: "addr-tags" },
-        a.recommended ? h("span", { class: "chip ok", text: "Recommended" }) : null,
-        a.in_use ? h("span", { class: "chip", text: "In use now" }) : null,
-        before && a.ip === before ? h("span", { class: "chip", text: "Used before" }) : null),
+        a.recommended ? h("span", { class: "chip small-chip ok", text: "Recommended" }) : null,
+        a.in_use ? h("span", { class: "chip small-chip", text: "In use now" }) : null,
+        before && a.ip === before ? h("span", { class: "chip small-chip", text: "Used before" }) : null),
       h("span", { class: "addr-ms", text: a.ms === undefined ? "" : a.ms == null ? "no reply" : `${a.ms} ms` })));
   }
   // Every address in use (a config with just the one): picked anyway, so nothing sits greyed out unexplained

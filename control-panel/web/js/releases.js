@@ -66,10 +66,10 @@ function fill(body, r) {
 
 function mark(r, running, channel) {
   const c = cmpTag(r.tag, running, channel);
-  if (c === 0) return h("span", { class: "chip ok", text: "Running" });
+  if (c === 0) return h("span", { class: "chip small-chip ok", text: "Running" });
   if (c < 0) return null;
-  if (building(r, channel)) return h("span", { class: "chip", title: "Released minutes ago. Its Docker image is usually ready within half an hour; Update would still get the previous one until then.", text: "Image building" });
-  return h("span", { class: "chip warn", text: "New" });
+  if (building(r, channel)) return h("span", { class: "chip small-chip", title: "Released minutes ago. Its Docker image is usually ready within half an hour; Update would still get the previous one until then.", text: "Image building" });
+  return h("span", { class: "chip small-chip warn", text: "New" });
 }
 
 export function openReleases(rel, running) {
@@ -141,7 +141,7 @@ export function openChangelog(log) {
     list.append(h("details", { class: "rel", open: fresh || (!news && i === 0) },
       h("summary", {},
         h("span", { class: "rel-tag", text: d.date }),
-        fresh ? h("span", { class: "chip warn", text: "New to you" }) : null,
+        fresh ? h("span", { class: "chip small-chip warn", text: "New to you" }) : null,
         h("span", { class: "rel-when cl-count", text: `${d.items.length} ${d.items.length === 1 ? "change" : "changes"}` })),
       h("ul", { class: "rel-body cl-list" }, ...d.items.map((e) => {
         const [word, cls] = KIND[e.kind] || KIND.new;
