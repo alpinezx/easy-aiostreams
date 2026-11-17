@@ -274,7 +274,8 @@ function row(x, cmd, updateCmd) {
     h("span", { class: "cmd-label" }, dot, x.label, tags[0] ? h("span", { class: "lbl-brk", "aria-hidden": "true" }) : null, ...tags),
     h("span", { class: "cmd-btns" },
       copyBtn("Copy", cmd, "Copied. Paste it into an SSH session.", cmd),
-      updateCmd ? h("button", { class: "btn small quiet", type: "button", text: "Update",
+      // Filled, like the Control panel row's, when this copy differs from GitHub's
+      updateCmd ? h("button", { class: `btn small ${x.present && differs(x) ? "primary" : "quiet"}`, type: "button", text: "Update",
           title: `Replace it with GitHub's newest copy (${(cmp && cmp.branch) || "main"} branch)`, onclick: () => updateScript(x, updateCmd) })
         : spacer("Update"),
       removable ? h("button", { class: "btn small quiet danger", type: "button", text: "Remove",

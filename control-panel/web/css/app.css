@@ -1532,7 +1532,8 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   .scripts-panel .cmd-label .diff-slot { display: flex; justify-content: center; flex: 1 0 calc((100% - 12px) / 2 - 16px);
     max-width: calc((100% - 12px) / 2); margin-left: auto; }
   .scripts-panel .cmd-label .diff-slot .chip { white-space: nowrap; }
-  .cmd-btns .btn { flex: 1; border-color: var(--line); background: var(--raised); color: var(--text); padding: 8px 12px; }
+  .cmd-btns .btn { flex: 1; padding: 8px 12px; }
+  .cmd-btns .btn:not(.primary) { border-color: var(--line); background: var(--raised); color: var(--text); }
   /* Scripts: three columns on every row, Run wider, whatever the phone's text size; a fourth
      button (Remove) takes a line of its own */
   .scripts-panel .cmd-btns { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
@@ -1975,9 +1976,9 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
    The Overview's header links (Fold all cards, What's new, Edit) stay plain. */
 .btn.quiet:not(.fold-act):not(.hero-btns .btn):not(.hero-edit) { border-color: transparent; background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); }
 .btn.quiet:not(.fold-act):not(.hero-btns .btn):not(.hero-edit):hover:not(:disabled) { background: color-mix(in srgb, var(--text) 13%, transparent); }
-/* Scripts' Copy and Update (quiet buttons): a soft fill, no outline */
-.cmd-btns .btn.btn-i { border-color: transparent; background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); }
-.cmd-btns .btn.btn-i:hover:not(:disabled) { background: color-mix(in srgb, var(--text) 13%, transparent); }
+/* Scripts' Copy and Update (quiet buttons): a soft fill, no outline; an Update with something to fetch stays filled */
+.cmd-btns .btn.btn-i:not(.primary) { border-color: transparent; background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); }
+.cmd-btns .btn.btn-i:not(.primary):hover:not(:disabled) { background: color-mix(in srgb, var(--text) 13%, transparent); }
 /* Fold all cards: the list-folding icon in front replaces the arrow after the words */
 .fold-all.btn-i .path-chev { display: none; }
 /* its lines fill only the middle of the icon's box, so it's drawn larger to stand as tall as the F */
