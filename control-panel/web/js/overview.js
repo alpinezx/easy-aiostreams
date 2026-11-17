@@ -453,7 +453,7 @@ function addonReleases(key, name, page) {
   return r;
 }
 const mgrRel = addonReleases("aiomanager", "AIOManager", "https://github.com/sonicx161/aiomanager/releases");
-const mfRel = addonReleases("mediaflow", "MediaFlow Proxy", "https://github.com/mhdzumair/MediaFlow-Proxy-Light/releases");
+const mfRel = addonReleases("mediaflow", "MediaFlow", "https://github.com/mhdzumair/MediaFlow-Proxy-Light/releases");
 const glRel = addonReleases("gluetun", "gluetun", "https://github.com/qdm12/gluetun/releases");
 // Its version sits on the VPN card, among the side cards, so those draw again too
 const glLoad = glRel.load;
@@ -526,7 +526,7 @@ function mgrCard(st, avail) {
 // Add-ons page. Its speed is with the others, under This server's Network.
 function mfCard(st, avail) {
   const m = st.mediaflow;
-  return addonVerCard(st, avail, { id: "mediaflow", name: "MediaFlow Proxy", rel: mfRel, version: m.version,
+  return addonVerCard(st, avail, { id: "mediaflow", name: "MediaFlow", rel: mfRel, version: m.version,
     corner: iconize(h("a", { href: "#addons", class: "dim card-link card-detail", text: "Details" })) });
 }
 

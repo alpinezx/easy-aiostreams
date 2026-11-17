@@ -206,7 +206,7 @@ class DemoBackend:
                "checked_at": None, "error": None}
         if self.vpn == "none":
             return out
-        names = {"mediaflow": "MediaFlow Proxy"}
+        names = {"mediaflow": "MediaFlow"}
         out["version"] = "3.41.2"
         out["routes"] = [{"key": k, "name": n, "on": k in self.routed} for k, n in names.items()]
         out.update(endpoint_host=self.vpn_host if self.has_config else None, endpoint_ip=self.vpn_ip if self.has_config else None,
@@ -273,7 +273,7 @@ class DemoBackend:
         from .stack import mask_topic
         if not self.wd_configured:
             return {"configured": False}
-        watches = ["https://streams.example.com", "Disk space", "HTTPS certificates (5 sites)"] + (["VPN tunnel", "AIOStreams through the VPN"] if self.vpn == "on" else []) + ["MediaFlow Proxy", "AIOMetadata", "AIOManager"]
+        watches = ["https://streams.example.com", "Disk space", "HTTPS certificates (5 sites)"] + (["VPN tunnel", "AIOStreams through the VPN"] if self.vpn == "on" else []) + ["MediaFlow", "AIOMetadata", "AIOManager"]
         return {"configured": True, "running": self.wd_running, "alert_state": "up", "fails": 0,
                 "warnings": [w for w in os.environ.get("UI_DEMO_WD_WARN", "").split(",") if w],
                 "last_check": time.strftime("%d %b %Y, %H:%M:%S UTC", time.gmtime(time.time() - 40)) + " OK" if self.wd_running
@@ -332,7 +332,7 @@ class DemoBackend:
                 ("caddy", "caddy", "Caddy", "HTTPS front door", False, "caddy:2"),
                 ("gluetun", "gluetun", "VPN tunnel", "gluetun, WireGuard", False, "qmcgaw/gluetun:v3"),
                 ("aiostreams", "aiostreams", "AIOStreams", "Addon aggregator", False, "viren070/aiostreams:latest"),
-                ("mediaflow", "mediaflow-proxy-light", "MediaFlow Proxy", "Faster video proxy", True, f"ghcr.io/mhdzumair/mediaflow-proxy-light:{self.mf_version}"),
+                ("mediaflow", "mediaflow-proxy-light", "MediaFlow", "Faster video proxy", True, f"ghcr.io/mhdzumair/mediaflow-proxy-light:{self.mf_version}"),
                 ("aiometadata", "aiometadata", "AIOMetadata", "Catalogs and metadata", True, "ghcr.io/cedya77/aiometadata:3.6.1"),
                 ("aiomanager", "aiomanager", "AIOManager", "Manages Stremio accounts", True, "ghcr.io/sonicx161/aiomanager:2.0.0")]
         if self.vpn != "on":
@@ -506,7 +506,7 @@ class DemoBackend:
                 (70 * 60, '{"level":"warn","ts":%f,"logger":"http","msg":"HTTP/3 skipped because it requires TLS","network":"tcp","addr":":80"}'),
                 (6 * 3600, '{"level":"error","ts":%f,"logger":"http.handlers.reverse_proxy","msg":"aborting with incomplete response","upstream":"aiostreams:3000","error":"reading: read tcp: connection reset by peer"}'),
             ]),
-            "mediaflow-proxy-light": ("MediaFlow Proxy", [
+            "mediaflow-proxy-light": ("MediaFlow", [
                 (9 * 3600, "WARN upstream closed the connection early (bytes 52428800 of 734003200)"),
             ]),
         }

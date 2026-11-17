@@ -73,7 +73,7 @@ _STATIC: dict[str, Action] = {a.id: a for a in [
     Action("mediaflow.stop", "Stop", "Stopping", "Stop finished", "setup-mediaflow.sh",
            args=("stop-mediaflow",), stdin="3\n10\n", timeout=120,
            needs=("setup-mediaflow.sh", "mediaflow-state/docker-compose.yml"),
-           confirm="Stop MediaFlow Proxy? Streams that use it will stop playing."),
+           confirm="Stop MediaFlow? Streams that use it will stop playing."),
 
     # The webhook relay was retired in October 2026; this only removes one that's
     # still installed, with setup-aiostreams.sh (setup-webhook.sh is off GitHub)
@@ -211,7 +211,7 @@ def build_mediaflow_update(backup: bool) -> Action:
     return Action("mediaflow.update", "Update", "Updating", "Update finished", "setup-mediaflow.sh",
                   args=("update-mediaflow",) + (("--backup",) if backup else ()), timeout=600,
                   needs=("setup-mediaflow.sh", "mediaflow-state/docker-compose.yml"), script_has="update-mediaflow",
-                  confirm="Update MediaFlow Proxy to its newest release? Streams through it pause for a few seconds.")
+                  confirm="Update MediaFlow to its newest release? Streams through it pause for a few seconds.")
 
 
 def build_vpn_update(backup: bool) -> Action:
@@ -306,7 +306,7 @@ def build_vpn_uninstall(remove_image: bool, delete_confs: bool) -> Action:
 ADDON_UNINSTALL = {
     "aiometadata": ("AIOMetadata", "setup-aiometadata.sh", "aiometadata-state/config", True),
     "aiomanager": ("AIOManager", "setup-aiomanager.sh", "aiomanager-state/config", True),
-    "mediaflow": ("MediaFlow Proxy", "setup-mediaflow.sh", "mediaflow-state/config", True),
+    "mediaflow": ("MediaFlow", "setup-mediaflow.sh", "mediaflow-state/config", True),
 }
 
 
@@ -395,5 +395,5 @@ SCRIPTS = [
     ("aiomanager", "AIOManager", "setup-aiomanager.sh"),
     ("watchdog", "Phone alerts", "setup-watchdog.sh"),
     ("vpn", "VPN (Gluetun)", "setup-vpn-gluetun.sh"),
-    ("mediaflow", "MediaFlow Proxy", "setup-mediaflow.sh"),
+    ("mediaflow", "MediaFlow", "setup-mediaflow.sh"),   # short, so the Scripts row has room for its badge
 ]

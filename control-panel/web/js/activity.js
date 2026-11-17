@@ -45,7 +45,7 @@ export async function showActivity() {
 }
 
 function actionGroup(id) {
-  return { stack: "AIOStreams", mediaflow: "MediaFlow Proxy", webhook: "Webhook relay", watchdog: "Phone alerts" }[id.split(".")[0]] || "";
+  return { stack: "AIOStreams", mediaflow: "MediaFlow", webhook: "Webhook relay", watchdog: "Phone alerts" }[id.split(".")[0]] || "";
 }
 
 export async function showBackups(status) {

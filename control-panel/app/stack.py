@@ -122,7 +122,7 @@ SERVICES = [
     ("caddy", "caddy", "Caddy", "HTTPS front door", None),
     ("gluetun", "gluetun", "VPN tunnel", "gluetun, WireGuard", "VPN"),
     ("aiostreams", "aiostreams", "AIOStreams", "Addon aggregator", None),
-    ("mediaflow", "mediaflow-proxy-light", "MediaFlow Proxy", "Faster video proxy", "mediaflow-state/docker-compose.yml"),
+    ("mediaflow", "mediaflow-proxy-light", "MediaFlow", "Faster video proxy", "mediaflow-state/docker-compose.yml"),
     ("webhook", "aios-webhook-relay", "Webhook relay", "Webhooks to phone alerts", "webhook-relay-state/docker-compose.yml"),
     ("aiometadata", "aiometadata", "AIOMetadata", "Catalogs and metadata", "aiometadata-state/docker-compose.yml"),
     ("aiomanager", "aiomanager", "AIOManager", "Manages Stremio accounts", "aiomanager-state/docker-compose.yml"),
@@ -1568,7 +1568,7 @@ class Backend:
         if self.vpn_mode() == "on":
             watches += ["VPN tunnel", "AIOStreams through the VPN"]
         if (self.p("mediaflow-state") / "config").exists():
-            watches.append("MediaFlow Proxy")
+            watches.append("MediaFlow")
         if (self.p("aiometadata-state") / "config").exists():
             watches.append("AIOMetadata")
         if (self.p("aiomanager-state") / "config").exists():

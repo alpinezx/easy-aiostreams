@@ -219,7 +219,7 @@ function extras(w) {
     // and AIOManager's, once it's installed
     w.aiomanager ? row("manager", "When a new AIOManager release is out", "One alert per release, with how to update.") : null,
     // and MediaFlow's
-    w.mediaflow ? row("mediaflow", "When a new MediaFlow Proxy release is out", "One alert per release, with how to update.") : null,
+    w.mediaflow ? row("mediaflow", "When a new MediaFlow release is out", "One alert per release, with how to update.") : null,
     row("reboots", "When the server restarts", "With how long it was down, and whether it shut down cleanly."),
     row("scripts", "When a script here differs from GitHub's copy", "Scripts can change several times a week, "
       + "so this can be chatty. At most one alert a day."),
