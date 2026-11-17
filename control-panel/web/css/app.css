@@ -2124,6 +2124,11 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   #view-overview .warnc .card-acts > .card-cog, #view-overview .warnc .card-acts > .warn-logs { padding: 4px 6px; margin: 0; }
   #view-overview .card-cog svg, #view-overview .fa-icon svg { width: 15px; height: 15px; }
   #view-overview .ver-btns, #view-overview #rows .row .acts { gap: 8px; }
+  /* Every action's word ends on the card's right-hand line (the plain buttons' padding pulled out),
+     and Turn VPN off starts on its left-hand line */
+  #view-overview .ver-btns > .btn:last-child, #view-overview .card-foot > .btn:last-child,
+  #view-overview .warnc .card-acts > :last-child, #view-overview #rows .row .acts > .btn:last-child { margin-right: -6px; }
+  #view-overview .card-foot > .btn.vpnc-switch { margin-left: -6px; }
   /* Stop and Restart: their words sit on the Recent CPU graph's baseline, not the row's middle */
   #view-overview #rows .row .acts { position: relative; top: 8px; }
   /* a newer release: Update filled, with its arrow, wherever it is */
