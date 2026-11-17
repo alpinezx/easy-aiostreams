@@ -29,8 +29,12 @@ let addonsIn = false;     // and Add-ons once any optional add-on is (those two 
 
 function route() {
   const v = location.hash.slice(1).split("/")[0];
+  const was = view;
   view = VIEWS.includes(v) && (v !== "vpn" || vpnSetUp) && (v !== "alerts" || alertsSetUp) && (v !== "addons" || addonsIn) ? v : "overview";
   for (const name of VIEWS) $(`#view-${name}`).hidden = name !== view;
+  // Another page starts at its top, not wherever the last page was scrolled to (a link low on
+  // the Overview, like This server's Network, would open the next page partway down)
+  if (was && was !== view) window.scrollTo({ top: 0, behavior: "instant" });
   document.querySelectorAll(".tab").forEach((t) => t.toggleAttribute("aria-current", false));
   const active = document.querySelector(`.tab[data-view="${view}"]`);
   active.setAttribute("aria-current", "page");
