@@ -7,7 +7,7 @@ import { scheduleText } from "./activity.js";
 import { applyLayout, openLayout } from "./layout.js";
 import { countryName } from "./vpn.js";
 import { scan } from "./logs.js";
-import { loadTraffic, trafficData, trafficStale, feedNet, nowRate, today, fmtRate, netOrder } from "./traffic.js";
+import { loadTraffic, trafficData, trafficStale, feedNet, nowRate, today, fmtRate } from "./traffic.js";
 
 // ---------------- update check ----------------
 let rel = null, relLoading = false, relFor = null, lastSt = null;
@@ -136,7 +136,7 @@ export function record(st) {
 // desktop open. On a phone every card starts folded (the folded line says enough there); on
 // a desktop only the request flow and the lists inside This server do.
 const FOLD_KEYS = { flow: "aios.flowFolded" };
-const DEFAULT_FOLDED = new Set(["flow", "certs", "netsvc"]);
+const DEFAULT_FOLDED = new Set(["flow", "certs"]);
 const PHONE_FOLDED = window.matchMedia("(max-width: 720px)").matches;
 const foldKey = (id) => FOLD_KEYS[id] || `aios.fold.${id}`;
 const folds = {};
@@ -873,29 +873,6 @@ function certTiles(grid, st) {
   }));
 }
 
-// Network, opened: each running service's speed now, down and up in one column each, so
-// they read top to bottom. Whatever shares the VPN's network is counted once, under it.
-function netSec(st, n) {
-  const onVpn = st.vpn === "on";
-  const run = netOrder((st.services || []).filter((s) => s.state === "running"), onVpn);
-  const shared = run.filter((s) => onVpn && (s.key === "aiostreams" || s.via_vpn)).map((s) => s.name);
-  // The arrow keeps to the column's left edge and the speed to its right, so arrows stay in
-  // one line down the list however long each speed is
-  const speed = (arrow, v) => h("span", { class: "num nsv-speed" },
-    ...(v != null ? [h("span", { class: "nsv-arrow", text: arrow }), h("span", { text: fmtRate(v) })] : []));
-  const rows = run.filter((s) => !shared.includes(s.name)).map((s) => {
-    const sub = s.key === "gluetun" && shared.length ? shared.join(", ") : "";
-    return h("div", { class: "nsv-row" },
-      h("span", { class: "nsv-name" }, s.name, sub ? h("span", { class: "nsv-sub dim", text: sub }) : null),
-      speed("↓", s.rx), speed("↑", s.tx));
-  });
-  // All traffic first, so the total and each service are read in one column
-  const whole = h("div", { class: "nsv-row nsv-whole" }, h("span", { class: "nsv-name", text: "All traffic" }),
-    speed("↓", n ? n[0] : null), speed("↑", n ? n[1] : null));
-  return h("div", { class: "net-sec" }, whole, ...rows,
-    h("a", { class: "nsv-go dim", href: "#net", text: "Graphs on the Network page" }));
-}
-
 function side(st) {
   const el = $("#side");
   const w = st.watchdog || {};
@@ -952,14 +929,14 @@ function side(st) {
     if (trafficStale("host")) loadTraffic(false, "host").then(() => { if (lastSt) side(lastSt); }).catch(() => {});
     const n = nowRate(trafficData("host"), "host"), t = today(trafficData("host"));
     const net = stat("Network", n ? "" : "Measuring…", t && (t[0] || t[1]) ? `Today ↓ ${fmtBytes(t[0])} ↑ ${fmtBytes(t[1])}` : "");
-    // Its label folds out each service's speed, like HTTPS certificates
+    // Its label opens the Network page (each service's speed and the graphs), as Next reboot's opens Maintenance
+    const go = chev();
+    go.classList.add("go-chev");
     net.firstChild.textContent = "";
-    net.firstChild.classList.add("cert-fold");
-    net.firstChild.append(foldTitle("netsvc", "Network"));
+    net.firstChild.append(h("a", { class: "stat-link", href: "#net", title: "Each service's speed and the graphs, on the Network page" }, "Network", go));
     // Down and up on a line each, so the value keeps its height however long the numbers are
     if (n) net.children[1].append(h("span", { class: "nowrap", text: `↓ ${fmtRate(n[0])}` }), h("span", { class: "nowrap", text: `↑ ${fmtRate(n[1])}` }));
     grid.append(net);
-    if (!isFolded("netsvc")) grid.append(netSec(st, n));
   }
   // Last among the values, right above the section its chevron opens
   const certList = certTiles(grid, st);
