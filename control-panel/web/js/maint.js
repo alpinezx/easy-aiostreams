@@ -81,7 +81,7 @@ function updates(m) {
     stat("Checked", u.checked_at ? ago(u.checked_at) : "Unknown", "The package lists"),
   ], "", button("maint.updates", u.count > 0),
   // What's waiting, by name, in a drawer: nothing is installed from it
-  h("button", { class: "btn small", type: "button", text: "List updates", disabled: !pk.length,
+  h("button", { class: "btn small maint-list", type: "button", text: "List updates", disabled: !pk.length,
     title: pk.length ? "Which packages are waiting, and their versions" : "Nothing is waiting", onclick: () => openUpdates(u) }),
   u.reboot ? h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer,
     disabled: !!(status && status.busy) || !!(last && last.last && last.last.running) }) : null);
