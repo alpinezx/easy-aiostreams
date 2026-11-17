@@ -2141,3 +2141,17 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
     #view-overview .btn.fold-act.primary:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
   }
 }
+
+/* Logs on a computer: Clear, Copy and .log are tools on the log, not the page's job, so plain icon and
+   word like the Overview's actions; a phone keeps its buttons (and the bin without its word) */
+.lg-word { display: none; }
+@media (min-width: 721px) {
+  .lg-acts { gap: 10px; }
+  #view-logs .lg-acts .btn { display: inline-flex; align-items: center; gap: 6px; width: auto; background: none; border-color: transparent;
+    box-shadow: none; padding: 4px 6px; min-height: 0; font-size: .86rem; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+  #view-logs .lg-acts .btn:last-child { margin-right: -6px; }
+  .lg-acts .lg-word { display: inline; }
+  @media (hover: hover) {
+    #view-logs .lg-acts .btn:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+  }
+}
