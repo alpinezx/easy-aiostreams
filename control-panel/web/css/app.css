@@ -2190,3 +2190,15 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
     #net-root .tr-bin:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 3px; }
   }
 }
+/* Backup & Restore on a computer: each backup's Restore stays a button (the page's job); Copy restore
+   command, Copy scp command, Lock and Delete are plain icon and word, like the Services rows (Delete asks first) */
+@media (min-width: 721px) {
+  #view-backups .item.bk .btns { gap: 8px; }
+  #view-backups .item.bk .btns > .btn:not(:first-child) { background: none; border-color: transparent; box-shadow: none; padding: 4px 6px;
+    min-height: 0; font-size: .86rem; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+  #view-backups .item.bk .btns > .btn:last-child { margin-right: -6px; }
+  @media (hover: hover) {
+    #view-backups .item.bk .btns > .btn:not(:first-child):hover:not(:disabled) { background: none; color: var(--text);
+      text-decoration: underline; text-underline-offset: 3px; }
+  }
+}
