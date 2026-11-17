@@ -2168,3 +2168,25 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
     #view-activity #clear-activity:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
   }
 }
+/* Network: the range or view shown is underlined as well as bolder and in the accent colour, so it
+   never rests on colour alone (phones and computers) */
+#net-ranges .btn[aria-pressed="true"], #net-acts .btn[aria-pressed="true"], #net-root .tr-src .btn[aria-pressed="true"] {
+  text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 6px; }
+.tr-word { display: none; }
+/* On a computer, the time range, All traffic / VPN tunnel and the Traffic card's bin (now Clear) are plain
+   words like the other pages' tools; the bin 3px in from the card's edge */
+@media (min-width: 721px) {
+  #net-ranges .btn, #net-acts .btn, #net-root .tr-bin { display: inline-flex; align-items: center; gap: 6px; width: auto; background: none;
+    border-color: transparent; box-shadow: none; padding: 4px 6px; min-height: 0; font-size: .86rem; font-weight: 600;
+    color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+  #net-ranges .tr-ranges, #net-acts .tr-ranges { gap: 10px; }
+  #net-ranges .btn[aria-pressed="true"], #net-acts .btn[aria-pressed="true"] { color: var(--accent); font-weight: 700; }
+  #net-acts .tr-ranges .btn:last-child { margin-right: -3px; }
+  #net-root .tr-bin { margin-right: -3px; }
+  #net-root .tr-word { display: inline; }
+  @media (hover: hover) {
+    #net-ranges .btn:hover:not(:disabled):not([aria-pressed="true"]), #net-acts .btn:hover:not(:disabled):not([aria-pressed="true"]),
+    #net-root .tr-bin:hover:not(:disabled) { background: none; color: var(--text); }
+    #net-root .tr-bin:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 3px; }
+  }
+}
