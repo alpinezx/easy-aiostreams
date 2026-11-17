@@ -904,22 +904,22 @@ function side(st) {
     grid.append(stat(label, `${fmtBytes(used)} / ${fmtBytes(total)}`, `${Math.round(pct)}% used, ${fmtBytes(total - used)} free`, tone(pct, warn, 90)));
   }
   if (hs.uptime != null) grid.append(stat("Up for", fmtDur(hs.uptime), `since ${dayMonth(Date.now() - hs.uptime * 1000)}`));
-  // Maintenance's scheduled server reboot; its label opens Maintenance. Off is plain, never a to-do
+  // Maintenance's scheduled server reboot, only while it's switched on; its label opens Maintenance
   const rb = st.reboot;
-  if (rb) {
-    const on = rb.mode !== "off";
-    const next = stat("Next reboot", on ? (rb.every === "daily" ? `Daily ${rb.time}` : `${["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][rb.day - 1]} ${rb.time}`) : "Off",
-      !on ? "Set on Maintenance" : rb.mode === "always" ? "Every time" : rb.needed ? "An update needs one" : "Only if an update needs one");
+  if (rb && rb.mode !== "off") {
+    const next = stat("Next reboot", rb.every === "daily" ? `Daily ${rb.time}` : `${["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][rb.day - 1]} ${rb.time}`,
+      rb.mode === "always" ? "Every time" : rb.needed ? "An update needs one" : "Only if an update needs one");
     const go = chev();
     go.classList.add("go-chev");
     next.firstChild.textContent = "";
     next.firstChild.append(h("a", { class: "stat-link", href: "#maint", title: "Scheduled server reboot, on the Maintenance page" }, "Next reboot", go));
     grid.append(next);
   }
-  // The newest backup, any kind, and the schedule; amber when the last scheduled one failed or was skipped
+  // The newest backup, any kind, and the schedule, only while scheduled backups are on; amber when the
+  // last scheduled one failed or was skipped
   const bk = st.backup;
-  if (bk) {
-    const bad = bk.every !== "off" && bk.last && (bk.last.status === "failed" || bk.last.status === "skipped");
+  if (bk && bk.every !== "off") {
+    const bad = bk.last && (bk.last.status === "failed" || bk.last.status === "skipped");
     grid.append(stat("Last backup", bk.newest ? ago(bk.newest) : "None yet",
       bad ? `The last scheduled one ${bk.last.status === "skipped" ? "was skipped" : "failed"}` : scheduleText(bk), bad ? "warn" : ""));
   }
