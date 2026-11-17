@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 17 November 2026
 
+- **Docs:** The README and control panel guide screenshots show the lighter look of panel 1.60.0. ([#201](https://github.com/alpinezx/easy-aiostreams/pull/201))
 - A lighter look on every page: each page's real work stays a button (Restore, Install updates, Back up now, a script's Update), while helpers, side tools and deletes are plain icon and word, brightening and underlined on hover. On the Overview every card's actions sit in its top right corner, open or folded, with no buttons along the bottom; an Update with a newer release out stays filled. (Panel 1.60.0, [#200](https://github.com/alpinezx/easy-aiostreams/pull/200))
 - On phones, the same rule in a phone shape: plain words on each card's edges, Restore as one button with its helpers in two short lines, the VPN card's Turn VPN off beside gluetun's version, the Network page's time range (1h, 24h, 7d) on one line with Traffic and the bin, and each Activity row's bin in its corner. (Panel 1.60.0, [#200](https://github.com/alpinezx/easy-aiostreams/pull/200))
 - Update on AIOMetadata, AIOManager, MediaFlow or gluetun when the newest is already running says so, as the control panel's does, instead of a backup and an update with nothing to fetch. AIOStreams keeps its dialog for choosing stable or nightly. (Panel 1.60.0, [#200](https://github.com/alpinezx/easy-aiostreams/pull/200))
