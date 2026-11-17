@@ -2,6 +2,14 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 17 November 2026
+
+- On phones, open cards keep their corner icon: Restart in Request flow, Reboot server in This server, Update on the version cards and the VPN. The matching buttons at the bottom are gone, Turn VPN off spans the card, and Services' Start, Stop and Restart are plain icons beside CPU and memory. (Panel 1.59.3, [#199](https://github.com/alpinezx/easy-aiostreams/pull/199))
+- This server's Network line links to the Network page instead of folding out, and opening another page starts at its top. Next reboot and Last backup show only while their schedule is on. (Panel 1.59.3, [#199](https://github.com/alpinezx/easy-aiostreams/pull/199))
+- **Fixed:** on the Network page, switching between All traffic and VPN tunnel no longer empties the page for a moment; the Traffic card stays until the other view's figures are in. By service's footnote is gone. (Panel 1.59.3, [#199](https://github.com/alpinezx/easy-aiostreams/pull/199))
+- The Scripts page has no What's new (the Overview has it). On phones Check now sits nearer the title, the folded Optional add-ons summary gets a line of its own, and Differs from GitHub sits centred over Update. (Panel 1.59.3, [#199](https://github.com/alpinezx/easy-aiostreams/pull/199))
+- MediaFlow Proxy is called MediaFlow in the panel, shorter on phones and the same on every page. (Panel 1.59.3, [#199](https://github.com/alpinezx/easy-aiostreams/pull/199))
+
 ## 16 November 2026
 
 - While a drawer (What's new, a job's output, Edit) or a dialog is open, the page behind it stays still and its scrollbar goes, so only the drawer's own list scrolls, with one scrollbar. (Panel 1.59.2, [#198](https://github.com/alpinezx/easy-aiostreams/pull/198))

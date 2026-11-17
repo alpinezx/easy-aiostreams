@@ -94,7 +94,7 @@ function certTile(host) {
 
 // ---- the cards ----
 
-const NAMES = { aiometadata: "AIOMetadata", aiomanager: "AIOManager", mediaflow: "MediaFlow Proxy", webhook: "Webhook relay" };
+const NAMES = { aiometadata: "AIOMetadata", aiomanager: "AIOManager", mediaflow: "MediaFlow", webhook: "Webhook relay" };
 
 // AIOManager's sign-ups switch: open runs the script's "signups open 30" (it closes them
 // itself after that), off closes them now. Either recreates its container, a few seconds,
@@ -244,7 +244,7 @@ const UNINSTALL = {
     body: "Its containers, its cache, its site and its saved settings are removed, including every configuration and account in its database. AIOStreams and the other add-ons stay. Remove it from your apps and AIOStreams afterwards." },
   aiomanager: { title: "AIOManager", action: "aiomanager.uninstall", image: "Remove the AIOManager image too",
     body: "Its container, its site and its saved settings are removed, including every login and everything synced to it. AIOStreams and the other add-ons stay. Addons it installed in your apps stay where they are." },
-  mediaflow: { title: "MediaFlow Proxy", action: "mediaflow.uninstall", image: "Remove the MediaFlow image too",
+  mediaflow: { title: "MediaFlow", action: "mediaflow.uninstall", image: "Remove the MediaFlow image too",
     body: "Its container, its site, its saved settings (the API password too) and its fail2ban jail, if it has one, are removed. AIOStreams and the other add-ons stay. Switch AIOStreams' proxy setting off MediaFlow afterwards." },
   // A restore leaves the retired relay out, so a backup can't bring it back
   webhook: { title: "the webhook relay", action: "webhook.uninstall", noBackup: true,

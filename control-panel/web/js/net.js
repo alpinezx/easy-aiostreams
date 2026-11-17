@@ -28,7 +28,11 @@ function sources() {
         source = k;
         try { localStorage.setItem("aios.netSource", k); } catch (_) {}
         if (location.hash !== "#net") history.replaceState(null, "", "#net");   // so #net/vpn doesn't pick the tunnel again
-        show(st);
+        // The card being looked at stays until the other view's figures are in (the first time after a
+        // reload they're fetched), so By service under it doesn't jump up into an empty gap meanwhile
+        document.querySelectorAll('.tr-ranges[aria-label="Show"] .btn').forEach((b) => b.setAttribute("aria-pressed", String(b.textContent.trim() === label)));
+        const tbox = $("#net-root .net-traffic");
+        if (tbox) { drawn = Date.now(); drawTraffic(tbox); } else show(st);
       } })));
 }
 const drawTraffic = (tbox) => trafficCard(tbox, false, kind(),
@@ -76,11 +80,7 @@ function services(box) {
           shared ? h("span", { class: "ns-shared dim", text: "Counted under VPN tunnel" })
             : s.rx == null ? h("span", { class: "ns-shared dim", text: measured ? "" : "Measuring…" })
             : [arrowed("↓", fmtRate(s.rx)), arrowed("↑", fmtRate(s.tx))]);
-      })),
-    // Two short lines rather than one block: what you see, then why
-    h("div", { class: "vpn-note dim ns-note" },
-      h("p", { text: "These add up to more than All traffic." }),
-      h("p", { text: `A stream is counted twice: in ${onVpn ? "the VPN tunnel" : "AIOStreams"}, then again in Caddy.` })));
+      })));
   box.append(card);
 }
 

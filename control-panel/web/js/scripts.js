@@ -13,7 +13,7 @@ const FALLBACK = [
   { id: "aiomanager", label: "AIOManager", file: "setup-aiomanager.sh", present: false },
   { id: "watchdog", label: "Phone alerts", file: "setup-watchdog.sh", present: false },
   { id: "vpn", label: "VPN (Gluetun)", file: "setup-vpn-gluetun.sh", present: false },
-  { id: "mediaflow", label: "MediaFlow Proxy", file: "setup-mediaflow.sh", present: false },
+  { id: "mediaflow", label: "MediaFlow", file: "setup-mediaflow.sh", present: false },
 ];
 // The AIOStreams menu runs backup and restore through setup-backup.sh,
 // Maintenance through setup-maintenance.sh and the Cloudflare Tunnel through
@@ -117,10 +117,8 @@ function panelRow(cmd) {
       spacer("Remove")));
 }
 
-// What's new: the project's changelog, entries since this panel's version marked. On this tab it's a quiet
-// link at the top right, as on the Overview (it only opens something to read); Check now stays a button.
+// What's new: the project's changelog, entries since this panel's version marked (the Overview's button)
 let logLoading = false;
-$("#scripts-new")?.addEventListener("click", (e) => showChangelog(e));
 export async function showChangelog(e) {
   if (logLoading) return;
   logLoading = true;
@@ -262,8 +260,9 @@ function row(x, cmd, updateCmd) {
     : idle ? h("span", { class: "sdot-word", "data-s": "warn", text: "Downloaded, not set up",
       title: `${x.file} is on this server, but ${x.label} isn't set up. Copy gives the command to set it up over SSH, or Remove deletes the script.` }) : null];
   if (x.present && differs(x)) {
-    tags.push(h("span", { class: "chip warn small-chip", text: "Differs from GitHub",
-      title: `This copy doesn't match the one on GitHub (${(cmp && cmp.branch) || "main"} branch). Update fetches GitHub's.` }));
+    // In a slot of its own: on a phone, as wide as Update below it, so the badge sits centred over Update
+    tags.push(h("span", { class: "diff-slot" }, h("span", { class: "chip warn small-chip", text: "Differs from GitHub",
+      title: `This copy doesn't match the one on GitHub (${(cmp && cmp.branch) || "main"} branch). Update fetches GitHub's.` })));
   }
   // An add-on's script that's still here once the add-on is uninstalled can go
   const removable = idle;

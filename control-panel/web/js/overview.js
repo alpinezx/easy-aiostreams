@@ -7,7 +7,7 @@ import { scheduleText } from "./activity.js";
 import { applyLayout, openLayout } from "./layout.js";
 import { countryName } from "./vpn.js";
 import { scan } from "./logs.js";
-import { loadTraffic, trafficData, trafficStale, feedNet, nowRate, today, fmtRate, netOrder } from "./traffic.js";
+import { loadTraffic, trafficData, trafficStale, feedNet, nowRate, today, fmtRate } from "./traffic.js";
 
 // ---------------- update check ----------------
 let rel = null, relLoading = false, relFor = null, lastSt = null;
@@ -136,7 +136,7 @@ export function record(st) {
 // desktop open. On a phone every card starts folded (the folded line says enough there); on
 // a desktop only the request flow and the lists inside This server do.
 const FOLD_KEYS = { flow: "aios.flowFolded" };
-const DEFAULT_FOLDED = new Set(["flow", "certs", "netsvc"]);
+const DEFAULT_FOLDED = new Set(["flow", "certs"]);
 const PHONE_FOLDED = window.matchMedia("(max-width: 720px)").matches;
 const foldKey = (id) => FOLD_KEYS[id] || `aios.fold.${id}`;
 const folds = {};
@@ -219,6 +219,15 @@ function iconize(b) {
 }
 function foldAct(b) {
   if (b) { b.classList.add("fold-act"); iconize(b); }
+  return b;
+}
+// Open, phones keep a card's corner icon (wider screens keep the button below instead):
+// make(), called twice, gives the corner copy; the one below is marked to hide on phones
+function phCorner(below, make) {
+  if (!below) return null;
+  const b = foldAct(make());
+  b.classList.add("ph-corner");
+  below.classList.add("ver-upd");
   return b;
 }
 // The folded line: [text or element, tone, tooltip], empty ones left out
@@ -397,8 +406,9 @@ function metaCard(st, avail) {
     : !list ? h("span", { class: "warn", title: metaRel.error || "", text: "Couldn't check" })
     : h("span", { class: top ? "quiet" : "ok" }, top ? stIcon("up") : null, top ? `${top.tag} available` : "Up to date");
   const upd = avail["aiometadata.update"];
-  const updBtn = upd && upd.available ? hot(h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
+  const mkUpd = () => upd && upd.available ? hot(h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
     title: "Update AIOMetadata to its newest release, with a backup first", onclick: () => runAction(upd) }), top) : null;
+  const updBtn = mkUpd();
   const title = h("div", { class: "fold-title" },
     h("h2", {}, foldTitle("aiometadata", "AIOMetadata")),
     m.domain ? cardPages(m.domain, [["Dashboard", "/dashboard"], ["Configure", "/configure"]]) : null);
@@ -408,7 +418,7 @@ function metaCard(st, avail) {
   }
   const col = (value, sub) => h("div", {}, h("div", { class: "ver-value" }, value), h("div", { class: "ver-sub", text: sub || "" }));
   return h("section", { class: "panel ver-card", "aria-label": "AIOMetadata version" },
-    h("div", { class: "ver-head" }, title),
+    h("div", { class: "ver-head" }, title, phCorner(updBtn, mkUpd)),
     h("div", { class: "ver-grid" },
       col(running, mine && mine.published ? `Released ${ago(Date.parse(mine.published) / 1000)}` : ""),
       h("div", { class: "ver-right" },
@@ -443,7 +453,7 @@ function addonReleases(key, name, page) {
   return r;
 }
 const mgrRel = addonReleases("aiomanager", "AIOManager", "https://github.com/sonicx161/aiomanager/releases");
-const mfRel = addonReleases("mediaflow", "MediaFlow Proxy", "https://github.com/mhdzumair/MediaFlow-Proxy-Light/releases");
+const mfRel = addonReleases("mediaflow", "MediaFlow", "https://github.com/mhdzumair/MediaFlow-Proxy-Light/releases");
 const glRel = addonReleases("gluetun", "gluetun", "https://github.com/qdm12/gluetun/releases");
 // Its version sits on the VPN card, among the side cards, so those draw again too
 const glLoad = glRel.load;
@@ -468,8 +478,9 @@ function addonVerCard(st, avail, o) {
     : !list ? h("span", { class: "warn", title: rel.error || "", text: "Couldn't check" })
     : h("span", { class: top ? "quiet" : "ok" }, top ? stIcon("up") : null, top ? `${top.tag} available` : "Up to date");
   const upd = avail[`${o.id}.update`];
-  const updBtn = upd && upd.available ? hot(h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
+  const mkUpd = () => upd && upd.available ? hot(h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
     title: `Update ${o.name} to its newest release, with a backup first`, onclick: () => runAction(upd) }), top) : null;
+  const updBtn = mkUpd();
   const title = h("div", { class: "fold-title" },
     h("h2", {}, foldTitle(o.id, o.name)), o.pages || null);
   const shown = running || "Latest image";
@@ -479,7 +490,9 @@ function addonVerCard(st, avail, o) {
   }
   const col = (value, sub) => h("div", {}, h("div", { class: "ver-value" }, value), h("div", { class: "ver-sub", text: sub || "" }));
   return h("section", { class: "panel ver-card", "aria-label": `${o.name} version` },
-    h("div", { class: "ver-head" }, title, o.corner || null),
+    // Phones show Update in the corner as folded does, so a corner only for the open card (Details) goes
+    h("div", { class: "ver-head" }, title, o.corner && updBtn && o.corner !== o.foldCorner ? cls(o.corner, "ph-hide") : o.corner || null,
+      phCorner(updBtn, mkUpd)),
     h("div", { class: "ver-grid" },
       col(shown, mine && mine.published ? `Released ${ago(Date.parse(mine.published) / 1000)}`
         : running ? "" : "Pinned to a release at its next Update or Start"),
@@ -513,7 +526,7 @@ function mgrCard(st, avail) {
 // Add-ons page. Its speed is with the others, under This server's Network.
 function mfCard(st, avail) {
   const m = st.mediaflow;
-  return addonVerCard(st, avail, { id: "mediaflow", name: "MediaFlow Proxy", rel: mfRel, version: m.version,
+  return addonVerCard(st, avail, { id: "mediaflow", name: "MediaFlow", rel: mfRel, version: m.version,
     corner: iconize(h("a", { href: "#addons", class: "dim card-link card-detail", text: "Details" })) });
 }
 
@@ -525,8 +538,9 @@ function versionCard(st, avail) {
     h("div", { class: "ver-value" }, ...[value].flat()), h("div", { class: "ver-sub", text: sub || "" }));
   const upd = st.installed && avail["stack.update"];
   // Update sits with Check now, plain like every card's: the amber "available" already says a newer one is out
-  if (upd && upd.available) btns.unshift(hot(h("button", { class: "btn small", type: "button", text: "Update",
-    disabled: !!st.busy, title: "Update AIOStreams, or switch between stable and nightly", onclick: () => runAction(upd) }), fresh));
+  const mkUpd = () => hot(h("button", { class: "btn small", type: "button", text: "Update",
+    disabled: !!st.busy, title: "Update AIOStreams, or switch between stable and nightly", onclick: () => runAction(upd) }), fresh);
+  if (upd && upd.available) btns.unshift(mkUpd());
   // The title folds the card like the others; its two pages are links beside it
   const title = h("div", { class: "fold-title" },
     h("h2", {}, foldTitle("aiostreams", "AIOStreams")),
@@ -539,7 +553,7 @@ function versionCard(st, avail) {
         btns[0] && btns[0].textContent === "Update" ? foldAct(btns[0]) : null));
   }
   return h("section", { class: "panel ver-card", "aria-label": "AIOStreams version" },
-    h("div", { class: "ver-head" }, title),
+    h("div", { class: "ver-head" }, title, upd && upd.available ? phCorner(btns[0], mkUpd) : null),
     h("div", { class: "ver-grid" },
       // The channel as a word beside the version, not a pill
       col([`v${st.version}`, h("span", { class: "ver-chan", text: nightly ? "Nightly" : "Stable",
@@ -596,6 +610,9 @@ function path(st) {
       if (kids.length) li.append(h("ul", {}, ...kids));
       return li;
     };
+    // Phones keep the corner icon open too, in place of the button under the flow
+    const corner = foldAct(restartBtn());
+    if (corner) { corner.classList.add("ph-corner"); head.append(corner); }
     const tree = h("ul", { class: "flow-tree" },
       h("li", { class: "t-root" }, h("div", { class: "t-row t-start", text: "Visitors" }),
         main.length ? h("ul", {}, after(0, true)) : null));
@@ -856,29 +873,6 @@ function certTiles(grid, st) {
   }));
 }
 
-// Network, opened: each running service's speed now, down and up in one column each, so
-// they read top to bottom. Whatever shares the VPN's network is counted once, under it.
-function netSec(st, n) {
-  const onVpn = st.vpn === "on";
-  const run = netOrder((st.services || []).filter((s) => s.state === "running"), onVpn);
-  const shared = run.filter((s) => onVpn && (s.key === "aiostreams" || s.via_vpn)).map((s) => s.name);
-  // The arrow keeps to the column's left edge and the speed to its right, so arrows stay in
-  // one line down the list however long each speed is
-  const speed = (arrow, v) => h("span", { class: "num nsv-speed" },
-    ...(v != null ? [h("span", { class: "nsv-arrow", text: arrow }), h("span", { text: fmtRate(v) })] : []));
-  const rows = run.filter((s) => !shared.includes(s.name)).map((s) => {
-    const sub = s.key === "gluetun" && shared.length ? shared.join(", ") : "";
-    return h("div", { class: "nsv-row" },
-      h("span", { class: "nsv-name" }, s.name, sub ? h("span", { class: "nsv-sub dim", text: sub }) : null),
-      speed("↓", s.rx), speed("↑", s.tx));
-  });
-  // All traffic first, so the total and each service are read in one column
-  const whole = h("div", { class: "nsv-row nsv-whole" }, h("span", { class: "nsv-name", text: "All traffic" }),
-    speed("↓", n ? n[0] : null), speed("↑", n ? n[1] : null));
-  return h("div", { class: "net-sec" }, whole, ...rows,
-    h("a", { class: "nsv-go dim", href: "#net", text: "Graphs on the Network page" }));
-}
-
 function side(st) {
   const el = $("#side");
   const w = st.watchdog || {};
@@ -891,6 +885,8 @@ function side(st) {
   // Folded, Reboot server stays as a quiet link in the corner, as Restart stack does on the flow
   if (hostFolded) host.firstChild.append(hostSum(st),
     foldAct(h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer })));
+  // Open, phones keep that icon in the corner instead of the button at the bottom
+  else host.firstChild.append(foldAct(h("button", { class: "btn small danger ph-corner", type: "button", text: "Reboot server", onclick: rebootServer })));
   const grid = h("div", { class: "stat-grid" });
   // Top row: what you look at first. What folds out (Network, certificates) is on the
   // bottom row, so it opens under the values
@@ -908,22 +904,22 @@ function side(st) {
     grid.append(stat(label, `${fmtBytes(used)} / ${fmtBytes(total)}`, `${Math.round(pct)}% used, ${fmtBytes(total - used)} free`, tone(pct, warn, 90)));
   }
   if (hs.uptime != null) grid.append(stat("Up for", fmtDur(hs.uptime), `since ${dayMonth(Date.now() - hs.uptime * 1000)}`));
-  // Maintenance's scheduled server reboot; its label opens Maintenance. Off is plain, never a to-do
+  // Maintenance's scheduled server reboot, only while it's switched on; its label opens Maintenance
   const rb = st.reboot;
-  if (rb) {
-    const on = rb.mode !== "off";
-    const next = stat("Next reboot", on ? (rb.every === "daily" ? `Daily ${rb.time}` : `${["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][rb.day - 1]} ${rb.time}`) : "Off",
-      !on ? "Set on Maintenance" : rb.mode === "always" ? "Every time" : rb.needed ? "An update needs one" : "Only if an update needs one");
+  if (rb && rb.mode !== "off") {
+    const next = stat("Next reboot", rb.every === "daily" ? `Daily ${rb.time}` : `${["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][rb.day - 1]} ${rb.time}`,
+      rb.mode === "always" ? "Every time" : rb.needed ? "An update needs one" : "Only if an update needs one");
     const go = chev();
     go.classList.add("go-chev");
     next.firstChild.textContent = "";
     next.firstChild.append(h("a", { class: "stat-link", href: "#maint", title: "Scheduled server reboot, on the Maintenance page" }, "Next reboot", go));
     grid.append(next);
   }
-  // The newest backup, any kind, and the schedule; amber when the last scheduled one failed or was skipped
+  // The newest backup, any kind, and the schedule, only while scheduled backups are on; amber when the
+  // last scheduled one failed or was skipped
   const bk = st.backup;
-  if (bk) {
-    const bad = bk.every !== "off" && bk.last && (bk.last.status === "failed" || bk.last.status === "skipped");
+  if (bk && bk.every !== "off") {
+    const bad = bk.last && (bk.last.status === "failed" || bk.last.status === "skipped");
     grid.append(stat("Last backup", bk.newest ? ago(bk.newest) : "None yet",
       bad ? `The last scheduled one ${bk.last.status === "skipped" ? "was skipped" : "failed"}` : scheduleText(bk), bad ? "warn" : ""));
   }
@@ -933,19 +929,19 @@ function side(st) {
     if (trafficStale("host")) loadTraffic(false, "host").then(() => { if (lastSt) side(lastSt); }).catch(() => {});
     const n = nowRate(trafficData("host"), "host"), t = today(trafficData("host"));
     const net = stat("Network", n ? "" : "Measuring…", t && (t[0] || t[1]) ? `Today ↓ ${fmtBytes(t[0])} ↑ ${fmtBytes(t[1])}` : "");
-    // Its label folds out each service's speed, like HTTPS certificates
+    // Its label opens the Network page (each service's speed and the graphs), as Next reboot's opens Maintenance
+    const go = chev();
+    go.classList.add("go-chev");
     net.firstChild.textContent = "";
-    net.firstChild.classList.add("cert-fold");
-    net.firstChild.append(foldTitle("netsvc", "Network"));
+    net.firstChild.append(h("a", { class: "stat-link", href: "#net", title: "Each service's speed and the graphs, on the Network page" }, "Network", go));
     // Down and up on a line each, so the value keeps its height however long the numbers are
     if (n) net.children[1].append(h("span", { class: "nowrap", text: `↓ ${fmtRate(n[0])}` }), h("span", { class: "nowrap", text: `↑ ${fmtRate(n[1])}` }));
     grid.append(net);
-    if (!isFolded("netsvc")) grid.append(netSec(st, n));
   }
   // Last among the values, right above the section its chevron opens
   const certList = certTiles(grid, st);
   // Reboot on a line of its own at the bottom right, after the opened certificates too
-  grid.append(h("div", { class: "grid-btn own-row" },
+  grid.append(h("div", { class: "grid-btn own-row host-reboot" },
     h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer })));
   // The opened certificates go in the grid too, so on phones CSS can put them (and their
   // tile) after the other values, with Reboot last
@@ -1131,9 +1127,14 @@ function vpnCard(el, st, avail) {
   const latest = !running ? null : !rel ? ["Checking…", ""] : !list ? ["Couldn't check", "warn"]
     : top ? [`${top.tag} available`, "warn"] : ["Up to date", "ok"];
   const upd = avail["vpn.update"];
-  const updBtn = upd && upd.available ? hot(h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
+  const mkUpd = () => upd && upd.available ? hot(h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
     title: "Update gluetun to its newest v3 release, with a backup first", onclick: () => runAction(upd) }), top) : null;
+  const updBtn = mkUpd();
   const folded = isFolded("vpn");
+  // Phones always show Update in the corner, open or folded, filled when a newer gluetun is out, as the
+  // version cards do (wider screens keep Details there unless a folded card has a newer one)
+  const corner = updBtn && !(folded && top) ? phCorner(updBtn, mkUpd) : null;
+  const details = iconize(h("a", { href: "#vpn", class: "dim card-link card-detail" + (corner ? " ph-hide" : ""), text: "Details" }));
   // The tunnel's state, open or folded: Connected or Disconnected
   const shortWord = word;
   // Open, the tunnel's state sits beside the title, which leaves the card's middle to gluetun's
@@ -1147,7 +1148,7 @@ function vpnCard(el, st, avail) {
     folded ? foldSum([[shortWord, tn], [where], running ? [h("span", { class: "gl-sum" }, h("span", {}, h("span", { class: "gl-name", text: "Gluetun" }), ` ${running}`),
       top ? h("span", { class: "warn" }, stIcon("up"), `${top.tag} available`)
         : list ? h("span", { class: "ok", text: "Up to date" }) : null)] : [""]]) : null,
-    folded && top && updBtn ? foldAct(updBtn) : iconize(h("a", { href: "#vpn", class: "dim card-link card-detail", text: "Details" }))));
+    folded && top && updBtn ? foldAct(updBtn) : details, corner));
   el.append(card);
   if (folded) return;
   // Short values, so they fit beside their labels on a phone: the city with the country under it,

@@ -121,7 +121,7 @@ export async function runAction(act, params, lead) {
     const [name, effect] = {
       "aiometadata.update": ["AIOMetadata", "its catalogs stop loading for a minute or so"],
       "aiomanager.update": ["AIOManager", "its site is offline for a minute or so"],
-      "mediaflow.update": ["MediaFlow Proxy", "streams through it pause for a few seconds"],
+      "mediaflow.update": ["MediaFlow", "streams through it pause for a few seconds"],
     }[act.id];
     const backup = h("input", { type: "checkbox", id: "meta-backup", checked: true });
     const res = await ask({
