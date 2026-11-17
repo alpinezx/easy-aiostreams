@@ -2101,3 +2101,36 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
    or amber "available" (it showed grey before) */
 .vs-ver .ver-sub .ok { color: var(--ok); }
 .vs-ver .ver-sub .warn { color: var(--warn); }
+
+/* Overview on a computer: each card's own action sits in its top right corner as an icon and a word,
+   open or folded, with no button around it (Restart stack, Settings and Logs, Update, Details, Reboot
+   server), so an open card has no buttons of its own at the bottom. Every other action on the page is
+   plain too (Check now, All releases, Turn VPN off, Phone alerts' Stop and Send test alert, the Services
+   rows' Stop and Restart); anything risky still asks first. An Update with a newer release out stays filled. */
+@media (min-width: 721px) {
+  #view-overview .btn.fold-act.ph-corner { display: inline-flex; }
+  #view-overview .path-acts, #view-overview .stat-grid > .grid-btn.host-reboot, #view-overview .btn.ver-upd { display: none !important; }
+  #view-overview .fold-act .fa-word, #view-overview .warn-logs .fa-word, #view-overview .card-cog .fa-word,
+  #view-overview .card-detail .fa-word { display: inline; }
+  #view-overview .btn.fold-act, #view-overview .warn-logs, #view-overview .card-cog, #view-overview .card-link.card-detail,
+  #view-overview .ver-btns .btn:not(.primary), #view-overview .card-foot .btn:not(.primary),
+  #view-overview #rows .row .acts .btn {
+    display: inline-flex; align-items: center; gap: 6px; background: none; border-color: transparent; box-shadow: none;
+    padding: 4px 6px; min-height: 0; font-size: .86rem; font-weight: 600; color: var(--text); text-decoration: none; }
+  #view-overview .btn.fold-act, #view-overview .card-link.card-detail { margin: -4px -6px -4px auto; }
+  /* Details and Update side by side in the corner: only the first is pushed right */
+  #view-overview .card-link.card-detail + .btn.fold-act { margin-left: 10px; }
+  #view-overview .warnc .card-acts { gap: 10px; }
+  #view-overview .warnc .card-acts > .card-cog, #view-overview .warnc .card-acts > .warn-logs { padding: 4px 6px; margin: 0; }
+  #view-overview .card-cog svg, #view-overview .fa-icon svg { width: 15px; height: 15px; }
+  #view-overview .ver-btns, #view-overview #rows .row .acts { gap: 8px; }
+  /* a newer release: Update filled, with its arrow, wherever it is */
+  #view-overview .btn.fold-act.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); padding: 4px 10px; border-radius: 8px; }
+  @media (hover: hover) {
+    #view-overview .btn.fold-act:not(.primary):hover:not(:disabled), #view-overview .warn-logs:hover, #view-overview .card-cog:hover,
+    #view-overview .card-link.card-detail:hover, #view-overview .ver-btns .btn:not(.primary):hover:not(:disabled),
+    #view-overview .card-foot .btn:not(.primary):hover:not(:disabled), #view-overview #rows .row .acts .btn:hover:not(:disabled) {
+      background: none; text-decoration: underline; text-underline-offset: 3px; color: var(--text); }
+    #view-overview .btn.fold-act.primary:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
+  }
+}
