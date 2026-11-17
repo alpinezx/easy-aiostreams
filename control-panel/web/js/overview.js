@@ -596,6 +596,9 @@ function path(st) {
       if (kids.length) li.append(h("ul", {}, ...kids));
       return li;
     };
+    // Phones keep the corner icon open too, in place of the button under the flow
+    const corner = foldAct(restartBtn());
+    if (corner) { corner.classList.add("ph-corner"); head.append(corner); }
     const tree = h("ul", { class: "flow-tree" },
       h("li", { class: "t-root" }, h("div", { class: "t-row t-start", text: "Visitors" }),
         main.length ? h("ul", {}, after(0, true)) : null));
@@ -891,6 +894,8 @@ function side(st) {
   // Folded, Reboot server stays as a quiet link in the corner, as Restart stack does on the flow
   if (hostFolded) host.firstChild.append(hostSum(st),
     foldAct(h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer })));
+  // Open, phones keep that icon in the corner instead of the button at the bottom
+  else host.firstChild.append(foldAct(h("button", { class: "btn small danger ph-corner", type: "button", text: "Reboot server", onclick: rebootServer })));
   const grid = h("div", { class: "stat-grid" });
   // Top row: what you look at first. What folds out (Network, certificates) is on the
   // bottom row, so it opens under the values
@@ -945,7 +950,7 @@ function side(st) {
   // Last among the values, right above the section its chevron opens
   const certList = certTiles(grid, st);
   // Reboot on a line of its own at the bottom right, after the opened certificates too
-  grid.append(h("div", { class: "grid-btn own-row" },
+  grid.append(h("div", { class: "grid-btn own-row host-reboot" },
     h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer })));
   // The opened certificates go in the grid too, so on phones CSS can put them (and their
   // tile) after the other values, with Reboot last

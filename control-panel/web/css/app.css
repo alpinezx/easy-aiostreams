@@ -1745,6 +1745,16 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 /* Update's confirm: the copy-instead link sits with the text */
 .upd-opts { justify-items: start; }
 
+/* Request flow and This server open: wider screens keep their buttons at the bottom; phones keep the
+   folded card's corner icon instead (Restart stack, Reboot server), so the card doesn't change shape */
+.btn.fold-act.ph-corner { display: none; }
+@media (max-width: 720px) {
+  .btn.fold-act.ph-corner { display: inline-flex; background: none; border: 0; padding: 8px; margin: -8px -8px -8px auto; min-height: 0;
+    font-size: .86rem; font-weight: 400; color: var(--dim); box-shadow: none; }
+  .btn.fold-act.ph-corner:hover:not(:disabled) { color: var(--text); background: none; }
+  .path-acts, .stat-grid > .grid-btn.host-reboot { display: none; }
+}
+
 /* Phones */
 @media (max-width: 720px) {
   #view-overview .ver-slot, #view-overview .panel.host, #view-overview .panel.wd, #view-overview .panel.warnc, #view-overview .panel.vpnc, #view-overview .cols > div { margin-bottom: 22px; }
