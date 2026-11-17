@@ -1198,7 +1198,10 @@ function vpnCard(el, st, avail) {
   const btns = h("div", { class: "card-foot vpnc-foot" });
   const a = avail[mode === "on" ? "vpn.off" : "vpn.on"];
   if (a && a.available && !(mode === "off" && v && v.has_config === false)) {
-    btns.append(h("button", { class: "btn small vpnc-switch", type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
+    const sw = (c) => h("button", { class: c, type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) });
+    btns.append(sw("btn small vpnc-switch" + (ver ? " vs-moved" : "")));
+    // Phones: beside gluetun's version instead, on the line under its label, so the card is a line shorter
+    if (ver) ver.append(sw("btn small vs-switch"));
   }
   if (updBtn) btns.append(updBtn);
   if (mode === "on") {

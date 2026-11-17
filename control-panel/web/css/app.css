@@ -990,7 +990,7 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .wd-events { list-style: none; margin: 0 0 10px; padding: 0; border: 1px solid var(--card-edge); border-radius: var(--radius); background: var(--raised); }
 .wd-events li { display: grid; grid-template-columns: 130px 104px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 10px 16px; border-top: 1px solid var(--line-soft); }
 .wd-events li:first-child { border-top: 0; }
-.wd-events .chip { justify-self: start; font-size: .78rem; }
+.wd-events .chip { justify-self: start; font-size: .74rem; padding: 1px 8px; }   /* the small pill size, like Scheduled and In use */
 .wd-when { color: var(--dim); font-size: .88rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .wd-text { font-size: .92rem; overflow-wrap: anywhere; }
 #dialog .wd-topic-err, .wd-topic-err { margin: -4px 0 0; color: var(--warn); font-size: .88rem; }
@@ -2257,3 +2257,98 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 /* Add-ons: an icon that opens another site is in the link colour, like the Overview's Dashboard and
    Configure; copy and show stay grey (they act on this page). Phones and computers alike. */
 #view-addons a.ao-ic, #view-addons a.ao-ic:hover:not(:disabled) { color: var(--accent); }   /* hovered too, like the Overview's links */
+/* Overview on phones: the cards' remaining buttons (Check now, All releases, Turn VPN off, Phone alerts'
+   Stop and Send test alert) plain words in their columns, like a computer's, at the same brightness;
+   a filled Update stays filled */
+@media (max-width: 720px) {
+  #view-overview .ver-btns .btn:not(.primary), #view-overview .card-foot .btn:not(.primary) {
+    background: none; border-color: transparent; box-shadow: none; font-weight: 600;
+    color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+  #view-overview .ver-btns .btn:not(.primary):active, #view-overview .card-foot .btn:not(.primary):active { color: var(--text); }
+  /* the words on the card's own edges (the first on the left text line, the second ending on the right one),
+     not centred in half-width boxes */
+  #view-overview .btn-grid > .btn:not(.primary) { width: auto; padding-left: 0; padding-right: 0; justify-self: start; }
+  /* the right-hand column (the second shown: Check now, Stop); a button on a row of its own stays left */
+  #view-overview .btn-grid > .btn:not(.primary):not(.btn-alone):not(.vpnc-switch)[data-ord="1"] { justify-self: end; }
+  #view-overview .btn-grid > .btn.btn-alone:not(.primary) { width: auto !important; justify-self: start !important; }
+}
+/* The VPN card's Turn VPN off / on: phones show it beside gluetun's version (under its label, level with
+   the line under the version) instead of on a row of its own at the bottom */
+.vs-switch { display: none; }
+@media (max-width: 720px) {
+  #view-overview .stat.vs-ver > .vs-switch { display: inline-flex; align-items: center; gap: 6px; grid-column: 1; grid-row: 2; justify-self: start;
+    align-self: baseline; height: auto; line-height: inherit; background: none; border-color: transparent; box-shadow: none; padding: 0;
+    min-height: 0; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+  #view-overview .vpnc-foot > .vpnc-switch.vs-moved { display: none !important; }
+  /* the line under gluetun's version, and Turn VPN off beside it, a little further from the line above */
+  #view-overview .stat.vs-ver:has(> .vs-switch) > .ver-sub, #view-overview .stat.vs-ver > .vs-switch { margin-top: 8px; }
+  /* the shield's own white space moved it in from GLUETUN's left edge (optical alignment) */
+  #view-overview .stat.vs-ver > .vs-switch { margin-left: -2px; }
+  /* with the switch gone from it, the footer sits closer under the rows */
+  #view-overview .vpnc-foot:has(> .vs-moved) { padding-top: 6px; row-gap: 0; }
+}
+/* Logs and Activity on phones: the heading tools plain like a computer's (the bin a bare icon, as on the
+   Network page), the last ending on the cards' right-hand line */
+@media (max-width: 720px) {
+  #view-logs .lg-acts { gap: 18px; }
+  #view-logs .lg-acts .btn, #view-activity #clear-activity { display: inline-flex; align-items: center; gap: 6px; width: auto; height: auto;
+    background: none; border-color: transparent; box-shadow: none; padding: 6px 0; min-height: 0; font-weight: 600;
+    color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+  #view-logs #log-clear svg { width: 17px; height: 17px; stroke-width: 2; }
+  #view-logs .lg-acts .btn:active, #view-activity #clear-activity:active { color: var(--text); }
+}
+/* Backup & Restore on phones: an opened backup's Restore a full-width button, then its helpers as two
+   lines of plain words on the card's edges */
+@media (max-width: 720px) {
+  #view-backups .item.bk .btns:has(> [data-act="Restore"]) { grid-template-columns: 1fr 1fr; gap: 2px 12px; }
+  #view-backups .item.bk .btns > .btn[data-act="Restore"] { grid-column: 1 / -1; margin-bottom: 8px; }
+  #view-backups .item.bk .btns > .btn:not([data-act="Restore"]) { width: auto; justify-self: start; background: none; border-color: transparent;
+    box-shadow: none; padding: 6px 0; min-height: 0; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+  /* the two copies down the left, one long and one short word on each line: Restore command | Lock, scp command | Delete */
+  #view-backups .item.bk .btns:has(> [data-act="Restore"]) > .btn:nth-child(2) { order: 1; }
+  #view-backups .item.bk .btns:has(> [data-act="Restore"]) > .btn:nth-child(4) { order: 2; justify-self: end; }
+  #view-backups .item.bk .btns:has(> [data-act="Restore"]) > .btn:nth-child(3) { order: 3; }
+  #view-backups .item.bk .btns:has(> [data-act="Restore"]) > .btn:nth-child(5) { order: 4; justify-self: end; }
+  /* a set-aside folder's lone Delete at the right */
+  #view-backups .item.bk .btns:not(:has(> [data-act="Restore"])) > .btn { justify-self: end; }
+  #view-backups .item.bk .btns > .btn:not([data-act="Restore"]):active { color: var(--text); }
+  #view-backups .item.bk .bw[data-short] { font-size: 0; }
+  #view-backups .item.bk .bw[data-short]::after { content: attr(data-short); font-size: .82rem; }
+}
+/* Scripts on phones: Check now plain like a computer's; each row's Copy plain on the card's left line,
+   Update staying a button in the right-hand half */
+@media (max-width: 720px) {
+  #view-scripts #scripts-acts .btn { background: none; border-color: transparent; box-shadow: none; padding: 6px 0; min-height: 0; height: auto;
+    font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+  #view-scripts .cmd-btns .btn[data-act="Copy"] { justify-self: start; width: auto; background: none; border-color: transparent; box-shadow: none;
+    padding-left: 0; padding-right: 0; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+  #view-scripts #scripts-acts .btn:active, #view-scripts .cmd-btns .btn[data-act="Copy"]:active { color: var(--text); }
+}
+/* Maintenance on phones: List updates plain on the card's left line, like Scripts' Copy; Install updates
+   (and Free up space, Set time zone) stay buttons */
+@media (max-width: 720px) {
+  #view-maint .btn.maint-list { justify-self: start; width: auto; background: none; border-color: transparent; box-shadow: none;
+    padding-left: 0; padding-right: 0; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+  #view-maint .btn.maint-list:active { color: var(--text); }
+}
+/* Add-ons, VPN and Phone alerts on phones: the same split as a computer's (helpers, side tools and deletes
+   plain, the page's work a button) */
+@media (max-width: 720px) {
+  #view-addons .btn[data-act="Uninstall"], #view-vpn .vpn-acts .btn, #view-vpn .conf-acts .btn[data-act="Delete"],
+  #view-alerts .vpn-acts .btn, #view-alerts .btn.quiet {
+    width: auto; height: auto; background: none; border-color: transparent; box-shadow: none; padding: 6px 0; min-height: 0; font-weight: 600;
+    color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+  #view-vpn .vpn-acts, #view-alerts .vpn-acts { gap: 18px; }
+  #view-addons .ao-ic { background: none; border-color: transparent; box-shadow: none; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+  #view-addons a.ao-ic { color: var(--accent); }
+  #view-addons .btn[data-act="Uninstall"]:active, #view-vpn .vpn-acts .btn:active, #view-vpn .conf-acts .btn[data-act="Delete"]:active,
+  #view-alerts .vpn-acts .btn:active, #view-alerts .btn.quiet:active { color: var(--text); }
+}
+/* Phones: the heading tools above a card end 3px in from its edge, as on a computer, so the rounded corner
+   doesn't make them look past it (optical alignment) */
+@media (max-width: 720px) {
+  #view-logs .lg-acts, #view-vpn .vpn-acts, #view-alerts .vpn-acts, #view-scripts #scripts-acts { margin-right: 3px; }
+  #view-activity #clear-activity { margin-right: 3px; }
+}
+/* Phones: Phone alerts' Clear history 3px in from the card's edge below it, like the heading tools */
+@media (max-width: 720px) { #view-alerts .wd-sub .btn { margin-right: 3px; } }

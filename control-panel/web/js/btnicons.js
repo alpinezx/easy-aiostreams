@@ -47,7 +47,8 @@ const ICONS = {
 // Round icons read larger than square ones at the same size, so they're drawn a touch smaller
 const ROUND = new Set(["Check now", "Restart stack", "Restart", "Restart panel", "Reboot server", "Restore",
   "Set schedule", "Set time zone", "Change server"]);
-const SHORT = {};
+// Shorter words where a phone has half its width for them (the copy icon says "Copy"); the full one is the label
+const SHORT = { "Copy restore command": "Restore command", "Copy scp command": "scp command" };
 // Buttons left alone: filters and toggles, header links, the log viewer's own controls
 const SKIP = ".fold-act, .icon-only, .hero-edit, .tr-ranges .btn, .lg-row .btn, .lg-acts .btn, .wd-today-wrap .btn, .wd-sub .btn";
 
