@@ -221,7 +221,7 @@ function card(a) {
     h("div", { class: "card-head" },
       title,
       h("span", { class: "ao-head-r" }, a.mem ? h("span", { class: "dim ao-mem", text: a.mem, title: "Memory in use" }) : null,
-        h("span", { class: "chip " + a.chip[1], text: a.chip[0] }))),
+        h("span", { class: "chip small-chip " + a.chip[1], text: a.chip[0] }))),
     h("div", { class: "ao-rows" }, ...a.rows.map(tile), foot ? null : h("div", { class: "ao-btn-cell" }, btn)),
     // native append writes a null out as the word "null", so the foot only when there is one
     ...(foot ? [h("div", { class: "card-foot ao-foot" }, foot, btn)] : []));

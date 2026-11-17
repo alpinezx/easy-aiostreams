@@ -230,6 +230,11 @@ function phCorner(below, make) {
   below.classList.add("ver-upd");
   return b;
 }
+// Update on a card already running the newest release (as checked): say so, as the control panel's Update
+// does, rather than a backup and an update with nothing to fetch. Not checked, or couldn't check: as before.
+function updOrSay(upd, name, list, top, running) {
+  return () => (list && running && !top ? toast(`${name} is up to date (${running}). Nothing to do.`) : runAction(upd));
+}
 // The folded line: [text or element, tone, tooltip], empty ones left out
 // An update waiting has to stand out by shape, not only colour (amber and green can look alike):
 // "available" gets an up arrow, and the card's Update becomes the filled button.
@@ -407,7 +412,7 @@ function metaCard(st, avail) {
     : h("span", { class: top ? "quiet" : "ok" }, top ? stIcon("up") : null, top ? `${top.tag} available` : "Up to date");
   const upd = avail["aiometadata.update"];
   const mkUpd = () => upd && upd.available ? hot(h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
-    title: "Update AIOMetadata to its newest release, with a backup first", onclick: () => runAction(upd) }), top) : null;
+    title: "Update AIOMetadata to its newest release, with a backup first", onclick: updOrSay(upd, "AIOMetadata", list, top, running) }), top) : null;
   const updBtn = mkUpd();
   const title = h("div", { class: "fold-title" },
     h("h2", {}, foldTitle("aiometadata", "AIOMetadata")),
@@ -479,7 +484,7 @@ function addonVerCard(st, avail, o) {
     : h("span", { class: top ? "quiet" : "ok" }, top ? stIcon("up") : null, top ? `${top.tag} available` : "Up to date");
   const upd = avail[`${o.id}.update`];
   const mkUpd = () => upd && upd.available ? hot(h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
-    title: `Update ${o.name} to its newest release, with a backup first`, onclick: () => runAction(upd) }), top) : null;
+    title: `Update ${o.name} to its newest release, with a backup first`, onclick: updOrSay(upd, o.name, list, top, running) }), top) : null;
   const updBtn = mkUpd();
   const title = h("div", { class: "fold-title" },
     h("h2", {}, foldTitle(o.id, o.name)), o.pages || null);
@@ -1055,7 +1060,7 @@ async function warnClear() {
 function cogBtn() {
   const b = h("button", { class: "card-cog", type: "button", title: "Choose which services' warnings show here",
     "aria-label": "Choose services", onclick: warnPick });
-  b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg><span class="fa-word">Choose services</span>';
+  b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg><span class="fa-word">Settings</span>';
   return b;
 }
 // Five rows, and up to five more behind Show more (opened in place: no scrolling box inside
@@ -1128,7 +1133,7 @@ function vpnCard(el, st, avail) {
     : top ? [`${top.tag} available`, "warn"] : ["Up to date", "ok"];
   const upd = avail["vpn.update"];
   const mkUpd = () => upd && upd.available ? hot(h("button", { class: "btn small", type: "button", text: "Update", disabled: !!st.busy,
-    title: "Update gluetun to its newest v3 release, with a backup first", onclick: () => runAction(upd) }), top) : null;
+    title: "Update gluetun to its newest v3 release, with a backup first", onclick: updOrSay(upd, "gluetun", list, top, running) }), top) : null;
   const updBtn = mkUpd();
   const folded = isFolded("vpn");
   // Phones always show Update in the corner, open or folded, filled when a newer gluetun is out, as the
@@ -1198,7 +1203,10 @@ function vpnCard(el, st, avail) {
   const btns = h("div", { class: "card-foot vpnc-foot" });
   const a = avail[mode === "on" ? "vpn.off" : "vpn.on"];
   if (a && a.available && !(mode === "off" && v && v.has_config === false)) {
-    btns.append(h("button", { class: "btn small vpnc-switch", type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
+    const sw = (c) => h("button", { class: c, type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) });
+    btns.append(sw("btn small vpnc-switch" + (ver ? " vs-moved" : "")));
+    // Phones: beside gluetun's version instead, on the line under its label, so the card is a line shorter
+    if (ver) ver.append(sw("btn small vs-switch"));
   }
   if (updBtn) btns.append(updBtn);
   if (mode === "on") {

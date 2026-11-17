@@ -18,7 +18,7 @@ const BIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v
 function bin() {
   const b = h("button", { class: "btn small icon-only tr-bin", type: "button", title: "Clear traffic history",
     "aria-label": "Clear traffic history", onclick: async () => { if (await clearHistory(kind(), hasVpn())) show(st); } });
-  b.innerHTML = BIN;
+  b.innerHTML = BIN + '<span class="tr-word">Clear</span>';   // the word shows on a computer
   return b;
 }
 function sources() {
@@ -92,6 +92,10 @@ export function show(status) {
     try { localStorage.setItem("aios.netSource", "vpn"); } catch (_) {}
   }
   sourceSwitch();
+  // Phones: the bin at the end of the heading's Traffic line (a computer has it in the card's corner)
+  const pb = $("#net-pbin");
+  clear(pb);
+  pb.append(bin());
   const root = $("#net-root");
   clear(root);
   const tbox = h("div", { class: "net-traffic" }), sbox = h("div", { class: "net-services" });
