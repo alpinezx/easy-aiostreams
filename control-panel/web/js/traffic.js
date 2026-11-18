@@ -318,6 +318,8 @@ export async function trafficCard(box, force, kind = "vpn", opts = {}) {
   const what = kind === "vpn" ? "Everything through the VPN" : "Everything in and out of this server";
   box.append(h("div", { class: "panel vpn-card tr-card" },
     h("div", { class: "vpn-head" }, h("h3", { class: "tr-title", text: "Traffic" }), opts.ranges ? null : ranges(), opts.tool || null),
+    // Phones: the time range sits in the card under its Traffic line (a second copy; CSS shows one)
+    opts.ranges ? h("div", { class: "tr-rng-card" }, ranges()) : null,
     opts.sub || null,
     h("div", { class: "vpn-grid tr-figs" },
       nowFigs[kind] = nowFig(n),

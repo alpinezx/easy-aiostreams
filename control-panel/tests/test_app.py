@@ -554,6 +554,25 @@ def test_phone_alerts_history_can_be_cleared(client):
     assert w["events"] == [] and w["tally"]          # the daily tally stays
 
 
+def test_phone_alerts_one_event_can_be_removed(client):
+    body = {"at": 1, "kind": "x", "text": "y"}
+    assert client.post("/api/watchdog/events/remove", json=body).status_code == 401
+    login(client)
+    # an earlier test may have cleared the demo's history: put three of its own in
+    from app import main
+    main.backend.wd_events = [{"at": 30, "kind": "test", "text": "Test alert sent."}, {"at": 20, "kind": "up", "text": "Back up."},
+                              {"at": 10, "kind": "down", "text": "Site down."}]
+    events = client.get("/api/watchdog").json()["events"]
+    keep, gone = events[0], events[-1]
+    assert client.post("/api/watchdog/events/remove", json={k: gone[k] for k in ("at", "kind", "text")}).json() == {"removed": True}
+    after = client.get("/api/watchdog").json()["events"]
+    assert gone not in after and keep in after and len(after) == len(events) - 1
+    # only exact events, only the right shapes
+    assert client.post("/api/watchdog/events/remove", json={"at": "1", "kind": "x", "text": "y"}).status_code == 400
+    assert client.post("/api/watchdog/events/remove", json={"at": 1, "kind": "a|b", "text": "y"}).status_code == 400
+    assert client.post("/api/watchdog/events/remove", json={}).status_code == 400
+
+
 def test_phone_alerts_switches(client):
     assert client.post("/api/watchdog/options", json={"name": "weekly", "on": True}).status_code == 401
     login(client)
