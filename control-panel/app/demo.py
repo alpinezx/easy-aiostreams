@@ -280,8 +280,9 @@ class DemoBackend:
             return {"configured": False}
         vpn = self.vpn == "on"
         tunnel = bool(os.environ.get("UI_DEMO_TUNNEL"))      # as a Cloudflare Tunnel setup: the tunnel, no certificate line
-        watches = (["https://streams.example.com"] + (["AIOStreams through the VPN"] if vpn else []) + ["AIOMetadata", "AIOManager"]
-                   + (["VPN tunnel"] if vpn else []) + ["MediaFlow", "Disk space", "Cloudflare Tunnel" if tunnel else "HTTPS certificates (5 sites)"])
+        watches = ((["Cloudflare Tunnel"] if tunnel else []) + ["https://streams.example.com"] + (["AIOStreams through the VPN"] if vpn else [])
+                   + ["AIOMetadata", "AIOManager"] + (["VPN tunnel"] if vpn else []) + ["MediaFlow", "Disk space"]
+                   + ([] if tunnel else ["HTTPS certificates (5 sites)"]))
         return {"configured": True, "running": self.wd_running, "alert_state": "up", "fails": 0,
                 "warnings": [w for w in os.environ.get("UI_DEMO_WD_WARN", "").split(",") if w],
                 "last_check": time.strftime("%d %b %Y, %H:%M:%S UTC", time.gmtime(time.time() - 40)) + " OK" if self.wd_running

@@ -1562,9 +1562,9 @@ class Backend:
         sites = self._caddy_sites(domain)
         n_sites = len(sites)
         tunnel = self.p("tunnel-state/token.env").exists()
-        # The site, the AIO add-ons, the VPN, MediaFlow, disk; the certificates last, since their
-        # line unfolds downwards
-        watches = [f"https://{domain}"] if domain else ["The site"]
+        # A Cloudflare Tunnel first, as the way in (like the request flow); then the site, the AIO add-ons,
+        # the VPN, MediaFlow, disk; the certificates last, since their line unfolds downwards
+        watches = (["Cloudflare Tunnel"] if tunnel else []) + ([f"https://{domain}"] if domain else ["The site"])
         img = re.search(r"^\s*image:\s*viren070/aiostreams:(\S+)\s*$", _read(self.p("docker-compose.yml")), re.M)
         vpn = self.vpn_mode() == "on"
         if vpn:
@@ -1577,8 +1577,9 @@ class Backend:
             watches.append("VPN tunnel")
         if (self.p("mediaflow-state") / "config").exists():
             watches.append("MediaFlow")
-        watches += ["Disk space", "Cloudflare Tunnel" if tunnel
-                    else f"HTTPS certificates ({n_sites} sites)" if n_sites > 1 else "HTTPS certificate"]
+        watches.append("Disk space")
+        if not tunnel:
+            watches.append(f"HTTPS certificates ({n_sites} sites)" if n_sites > 1 else "HTTPS certificate")
         return {
             "configured": True,
             "running": self._systemd_active("aiostreams-watchdog.timer"),
