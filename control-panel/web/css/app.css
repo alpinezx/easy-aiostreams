@@ -1361,6 +1361,11 @@ html.still *, html.still *::after { animation: none !important; transition: none
 .check { display: flex; gap: 10px; align-items: center; }
 .check input { width: 18px; height: 18px; flex: none; accent-color: var(--accent); }
 .dialog .btns { display: flex; justify-content: flex-end; gap: 8px; }
+/* A dialog taller than the screen (a phone with its keyboard up) scrolls behind its buttons: they stay pinned at
+   the bottom, text fading out above them, so there's always a way to answer and a hint there's more above */
+.dialog .btns { position: sticky; bottom: -22px; margin: 0 -22px -22px; padding: 14px 22px 22px; background: var(--raised); }
+.dialog .btns::before { content: ""; position: absolute; left: 0; right: 0; top: -18px; height: 18px; pointer-events: none;
+  background: linear-gradient(to top, var(--raised), transparent); }
 /* Phones: a dialog with three buttons (such as the Network page's Clear traffic history with the VPN) doesn't
    fit them on a line: Cancel across the top, the two choices side by side under it, the main one filled */
 @media (max-width: 720px) {
