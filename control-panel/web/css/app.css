@@ -987,6 +987,7 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .wd-opts h3 { margin-bottom: 0; }
 .wd-opts-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
 .wd-opts-word { font-size: .86rem; }
+.wd-opts-word.ok { color: var(--ok); }
 .wd-opts.folded { padding-top: 16px; padding-bottom: 16px; }
 .wd-opts.folded .wd-opts-head { margin-bottom: 0; }
 .wd-opts.folded .wd-opts-body { display: none; }

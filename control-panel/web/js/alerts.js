@@ -290,6 +290,7 @@ function extras(w) {
   const tally = () => {
     const n = body.querySelectorAll(".wd-opt input:checked").length;
     word.textContent = n ? `${n} active` : "None";
+    word.className = n ? "wd-opts-word ok" : "dim wd-opts-word";   // a state word is green when something's on, like Active elsewhere
   };
   const box = h("div", { class: "panel wd-opts" + (open ? "" : " folded") });
   const tog = h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(open),
