@@ -1593,6 +1593,8 @@ class Backend:
             "watches": watches,
             # which sites' certificates it checks, for the fold under "HTTPS certificates (n sites)"
             "cert_sites": [{"label": lbl, "host": host} for lbl, host in sites] if n_sites > 1 and not tunnel else [],
+            # through a Cloudflare Tunnel the watchdog doesn't check certificates: the panel says why, under its own line
+            "cert_note": "Cloudflare handles the certificates" if tunnel else None,
             "every_min": 2, "threshold": 2,
             "options": self._watchdog_options(),
             "timezone": self._host_timezone(),

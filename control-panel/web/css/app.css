@@ -813,8 +813,7 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .wd-watch .fold-toggle { font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; }
 .wd-watch [hidden] { display: none; }
 /* The certificates line's own fold: its title is the button, its sites sit under it, a step in */
-.wd-certs-tog { font-weight: inherit; }
-.wd-certs { margin: 2px 0 6px 14px; padding-left: 12px; border-left: 2px solid var(--line-soft); font-size: .88rem; overflow-wrap: anywhere; }
+.wd-certs-tog { font-weight: inherit; }.wd-certs { margin: 2px 0 6px 14px; padding-left: 12px; border-left: 2px solid var(--line-soft); font-size: .88rem; overflow-wrap: anywhere; }
 .wd-certs > div { padding: 2px 0; }
 .wd-days-row { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px 24px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
 .wd-days { display: flex; gap: 4px; }

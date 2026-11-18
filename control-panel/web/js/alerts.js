@@ -81,13 +81,13 @@ try { watchOpen = localStorage.getItem("aios.wdWatchOpen") === "1"; } catch (_) 
 // sites' certificates are checked; folded until opened, remembered (key "aios.wdCertsOpen").
 let certsOpen = false;
 try { certsOpen = localStorage.getItem("aios.wdCertsOpen") === "1"; } catch (_) {}
-function certsItem(text, sites) {
+function certsItem(text, sites, note = "") {
   // "HTTPS certificates (5 sites)": the count reads as a quiet note after the name, without its brackets
   const m = text.match(/^(.*?) \((\d+ sites?)\)$/);
   const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
   chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
   const more = h("div", { class: "wd-certs", hidden: !certsOpen },
-    ...sites.map((s) => h("div", { text: s.host, title: s.label })));
+    ...(note ? [h("div", { class: "dim", text: note })] : sites.map((s) => h("div", { text: s.host, title: s.label }))));
   const tog = h("button", { class: "path-toggle fold-toggle wd-certs-tog", type: "button", "aria-expanded": String(certsOpen),
     title: "Show or hide which sites' certificates are checked", onclick: () => {
       certsOpen = !certsOpen;
@@ -98,12 +98,16 @@ function certsItem(text, sites) {
   return h("div", { class: "wd-watch-item" }, tog, more);
 }
 
-function watchCell(watches, certSites = []) {
+function watchCell(watches, certSites = [], certNote = "") {
   const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
   chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
   const count = h("div", { class: "vpn-value wd-watch-count", text: `Running ${watches.length} check${watches.length === 1 ? "" : "s"}` });
   const list = h("div", { class: "vpn-value wd-watch-list" }, ...watches.map((x) =>
-    certSites.length > 1 && x.startsWith("HTTPS certificates") ? certsItem(x, certSites) : h("div", { class: "wd-watch-item", text: x })));
+    certSites.length > 1 && x.startsWith("HTTPS certificates") ? certsItem(x, certSites)
+      : h("div", { class: "wd-watch-item", text: x })));
+  // Through a Cloudflare Tunnel the watchdog checks the tunnel, not the certificates (Cloudflare renews them). The
+  // Overview shows them, so the same line is here too, and opens to say why they aren't watched. Not one of the checks.
+  if (certNote) list.append(certsItem("HTTPS certificates", [], certNote));
   const show = () => { count.hidden = watchOpen; list.hidden = !watchOpen; };
   const tog = h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(watchOpen),
     title: "Show or hide everything it watches", onclick: () => {
@@ -172,7 +176,7 @@ function render(w) {
       chk.at && w.running ? h("span", { class: "vpn-checked", text: `Checked ${ago(chk.at)}` }) : null),
     h("div", { class: "vpn-grid wd-grid" },
       cell("Last check", h("span", { class: passed || !w.running ? "" : "wd-fail", text: result })),
-      watchCell(w.watches, w.cert_sites),
+      watchCell(w.watches, w.cert_sites, w.cert_note || ""),
       cell("How often", `Every ${w.every_min} min, alert after ${w.threshold} ${w.threshold === 1 ? "fail" : "fails"}`)),
     h("div", { class: "wd-days-row" },
       h("div", {}, h("div", { class: "vpn-label", text: "Last 14 days" }), days(w.tally, w.running && passed)),

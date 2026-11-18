@@ -279,17 +279,19 @@ class DemoBackend:
         if not self.wd_configured:
             return {"configured": False}
         vpn = self.vpn == "on"
+        tunnel = bool(os.environ.get("UI_DEMO_TUNNEL"))      # as a Cloudflare Tunnel setup: the tunnel, no certificate line
         watches = (["https://streams.example.com"] + (["AIOStreams through the VPN"] if vpn else []) + ["AIOMetadata", "AIOManager"]
-                   + (["VPN tunnel"] if vpn else []) + ["MediaFlow", "Disk space", "HTTPS certificates (5 sites)"])
+                   + (["VPN tunnel"] if vpn else []) + ["MediaFlow", "Disk space", "Cloudflare Tunnel" if tunnel else "HTTPS certificates (5 sites)"])
         return {"configured": True, "running": self.wd_running, "alert_state": "up", "fails": 0,
                 "warnings": [w for w in os.environ.get("UI_DEMO_WD_WARN", "").split(",") if w],
                 "last_check": time.strftime("%d %b %Y, %H:%M:%S UTC", time.gmtime(time.time() - 40)) + " OK" if self.wd_running
                 else time.strftime("%d %b %Y, %H:%M:%S UTC", time.gmtime(time.time() - 40)) + " STOPPED (watchdog disabled, no checks running)",
                 "topic": mask_topic(self.wd_topic), "events": self.wd_events, "tally": self.wd_tally,
                 "watches": watches, "every_min": 2, "threshold": 2,
-                "cert_sites": [{"label": "AIOStreams", "host": "streams.example.com"}, {"label": "AIOMetadata", "host": "meta.example.com"},
-                               {"label": "AIOManager", "host": "manager.example.com"}, {"label": "MediaFlow", "host": "mediaflow.example.com"},
-                               {"label": "Control panel", "host": "cp.example.com"}],
+                "cert_sites": [] if tunnel else [{"label": "AIOStreams", "host": "streams.example.com"}, {"label": "AIOMetadata", "host": "meta.example.com"},
+                                                 {"label": "AIOManager", "host": "manager.example.com"}, {"label": "MediaFlow", "host": "mediaflow.example.com"},
+                                                 {"label": "Control panel", "host": "cp.example.com"}],
+                "cert_note": "Cloudflare handles the certificates" if tunnel else None,
                 "options": dict(self.wd_options), "channel": "nightly" if self.channel == "nightly" else "stable",
                 "aiometadata": True, "aiomanager": True, "mediaflow": True,
                 "timezone": os.environ.get("UI_DEMO_TZ", "Europe/London")}
