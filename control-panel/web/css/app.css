@@ -942,6 +942,20 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .wd-when-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 0 14px; font-size: .88rem; }
 .wd-when-row[hidden] { display: none; }
 .wd-when-row .input { width: auto; padding: 5px 8px; font-size: .88rem; }
+/* the day, the time and Set are one height (the button was shorter, the day box a little shorter than the time) */
+.wd-when-row .input, .wd-when-row > .btn { box-sizing: border-box; height: 2.1rem; min-height: 0; }
+.wd-when-row > .btn { display: inline-flex; align-items: center; }
+/* Phones, Phone alerts' weekly check-in: "Send it on" and the day, then "from" and the time with Set under it, the
+   two controls in one column, so no label is left at a line's end with its box on the next; the note under both */
+@media (max-width: 720px) {
+  #view-alerts .wd-when-row { display: grid; grid-template-columns: auto auto 1fr; column-gap: 10px; row-gap: 10px; }
+  #view-alerts .wd-when-row[hidden] { display: none; }
+  #view-alerts .wd-when-row > :first-child, #view-alerts .wd-when-row > :nth-child(3) { grid-column: 1; white-space: nowrap; }
+  #view-alerts .wd-when-row > select { grid-column: 2 / 4; justify-self: start; }
+  #view-alerts .wd-when-row > .time-pick { grid-column: 2; justify-self: start; }
+  #view-alerts .wd-when-row > .btn { grid-column: 3; justify-self: start; }
+  #view-alerts .wd-when-row > :last-child { grid-column: 1 / -1; }
+}
 /* A 24-hour time, typed */
 .time-pick { display: inline-flex; }
 .time-pick .time-box { width: 4.6em; text-align: center; font-variant-numeric: tabular-nums; }
