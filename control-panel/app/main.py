@@ -407,6 +407,22 @@ async def watchdog_clear_events(user: str = Depends(current_user)):
     return {"cleared": True}
 
 
+@app.post("/api/watchdog/events/remove")
+async def watchdog_remove_event(request: Request, user: str = Depends(current_user)):
+    """One event's bin on the Phone alerts page: {"at": epoch, "kind": "...", "text": "..."} as listed."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    try:
+        await asyncio.to_thread(backend.remove_watchdog_event, body.get("at"), body.get("kind"), body.get("text"))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"removed": True}
+
+
 @app.post("/api/watchdog/tally/clear")
 async def watchdog_clear_tally(user: str = Depends(current_user)):
     """Reset on the Phone alerts page: the 14-day strip starts again."""

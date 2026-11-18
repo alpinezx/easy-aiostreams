@@ -73,6 +73,53 @@ function cell(label, ...value) {
   return h("div", {}, h("div", { class: "vpn-label", text: label }), h("div", { class: "vpn-value" }, ...value));
 }
 
+// What it watches: folded until opened (a long list of every check), remembered per browser
+// like the Overview's cards (key "aios.wdWatchOpen"). Folded, the value line says how many.
+let watchOpen = false;
+try { watchOpen = localStorage.getItem("aios.wdWatchOpen") === "1"; } catch (_) {}
+// With several sites, "HTTPS certificates (5 sites)" has a chevron of its own that lists which
+// sites' certificates are checked; folded until opened, remembered (key "aios.wdCertsOpen").
+let certsOpen = false;
+try { certsOpen = localStorage.getItem("aios.wdCertsOpen") === "1"; } catch (_) {}
+function certsItem(text, sites, note = "") {
+  // "HTTPS certificates (5 sites)": the count reads as a quiet note after the name, without its brackets
+  const m = text.match(/^(.*?) \((\d+ sites?)\)$/);
+  const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
+  chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
+  const more = h("div", { class: "wd-certs", hidden: !certsOpen },
+    ...(note ? [h("div", { class: "dim", text: note })] : sites.map((s) => h("div", { text: s.host, title: s.label }))));
+  const tog = h("button", { class: "path-toggle fold-toggle wd-certs-tog", type: "button", "aria-expanded": String(certsOpen),
+    title: "Show or hide which sites' certificates are checked", onclick: () => {
+      certsOpen = !certsOpen;
+      try { localStorage.setItem("aios.wdCertsOpen", certsOpen ? "1" : "0"); } catch (_) {}
+      tog.setAttribute("aria-expanded", String(certsOpen));
+      more.hidden = !certsOpen;
+    } }, ...(m ? [m[1], " ", h("span", { class: "dim", text: m[2] })] : [text]), chev);
+  return h("div", { class: "wd-watch-item" }, tog, more);
+}
+
+function watchCell(watches, certSites = [], certNote = "") {
+  const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
+  chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
+  const count = h("div", { class: "vpn-value wd-watch-count", text: `Running ${watches.length} check${watches.length === 1 ? "" : "s"}` });
+  const list = h("div", { class: "vpn-value wd-watch-list" }, ...watches.map((x) =>
+    certSites.length > 1 && x.startsWith("HTTPS certificates") ? certsItem(x, certSites)
+      : h("div", { class: "wd-watch-item", text: x })));
+  // Through a Cloudflare Tunnel the watchdog checks the tunnel, not the certificates (Cloudflare renews them). The
+  // Overview shows them, so the same line is here too, and opens to say why they aren't watched. Not one of the checks.
+  if (certNote) list.append(certsItem("HTTPS certificates", [], certNote));
+  const show = () => { count.hidden = watchOpen; list.hidden = !watchOpen; };
+  const tog = h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(watchOpen),
+    title: "Show or hide everything it watches", onclick: () => {
+      watchOpen = !watchOpen;
+      try { localStorage.setItem("aios.wdWatchOpen", watchOpen ? "1" : "0"); } catch (_) {}
+      tog.setAttribute("aria-expanded", String(watchOpen));
+      show();
+    } }, "Watches", chev);
+  show();
+  return h("div", { class: "wd-watch" }, h("div", { class: "vpn-label" }, tog), count, list);
+}
+
 // One square per day for the last 14: green all passed, amber some failed, faint no checks
 // nowOk: the latest check passed, so today's failures are behind it. Today's square then
 // shows both (green, with an amber band at its foot) and its wording says they were earlier.
@@ -129,8 +176,8 @@ function render(w) {
       chk.at && w.running ? h("span", { class: "vpn-checked", text: `Checked ${ago(chk.at)}` }) : null),
     h("div", { class: "vpn-grid wd-grid" },
       cell("Last check", h("span", { class: passed || !w.running ? "" : "wd-fail", text: result })),
-      cell("Watches", ...w.watches.flatMap((x, i) => [i ? h("br") : null, h("span", { text: x })])),
-      cell("How often", `Every ${w.every_min} min, alert after ${w.threshold} failed in a row`)),
+      watchCell(w.watches, w.cert_sites, w.cert_note || ""),
+      cell("How often", `Every ${w.every_min} min, alert after ${w.threshold} ${w.threshold === 1 ? "fail" : "fails"}`)),
     h("div", { class: "wd-days-row" },
       h("div", {}, h("div", { class: "vpn-label", text: "Last 14 days" }), days(w.tally, w.running && passed)),
       h("div", { class: "wd-today-wrap" }, h("span", { class: "dim wd-today", text: todayLine(w.tally, w.running && passed) }),
@@ -146,10 +193,16 @@ function render(w) {
   const evs = showAll ? w.events : w.events.slice(0, 12);
   for (const e of evs) {
     const [name, cls] = KIND[e.kind] || [e.kind, ""];
+    // Laid out like the Activity page's rows: what happened, then when, then its pill
+    // Each has a bin, as on Activity: removes just that one
+    const x = h("button", { class: "btn small quiet job-x", type: "button", title: "Remove from Recent events", "aria-label": `Remove "${e.text}" from Recent events`,
+      onclick: () => removeEvent(e) });
+    x.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
     list.append(h("li", {},
+      h("span", { class: "wd-text", text: e.text }),
       h("span", { class: "wd-when", title: new Date(e.at * 1000).toLocaleString(), text: when(e.at) }),
       h("span", { class: "chip" + (cls ? " " + cls : ""), text: name }),
-      h("span", { class: "wd-text", text: e.text })));
+      x));
   }
   box.append(h("div", { class: "wd-sub" }, h("h3", { text: "Recent events" }),
     w.events.length ? h("button", { class: "btn small quiet", type: "button", text: "Clear history", onclick: clearEvents }) : null),
@@ -207,8 +260,7 @@ function extras(w) {
   const when = h("div", { class: "wd-when-row", hidden: !opt.weekly },
     h("span", { class: "dim", text: "Send it on" }), day, h("span", { class: "dim", text: "from" }), time, setBtn,
     h("span", { class: "dim", text: `24-hour, ${tzNote(w.timezone)}, within 2 minutes of it` }));
-  return h("div", { class: "panel wd-opts" },
-    h("h3", { text: "Also tell me" }),
+  const body = h("div", { class: "wd-opts-body" },
     row("updates", "When a new AIOStreams release is out", w.channel === "nightly"
       ? "One per nightly build, with how to update. Nightly builds come out daily or more, so this can be chatty."
       : w.channel === "stable" ? "One alert per stable release, with how to update."
@@ -228,6 +280,30 @@ function extras(w) {
       + "with a reminder each week while they still wait."),
     row("weekly", "Weekly check-in", "The week's checks, alerts, disk space, newest backup and updates waiting. "
       + "If it stops arriving, the watchdog itself needs a look.", false, when), when);
+  // Folded until opened (a long list of switches), remembered per browser (key "aios.wdOptsOpen").
+  // Folded, the right side says how many are on, and keeps up as they're switched.
+  let open = false;
+  try { open = localStorage.getItem("aios.wdOptsOpen") === "1"; } catch (_) {}
+  const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
+  chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
+  const word = h("span", { class: "dim wd-opts-word" });
+  const tally = () => {
+    const n = body.querySelectorAll(".wd-opt input:checked").length;
+    word.textContent = n ? `${n} active` : "None";
+    word.className = n ? "wd-opts-word ok" : "dim wd-opts-word";   // a state word is green when something's on, like Active elsewhere
+  };
+  const box = h("div", { class: "panel wd-opts" + (open ? "" : " folded") });
+  const tog = h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(open),
+    title: "Show or hide the optional alerts", onclick: () => {
+      open = !open;
+      try { localStorage.setItem("aios.wdOptsOpen", open ? "1" : "0"); } catch (_) {}
+      box.classList.toggle("folded", !open);
+      tog.setAttribute("aria-expanded", String(open));
+    } }, "Also tell me", chev);
+  body.addEventListener("change", tally);
+  tally();
+  box.append(h("div", { class: "wd-opts-head" }, h("h3", {}, tog), word), body);
+  return box;
 }
 
 async function resetTally() {
@@ -239,6 +315,13 @@ async function resetTally() {
     toast("Stats reset.");
     render(await api("/api/watchdog"));
   } catch (e) { toast(e.message || "Couldn't reset them.", true); }
+}
+
+async function removeEvent(e) {
+  try {
+    await api("/api/watchdog/events/remove", { method: "POST", body: JSON.stringify({ at: e.at, kind: e.kind, text: e.text }) });
+  } catch (err) { toast(err.message || "Couldn't remove it.", true); }
+  try { render(await api("/api/watchdog")); } catch (_) {}
 }
 
 async function clearEvents() {
@@ -272,13 +355,10 @@ async function changeTopic() {
     try { await navigator.clipboard.writeText(input.value.trim()); toast("Copied. Paste it into the ntfy app's Subscribe to topic."); }
     catch (_) { input.select(); toast("Couldn't copy. It's selected, so copy it from there.", true); }
   } });
-  const link = h("a", { target: "_blank", rel: "noopener noreferrer" });
   const err = h("p", { class: "wd-topic-err", hidden: true });
   const sync = () => {
     const t = input.value.trim();
     const ok = /^[A-Za-z0-9_-]{12,64}$/.test(t);
-    link.href = `https://ntfy.sh/${encodeURIComponent(t)}`;
-    link.textContent = `ntfy.sh/${t}`;
     err.hidden = ok || !t;
     err.textContent = t.length < 12 ? "At least 12 characters, so nobody can guess it." : "Letters, numbers, - and _ only.";
     const btn = $("#dialog .btn.primary");
@@ -287,8 +367,10 @@ async function changeTopic() {
   input.addEventListener("input", sync);
   const el = h("div", { class: "opts" },
     h("label", { class: "field" }, h("span", { text: "New topic" }), h("span", { class: "wd-topic-input" }, input, copy)), err,
-    h("p", { class: "dim wd-topic-how" }, "Copy it and subscribe to it in the ntfy app first (or at ", link,
-      "). Anyone who knows the topic can read your alerts, so keep it long. A test alert goes to it as soon as it's saved."));
+    h("ol", { class: "wd-topic-steps" },
+      h("li", { text: "Subscribe to it yourself in the ntfy app (Subscribe to topic)." }),
+      h("li", { text: "Save here. A test alert is sent straight away." })),
+    h("p", { class: "dim wd-topic-how", text: "Anyone who knows the topic can read your alerts, so keep it long." }));
   setTimeout(sync, 0);
   const res = await ask({ title: "Change the alert topic", confirmLabel: "Save and send test",
     body: "Alerts go to the new topic from the next check. The old one stops getting them.",

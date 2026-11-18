@@ -554,6 +554,25 @@ def test_phone_alerts_history_can_be_cleared(client):
     assert w["events"] == [] and w["tally"]          # the daily tally stays
 
 
+def test_phone_alerts_one_event_can_be_removed(client):
+    body = {"at": 1, "kind": "x", "text": "y"}
+    assert client.post("/api/watchdog/events/remove", json=body).status_code == 401
+    login(client)
+    # an earlier test may have cleared the demo's history: put three of its own in
+    from app import main
+    main.backend.wd_events = [{"at": 30, "kind": "test", "text": "Test alert sent."}, {"at": 20, "kind": "up", "text": "Back up."},
+                              {"at": 10, "kind": "down", "text": "Site down."}]
+    events = client.get("/api/watchdog").json()["events"]
+    keep, gone = events[0], events[-1]
+    assert client.post("/api/watchdog/events/remove", json={k: gone[k] for k in ("at", "kind", "text")}).json() == {"removed": True}
+    after = client.get("/api/watchdog").json()["events"]
+    assert gone not in after and keep in after and len(after) == len(events) - 1
+    # only exact events, only the right shapes
+    assert client.post("/api/watchdog/events/remove", json={"at": "1", "kind": "x", "text": "y"}).status_code == 400
+    assert client.post("/api/watchdog/events/remove", json={"at": 1, "kind": "a|b", "text": "y"}).status_code == 400
+    assert client.post("/api/watchdog/events/remove", json={}).status_code == 400
+
+
 def test_phone_alerts_switches(client):
     assert client.post("/api/watchdog/options", json={"name": "weekly", "on": True}).status_code == 401
     login(client)
@@ -1065,8 +1084,10 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
     js = (Path(__file__).resolve().parents[1] / "web" / "js" / "logs.js").read_text(encoding="utf-8")
     block = re.search(r"const QUIET = \[(.*?)\n\];", js, re.S).group(1)
     quiet = [re.compile(p) for p in re.findall(r"^\s*/(.+)/,", block, re.M)]
-    assert len(quiet) == 10
+    assert len(quiet) == 11
     grey = [
+        # gluetun's first health check, before its DNS was up: it restarted the tunnel itself and was fine seconds later
+        '2026-11-18T14:52:57Z WARN [vpn] restarting VPN because it failed to pass the healthcheck: startup check: all check tries failed: parallel attempt 1/2 failed: dialing: dial tcp4: lookup cloudflare.com: i/o timeout, parallel attempt 2/2 failed: dialing: dial tcp4: lookup github.com: i/o timeout',
         'ERR  error="Incoming request ended abruptly: context canceled" connIndex=3 event=1 ingressRule=1 originService=http://caddy:80',
         'ERR Request failed error="Incoming request ended abruptly: context canceled" connIndex=3 dest=https://cp.example.com/api/status event=0 type=http',
         'ERR  error="unexpected EOF" connIndex=3 event=1 ingressRule=0 originService=http://caddy:80',

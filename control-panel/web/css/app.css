@@ -810,6 +810,11 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 /* Phone alerts page */
 .wd-grid .vpn-value { font-weight: 500; font-size: .94rem; }
 .wd-fail { color: var(--warn); }
+.wd-watch .fold-toggle { font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; }
+.wd-watch [hidden] { display: none; }
+/* The certificates line's own fold: its title is the button, its sites sit under it, a step in */
+.wd-certs-tog { font-weight: inherit; }.wd-certs { margin: 2px 0 6px 14px; padding-left: 12px; border-left: 2px solid var(--line-soft); font-size: .88rem; overflow-wrap: anywhere; }
+.wd-certs > div { padding: 2px 0; }
 .wd-days-row { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px 24px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
 .wd-days { display: flex; gap: 4px; }
 .wd-day { width: 18px; height: 26px; border-radius: 4px; background: var(--line-soft); }
@@ -943,6 +948,8 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .wd-topic { justify-content: space-between; align-items: center; }
 .wd-topic-what { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .wd-topic-what .vpn-label { margin: 0; }
+/* Phones: the label and the topic stack, so the button sits level with the topic's line, not between the two */
+@media (max-width: 720px) { .wd-topic { align-items: end; } .wd-topic .btn { margin-bottom: 4px; } }   /* 1px lower than level: a round-cornered box reads higher than flat text */
 .wd-opts { margin-top: 18px; padding: 16px 20px 6px; }
 /* Backup & Restore: the schedule above the list */
 .sched-card { padding: 16px 20px 14px; margin-bottom: 18px; }
@@ -977,7 +984,13 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
   .lock-ic svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 }
 .lock-tag.sched-tag { color: var(--dim); background: var(--raised); box-shadow: inset 0 0 0 1px var(--line); }
-.wd-opts h3 { margin-bottom: 4px; }
+.wd-opts h3 { margin-bottom: 0; }
+.wd-opts-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+.wd-opts-word { font-size: .86rem; }
+.wd-opts-word.ok { color: var(--ok); }
+.wd-opts.folded { padding-top: 16px; padding-bottom: 16px; }
+.wd-opts.folded .wd-opts-head { margin-bottom: 0; }
+.wd-opts.folded .wd-opts-body { display: none; }
 .wd-opt { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-top: 1px solid var(--line-soft); cursor: pointer; }
 .wd-opt:first-of-type { border-top: 0; }
 .wd-opt > span:first-child { display: grid; gap: 2px; }
@@ -988,19 +1001,30 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .wd-sub { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 28px 0 10px; min-height: 30px; }
 .wd-sub h3 { margin: 0; font-size: 1.05rem; font-weight: 650; }
 .wd-events { list-style: none; margin: 0 0 10px; padding: 0; border: 1px solid var(--card-edge); border-radius: var(--radius); background: var(--raised); }
-.wd-events li { display: grid; grid-template-columns: 130px 104px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 10px 16px; border-top: 1px solid var(--line-soft); }
+/* Rows like the Activity page's: the text, then when, then its pill */
+.wd-events li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 14px; align-items: center; padding: 13px 16px; border-top: 1px solid var(--line-soft); }
 .wd-events li:first-child { border-top: 0; }
 .wd-events .chip { justify-self: start; font-size: .74rem; padding: 1px 8px; }   /* the small pill size, like Scheduled and In use */
-.wd-when { color: var(--dim); font-size: .88rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.wd-text { font-size: .92rem; overflow-wrap: anywhere; }
+.wd-when { color: var(--faint); font-size: .86rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wd-text { font-weight: 600; overflow-wrap: anywhere; }
 #dialog .wd-topic-err, .wd-topic-err { margin: -4px 0 0; color: var(--warn); font-size: .88rem; }
 .wd-topic-how { font-size: .88rem; margin: 0; }
 .wd-topic-input { display: flex; gap: 8px; }
-.wd-topic-input .input { flex: 1; min-width: 0; }
-.wd-topic-how a { overflow-wrap: anywhere; }
+.dialog .wd-topic-input .input { flex: 1; min-width: 0; margin: 0; }
+.dialog .wd-topic-input .btn { align-self: stretch; height: auto; }
+/* Phones, Change topic: Cancel on the left, level with the topic box's edge above it, and Save on the right, level with Copy */
+@media (max-width: 720px) { .dialog:has(.wd-topic-input) .btns { justify-content: space-between; } }   /* no field margin, so Copy and the box are the same height */
+.wd-topic-steps { margin: 4px 0 0; padding-left: 1.3em; display: grid; gap: 6px; font-size: .92rem; }
+.wd-topic-steps li::marker { color: var(--dim); font-weight: 600; }
 @media (max-width: 720px) {
-  .wd-events li { grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; }
-  .wd-events .wd-text { grid-column: 1 / -1; }
+  .wd-events li { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "t t x" "c w w"; column-gap: 10px; row-gap: 8px; }
+  .wd-events .wd-text { grid-area: t; }
+  /* The bin, as on Activity: a plain icon in a fixed square at the right end of the title line */
+  #view-alerts .wd-events li > .btn.job-x { grid-area: x; align-self: center; justify-self: end; width: 33px; height: 33px; padding: 0; display: inline-flex;
+    align-items: center; justify-content: center; background: none; border-color: transparent; color: var(--faint); margin-right: -8.5px; }
+  #view-alerts .wd-events li > .btn.job-x:active:not(:disabled) { color: var(--bad); }
+  .wd-events .chip { grid-area: c; }
+  .wd-events .wd-when { grid-area: w; justify-self: start; }
   .wd-days { gap: 3px; }
   .wd-day { width: calc((100vw - 32px - 40px - 39px) / 14); max-width: 18px; }
 }
@@ -1339,6 +1363,11 @@ html.still *, html.still *::after { animation: none !important; transition: none
 .check { display: flex; gap: 10px; align-items: center; }
 .check input { width: 18px; height: 18px; flex: none; accent-color: var(--accent); }
 .dialog .btns { display: flex; justify-content: flex-end; gap: 8px; }
+/* A dialog taller than the screen (a phone with its keyboard up) scrolls behind its buttons: they stay pinned at
+   the bottom, text fading out above them, so there's always a way to answer and a hint there's more above */
+.dialog .btns { position: sticky; bottom: -22px; margin: 0 -22px -22px; padding: 14px 22px 22px; background: var(--raised); }
+.dialog .btns::before { content: ""; position: absolute; left: 0; right: 0; top: -18px; height: 18px; pointer-events: none;
+  background: linear-gradient(to top, var(--raised), transparent); }
 /* Phones: a dialog with three buttons (such as the Network page's Clear traffic history with the VPN) doesn't
    fit them on a line: Cancel across the top, the two choices side by side under it, the main one filled */
 @media (max-width: 720px) {
@@ -2171,7 +2200,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 }
 /* Network: the range or view shown is underlined as well as bolder and in the accent colour, so it
    never rests on colour alone (phones and computers) */
-#net-ranges .btn[aria-pressed="true"], #net-acts .btn[aria-pressed="true"], #net-root .tr-src .btn[aria-pressed="true"] {
+#net-ranges .btn[aria-pressed="true"], #net-acts .btn[aria-pressed="true"], #net-root .tr-src .btn[aria-pressed="true"], .tr-rng-card .btn[aria-pressed="true"] {
   text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 6px; }
 .tr-word { display: none; }
 /* On a computer, the time range, All traffic / VPN tunnel and the Traffic card's bin (now Clear) are plain
@@ -2356,24 +2385,27 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 /* The Network page on phones: Traffic, the time range (1h 24h 7d) and the bin on one line above the
    card, like Phone alerts' Recent events; the card starts with All traffic / VPN tunnel (with the VPN)
    or the figures. A computer keeps the title and bin in the card. */
-.net-ptitle, .net-pbin { display: none; }
+.net-ptitle, .net-pbin, .tr-rng-card { display: none; }
 @media (max-width: 720px) {
-  #view-net .view-head.net-head { display: grid; grid-template-columns: auto 1fr auto; align-items: center; row-gap: 14px; }
-  #view-net .net-head > h2 { grid-column: 1 / -1; }
-  /* a quiet label like the card's NOW and LAST 7 DAYS, so it neither outshines Network nor looks like a fourth choice */
-  #view-net .net-ptitle { display: block; grid-column: 1; margin: 0; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em;
-    font-weight: 500; color: var(--dim); }
-  #view-net .net-head > .net-ranges { grid-column: 2; justify-self: center; margin-top: 0; }
-  #view-net .net-pbin { display: flex; grid-column: 3; margin-right: 3px; }
-  #view-net #net-ranges .btn { font-size: 0; }
-  #view-net #net-ranges .btn::after { content: attr(data-short); font-size: .86rem; }
-  #view-net #net-ranges .tr-ranges { gap: 14px; }
-  #view-net #net-pbin .tr-bin { background: none; border-color: transparent; box-shadow: none; padding: 6px 0; width: auto; height: auto;
-    min-height: 0; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
-  #view-net #net-pbin .tr-bin svg { width: 17px; height: 17px; stroke-width: 2; }
-  #view-net #net-pbin .tr-bin:active { color: var(--text); }
-  #net-root .tr-card > .vpn-head { display: none; }
-  #net-root .tr-card > .tr-src { margin-top: 0; }
+  /* New layout (18 November): All traffic / VPN tunnel (with the VPN) centred under Network, outside the card;
+     the card starts with its quiet Traffic label and a small bin, then the time range with a rule under it */
+  #view-net .net-ptitle, #view-net .net-pbin, #view-net .net-head > .net-ranges { display: none; }
+  #view-net .view-head.net-head { display: flex; flex-wrap: wrap; row-gap: 14px; }
+  #view-net #net-acts { display: flex; flex-basis: 100%; justify-content: center; }
+  #view-net #net-acts .tr-ranges { gap: 22px; }
+  #view-net #net-acts .btn { background: none; border-color: transparent; box-shadow: none; padding: 4px 2px; min-height: 0; color: var(--dim); }
+  #view-net #net-acts .btn[aria-pressed="true"] { color: var(--accent); font-weight: 650; }
+  #net-root .tr-card > .tr-src { display: none; }
+  #net-root .tr-card > .vpn-head { display: flex; align-items: center; justify-content: space-between; padding-bottom: 8px; }
+  /* a quiet label like the card's NOW and LAST 7 DAYS, so it doesn't compete with Network */
+  #net-root .tr-card > .vpn-head > .tr-title { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--dim); }
+  #net-root .tr-card > .vpn-head .tr-bin { padding: 6px 0; width: auto; height: auto; min-height: 0; margin-right: 0; }
+  #net-root .tr-card > .vpn-head .tr-bin svg { width: 15px; height: 15px; stroke-width: 2; }
+  .tr-rng-card { display: flex; justify-content: center; padding-bottom: 6px; border-bottom: 1px solid var(--line-soft); margin-bottom: 14px; }
+  .tr-rng-card .tr-ranges { gap: 22px; }
+  #net-root .tr-rng-card .btn { background: none; border-color: transparent; box-shadow: none; padding: 4px 2px; min-height: 0; color: var(--dim); font-size: 0; }
+  #net-root .tr-rng-card .btn::after { content: attr(data-short); font-size: .78rem; }
+  #net-root .tr-rng-card .btn[aria-pressed="true"] { color: var(--accent); font-weight: 600; }
 }
 /* Activity on phones: the bin in the row's top right corner, like the cards' corner icons, and the state
    pill with the time beside it on the line under the name ("Done  5 hours ago") */

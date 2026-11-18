@@ -33,6 +33,10 @@ const QUIET = [
   // shows elsewhere (its health check restarting the VPN, AIOStreams' searches failing), and ERROR lines stay.
   /WARN \[dns\] (exchanging over|renewing|getting) tls connection /,
   /WARN Caught OS signal terminated, shutting down$/,   // gluetun: asked to stop, as a restart or reboot does
+  // gluetun: its first health check, a few seconds after it starts (a boot, an update, VPN on), ran before its own
+  // DNS was ready, so it restarted the tunnel itself and the next try passed. Only the "startup check" wording:
+  // a tunnel that goes unhealthy later says something else ("program has been unhealthy") and stays.
+  /WARN \[vpn\] restarting VPN because it failed to pass the healthcheck: startup check: /,
   // gluetun: its start-up release check hit GitHub's hourly limit, common on a shared exit address; the VPN is fine
   /ERROR \[vpn\] cannot get version information: bad response HTTP status code: 403 403 Forbidden$/,
   // cloudflared: told to stop (a restart, update or reboot), it closes its connections to Cloudflare; only said

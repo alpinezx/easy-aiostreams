@@ -1559,20 +1559,27 @@ class Backend:
         m = re.search(r"^([A-Za-z0-9.-]+\.[A-Za-z0-9-]+)\s*\{", _read(self.p("Caddyfile")), re.M)
         if m:
             domain = m.group(1)
-        n_sites = len(self._caddy_sites(domain))
+        sites = self._caddy_sites(domain)
+        n_sites = len(sites)
         tunnel = self.p("tunnel-state/token.env").exists()
-        watches = ([f"https://{domain}"] if domain else ["The site"]) + [
-            "Disk space", "Cloudflare Tunnel" if tunnel
-            else f"HTTPS certificates ({n_sites} sites)" if n_sites > 1 else "HTTPS certificate"]
+        # A Cloudflare Tunnel first, as the way in (like the request flow); then the site, the AIO add-ons,
+        # the VPN, MediaFlow, disk; the certificates last, since their line unfolds downwards
+        watches = (["Cloudflare Tunnel"] if tunnel else []) + ([f"https://{domain}"] if domain else ["The site"])
         img = re.search(r"^\s*image:\s*viren070/aiostreams:(\S+)\s*$", _read(self.p("docker-compose.yml")), re.M)
-        if self.vpn_mode() == "on":
-            watches += ["VPN tunnel", "AIOStreams through the VPN"]
-        if (self.p("mediaflow-state") / "config").exists():
-            watches.append("MediaFlow")
+        vpn = self.vpn_mode() == "on"
+        if vpn:
+            watches.append("AIOStreams through the VPN")
         if (self.p("aiometadata-state") / "config").exists():
             watches.append("AIOMetadata")
         if (self.p("aiomanager-state") / "config").exists():
             watches.append("AIOManager")
+        if vpn:
+            watches.append("VPN tunnel")
+        if (self.p("mediaflow-state") / "config").exists():
+            watches.append("MediaFlow")
+        watches.append("Disk space")
+        if not tunnel:
+            watches.append(f"HTTPS certificates ({n_sites} sites)" if n_sites > 1 else "HTTPS certificate")
         return {
             "configured": True,
             "running": self._systemd_active("aiostreams-watchdog.timer"),
@@ -1585,6 +1592,10 @@ class Backend:
             "events": events[::-1],
             "tally": tally,
             "watches": watches,
+            # which sites' certificates it checks, for the fold under "HTTPS certificates (n sites)"
+            "cert_sites": [{"label": lbl, "host": host} for lbl, host in sites] if n_sites > 1 and not tunnel else [],
+            # through a Cloudflare Tunnel the watchdog doesn't check certificates: the panel says why, under its own line
+            "cert_note": "Cloudflare handles the certificates" if tunnel else None,
             "every_min": 2, "threshold": 2,
             "options": self._watchdog_options(),
             "timezone": self._host_timezone(),
@@ -1660,6 +1671,21 @@ class Backend:
                             '[ ! -e "$1" ] || : > "$1"', "sh", path], capture_output=True, text=True, timeout=20)
         if r.returncode != 0:
             raise ValueError("Couldn't clear it.")
+
+    def remove_watchdog_event(self, at: int, kind: str, text: str) -> None:
+        """One event's bin on the Phone alerts page: drops the line "epoch|kind|text" from the
+        events file (an exact, whole-line match). Done on the host, as Clear history is; the file
+        is rewritten in place so its owner and mode stay."""
+        if type(at) is not int or not isinstance(kind, str) or not isinstance(text, str) or "\n" in kind + text or "|" in kind:
+            raise ValueError("Unknown event.")
+        if not self.p("watchdog-state/config").exists():
+            raise ValueError("The watchdog isn't set up on this server.")
+        path = str(config.INSTALL_DIR / "watchdog-state" / "events")
+        r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "sh", "-c",
+                            '[ -e "$1" ] || exit 0; grep -vxF -- "$2" "$1" > "$1.tmp"; [ $? -le 1 ] && cat "$1.tmp" > "$1"; rm -f "$1.tmp"',
+                            "sh", path, f"{at}|{kind}|{text}"], capture_output=True, text=True, timeout=20)
+        if r.returncode != 0:
+            raise ValueError("Couldn't remove it.")
 
     def update_script(self, script_id: str) -> dict:
         """The Scripts tab's Update: replaces a script (and, for the AIOStreams

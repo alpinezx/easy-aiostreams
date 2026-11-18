@@ -517,7 +517,15 @@ def test_watchdog_info_reads_events_and_tally_and_masks_the_topic(tmp_path, monk
     assert [e["kind"] for e in w["events"]] == ["recovered", "fail"]            # newest first, junk skipped
     assert w["events"][0]["text"] == "Passing again | still one field"
     assert w["tally"] == [{"day": "2026-10-17", "passed": 720, "failed": 0}, {"day": "2026-10-18", "passed": 400, "failed": 2}]
+    # the certificates last, since their line unfolds downwards
     assert w["watches"] == ["https://streams.example.com", "Disk space", "HTTPS certificate"] and w["running"] and w["alert_state"] == "up"
+    assert w["cert_note"] is None and w["cert_sites"] == []          # one site: nothing to unfold
+    # through a Cloudflare Tunnel: the tunnel first (the way in), no certificate line, a note saying why
+    (tmp_path / "aiostreams" / "tunnel-state").mkdir()
+    (tmp_path / "aiostreams" / "tunnel-state" / "token.env").write_text("TOKEN=x\n")
+    w = b.watchdog_info()
+    assert w["watches"] == ["Cloudflare Tunnel", "https://streams.example.com", "Disk space"]
+    assert w["cert_note"] == "Cloudflare handles the certificates" and w["cert_sites"] == []
 
 
 def test_weekly_time_reads_new_and_old_settings():
