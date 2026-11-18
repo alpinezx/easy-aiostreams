@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 18 November 2026
 
+- **Docs:** The Phone alerts screenshot in the control panel guide and the watchdog page shows panel 1.61.6. ([#203](https://github.com/alpinezx/easy-aiostreams/pull/203))
 - Phone alerts: Watches, Also tell me and the HTTPS certificates line fold behind chevrons, folded until opened and remembered per browser. Folded, Watches says how many checks it runs and Also tell me how many switches are on. With several sites, the certificates line opens to list which sites it checks; on a Cloudflare Tunnel setup it opens to say Cloudflare handles them, and the tunnel is listed first. Watches is in a steadier order and How often fits one line. (Panel 1.61.6, [#202](https://github.com/alpinezx/easy-aiostreams/pull/202))
 - Phone alerts: Recent events look like the Activity page, and each event has its own bin to remove just that one. Clear history stays. Change topic loses the web link for two short steps, and on phones Cancel lines up with the topic box. (Panel 1.61.6, [#202](https://github.com/alpinezx/easy-aiostreams/pull/202))
 - On phones, the Network page puts All traffic and VPN tunnel under the heading, and the Traffic card starts with its label and a smaller bin, then the time range. (Panel 1.61.6, [#202](https://github.com/alpinezx/easy-aiostreams/pull/202))
