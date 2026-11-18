@@ -1,5 +1,19 @@
 import { $, h, clear, api, ago, toast } from "./util.js";
 import { runAction, ask } from "./actions.js";
+import { behind } from "./releases.js";
+
+// Update on the newest release already: say so in a banner, as the Overview does, instead of opening
+// a backup and an update with nothing to fetch. Couldn't check: carry on to the update as before.
+async function updateOrSay(upd, v) {
+  let list = null;
+  try { list = v && v.version ? await api("/api/gluetun-releases") : null; } catch (e) { list = null; }
+  const running = v && v.version ? `v${v.version}` : null;
+  if (running && list && list.releases && list.releases.length && !behind(list, running).newer[0]) {
+    toast(`gluetun is up to date (${running}). Nothing to do.`);
+    return;
+  }
+  runAction(upd);
+}
 
 // The VPN page. Whether the tunnel is up, where traffic leaves (asked from
 // inside the VPN container), which server address the config points at, and
@@ -343,7 +357,7 @@ function render(v) {
       conf ? h("button", { class: "btn small", type: "button", text: "Change config", disabled: !!(st && st.busy),
         title: "Use a different WireGuard config, pasted or from a file", onclick: changeConfig }) : null,
       upd ? h("button", { class: "btn small", type: "button", text: "Update VPN", disabled: !!(st && st.busy),
-        title: "Pull the newest gluetun v3 release", onclick: () => runAction(upd) }) : null));
+        title: "Pull the newest gluetun v3 release", onclick: () => updateOrSay(upd, v) }) : null));
   }
   const confBox = h("div");
   box.append(card);

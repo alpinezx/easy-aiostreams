@@ -1044,20 +1044,18 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 }
 /* Change server's address list */
 .addr-list { display: grid; gap: 6px; margin: 4px 0 18px; max-height: 52vh; overflow: auto; }
-.addr { display: grid; grid-template-columns: 18px auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 12px;
+/* address and time on one line, its tags under the address (every width), so rows line up and pills never squeeze */
+.addr { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; column-gap: 10px; row-gap: 6px; align-items: center; padding: 9px 12px;
   border: 1px solid var(--line-soft); border-radius: 9px; cursor: pointer; }
 .addr:hover { border-color: var(--line); }
 .addr:has(input:checked) { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); background: var(--accent-soft); }
 .addr input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
-.addr-tags { display: flex; flex-wrap: wrap; gap: 6px; }
-.addr-tags .chip { font-size: .74rem; padding: 1px 8px; white-space: nowrap; }
-@media (max-width: 720px) {
-  /* the tags take their own line under the address, or they squeeze into a narrow column */
-  .addr { grid-template-columns: 18px minmax(0, 1fr) auto; row-gap: 6px; }
-  .addr-tags { grid-column: 2 / -1; grid-row: 2; }
-  .addr-tags:empty { display: none; }
-}
-.addr-ms { color: var(--dim); font-size: .88rem; font-variant-numeric: tabular-nums; text-align: right; }
+.addr input { grid-row: 1; grid-column: 1; }
+.addr > .mono { grid-row: 1; grid-column: 2; }
+.addr-tags { grid-row: 2; grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+.addr-tags:empty { display: none; }
+.addr-tags .chip { font-size: .72rem; line-height: 1.4; padding: 1px 8px; white-space: nowrap; }
+.addr-ms { grid-row: 1; grid-column: 3; color: var(--dim); font-size: .88rem; font-variant-numeric: tabular-nums; text-align: right; }
 .addr-wait, .conf-checking { display: flex; align-items: center; gap: 10px; margin: 0; }
 .addr-wait .spin, .conf-checking .spin { flex: none; }
 /* Change config */
