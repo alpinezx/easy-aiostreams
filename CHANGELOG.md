@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 18 November 2026
 
+- The VPN page's Update VPN says gluetun is up to date, with nothing to do, when it already runs the newest release, as the Overview's Update does, instead of opening the backup and update dialog. In Change server, each address's pills sit on a line under it, lined up with the selection dot, all one size. (Panel 1.61.8, [#205](https://github.com/alpinezx/easy-aiostreams/pull/205))
 - Phone alerts' weekly check-in is tidier on phones: "Send it on" with the day, then "from" with the time and Set, the two boxes in one column and the note under both. The day box, the time box and Set are one height on every screen, and so are the two boxes of the Backups schedule. (Panel 1.61.7, [#204](https://github.com/alpinezx/easy-aiostreams/pull/204))
 - **Docs:** The Phone alerts screenshot in the control panel guide and the watchdog page shows panel 1.61.6. ([#203](https://github.com/alpinezx/easy-aiostreams/pull/203))
 - Phone alerts: Watches, Also tell me and the HTTPS certificates line fold behind chevrons, folded until opened and remembered per browser. Folded, Watches says how many checks it runs and Also tell me how many switches are on. With several sites, the certificates line opens to list which sites it checks; on a Cloudflare Tunnel setup it opens to say Cloudflare handles them, and the tunnel is listed first. Watches is in a steadier order and How often fits one line. (Panel 1.61.6, [#202](https://github.com/alpinezx/easy-aiostreams/pull/202))
