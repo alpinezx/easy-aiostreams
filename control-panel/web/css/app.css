@@ -1011,7 +1011,9 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .wd-topic-how { font-size: .88rem; margin: 0; }
 .wd-topic-input { display: flex; gap: 8px; }
 .dialog .wd-topic-input .input { flex: 1; min-width: 0; margin: 0; }
-.dialog .wd-topic-input .btn { align-self: stretch; height: auto; }   /* no field margin, so Copy and the box are the same height */
+.dialog .wd-topic-input .btn { align-self: stretch; height: auto; }
+/* Phones, Change topic: Cancel on the left, level with the topic box's edge above it, and Save on the right, level with Copy */
+@media (max-width: 720px) { .dialog:has(.wd-topic-input) .btns { justify-content: space-between; } }   /* no field margin, so Copy and the box are the same height */
 .wd-topic-steps { margin: 4px 0 0; padding-left: 1.3em; display: grid; gap: 6px; font-size: .92rem; }
 .wd-topic-steps li::marker { color: var(--dim); font-weight: 600; }
 @media (max-width: 720px) {
