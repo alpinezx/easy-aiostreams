@@ -1580,6 +1580,29 @@ class Backend:
         watches.append("Disk space")
         if not tunnel:
             watches.append(f"HTTPS certificates ({n_sites} sites)" if n_sites > 1 else "HTTPS certificate")
+        # The same checks as rows for the panel, a site and its certificate together: the main site is loaded by
+        # address, an add-on gets its health check (inside Docker), and a certificate check each unless a Tunnel
+        host_of: dict[str, str] = {}
+        for lbl, host in sites:
+            host_of.setdefault(lbl, host)
+        cert = not tunnel
+        tail = ", certificate" if cert else ""
+        rows: list[dict] = [{"name": "Cloudflare Tunnel"}] if tunnel else []
+        rows.append({"name": "AIOStreams", "host": domain, "what": "loads" + tail} if domain else {"name": "The site"})
+        if vpn:
+            rows.append({"name": "AIOStreams through the VPN"})
+        for label, state in (("AIOMetadata", "aiometadata-state"), ("AIOManager", "aiomanager-state")):
+            if (self.p(state) / "config").exists():
+                rows.append({"name": label, "host": host_of.get(label), "what": "health check" + tail})
+        if vpn:
+            rows.append({"name": "VPN tunnel"})
+        if (self.p("mediaflow-state") / "config").exists():
+            rows.append({"name": "MediaFlow", "host": host_of.get("MediaFlow"), "what": "health check" + tail})
+        rows.append({"name": "Disk space"})
+        if cert:
+            # any other site Caddy serves (the control panel's own): only its certificate is checked
+            named = {r.get("host") for r in rows}
+            rows += [{"name": lbl, "host": host, "what": "certificate"} for lbl, host in sites if host not in named]
         return {
             "configured": True,
             "running": self._systemd_active("aiostreams-watchdog.timer"),
@@ -1592,6 +1615,7 @@ class Backend:
             "events": events[::-1],
             "tally": tally,
             "watches": watches,
+            "watch_rows": rows,
             # which sites' certificates it checks, for the fold under "HTTPS certificates (n sites)"
             "cert_sites": [{"label": lbl, "host": host} for lbl, host in sites] if n_sites > 1 and not tunnel else [],
             # through a Cloudflare Tunnel the watchdog doesn't check certificates: the panel says why, under its own line

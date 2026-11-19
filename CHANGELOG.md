@@ -2,6 +2,12 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 19 November 2026
+
+- Phone alerts: Watches is two plain lines, "5 sites, certificates included" and "3 service & system checks", with no list to unfold. On a Cloudflare Tunnel setup the first line leaves out the certificates and a note says Cloudflare handles them. The security-updates description no longer names Ubuntu, and the weekly check-in's is shorter. (Panel 1.61.9, [#206](https://github.com/alpinezx/easy-aiostreams/pull/206))
+- Logs no longer shows a count of the lines shown beside "streaming". (Panel 1.61.9, [#206](https://github.com/alpinezx/easy-aiostreams/pull/206))
+- Add-ons on phones: a card's title and status pill stay put when it is opened (they dropped 4px), the Phone alerts card loses its Watches tile, and the VPN and Phone alerts cards end with a plain Settings link beside Uninstall. (Panel 1.61.9, [#206](https://github.com/alpinezx/easy-aiostreams/pull/206))
+
 ## 18 November 2026
 
 - The VPN page's Update VPN says gluetun is up to date, with nothing to do, when it already runs the newest release, as the Overview's Update does, instead of opening the backup and update dialog. In Change server, each address's pills sit on a line under it, lined up with the selection dot, all one size. (Panel 1.61.8, [#205](https://github.com/alpinezx/easy-aiostreams/pull/205))

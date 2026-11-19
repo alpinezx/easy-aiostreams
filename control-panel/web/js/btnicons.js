@@ -37,7 +37,7 @@ const ICONS = {
   "Lock": '<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
   "Unlock": '<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>',
   "Delete": BIN, "Remove": BIN, "Uninstall": BIN, "Clear activity": BIN, "Free up space": BIN,
-  "Set limits": SLIDERS, "Change config": SLIDERS,
+  "Set limits": SLIDERS, "Change config": SLIDERS, "Settings": SLIDERS,
   "Change server": '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
   "Use": TICK, "Set": TICK,
   // a five-pointed star with rounded points, outlined like the pencil beside it

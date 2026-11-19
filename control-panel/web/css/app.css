@@ -815,6 +815,13 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 /* The certificates line's own fold: its title is the button, its sites sit under it, a step in */
 .wd-certs-tog { font-weight: inherit; }.wd-certs { margin: 2px 0 6px 14px; padding-left: 12px; border-left: 2px solid var(--line-soft); font-size: .88rem; overflow-wrap: anywhere; }
 .wd-certs > div { padding: 2px 0; }
+.wd-watch-head { margin: 14px 0 6px; font-size: .72rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+.wd-watch-head:first-child { margin-top: 4px; }
+.wd-watch-list .wd-watch-item + .wd-watch-item { margin-top: 0; }
+.wd-site { padding: 3px 0 5px; }
+.wd-site-host { font-size: .82rem; font-weight: 400; overflow-wrap: anywhere; }
+.wd-watch-note { font-size: .8rem; font-weight: 400; margin-top: 6px; }
+.wd-watch-more { margin-top: 2px; }
 .wd-days-row { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px 24px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
 .wd-days { display: flex; gap: 4px; }
 .wd-day { width: 18px; height: 26px; border-radius: 4px; background: var(--line-soft); }
@@ -1039,6 +1046,13 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
   #view-alerts .wd-events li > .btn.job-x:active:not(:disabled) { color: var(--bad); }
   .wd-events .chip { grid-area: c; }
   .wd-events .wd-when { grid-area: w; justify-self: start; }
+  /* Reset sits on the "Last 14 days" label line, at the right; the sentence has the line below the strip to itself */
+  .wd-days-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0; align-items: baseline; }
+  .wd-days-row > div { display: contents; }
+  .wd-days-row .vpn-label { grid-row: 1; grid-column: 1; }
+  .wd-days-row .wd-today-wrap > .btn { grid-row: 1; grid-column: 2; align-self: baseline; margin: -4px -2px -4px 0; }
+  .wd-days-row .wd-days { grid-row: 2; grid-column: 1 / -1; margin-top: 8px; }
+  .wd-days-row .wd-today { grid-row: 3; grid-column: 1 / -1; margin-top: 12px; }
   .wd-days { gap: 3px; }
   .wd-day { width: calc((100vw - 32px - 40px - 39px) / 14); max-width: 18px; }
 }
@@ -1848,6 +1862,8 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   .ao-fold.folded .ao-row:not(:has(.ao-val.warn, .ao-val.bad)) { display: none; }
   .ao-fold.folded .ao-rows:not(:has(.ao-val.warn, .ao-val.bad)) { display: none; }
   .ao-fold .card-head h3 { margin: 0; }
+  /* the title row sits at the same height folded or open (folded cards have 12px above it): it doesn't drop 4px when opened */
+  .ao-fold { padding-top: 12px; }
 }
 
 /* Recent log alerts: one line per row on desktop; on phones the service and
@@ -2277,7 +2293,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
    a button (Change server, Change config, Update VPN, a config's Use, Change topic); helpers, side tools and
    deletes are plain icon and word (they still ask first) */
 @media (min-width: 721px) {
-  #view-addons .btn[data-act="Uninstall"], #view-vpn .vpn-acts .btn, #view-vpn .conf-acts .btn[data-act="Delete"],
+  #view-addons .btn[data-act="Uninstall"], #view-addons .ao-page, #view-vpn .vpn-acts .btn, #view-vpn .conf-acts .btn[data-act="Delete"],
   #view-alerts .vpn-acts .btn, #view-alerts .btn.quiet {
     background: none; border-color: transparent; box-shadow: none; padding: 4px 6px; min-height: 0; font-size: .86rem; font-weight: 600;
     color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
@@ -2288,7 +2304,10 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   #view-vpn .vpn-acts .btn:last-child, #view-alerts .vpn-acts .btn:last-child { margin-right: -3px; }
   /* a card's last plain action ends on its right-hand line */
   #view-addons .btn[data-act="Uninstall"], #view-vpn .conf-acts .btn[data-act="Delete"]:last-child { margin-right: -6px; }
+  /* and the link to the add-on's own page, plain too, on its left-hand text line */
+  #view-addons .ao-foot .ao-page { margin-left: -6px; margin-right: auto; text-decoration: none; }
   @media (hover: hover) {
+    #view-addons .ao-page:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
     #view-addons .btn[data-act="Uninstall"]:hover:not(:disabled), #view-vpn .vpn-acts .btn:hover:not(:disabled),
     #view-vpn .conf-acts .btn[data-act="Delete"]:hover:not(:disabled), #view-alerts .vpn-acts .btn:hover:not(:disabled),
     #view-alerts .btn.quiet:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
@@ -2375,14 +2394,18 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 /* Add-ons, VPN and Phone alerts on phones: the same split as a computer's (helpers, side tools and deletes
    plain, the page's work a button) */
 @media (max-width: 720px) {
-  #view-addons .btn[data-act="Uninstall"], #view-vpn .vpn-acts .btn, #view-vpn .conf-acts .btn[data-act="Delete"],
+  #view-addons .btn[data-act="Uninstall"], #view-addons .ao-page, #view-vpn .vpn-acts .btn, #view-vpn .conf-acts .btn[data-act="Delete"],
   #view-alerts .vpn-acts .btn, #view-alerts .btn.quiet {
     width: auto; height: auto; background: none; border-color: transparent; box-shadow: none; padding: 6px 0; min-height: 0; font-weight: 600;
     color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
   #view-vpn .vpn-acts, #view-alerts .vpn-acts { gap: 18px; }
   #view-addons .ao-ic { background: none; border-color: transparent; box-shadow: none; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
   #view-addons a.ao-ic { color: var(--accent); }
-  #view-addons .btn[data-act="Uninstall"]:active, #view-vpn .vpn-acts .btn:active, #view-vpn .conf-acts .btn[data-act="Delete"]:active,
+  /* the pair on the card's edges: Settings on the left text line, Uninstall ending on the right */
+  #view-addons .ao-page { text-decoration: none; }
+  #view-addons .btn-grid > .ao-page { width: auto; justify-self: start; }
+  #view-addons .btn-grid > .btn[data-act="Uninstall"] { width: auto; justify-self: end; }
+  #view-addons .ao-page:active, #view-addons .btn[data-act="Uninstall"]:active, #view-vpn .vpn-acts .btn:active, #view-vpn .conf-acts .btn[data-act="Delete"]:active,
   #view-alerts .vpn-acts .btn:active, #view-alerts .btn.quiet:active { color: var(--text); }
 }
 /* Phones: the heading tools above a card end 3px in from its edge, as on a computer, so the rounded corner

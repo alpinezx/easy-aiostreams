@@ -206,8 +206,6 @@ function syncControls() {
   fitBox();
 }
 
-function setCount() { $("#log-count").textContent = `${lines.filter(visible).length} shown`; }
-
 function node(l) {
   // Noise (Caddy's expected warnings, the tunnel's closed connections) is grey, whatever its level.
   return h("div", { class: `lg-ln ${l.cls}${l.noise ? " quiet" : ""}` },
@@ -230,7 +228,6 @@ function paint() {
     : "No lines match the current filters.";
   if (!shown.length) term.append(h("div", { class: "term-empty", text: msg }));
   else term.append(...shown.map(node));
-  setCount();
   if (follow) term.scrollTop = term.scrollHeight;
 }
 
@@ -279,7 +276,6 @@ function connect() {
       while (term.childElementCount > MAX) term.firstChild.remove();
       if (follow) term.scrollTop = term.scrollHeight;
     }
-    setCount();
   };
   es.onerror = () => setConn("retry", "reconnecting");
 }

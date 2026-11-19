@@ -189,7 +189,6 @@ function alertsCard(w) {
     { label: "Topic", text: w.topic || "Not set", note: "Changed on the Phone alerts page" },
     { label: "Last check", text: w.running ? (last || "Not yet") : "Stopped", note: w.running ? `Every ${w.every_min || 2} minutes` : "No checks running",
       tone: w.running ? "" : "warn" },
-    { label: "Watches", text: `${(w.watches || []).length} things`, note: (w.watches || []).join(", ") },
   ];
   return card({ id: "alerts", name: "Phone alerts", chip: w.running ? ["Watching", "ok"] : ["Stopped", ""], rows, page: ["#alerts", "Phone alerts page"] });
 }
@@ -197,7 +196,7 @@ function alertsCard(w) {
 function card(a) {
   const btn = h("button", { class: "btn small danger", type: "button", text: "Uninstall", disabled: !!(st && st.busy), onclick: () => uninstall(a.id) });
   // With nothing to say at the foot, Uninstall sits bottom right among the values, as on the Overview
-  const foot = a.page ? h("span", { class: "dim" }, "Settings are on the ", h("a", { href: a.page[0], text: a.page[1] }), ".")
+  const foot = a.page ? h("a", { class: "btn small quiet ao-page", href: a.page[0], text: "Settings", title: `Open the ${a.page[1]}` })
     : a.foot ? h("span", { class: "dim", text: a.foot }) : null;
   // On a phone the title folds the card to its title and status chip, each card remembered on its
   // own (folded until opened). A value in amber or red still shows folded. A computer shows it all.
