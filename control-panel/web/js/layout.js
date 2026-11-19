@@ -138,8 +138,7 @@ function morePane() {
   const now = themeNow();
   pane.append(
     h("div", { class: "drawer-head" },
-      h("div", {}, h("h3", { text: "More colours" }), h("p", { text: "This browser only." })),
-      h("button", { class: "btn small quiet x", type: "button", text: "Back", onclick: () => { pane.hidden = true; $("#lay-x").focus(); } })),
+      h("div", {}, h("h3", { text: "More colours" }), h("p", { text: "This browser only." }))),
     ...[["Dark", false], ["Light", true]].flatMap(([group, light]) => [
       h("p", { class: "theme-group", text: group }),
       h("div", { class: "theme-grid", role: "group", "aria-label": group },
@@ -147,7 +146,10 @@ function morePane() {
           h("button", { class: "theme-pick", type: "button", "aria-pressed": String(id === now), onclick: () => setTheme(id) },
             tile(id), h("span", { class: "theme-name", text: label }))))]),
     h("p", { class: "dim theme-credit", text: "Slate is this panel's own. The others are based on well-known open-source colour schemes by their authors, "
-      + "with a few colours made stronger here so text and alerts stay easy to read." }));
+      + "with a few colours made stronger here so text and alerts stay easy to read." }),
+    // Back at the bottom right like every drawer's Close, kept in view while the themes scroll
+    h("div", { class: "drawer-foot theme-foot" },
+      h("button", { class: "btn small quiet", type: "button", text: "Back", onclick: () => { pane.hidden = true; $("#lay-x").focus(); } })));
   pane.hidden = false;
 }
 function themeRow() {

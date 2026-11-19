@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 19 November 2026
 
+- **Fixed:** The More colours pane in Edit the Overview has its Back button again, at the bottom right like every drawer's Close, and its credit text has room above it. (Panel 1.61.11, [#208](https://github.com/alpinezx/easy-aiostreams/pull/208))
 - The Network page is more compact on phones: the time range sits on the Traffic line, All traffic and VPN tunnel sit beside the heading, the graph is shorter, "Recorded since" is gone, and Last 7 days is a folding card of its own above By service. The line under the graph is shorter, such as "All traffic, 5-minute averages". (Panel 1.61.10, ([#207](https://github.com/alpinezx/easy-aiostreams/pull/207)))
 - Drawers (updates, releases, What's new, Edit the Overview) have their Close or Done button at the bottom right, beside the drawer's own buttons. (Panel 1.61.10, ([#207](https://github.com/alpinezx/easy-aiostreams/pull/207)))
 - Links are tidier: the Guide link on Backup & Restore and "Read what each one does first" on Scripts are bold blue links with an arrow icon, and text links and link-style buttons are underlined only when pointed at. Change the alert topic's first step no longer repeats the ntfy menu's name. (Panel 1.61.10, ([#207](https://github.com/alpinezx/easy-aiostreams/pull/207)))

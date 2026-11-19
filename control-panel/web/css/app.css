@@ -1345,10 +1345,13 @@ html.still *, html.still *::after { animation: none !important; transition: none
    own buttons to its left. The button stays in the header in the page's markup (the scripts fill the footer
    afresh each time), so it is placed over the footer's right end and the footer keeps room for it. */
 .drawer { --dx: 20px; --dy: 12px; }
-.drawer .drawer-head .x { position: absolute; right: var(--dx); bottom: var(--dy); margin: 0; min-width: 64px; z-index: 1; }
-.drawer .drawer-foot { box-sizing: border-box; min-height: 53px; padding-right: calc(var(--dx) + 64px + 10px); }
+.drawer > .drawer-head .x { position: absolute; right: var(--dx); bottom: var(--dy); margin: 0; min-width: 64px; z-index: 1; }
+.drawer > .drawer-foot { box-sizing: border-box; min-height: 53px; padding-right: calc(var(--dx) + 64px + 10px); }
+/* The More colours pane's Back: a footer of its own at the bottom right, staying in view while the themes scroll */
+.lay-drawer .theme-pane .theme-foot { position: sticky; bottom: 0; flex: none; box-sizing: border-box; min-height: 53px; justify-content: flex-end; background: var(--bg); }
+.theme-foot .btn { min-width: 64px; }
 @media (max-width: 720px) { .lay-drawer { --dx: 14px; --dy: 10px; } }
-.lay-drawer:has(.theme-pane:not([hidden])) .drawer-head .x { visibility: hidden; }   /* the More colours pane has its own Back */
+.lay-drawer:has(.theme-pane:not([hidden])) > .drawer-head .x { visibility: hidden; }   /* the More colours pane has its own Back */
 
 /* ---------- releases drawer ---------- */
 .rel-list { flex: 1; overflow: auto; padding: 14px 20px; display: grid; gap: 10px; align-content: start; }
@@ -1748,7 +1751,7 @@ html:has(> body > .drawer:not([hidden]), > body > #dialog:not([hidden])) { overf
 .tt-dot.ok { background: var(--ok); } .tt-dot.warn { background: var(--warn); } .tt-dot.bad { background: var(--bad); }
 .tt-card .tt-link { width: 22%; background: var(--accent); margin-left: 4px; }
 .tt-card .tt-btn { width: 24%; height: 12px; margin-left: auto; border-radius: 4px; background: var(--primary); }
-.theme-credit { margin: auto 20px 18px; font-size: .82rem; }
+.theme-credit { margin: auto 20px 14px; padding-top: 6px; font-size: .82rem; line-height: 1.5; }
 @media (max-width: 720px) { .theme-grid { grid-template-columns: 1fr 1fr; gap: 8px; padding: 4px 14px 12px; } .theme-group { margin: 12px 16px 2px; } }
 /* The hint sits above the list it explains, and stays put while the list scrolls */
 .lay-hint { flex: none; margin: 0; padding: 14px 20px 0; font-size: .9rem; }
