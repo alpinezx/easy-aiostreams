@@ -389,7 +389,7 @@ async function changeTopic() {
   const el = h("div", { class: "opts" },
     h("label", { class: "field" }, h("span", { text: "New topic" }), h("span", { class: "wd-topic-input" }, input, copy)), err,
     h("ol", { class: "wd-topic-steps" },
-      h("li", { text: "Subscribe to it yourself in the ntfy app (Subscribe to topic)." }),
+      h("li", { text: "Subscribe to it yourself in the ntfy app." }),
       h("li", { text: "Save here. A test alert is sent straight away." })),
     h("p", { class: "dim wd-topic-how", text: "Anyone who knows the topic can read your alerts, so keep it long." }));
   setTimeout(sync, 0);

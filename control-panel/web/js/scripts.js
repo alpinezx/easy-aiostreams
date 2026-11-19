@@ -1,6 +1,6 @@
 // The Scripts tab: the stack's setup scripts, whether each is on this server and matches
 // GitHub's main, and the commands to run or update them over SSH.
-import { $, h, api, clear, toast, ago } from "./util.js";
+import { $, h, api, clear, toast, ago, extIcon } from "./util.js";
 import { ask } from "./actions.js";
 import { openChangelog } from "./releases.js";
 
@@ -104,8 +104,8 @@ function panelRow(cmd) {
   else if (v.latest) state = h("span", { class: "chip ok small-chip", text: "Up to date" });
   else if (v.error) state = h("span", { class: "chip warn small-chip", title: v.error, text: "Couldn't check" });
   return h("li", {},
-    h("span", { class: "cmd-label" }, sdot("ok", "Running"), "Control panel",
-      v.current ? h("span", { class: "chip small-chip pr-ver", text: `v${v.current}` }) : null, state),
+    h("span", { class: "cmd-label" }, sdot("ok", "Running"), "Control panel", h("span", { class: "lbl-brk", "aria-hidden": "true" }),
+      h("span", { class: "cmd-chips" }, v.current ? h("span", { class: "chip small-chip pr-ver", text: `v${v.current}` }) : null, state)),
     h("span", { class: "cmd-btns" },
       copyBtn("Copy", cmd, "Copied. Paste it into an SSH session.", cmd),
       // Always there, like AIOStreams' row: filled when a newer panel is out, plain otherwise (it then
@@ -114,7 +114,7 @@ function panelRow(cmd) {
           title: `Update the control panel to ${v.latest}`, onclick: () => updatePanel(v) })
         : h("button", { class: "btn small", type: "button", text: "Update", disabled: !!v.running,
           title: "Update the control panel when a newer version is out", onclick: () => panelUpToDate(v) }),
-      spacer("Remove")));
+      removeOff("The control panel's script stays.")));
 }
 
 // What's new: the project's changelog, entries since this panel's version marked (the Overview's button)
@@ -267,21 +267,24 @@ function row(x, cmd, updateCmd) {
   // An add-on's script that's still here once the add-on is uninstalled can go
   const removable = idle;
   // The command itself is on Copy's tooltip; spelt out, it crowded the row (and phones)
-  return h("li", {},
+  return h("li", { class: idle ? "idle" : "" },
     // On a phone the state words go on a line of their own under the name, on every row alike,
     // however long the name or the words (a break only phones show, put before the words by CSS
     // order); Differs from GitHub stays beside the name
-    h("span", { class: "cmd-label" }, dot, x.label, tags[0] ? h("span", { class: "lbl-brk", "aria-hidden": "true" }) : null, ...tags),
+    h("span", { class: "cmd-label" }, dot, x.label, tags.some(Boolean) ? h("span", { class: "lbl-brk", "aria-hidden": "true" }) : null, ...tags),
     h("span", { class: "cmd-btns" },
       copyBtn("Copy", cmd, "Copied. Paste it into an SSH session.", cmd),
       // Filled, like the Control panel row's, when this copy differs from GitHub's
       updateCmd ? h("button", { class: `btn small ${x.present && differs(x) ? "primary" : "quiet"}`, type: "button", text: "Update",
           title: `Replace it with GitHub's newest copy (${(cmp && cmp.branch) || "main"} branch)`, onclick: () => updateScript(x, updateCmd) })
         : spacer("Update"),
-      removable ? h("button", { class: "btn small quiet danger", type: "button", text: "Remove",
-        title: `Deletes ${x.file} from this server. ${x.label} isn't set up, so nothing else changes.`, onclick: () => removeScript(x) })
-        : spacer("Remove")));
+      ...(removable ? [h("button", { class: "btn small quiet danger", type: "button", text: "Remove",
+        title: `Deletes ${x.file} from this server. ${x.label} isn't set up, so nothing else changes.`, onclick: () => removeScript(x) })]
+        : x.present ? [removeOff(`${x.label} is set up, so its script stays.`)] : [spacer("Remove")])));
 }
+
+// Every row with its script here shows Update and Remove: where nothing can be removed, Remove is greyed out
+const removeOff = (why) => h("button", { class: "btn small quiet rm-off", type: "button", text: "Remove", disabled: true, title: why });
 
 // Update replaces the script here with GitHub's main copy, checked before anything changes.
 // The command is still offered, for anyone who'd rather run it over SSH.
@@ -367,7 +370,7 @@ function render() {
         h("span", { class: "fold-word addons-word " + word[1], text: word[0] })),
       h("p", { class: "addons-note" }, h("b", { text: "Most setups need none of these." }), " ",
         // "Read" and the link wrap together, so the link never starts a line alone
-        h("span", { class: "nowrap" }, "Read ", h("a", { href: ADDONS_GUIDE, target: "_blank", rel: "noopener noreferrer", text: "what each one does" })), " first."),
+        h("a", { class: "guide-link nowrap", href: ADDONS_GUIDE, target: "_blank", rel: "noopener noreferrer" }, "Read what each one does first", extIcon())),
       h("ul", { class: "cmds" }, ...addons.map(rowOf)));
   }
 }

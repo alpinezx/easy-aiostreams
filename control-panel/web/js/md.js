@@ -12,7 +12,7 @@ function inline(text) {
     if (m.index > last) out.push(text.slice(last, m.index));
     if (m[1] != null) out.push(h("strong", {}, inline(m[1])));
     else if (m[2] != null) out.push(h("code", { text: m[2] }));
-    else out.push(h("a", { href: m[4], target: "_blank", rel: "noopener noreferrer" }, inline(m[3])));
+    else out.push(h("a", { class: "md-link", href: m[4], target: "_blank", rel: "noopener noreferrer" }, inline(m[3])));
     last = m.index + m[0].length;
   }
   if (last < text.length) out.push(text.slice(last));

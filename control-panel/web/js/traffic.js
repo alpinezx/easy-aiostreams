@@ -237,7 +237,7 @@ const fig = (label, value, sub) => h("div", { class: "vpn-cell" }, h("div", { cl
 let daysOpen = false;
 try { daysOpen = localStorage.getItem("aios.trDaysOpen") === "1"; } catch (_) {}
 // The last 7 days, newest first, each a bar of how much came down
-function days(d) {
+function dayRows(d) {
   const by = new Map();
   for (const r of d.hours) {
     const k = dayKey(r[0]);
@@ -251,6 +251,34 @@ function days(d) {
     rows.push(by.get(day.toDateString()) || [day.getTime() / 1000, null, null]);
   }
   const most = Math.max(1, ...rows.map((r) => r[1] || 0));
+  return rows.map((r) => {
+    const bar = h("i");
+    bar.style.width = `${r[1] ? Math.max(1, (r[1] / most) * 100) : 0}%`;   // set here: the page's CSP blocks style attributes
+    return h("div", { class: "tr-day" },
+      h("span", { class: "tr-day-name", text: dayName(r[0]) }),
+      h("span", { class: "tr-bar" }, bar),
+      r[1] == null ? h("span", { class: "tr-day-tot dim", text: "No data" })
+        : h("span", { class: "tr-day-tot" }, arrowed("↓", fmtBytes(r[1])), arrowed("↑", fmtBytes(r[2]))));
+  });
+}
+
+// The Network page on a phone: Last 7 days as a card of its own that folds, like By service under it
+// (a second copy of the list; CSS shows the one inside the Traffic card on a computer, this one on a phone)
+function daysCard(d) {
+  const card = h("div", { class: "panel vpn-card ns-card tr-days-card" + (daysOpen ? "" : " folded") });
+  const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
+  chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
+  const tog = h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(daysOpen), onclick: () => {
+    daysOpen = !daysOpen;
+    try { localStorage.setItem("aios.trDaysOpen", daysOpen ? "1" : "0"); } catch (_) {}
+    card.classList.toggle("folded", !daysOpen);
+    tog.setAttribute("aria-expanded", String(daysOpen));
+  } }, "Last 7 days", chev);
+  card.append(h("div", { class: "vpn-head" }, h("h3", { class: "tr-title ns-tog" }, tog)), h("div", { class: "tr-days-rows" }, ...dayRows(d)));
+  return card;
+}
+
+function days(d) {
   // On a phone the label folds the list away, like This server's Network: folded until opened,
   // remembered per browser. A computer has room, so there it's a plain label and the list always shows.
   const box = h("div", { class: "tr-days" + (daysOpen ? "" : " folded") });
@@ -263,15 +291,7 @@ function days(d) {
     tog.setAttribute("aria-expanded", String(daysOpen));
   } }, "Last 7 days", chev);
   box.append(h("div", { class: "vpn-label tr-days-lbl", text: "Last 7 days" }), h("div", { class: "vpn-label cert-fold tr-days-tog" }, tog),
-    ...rows.map((r) => {
-      const bar = h("i");
-      bar.style.width = `${r[1] ? Math.max(1, (r[1] / most) * 100) : 0}%`;   // set here: the page's CSP blocks style attributes
-      return h("div", { class: "tr-day" },
-        h("span", { class: "tr-day-name", text: dayName(r[0]) }),
-        h("span", { class: "tr-bar" }, bar),
-        r[1] == null ? h("span", { class: "tr-day-tot dim", text: "No data" })
-          : h("span", { class: "tr-day-tot" }, arrowed("↓", fmtBytes(r[1])), arrowed("↑", fmtBytes(r[2]))));
-    }));
+    ...dayRows(d));
   return box;
 }
 
@@ -315,9 +335,9 @@ export async function trafficCard(box, force, kind = "vpn", opts = {}) {
       } })));
   if (opts.ranges) { clear(opts.ranges); opts.ranges.append(ranges()); }
   const label = RANGES[range][0];
-  const what = kind === "vpn" ? "Everything through the VPN" : "Everything in and out of this server";
+  const what = kind === "vpn" ? "VPN traffic" : "All traffic";
   box.append(h("div", { class: "panel vpn-card tr-card" },
-    h("div", { class: "vpn-head" }, h("h3", { class: "tr-title", text: "Traffic" }), opts.ranges ? null : ranges(), opts.tool || null),
+    h("div", { class: "vpn-head" }, h("h3", { class: "tr-title", text: "Traffic" }), opts.ranges ? h("div", { class: "tr-rng-head" }, ranges()) : ranges(), opts.tool || null),
     // Phones: the time range sits in the card under its Traffic line (a second copy; CSS shows one)
     opts.ranges ? h("div", { class: "tr-rng-card" }, ranges()) : null,
     opts.sub || null,
@@ -329,6 +349,8 @@ export async function trafficCard(box, force, kind = "vpn", opts = {}) {
     chart(s, range),
     h("div", { class: "tr-legend dim" }, h("span", { class: "tr-key down", text: "Down" }), h("span", { class: "tr-key up", text: "Up" }),
       h("span", { class: "tr-step", text: `${what}, ${range === "7d" ? "hourly averages" : range === "24h" ? "5-minute averages" : "minute by minute"}` })),
-    days(d),
+    // The Network page: a phone shows Last 7 days as a card of its own (below), a computer keeps it here
+    opts.ranges ? h("div", { class: "tr-days-in" }, days(d)) : days(d),
     d.since ? h("div", { class: "card-foot" }, h("span", { class: "dim tr-since", text: `Recorded since ${dayName(d.since)}, ${hhmm(d.since)}` })) : null));
+  if (opts.ranges) box.append(daysCard(d));
 }

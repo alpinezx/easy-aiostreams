@@ -754,6 +754,15 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
   .tr-days.folded .tr-day { display: none; }
   .tr-days.folded .tr-days-tog { margin-bottom: 0; }
 }
+/* The Network page's phone copy of Last 7 days: a card of its own that folds, like By service (traffic.js) */
+.tr-days-card { display: none; }
+.tr-days-in { display: contents; }
+@media (max-width: 720px) {
+  .tr-days-in { display: none; }
+  .tr-days-card { display: block; }
+  .tr-days-card .tr-days-rows { margin-top: 12px; }
+  .tr-days-card.folded .tr-days-rows { display: none; }
+}
 .tr-day { display: grid; grid-template-columns: 110px minmax(0, 1fr) max-content; align-items: center; gap: 14px; padding: 5px 0; font-size: .9rem; }
 .tr-bar { height: 8px; border-radius: 4px; background: var(--line-soft); overflow: hidden; }
 .tr-bar i { display: block; height: 100%; background: var(--accent); opacity: .7; border-radius: 4px; }
@@ -794,6 +803,8 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
   .tr-card .vpn-head { flex-wrap: wrap; }
   .tr-card .vpn-grid.tr-figs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
   .tr-plot { height: 160px; }
+  #net-root .tr-plot { height: 104px; }   /* the Network page's graph 35% shorter than the 160px of the other cards */
+  #net-root .tr-card > .card-foot { display: none; }   /* and no "Recorded since" line under it */
   .tr-ticks span:nth-child(2n) { display: none; }
   .tr-step { margin-left: 0; flex-basis: 100%; }
   .tr-day { grid-template-columns: 6em minmax(0, 1fr); gap: 4px 12px; }
@@ -1176,6 +1187,9 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .ln.error { color: var(--bad); } .ln.warn { color: var(--warn); }
 .ln.info { color: var(--accent); } .ln.out { color: var(--text); }
 /* the job that ran first (Back up first), with a link to its output */
+/* Links in running text (What's new's notes, the job drawer's View its output): the link colour, underlined only on hover */
+a.md-link, .ln.job-before a, .rel-gh a, .drawer-foot a { text-decoration: none; }
+@media (hover: hover) { a.md-link:hover, .ln.job-before a:hover, .rel-gh a:hover, .drawer-foot a:hover { text-decoration: underline; text-underline-offset: 3px; } }
 .ln.job-before { display: block; color: var(--dim); padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid var(--line); }
 .term-empty { padding: 24px 16px; color: var(--faint); font-family: var(--font); font-size: .95rem; }
 .conn { color: var(--faint); display: inline-flex; gap: 6px; align-items: center; }
@@ -1327,6 +1341,14 @@ html.still *, html.still *::after { animation: none !important; transition: none
 .drawer .term { flex: 1; height: auto; border: 0; border-radius: 0; margin: 0; }
 .drawer-foot { padding: 12px 20px; border-top: 1px solid var(--line-soft); display: flex; gap: 10px; align-items: center; }
 .drawer-foot a { font-size: .9rem; }
+/* Every drawer's Close (Done on Edit the Overview) sits at the bottom right, on the footer's line, with the drawer's
+   own buttons to its left. The button stays in the header in the page's markup (the scripts fill the footer
+   afresh each time), so it is placed over the footer's right end and the footer keeps room for it. */
+.drawer { --dx: 20px; --dy: 12px; }
+.drawer .drawer-head .x { position: absolute; right: var(--dx); bottom: var(--dy); margin: 0; min-width: 64px; z-index: 1; }
+.drawer .drawer-foot { box-sizing: border-box; min-height: 53px; padding-right: calc(var(--dx) + 64px + 10px); }
+@media (max-width: 720px) { .lay-drawer { --dx: 14px; --dy: 10px; } }
+.lay-drawer:has(.theme-pane:not([hidden])) .drawer-head .x { visibility: hidden; }   /* the More colours pane has its own Back */
 
 /* ---------- releases drawer ---------- */
 .rel-list { flex: 1; overflow: auto; padding: 14px 20px; display: grid; gap: 10px; align-content: start; }
@@ -1408,7 +1430,8 @@ html.still *, html.still *::after { animation: none !important; transition: none
 .dialog .switch-warn { margin: 0; padding: 10px 12px; border-radius: 9px; color: var(--text); font-size: .9rem; }
 .dialog .switch-warn[hidden] { display: none; }
 .dialog .whats-new { margin: 0; padding: 10px 12px; border-radius: 9px; background: var(--hover); color: var(--text); font-size: .92rem; }
-.linkish { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.linkish { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: none; text-underline-offset: 3px; }
+@media (hover: hover) { .linkish:hover { text-decoration: underline; } }
 
 /* ---------- toast ---------- */
 .toasts { position: fixed; z-index: 60; left: 50%; bottom: 20px; transform: translateX(-50%); display: grid; gap: 8px; width: min(420px, calc(100vw - 32px)); pointer-events: none; }
@@ -1976,6 +1999,11 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 }
 /* A link in a note stays in one piece: it moves to the next line whole rather than breaking */
 .note a, .addons-note a { white-space: nowrap; }
+/* A guide link inside a note: the words bold in the link colour with the arrow out of the box after them, underlined only on hover */
+.note a.guide-link, .addons-note a.guide-link { color: var(--accent); font-weight: 650; text-decoration: none; }
+.note a.guide-link .ext, .addons-note a.guide-link .ext { color: var(--accent); vertical-align: -1px; }
+@media (min-width: 721px) { .note a.guide-link .ext svg, .addons-note a.guide-link .ext svg { width: 16px; height: 16px; } .note a.guide-link .ext, .addons-note a.guide-link .ext { vertical-align: -2px; } }
+@media (hover: hover) { .note a.guide-link:hover, .addons-note a.guide-link:hover { text-decoration: underline; text-underline-offset: 3px; } }
 @media (max-width: 720px) {
   /* Scheduled backups on a phone: weekly's three choices on one row, daily's two, off one box */
   .bk-phone .rs-block { border-top: 0; margin-top: 0; padding-top: 6px; }
@@ -2384,6 +2412,20 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
     padding-left: 0; padding-right: 0; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
   #view-scripts #scripts-acts .btn:active, #view-scripts .cmd-btns .btn[data-act="Copy"]:active { color: var(--text); }
 }
+/* Scripts on phones, every row: Copy plain at the right of the name's line; Update stays in the right half
+   below (or Update and Remove as a pair, one under each half, on a script that's here but not set up).
+   The Control panel's version and state chips and Differs from GitHub drop to the line under the name. */
+.cmd-chips { display: contents; }
+.scripts-panel .cmd-btns .btn.rm-off { opacity: .45; }   /* Remove greyed out where nothing can be removed, so every row shows two buttons */
+@media (max-width: 720px) {
+  .scripts-panel .cmds li { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .scripts-panel .cmds li > .cmd-label { grid-column: 1 / -1; grid-row: 1; }
+  .scripts-panel .cmds li > .cmd-btns { display: contents !important; }
+  .scripts-panel .cmds li .cmd-btns .btn[data-act="Copy"] { grid-column: 2 !important; grid-row: 1; justify-self: end !important; align-self: start; width: auto !important; margin: -6px 3px 0 0; z-index: 1; }
+  .scripts-panel .cmds li .cmd-btns .btn[data-act="Update"] { grid-column: 1 !important; grid-row: 2; }
+  .scripts-panel .cmds li .cmd-btns .btn[data-act="Remove"] { grid-column: 2 !important; grid-row: 2; }  .cmd-label .cmd-chips { order: 2; display: flex; align-items: center; gap: 6px; }
+  .scripts-panel .cmd-label .diff-slot { order: 3; }
+}
 /* Maintenance on phones: List updates plain on the card's left line, like Scripts' Copy; Install updates
    (and Free up space, Set time zone) stay buttons */
 @media (max-width: 720px) {
@@ -2420,27 +2462,29 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 /* The Network page on phones: Traffic, the time range (1h 24h 7d) and the bin on one line above the
    card, like Phone alerts' Recent events; the card starts with All traffic / VPN tunnel (with the VPN)
    or the figures. A computer keeps the title and bin in the card. */
-.net-ptitle, .net-pbin, .tr-rng-card { display: none; }
+.net-ptitle, .net-pbin, .tr-rng-card, .tr-rng-head { display: none; }
 @media (max-width: 720px) {
   /* New layout (18 November): All traffic / VPN tunnel (with the VPN) centred under Network, outside the card;
      the card starts with its quiet Traffic label and a small bin, then the time range with a rule under it */
   #view-net .net-ptitle, #view-net .net-pbin, #view-net .net-head > .net-ranges { display: none; }
-  #view-net .view-head.net-head { display: flex; flex-wrap: wrap; row-gap: 14px; }
-  #view-net #net-acts { display: flex; flex-basis: 100%; justify-content: center; }
+  #view-net .view-head.net-head { display: flex; flex-wrap: nowrap; align-items: baseline; }
+  #view-net .view-head.net-head > h2 { flex: 0 0 auto; }
+  #view-net #net-acts { display: flex; flex: 0 0 auto; margin-left: auto; justify-content: flex-end; margin-right: 1px; }
   #view-net #net-acts .tr-ranges { gap: 22px; }
   #view-net #net-acts .btn { background: none; border-color: transparent; box-shadow: none; padding: 4px 2px; min-height: 0; color: var(--dim); }
   #view-net #net-acts .btn[aria-pressed="true"] { color: var(--accent); font-weight: 650; }
   #net-root .tr-card > .tr-src { display: none; }
-  #net-root .tr-card > .vpn-head { display: flex; align-items: center; justify-content: space-between; padding-bottom: 8px; }
+  #net-root .tr-card > .vpn-head { display: flex; align-items: center; justify-content: space-between; padding-bottom: 6px; border-bottom: 1px solid var(--line-soft); margin-bottom: 14px; }
+  #net-root .tr-card > .vpn-head > .tr-rng-head { display: flex; }
   /* a quiet label like the card's NOW and LAST 7 DAYS, so it doesn't compete with Network */
   #net-root .tr-card > .vpn-head > .tr-title { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 500; color: var(--dim); }
   #net-root .tr-card > .vpn-head .tr-bin { padding: 6px 0; width: auto; height: auto; min-height: 0; margin-right: 0; }
   #net-root .tr-card > .vpn-head .tr-bin svg { width: 15px; height: 15px; stroke-width: 2; }
-  .tr-rng-card { display: flex; justify-content: center; padding-bottom: 6px; border-bottom: 1px solid var(--line-soft); margin-bottom: 14px; }
-  .tr-rng-card .tr-ranges { gap: 22px; }
-  #net-root .tr-rng-card .btn { background: none; border-color: transparent; box-shadow: none; padding: 4px 2px; min-height: 0; color: var(--dim); font-size: 0; }
-  #net-root .tr-rng-card .btn::after { content: attr(data-short); font-size: .78rem; }
-  #net-root .tr-rng-card .btn[aria-pressed="true"] { color: var(--accent); font-weight: 600; }
+  .tr-rng-card { display: none; }
+  .tr-rng-head .tr-ranges { gap: 22px; }
+  #net-root .tr-rng-head .btn { background: none; border-color: transparent; box-shadow: none; padding: 4px 2px; min-height: 0; color: var(--dim); font-size: 0; }
+  #net-root .tr-rng-head .btn::after { content: attr(data-short); font-size: .78rem; }
+  #net-root .tr-rng-head .btn[aria-pressed="true"] { color: var(--accent); font-weight: 600; }
 }
 /* Activity on phones: the bin in the row's top right corner, like the cards' corner icons, and the state
    pill with the time beside it on the line under the name ("Done  5 hours ago") */
