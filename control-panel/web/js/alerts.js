@@ -98,16 +98,38 @@ function certsItem(text, sites, note = "") {
   return h("div", { class: "wd-watch-item" }, tog, more);
 }
 
-function watchCell(watches, certSites = [], certNote = "") {
+// Two short lists: the sites (name, its address under it), then the other checks (tunnel, VPN, disk)
+function watchRows(rows, certNote) {
+  const sites = rows.filter((r) => r.host), other = rows.filter((r) => !r.host);
+  const note = certNote || "The main site is loaded, add-ons get a health check, and every certificate is checked.";
+  const head = (t) => h("div", { class: "wd-watch-head", text: t });
+  return [
+    ...(sites.length ? [head("Sites"),
+      ...sites.map((r) => h("div", { class: "wd-watch-item wd-site" }, h("div", { text: r.name }), h("div", { class: "dim wd-site-host", text: r.host }))),
+      h("div", { class: "dim wd-watch-note", text: note })] : []),
+    ...(other.length ? [head("Services"), ...other.map((r) => h("div", { class: "wd-watch-item", text: r.name }))] : []),
+  ];
+}
+
+function watchCell(watches, certSites = [], certNote = "", rows = null) {
+  // Short and unfolded: how many sites (certificates included unless a Tunnel handles them) and how many other checks
+  if (rows && rows.length) {
+    const sites = rows.filter((r) => r.host).length, other = rows.length - sites;
+    return h("div", { class: "wd-watch" }, h("div", { class: "vpn-label", text: "Watches" }),
+      ...(sites ? [h("div", { class: "vpn-value", text: `${sites} site${sites === 1 ? "" : "s"}${certNote ? "" : ", certificates included"}` })] : []),
+      ...(other ? [h("div", { class: "vpn-value wd-watch-more", text: `${other} service & system check${other === 1 ? "" : "s"}` })] : []),
+      certNote ? h("div", { class: "dim wd-watch-note", text: certNote }) : null);
+  }
   const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
   chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
-  const count = h("div", { class: "vpn-value wd-watch-count", text: `Running ${watches.length} check${watches.length === 1 ? "" : "s"}` });
-  const list = h("div", { class: "vpn-value wd-watch-list" }, ...watches.map((x) =>
+  const n = rows && rows.length ? rows.length : watches.length;
+  const count = h("div", { class: "vpn-value wd-watch-count", text: `Running ${n} check${n === 1 ? "" : "s"}` });
+  const list = h("div", { class: "vpn-value wd-watch-list" }, ...(rows && rows.length ? watchRows(rows, certNote) : watches.map((x) =>
     certSites.length > 1 && x.startsWith("HTTPS certificates") ? certsItem(x, certSites)
-      : h("div", { class: "wd-watch-item", text: x })));
-  // Through a Cloudflare Tunnel the watchdog checks the tunnel, not the certificates (Cloudflare renews them). The
-  // Overview shows them, so the same line is here too, and opens to say why they aren't watched. Not one of the checks.
-  if (certNote) list.append(certsItem("HTTPS certificates", [], certNote));
+      : h("div", { class: "wd-watch-item", text: x }))));
+  // Through a Cloudflare Tunnel the watchdog checks the tunnel, not the certificates (Cloudflare renews them): the
+  // sites' note says so (and the older list, with no rows, keeps its own line)
+  if (certNote && !(rows && rows.length)) list.append(certsItem("HTTPS certificates", [], certNote));
   const show = () => { count.hidden = watchOpen; list.hidden = !watchOpen; };
   const tog = h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(watchOpen),
     title: "Show or hide everything it watches", onclick: () => {
@@ -176,7 +198,7 @@ function render(w) {
       chk.at && w.running ? h("span", { class: "vpn-checked", text: `Checked ${ago(chk.at)}` }) : null),
     h("div", { class: "vpn-grid wd-grid" },
       cell("Last check", h("span", { class: passed || !w.running ? "" : "wd-fail", text: result })),
-      watchCell(w.watches, w.cert_sites, w.cert_note || ""),
+      watchCell(w.watches, w.cert_sites, w.cert_note || "", w.watch_rows),
       cell("How often", `Every ${w.every_min} min, alert after ${w.threshold} ${w.threshold === 1 ? "fail" : "fails"}`)),
     h("div", { class: "wd-days-row" },
       h("div", {}, h("div", { class: "vpn-label", text: "Last 14 days" }), days(w.tally, w.running && passed)),
@@ -276,10 +298,9 @@ function extras(w) {
     row("scripts", "When a script here differs from GitHub's copy", "Scripts can change several times a week, "
       + "so this can be chatty. At most one alert a day."),
     row("backups", "When a scheduled backup is made", "A failed or skipped one always alerts, with this on or off."),
-    row("security", "When security updates are waiting", "Automatic updates (Ubuntu's default) install these by themselves, so this alerts only if they've waited 3 days, "
+    row("security", "When security updates are waiting", "Automatic updates install these by themselves, so this alerts only if they've waited 3 days, "
       + "with a reminder each week while they still wait."),
-    row("weekly", "Weekly check-in", "The week's checks, alerts, disk space, newest backup and updates waiting. "
-      + "If it stops arriving, the watchdog itself needs a look.", false, when), when);
+    row("weekly", "Weekly check-in", "The week's checks, alerts, disk space, newest backup and updates waiting.", false, when), when);
   // Folded until opened (a long list of switches), remembered per browser (key "aios.wdOptsOpen").
   // Folded, the right side says how many are on, and keeps up as they're switched.
   let open = false;

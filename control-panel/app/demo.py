@@ -280,6 +280,7 @@ class DemoBackend:
             return {"configured": False}
         vpn = self.vpn == "on"
         tunnel = bool(os.environ.get("UI_DEMO_TUNNEL"))      # as a Cloudflare Tunnel setup: the tunnel, no certificate line
+        tail = "" if tunnel else ", certificate"
         watches = ((["Cloudflare Tunnel"] if tunnel else []) + ["https://streams.example.com"] + (["AIOStreams through the VPN"] if vpn else [])
                    + ["AIOMetadata", "AIOManager"] + (["VPN tunnel"] if vpn else []) + ["MediaFlow", "Disk space"]
                    + ([] if tunnel else ["HTTPS certificates (5 sites)"]))
@@ -289,6 +290,14 @@ class DemoBackend:
                 else time.strftime("%d %b %Y, %H:%M:%S UTC", time.gmtime(time.time() - 40)) + " STOPPED (watchdog disabled, no checks running)",
                 "topic": mask_topic(self.wd_topic), "events": self.wd_events, "tally": self.wd_tally,
                 "watches": watches, "every_min": 2, "threshold": 2,
+                "watch_rows": ([{"name": "Cloudflare Tunnel"}] if tunnel else [])
+                + [{"name": "AIOStreams", "host": "streams.example.com", "what": "loads" + tail}]
+                + ([{"name": "AIOStreams through the VPN"}] if vpn else [])
+                + [{"name": "AIOMetadata", "host": "meta.example.com", "what": "health check" + tail},
+                   {"name": "AIOManager", "host": "manager.example.com", "what": "health check" + tail}]
+                + ([{"name": "VPN tunnel"}] if vpn else [])
+                + [{"name": "MediaFlow", "host": "mediaflow.example.com", "what": "health check" + tail}, {"name": "Disk space"}]
+                + ([] if tunnel else [{"name": "Control panel", "host": "cp.example.com", "what": "certificate"}]),
                 "cert_sites": [] if tunnel else [{"label": "AIOStreams", "host": "streams.example.com"}, {"label": "AIOMetadata", "host": "meta.example.com"},
                                                  {"label": "AIOManager", "host": "manager.example.com"}, {"label": "MediaFlow", "host": "mediaflow.example.com"},
                                                  {"label": "Control panel", "host": "cp.example.com"}],
