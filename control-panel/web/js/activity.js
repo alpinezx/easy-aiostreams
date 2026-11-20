@@ -242,7 +242,7 @@ async function showSchedule() {
   if (!s.available) return;
   const every = h("select", { class: "input", "aria-label": "How often" },
     ...[["off", "Off"], ["daily", "Daily"], ["weekly", "Weekly"]].map(([v, t]) => h("option", { value: v, text: t })));
-  const day = h("select", { class: "input", "aria-label": "Day" }, ...DAYS.map((d, i) => h("option", { value: String(i + 1), text: d })));
+  const day = h("select", { class: "input", "aria-label": "Day" }, ...DAYS.map((d, i) => h("option", { value: String(i + 1), text: d.slice(0, 3) })));
   const time = timePicker(s.time || "04:00");
   const phone = PHONE.matches;
   const setBtn = h("button", { class: "btn small" + (phone ? " rs-wide" : ""), type: "button", text: "Set schedule" });
@@ -284,7 +284,7 @@ async function showSchedule() {
   const keep = h("p", { class: "dim small bal", text: "Keeps the newest 7 scheduled backups. Only unlocked scheduled ones are ever removed." });
   // Laid out like Maintenance's Scheduled server reboot: Schedule with its state on the right, then the
   // choices; Set is full width under them on a phone, at the end of their row on a desktop
-  const word = s.every === "off" ? ["Off", "dim"] : !s.timer ? ["Not running", "warn"] : ["Active", "ok"];
+  const word = s.every === "off" ? ["Off", "dim"] : !s.timer ? ["Not running", "warn"] : ["On", "ok"];
   tz.className = "dim small rs-tz";
   const row = h("div", { class: "wd-when-row restart-row bk-row" }, every, onDay, day, atLbl, time);
   // On a phone the title folds the card to one line with the state beside it, like the Network page's

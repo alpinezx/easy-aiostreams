@@ -141,7 +141,7 @@ export async function showChangelog(e) {
 
 // Update pressed with no newer panel out
 function panelUpToDate(v) {
-  if (v.latest) toast(`The control panel is up to date (v${v.current}). Nothing to do.`);
+  if (v.latest) toast(`Control panel v${v.current} is up to date. Nothing to do.`);
   else toast("Couldn't check for a newer control panel. Try Check now.", true);
 }
 

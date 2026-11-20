@@ -109,7 +109,7 @@ async function setSignups(input) {
   render();
   try {
     const job = await api(`/api/actions/aiomanager.signups_${open ? "open" : "close"}`, { method: "POST", body: JSON.stringify({ params: {} }) });
-    window.dispatchEvent(new CustomEvent("job-started"));
+    window.dispatchEvent(new CustomEvent("job-started", { detail: { quiet: job.id } }));   // this switch toasts for itself
     const done = await waitJob(job.id);
     if (done.code !== 0) { signupsWant = null; toast(`Couldn't ${open ? "open" : "close"} sign-ups. Activity has the output.`, true); }
     else toast(open ? "Sign-ups are open for 30 minutes, then close by themselves." : "Sign-ups are closed.");

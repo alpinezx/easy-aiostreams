@@ -19,6 +19,7 @@ let status = null;
 let view = "overview";
 let pendingLogs = null;
 let lastBusy = null;
+const quietJobs = new Set();   // jobs whose starter says its own toast when they finish
 let jobStarted = false;   // a job started since the last look: it may be over already
 let timer = null;
 
@@ -139,7 +140,7 @@ async function tick(first) {
 
     // an action just finished while the output panel was closed: say so
     if (lastBusy && !status.busy) {
-      if (currentJobId() !== lastBusy) {
+      if (currentJobId() !== lastBusy && !quietJobs.has(lastBusy)) {
         try {
           const j = await api(`/api/jobs/${lastBusy}`);
           toast(j.code === 0 ? j.done : `${j.label} failed. Open Activity to see why.`, j.code !== 0);
@@ -198,7 +199,7 @@ async function boot() {
     location.href = "/login";
   });
   window.addEventListener("hashchange", route);
-  window.addEventListener("job-started", () => { jobStarted = true; tick(); });
+  window.addEventListener("job-started", (e) => { if (e.detail && e.detail.quiet) quietJobs.add(e.detail.quiet); jobStarted = true; tick(); });
   window.addEventListener("job-finished", tick);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
   window.addEventListener("resize", () => { if (status && view === "overview") { /* trunk position */ render(status, goLogs); } });

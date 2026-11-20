@@ -272,7 +272,9 @@ class DemoBackend:
                             "packages": DEMO_PACKAGES,
                             "installed": {"at": time.time() - 5 * 86400, "auto": False, "count": 6, "packages": DEMO_PACKAGES[2:8]}},
                 "logs": {"limited": False, "pending": False, "size": 488_000},
-                "checked_at": time.time(), "last": None}
+                "checked_at": time.time(),
+                "last": {"what": "Install updates", "at": int(time.time()) - 10 * 3600, "running": False, "code": 0,
+                         "tail": ["Reading package lists...", "6 upgraded, 0 newly installed, 0 to remove."]}}
 
     def watchdog_info(self) -> dict:
         from .stack import mask_topic
