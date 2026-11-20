@@ -913,7 +913,7 @@ function side(st) {
   const rb = st.reboot;
   if (rb && rb.mode !== "off") {
     const next = stat("Next reboot", rb.every === "daily" ? `Daily ${rb.time}` : `${["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][rb.day - 1]} ${rb.time}`,
-      rb.mode === "always" ? "Every time" : rb.needed ? "An update needs one" : "Only if an update needs one");
+      rb.mode === "always" ? "Every time" : rb.needed ? "An update needs one" : "Only if needed");
     const go = chev();
     go.classList.add("go-chev");
     next.firstChild.textContent = "";

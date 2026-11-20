@@ -7,6 +7,7 @@ import { ask } from "./actions.js";
 let range = "24h";
 try { range = localStorage.getItem("aios.vpnRange") || "24h"; } catch (_) {}
 const RANGES = { "1h": ["1 hour", 3600, 60], "24h": ["24 hours", 86400, 300], "7d": ["7 days", 7 * 86400, 3600] };
+const SHORT = { "1h": "1hr", "24h": "24hrs", "7d": "7d" };
 
 // Two histories: "vpn" (the tunnel) and "host" (the server's own network card), each asked
 // for again at most once a minute (they only change once a minute)
@@ -334,7 +335,6 @@ export async function trafficCard(box, force, kind = "vpn", opts = {}) {
         trafficCard(box, false, kind, opts);
       } })));
   if (opts.ranges) { clear(opts.ranges); opts.ranges.append(ranges()); }
-  const label = RANGES[range][0];
   const what = kind === "vpn" ? "VPN traffic" : "All traffic";
   box.append(h("div", { class: "panel vpn-card tr-card" },
     h("div", { class: "vpn-head" }, h("h3", { class: "tr-title", text: "Traffic" }), opts.ranges ? h("div", { class: "tr-rng-head" }, ranges()) : ranges(), opts.tool || null),
@@ -343,9 +343,9 @@ export async function trafficCard(box, force, kind = "vpn", opts = {}) {
     opts.sub || null,
     h("div", { class: "vpn-grid tr-figs" },
       nowFigs[kind] = nowFig(n),
-      fig("Peak", s.peak && s.peak[1] ? `↓ ${fmtRate(s.peak[1])}` : "None", s.peak && s.peak[1] ? `${s.peak[2] ? "Busiest minute, " : ""}${when(s.peak[0])}` : ""),
-      fig("Down", fmtBytes(s.tot[0]), `in the last ${label}`),
-      fig("Up", fmtBytes(s.tot[1]), `in the last ${label}`)),
+      fig("Peak", s.peak && s.peak[1] ? `↓ ${fmtRate(s.peak[1])}` : "None", s.peak && s.peak[1] ? (s.peak[2] ? hhmm(s.peak[0]) : when(s.peak[0]).replace("Yesterday", "Yest.")) : ""),
+      fig("Down", fmtBytes(s.tot[0]), `Last ${SHORT[range]}`),
+      fig("Up", fmtBytes(s.tot[1]), `Last ${SHORT[range]}`)),
     chart(s, range),
     h("div", { class: "tr-legend dim" }, h("span", { class: "tr-key down", text: "Down" }), h("span", { class: "tr-key up", text: "Up" }),
       h("span", { class: "tr-step", text: `${what}, ${range === "7d" ? "hourly averages" : range === "24h" ? "5-minute averages" : "minute by minute"}` })),

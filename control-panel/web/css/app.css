@@ -947,6 +947,13 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
   .stat .stat-value { text-align: right; }
   .stat .ver-sub { grid-column: 2; text-align: right; min-height: 0; }
   .stat-grid .grid-btn { padding-top: 8px; }
+  /* This server: the value keeps the room it needs and a long label wraps instead; the note under it
+     runs the card's full width (Today ↓ 49.6 GB ↑ 46.3 GB, soonest of 5 sites) */
+  #view-overview .vpnc .stat.vs-exit { grid-template-columns: minmax(min-content, 1fr) auto; column-gap: 10px; }
+  #view-overview .vpnc .stat.vs-exit .ver-sub { grid-column: 1 / -1; }
+  #view-overview .panel.host .stat { grid-template-columns: minmax(min-content, 1fr) auto; column-gap: 10px; }
+  #view-overview .panel.host .stat .cert-fold .fold-toggle { text-align: left; }
+  #view-overview .panel.host .stat .ver-sub { grid-column: 1 / -1; }
 }
 .wd-mini { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-soft); display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 16px; }
 .wd-mini-main { display: grid; gap: 6px; margin-right: auto; }
@@ -1028,6 +1035,8 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .wd-opt > span:first-child { display: grid; gap: 2px; }
 .wd-opt-title { font-weight: 600; font-size: .94rem; }
 .wd-opt-text { font-size: .86rem; }
+/* A line that has to wrap splits evenly rather than leaving a word on its own */
+.wd-opt-title, .wd-opt-text, .ao-foot, .item .what, .item .when, .conf-note, .bal, .vpn-state span, .vpn-checked, .stat .ver-sub { text-wrap: balance; }
 .wd-opt:has(input:disabled) { cursor: default; }
 .wd-opt:has(input:disabled) .wd-opt-title { color: var(--dim); }
 .wd-sub { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 28px 0 10px; min-height: 30px; }
@@ -1350,7 +1359,7 @@ html.still *, html.still *::after { animation: none !important; transition: none
 /* The More colours pane's Back: a footer of its own at the bottom right, staying in view while the themes scroll */
 .lay-drawer .theme-pane .theme-foot { position: sticky; bottom: 0; flex: none; box-sizing: border-box; min-height: 53px; justify-content: flex-end; background: var(--bg); }
 .theme-foot .btn { min-width: 64px; }
-@media (max-width: 720px) { .lay-drawer { --dx: 14px; --dy: 10px; } }
+@media (max-width: 720px) { .drawer { --dx: 10px; } .lay-drawer { --dx: 14px; --dy: 10px; } }
 .lay-drawer:has(.theme-pane:not([hidden])) > .drawer-head .x { visibility: hidden; }   /* the More colours pane has its own Back */
 
 /* ---------- releases drawer ---------- */
@@ -1408,6 +1417,7 @@ html.still *, html.still *::after { animation: none !important; transition: none
 .dialog[hidden] { display: none; }
 .dialog h3 { margin: 0 0 8px; font-size: 1.25rem; font-weight: 700; }
 .dialog p { margin: 0 0 16px; color: var(--dim); }
+.dialog p, .dialog .check-list li { text-wrap: balance; }
 .dialog .opts { display: grid; gap: 12px; margin: 0 0 18px; }
 .dialog .field { display: grid; gap: 6px; }
 .dialog .field > span { font-size: .9rem; font-weight: 600; }
@@ -1772,7 +1782,8 @@ html:has(> body > .drawer:not([hidden]), > body > #dialog:not([hidden])) { overf
 /* Phones: tighter rows with one-line descriptions, so every card fits on one screen */
 @media (max-width: 720px) {
   .lay-drawer .drawer-head { padding: 14px 16px 12px; }
-  .lay-drawer .drawer-foot { padding: 10px 14px; gap: 8px; }
+  .lay-drawer .drawer-foot { padding: 10px calc(var(--dx) + 76px + 8px) 10px 14px; gap: 8px; }
+  .lay-drawer .theme-pane .theme-foot { padding: 10px 14px; }
   .lay-theme .lay-sub { display: none; }
   .lay-hint { padding: 10px 16px 0; }
   .lay-list { padding: 8px 14px 10px; gap: 6px; }
@@ -2017,7 +2028,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   .bk-phone .rs-tz[hidden] { display: none; }
   .bk-phone .sched-last { margin-top: 14px; }
 }
-.addons-note .nowrap { white-space: nowrap; }
+.addons-note .nowrap, .rs-tz .nowrap { white-space: nowrap; }
 /* Scheduled backups on a desktop: no line above Schedule, the time zone under the choices */
 .bk-desk .rs-block { border-top: 0; margin-top: 0; padding-top: 6px; }
 .bk-desk .rs-tz { display: block; margin: 8px 0 0; }
@@ -2422,7 +2433,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 .scripts-panel .cmd-btns .btn.rm-off { opacity: .45; }   /* Remove greyed out where nothing can be removed, so every row shows two buttons */
 @media (max-width: 720px) {
   .scripts-panel .cmds li { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .scripts-panel .cmds li > .cmd-label { grid-column: 1 / -1; grid-row: 1; }
+  .scripts-panel .cmds li > .cmd-label { grid-column: 1 / -1; grid-row: 1; align-self: start; }
   .scripts-panel .cmds li > .cmd-btns { display: contents !important; }
   .scripts-panel .cmds li .cmd-btns .btn[data-act="Copy"] { grid-column: 2 !important; grid-row: 1; justify-self: end !important; align-self: start; width: auto !important; margin: -6px 3px 0 0; z-index: 1; }
   .scripts-panel .cmds li .cmd-btns .btn[data-act="Update"] { grid-column: 1 !important; grid-row: 2; }
@@ -2458,6 +2469,10 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 @media (max-width: 720px) {
   #view-logs .lg-acts, #view-vpn .vpn-acts, #view-alerts .vpn-acts, #view-scripts #scripts-acts { margin-right: 3px; }
   #view-activity #clear-activity { margin-right: 3px; }
+  /* Scripts' Check now is plain words now, so it sizes to its text and ends at the right like the others
+     (it used to be a boxed button as wide as the cards' right-hand column) */
+  #view-scripts #scripts-acts { width: auto; }
+  #view-scripts #scripts-acts .btn { width: auto; }
 }
 /* Phones: Phone alerts' Clear history 3px in from the card's edge below it, like the heading tools */
 @media (max-width: 720px) { #view-alerts .wd-sub .btn { margin-right: 3px; } }
@@ -2494,6 +2509,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 @media (max-width: 720px) {
   #jobs .item.job { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "t t x" "c w w"; column-gap: 10px; row-gap: 8px; }
   #jobs .item.job > .job-open { grid-area: t; }
+  #jobs .item.job > .job-open .dim { display: block; margin-top: 2px; }   /* "AIOStreams", "Phone alerts": a line under the name */
   #jobs .item.job > .btn.job-x { grid-area: x; align-self: center; }
   #jobs .item.job > .chip { grid-area: c; font-size: .74rem; padding: 1px 8px; }   /* the small pill size, like Recent events */
   #jobs .item.job > .when { grid-area: w; justify-self: start; }

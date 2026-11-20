@@ -1,6 +1,10 @@
 import { $, h, clear, api, ago, fmtBytes, toast, timePicker } from "./util.js";
 import { openJob, runAction, ask } from "./actions.js";
 
+// A backup's file name with a break allowed after each hyphen. The browser won't break a hyphen that's followed
+// by a digit (scheduled-20261119), so a long name would otherwise split mid-word (".tar.g" and "z").
+const nameParts = (s) => s.split(/(?<=-)/).flatMap((p, i) => (i ? [h("wbr"), p] : [p]));
+
 // The panel reads each backup's build in the background; look again a few times while it does.
 let buildTimer = null, buildTries = 0;
 // This server's public IP for the scp command, looked up once per page load. null: not found.
@@ -181,7 +185,7 @@ function backupRow(it, cmd, restore, status) {
   };
   row.append(
     h("span", { class: "bk-head", onclick: (e) => { if (!e.target.closest("button") && window.matchMedia("(max-width: 720px)").matches) tog.click(); } },
-      h("div", { class: "what mono" }, tog, it.name, tags()),
+      h("div", { class: "what mono" }, tog, ...nameParts(it.name), tags()),
       // Folded on a phone, only "Made 3 min ago", so the tags beside it never push it onto two lines;
       // the size comes back when it's opened
       h("div", { class: "when" }, h("span", { class: "bk-size", text: `${fmtBytes(it.size)}, ` }),
@@ -244,7 +248,7 @@ async function showSchedule() {
   const setBtn = h("button", { class: "btn small" + (phone ? " rs-wide" : ""), type: "button", text: "Set schedule" });
   every.value = s.every; day.value = String(s.day || 7);
   const onDay = h("span", { class: "dim", text: "on" });
-  const tz = h("span", { class: "dim", text: `24-hour, server time${s.timezone ? ` (${s.timezone})` : ""}` });
+  const tz = h("span", { class: "dim" }, "24-hour, server time", s.timezone ? [" ", h("span", { class: "nowrap", text: `(${s.timezone})` })] : null);
   const atLbl = h("span", { class: "dim", text: "at" });
   const show = () => {
     const on = every.value !== "off";
@@ -277,7 +281,7 @@ async function showSchedule() {
   } else if (s.every !== "off" && !s.timer) {
     last = h("p", { class: "sched-last warn", text: "The timer isn't running. Press Set to start it again." });
   }
-  const keep = h("p", { class: "dim small", text: "Keeps the newest 7 scheduled backups. Only unlocked scheduled ones are ever removed." });
+  const keep = h("p", { class: "dim small bal", text: "Keeps the newest 7 scheduled backups. Only unlocked scheduled ones are ever removed." });
   // Laid out like Maintenance's Scheduled server reboot: Schedule with its state on the right, then the
   // choices; Set is full width under them on a phone, at the end of their row on a desktop
   const word = s.every === "off" ? ["Off", "dim"] : !s.timer ? ["Not running", "warn"] : ["Active", "ok"];
@@ -317,7 +321,7 @@ async function showSetAsides() {
     const when = it.when ? `set aside ${ago(it.when)}` : "";
     box.append(h("div", { class: "item bk" },
       h("span", {},
-        h("div", { class: "what mono", text: it.name }),
+        h("div", { class: "what mono" }, ...nameParts(it.name)),
         h("div", { class: "when", text: [size, when, `in ${it.dir}`].filter(Boolean).join(", ") })),
       h("div", { class: "btns" },
         h("button", { class: "btn small danger", type: "button", text: "Delete", onclick: async () => {

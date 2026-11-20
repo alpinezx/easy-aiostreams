@@ -73,7 +73,7 @@ function updates(m) {
   const pk = u.packages || [];
   const c = card(["System updates", u.os], [
     stat("Waiting", u.count ? `${u.count} update${u.count === 1 ? "" : "s"}` : "Up to date",
-      (u.count ? (u.security ? `${u.security} for security` : "None for security") + (u.phased ? `, ${u.phased} more phasing in` : "")
+      (u.count ? (u.security ? `${u.security} for security` : "None for security") + (u.phased ? `, ${u.phased} phasing in` : "")
         : u.phased ? `${u.phased} more phasing in` : ""), u.security ? "warn" : u.count ? "" : "ok",
       u.phased ? `Ubuntu rolls some updates out gradually, a few servers at a time. ${u.phased} ${u.phased === 1 ? "isn't" : "aren't"} offered to this server yet, `
         + "so Install updates leaves them until its turn, usually within days." : null),
@@ -143,7 +143,7 @@ function restart(r) {
   const when = r.every === "daily" ? `Daily ${r.time}` : `${DAYS[r.day - 1]} ${r.time}`;
   const next = !on ? stat("Next reboot", "Off", "Reboots are up to you")
     : !r.timer ? stat("Next reboot", "Not running", "Press Set to start it again", "warn")
-    : stat("Next reboot", when, r.mode === "always" ? "Every time" : r.needed ? "An update needs one" : "Only if an update needs one");
+    : stat("Next reboot", when, r.mode === "always" ? "Every time" : r.needed ? "An update needs one" : "Only if needed");
   const l = r.last;
   const last = stat("Last", l ? ago(l.at) : "Not yet",
     !l ? "" : l.status === "restarted" ? "Restarted" : /^Not needed/.test(l.text) ? "Skipped: not needed" : "Skipped", "", l ? l.text : null);
