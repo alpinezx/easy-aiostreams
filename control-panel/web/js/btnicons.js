@@ -36,7 +36,7 @@ const ICONS = {
   "Copy restore command": COPY, "Copy scp command": COPY, "Copy": COPY,
   "Lock": '<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
   "Unlock": '<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>',
-  "Delete": BIN, "Remove": BIN, "Uninstall": BIN, "Clear activity": BIN, "Free up space": BIN,
+  "Delete": BIN, "Remove": BIN, "Uninstall": BIN, "Clear activity": BIN, "Clear history": BIN, "Free up space": BIN,
   "Set limits": SLIDERS, "Change config": SLIDERS, "Settings": SLIDERS,
   "Change server": '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
   "Use": TICK, "Set": TICK,
@@ -50,7 +50,7 @@ const ROUND = new Set(["Check now", "Restart stack", "Restart", "Restart panel",
 // Shorter words where a phone has half its width for them (the copy icon says "Copy"); the full one is the label
 const SHORT = { "Copy restore command": "Restore command", "Copy scp command": "scp command" };
 // Buttons left alone: filters and toggles, header links, the log viewer's own controls
-const SKIP = ".fold-act, .icon-only, .hero-edit, .tr-ranges .btn, .lg-row .btn, .lg-acts .btn, .wd-today-wrap .btn, .wd-sub .btn";
+const SKIP = ".fold-act, .icon-only, .hero-edit, .tr-ranges .btn, .lg-row .btn, .lg-acts .btn, .wd-today-wrap .btn";
 
 // Phones: these rows laid out as two columns, in this order (lower first). With an odd number,
 // the first sits on its own above the pairs; the rest go in pairs, the action on the right.

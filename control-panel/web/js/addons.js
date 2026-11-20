@@ -197,7 +197,7 @@ function card(a) {
   const btn = h("button", { class: "btn small danger", type: "button", text: "Uninstall", disabled: !!(st && st.busy), onclick: () => uninstall(a.id) });
   // With nothing to say at the foot, Uninstall sits bottom right among the values, as on the Overview
   const foot = a.page ? h("a", { class: "btn small quiet ao-page", href: a.page[0], text: "Settings", title: `Open the ${a.page[1]}` })
-    : a.foot ? h("span", { class: "dim", text: a.foot }) : null;
+    : a.foot ? h("span", { class: "dim ao-foot", text: a.foot }) : null;
   // On a phone the title folds the card to its title and status chip, each card remembered on its
   // own (folded until opened). A value in amber or red still shows folded. A computer shows it all.
   const phone = PHONE_Q.matches;

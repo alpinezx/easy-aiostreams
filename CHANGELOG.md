@@ -2,6 +2,12 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 20 November 2026
+
+- **Fixed:** On phones, the figures in Last 7 days use the normal text colour, like the speeds under By service, instead of a dimmer grey. (Panel 1.61.14, [#209](https://github.com/alpinezx/easy-aiostreams/pull/209))
+- **Fixed:** On phones, the up figures in Last 7 days and By service now start under the left edge of the day bars, so both lists line up in one vertical line. (Panel 1.61.13, [#209](https://github.com/alpinezx/easy-aiostreams/pull/209))
+- **Fixed:** Text wraps more tidily on phones. Titles and notes break evenly instead of leaving one word alone on a line, values such as sizes and times stay in one piece, and long backup names break after a hyphen. The Edit drawer's Reset and Done no longer touch, Copy on Scripts lines up with the names, and Check now is a plain button. In This server and the VPN's Exit location, the value keeps its width while the label wraps. On Activity the grey word sits under the title, and Clear history on Phone alerts has its bin icon. Network totals read "Last 1hr", "Last 24hrs" and "Last 7d", Next reboot says "Only if needed", and System updates says "3 phasing in". (Panel 1.61.12, [#209](https://github.com/alpinezx/easy-aiostreams/pull/209))
+
 ## 19 November 2026
 
 - **Fixed:** The More colours pane in Edit the Overview has its Back button again, at the bottom right like every drawer's Close, and its credit text has room above it. (Panel 1.61.11, [#208](https://github.com/alpinezx/easy-aiostreams/pull/208))

@@ -50,7 +50,7 @@ export function fmtBytes(n) {
   const u = ["B", "KB", "MB", "GB", "TB"];
   let i = 0;
   while (n >= 1000 && i < u.length - 1) { n /= 1000; i++; }
-  return `${n >= 100 || i === 0 ? Math.round(n) : n.toFixed(1)} ${u[i]}`;
+  return `${n >= 100 || i === 0 ? Math.round(n) : n.toFixed(1)}\u00a0${u[i]}`;   // a no-break space: "479 MB" never splits
 }
 
 // A 24-hour time ("04:00") typed into a plain box, the same in every browser, like the
@@ -81,10 +81,11 @@ export function timePicker(value, label = "Time") {
 
 export function ago(ts) {
   const s = Date.now() / 1000 - ts;
-  if (s < 45) return "just now";
-  if (s < 3600) return `${Math.round(s / 60)} min ago`;
-  if (s < 86400) { const n = Math.round(s / 3600); return `${n} hour${n === 1 ? "" : "s"} ago`; }
-  { const n = Math.round(s / 86400); return `${n} day${n === 1 ? "" : "s"} ago`; }
+  // No-break spaces: "5 hours ago" moves to the next line as one piece
+  if (s < 45) return "just\u00a0now";
+  if (s < 3600) return `${Math.round(s / 60)}\u00a0min\u00a0ago`;
+  if (s < 86400) { const n = Math.round(s / 3600); return `${n}\u00a0hour${n === 1 ? "" : "s"}\u00a0ago`; }
+  { const n = Math.round(s / 86400); return `${n}\u00a0day${n === 1 ? "" : "s"}\u00a0ago`; }
 }
 
 export const OUT_OF_REACH = "The panel is briefly out of reach while things restart. It comes back by itself.";
