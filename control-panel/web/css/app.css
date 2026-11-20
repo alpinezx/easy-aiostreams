@@ -817,8 +817,8 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
      or a long date never makes rows collide or differ) */
   .tr-day { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; padding: 7px 0; }
   .tr-day-name { order: 1; flex-basis: 100%; }
-  .tr-day-tot { order: 2; display: flex; gap: 16px; min-width: 0; }
-  .tr-day-tot .nsv-speed { min-width: 0; }
+  /* Same text size and gap as By service's speeds (.ns-speeds), so the up arrows line up down both cards */
+  .tr-day-tot { order: 2; display: flex; gap: 4px; min-width: 0; font-size: .92rem; }
   .tr-bar { order: 3; flex: 0 0 100%; }
 }
 .vpn-card-acts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
