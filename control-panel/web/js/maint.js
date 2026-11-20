@@ -176,7 +176,7 @@ function restart(r) {
     ...[["off", "Off"], ["needed", "When needed"], ["always", "Always"]].map(([v, t]) => h("option", { value: v, text: t })));
   const every = h("select", { class: "input", "aria-label": "How often" },
     ...[["daily", "Daily"], ["weekly", "Weekly"]].map(([v, t]) => h("option", { value: v, text: t })));
-  const day = h("select", { class: "input", "aria-label": "Day" }, ...DAYS.map((d, i) => h("option", { value: String(i + 1), text: d })));
+  const day = h("select", { class: "input", "aria-label": "Day" }, ...DAYS.map((d, i) => h("option", { value: String(i + 1), text: d.slice(0, 3) })));
   const time = timePicker(r.time);
   const onLbl = h("span", { class: "dim", text: "on" }), atLbl = h("span", { class: "dim", text: "at" });
   mode.value = r.mode; every.value = r.every; day.value = String(r.day);
@@ -220,9 +220,9 @@ function restart(r) {
       render(true);
     } }) : null;
   {
-    // Schedule: Active, Off or Not running, then its choices and Set; Clock: Synced or not, then the time zone
+    // Schedule: On, Off or Not running, then its choices and Set; Clock: Synced or not, then the time zone
     // (why it isn't synced in its tooltip)
-    const word = !on ? ["Off", "dim"] : !r.timer ? ["Not running", "warn"] : ["Active", "ok"];
+    const word = !on ? ["Off", "dim"] : !r.timer ? ["Not running", "warn"] : ["On", "ok"];
     const c = r.clock;
     const clock = !c.known ? ["Can't tell", "dim"] : c.synced ? ["Synced", "ok"] : ["Not synced", "warn"];
     const [tzWrap, tzGo] = tzEditor(r, true);
@@ -299,7 +299,7 @@ function tzEditor(r, phone) {
       go.disabled = true;
       try {
         const n = await api("/api/server/timezone", { method: "PUT", body: JSON.stringify({ timezone: tz }) });
-        toast(`Time zone: ${n.timezone}. Scheduled backups and reboots now go by it.`);
+        toast(`Time zone: ${n.timezone}.`);
         rs = await api("/api/restart-schedule");
       } catch (e) { toast(e.message || "Couldn't set it.", true); go.disabled = false; return; }
       render(true);

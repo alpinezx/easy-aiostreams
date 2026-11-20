@@ -265,7 +265,7 @@ function extras(w) {
   };
   // When the check-in goes out, shown while it's on
   const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-  const day = h("select", { class: "input", "aria-label": "Day" }, ...DAYS.map((d, i) => h("option", { value: String(i + 1), text: d })));
+  const day = h("select", { class: "input", "aria-label": "Day" }, ...DAYS.map((d, i) => h("option", { value: String(i + 1), text: d.slice(0, 3) })));
   // Any time of day, to the minute; Set saves it (the day saves as soon as it's picked)
   const time = timePicker(opt.weekly_time || "10:00");
   const setBtn = h("button", { class: "btn small", type: "button", text: "Set" });

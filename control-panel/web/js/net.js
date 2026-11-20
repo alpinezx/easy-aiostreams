@@ -79,7 +79,7 @@ function services(box) {
           h("span", { class: "ns-name", text: s.name }),
           shared ? h("span", { class: "ns-shared dim", text: "Counted under VPN tunnel" })
             : s.rx == null ? h("span", { class: "ns-shared dim", text: measured ? "" : "Measuring…" })
-            : [arrowed("↓", fmtRate(s.rx)), arrowed("↑", fmtRate(s.tx))]);
+            : h("span", { class: "ns-speeds" }, arrowed("↓", fmtRate(s.rx)), arrowed("↑", fmtRate(s.tx))));
       })));
   box.append(card);
 }
