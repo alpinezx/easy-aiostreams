@@ -5,6 +5,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 ## 20 November 2026
 
 - On the Backup page, the two plain notices ("Restore rolls this server back" and the one under "Set aside by restores") now have a blue edge instead of amber, since they're information, not warnings. The second one is also shorter. (Panel 1.61.17)
+- **Fixed:** On phones, the down and up figures under By service now sit the same distance apart as in Last 7 days. (Panel 1.61.18)
 - **Fixed:** Switching AIOManager's sign-ups on or off showed two pop-ups at once ("Sign-ups closed" and "Sign-ups are closed."). It now shows just the second one. (Panel 1.61.17)
 - **Fixed:** On phones, the Maintenance page's last job now shows its status (Finished, Running or Failed) on its own line under the job's name and time, instead of squeezed beside it. (Panel 1.61.17)
 - The folded Scheduled backups and Scheduled server reboot cards now say "On" instead of "Active", and the time zone pop-up is just "Time zone: Europe/London." (Panel 1.61.17)
