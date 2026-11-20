@@ -98,21 +98,43 @@ function peekRows(list) {
     h("span", {}, p.security ? h("span", { class: "chip warn small-chip", text: "Security" }) : null),
     h("span", { class: "upd-ver mono dim", title: `${p.from} → ${p.to}`, text: `${p.from} → ${p.to}` })]));
 }
+// Phones: the same list folds under a line of its own, folded until opened, remembered per browser
+function peekFold(box, label) {
+  if (!PHONE_Q.matches) return box;
+  let open = false;
+  try { open = localStorage.getItem("aios.updPeekOpen") === "1"; } catch (_) {}
+  box.classList.add("mfold-peek");
+  box.classList.toggle("folded", !open);
+  const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
+  chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
+  const tog = h("button", { class: "path-toggle fold-toggle upd-tog", type: "button", "aria-expanded": String(open), onclick: () => {
+    open = !open;
+    try { localStorage.setItem("aios.updPeekOpen", open ? "1" : "0"); } catch (_) {}
+    box.classList.toggle("folded", !open);
+    tog.setAttribute("aria-expanded", String(open));
+  } }, label, chev);
+  box.prepend(h("div", { class: "upd-tog-row" }, tog));
+  return box;
+}
 function updPeek(u, pk) {
   const now = pk.filter((p) => !p.phased);
   if (now.length) {
-    const more = now.length - PEEK + (u.phased || 0);
-    return h("div", { class: "upd-peek" }, peekRows(now),
-      more > 0 ? h("button", { class: "linkish upd-more", type: "button", text: `and ${more} more`, onclick: () => openUpdates(u) }) : null);
+    const hidden = Math.max(0, now.length - PEEK);
+    const bits = [hidden ? `${hidden} more waiting` : "", u.phased ? `${u.phased} phasing in` : ""].filter(Boolean).join(", ");
+    return peekFold(h("div", { class: "upd-peek" }, peekRows(now),
+      bits ? h("button", { class: "linkish upd-more", type: "button", text: bits, onclick: () => openUpdates(u) }) : null),
+      "What's waiting");
   }
   const done = u.installed;
   const phasing = u.phased ? ` ${u.phased} more ${u.phased === 1 ? "is" : "are"} phasing in.` : "";
   if (!done || !done.packages.length) return h("div", { class: "upd-peek empty" }, h("p", { class: "dim", text: `Nothing waiting.${phasing}` }));
   const more = done.count - PEEK;
-  return h("div", { class: "upd-peek" },
-    h("p", { class: "dim upd-peek-head", text: `Up to date.${phasing} Last installed${done.at ? ` ${ago(done.at)}` : ""}${done.auto ? ", by Ubuntu's automatic updates" : ""}:` }),
+  const when = `${done.at ? ` ${ago(done.at)}` : ""}${done.auto ? ", by Ubuntu's automatic updates" : ""}`;
+  return peekFold(h("div", { class: "upd-peek" },
+    h("p", { class: "dim upd-peek-head", text: `Up to date.${phasing} Last installed${when}:` }),
     peekRows(done.packages),
-    more > 0 ? h("button", { class: "linkish upd-more", type: "button", text: `and ${more} more`, onclick: () => openUpdates(u, true) }) : null);
+    more > 0 ? h("button", { class: "linkish upd-more", type: "button", text: `${more} more installed`, onclick: () => openUpdates(u, true) }) : null),
+    "Last installed" + (done.at ? ` ${ago(done.at)}` : ""));
 }
 
 function logs(m) {
