@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 20 November 2026
 
+- **Fixed:** On phones, the down and up figures in Last 7 days now both sit directly under their day's bar, instead of down under the day name and up under the bar. (Panel 1.61.16)
 - **Fixed:** On phones, the Network page's Now figures (down and up) always sit on two lines, instead of jumping between one line and two as the speeds change. (Panel 1.61.15, [#210](https://github.com/alpinezx/easy-aiostreams/pull/210))
 - System updates now shows its update list on phones too, as a fold under the three figures ("What's waiting" or "Last installed"), with each version on its own line. The link under the list on every screen size now says what is left, such as "3 more installed" or "4 more waiting, 3 phasing in", instead of "and 3 more". (Panel 1.61.15, [#210](https://github.com/alpinezx/easy-aiostreams/pull/210))
 - **Fixed:** On phones, the figures in Last 7 days use the normal text colour, like the speeds under By service, instead of a dimmer grey. (Panel 1.61.14, [#209](https://github.com/alpinezx/easy-aiostreams/pull/209))

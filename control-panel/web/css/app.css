@@ -812,7 +812,7 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
   .tr-step { margin-left: 0; flex-basis: 100%; }
   .tr-day { grid-template-columns: 6em minmax(0, 1fr); gap: 4px 12px; }
   .tr-day-name { white-space: nowrap; }
-  .tr-day-tot { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; gap: normal; min-width: 0; text-align: left; font-size: .84rem; }   /* Up starts under the bar's left edge */
+  .tr-day-tot { grid-column: 2; display: flex; gap: 24px; min-width: 0; text-align: left; font-size: .84rem; }   /* Down and Up both start under the bar's left edge */
 }
 .vpn-card-acts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
 /* Phones: two even columns across the card, and an odd last one (Update VPN) the full width under them */
