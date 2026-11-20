@@ -800,8 +800,7 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
   .ns-list { display: block; }
   .ns-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 16px; }
   .ns-name { flex-basis: 100%; }
-  .ns-speeds { display: flex; gap: 16px; }
-  .ns-speeds .nsv-speed { min-width: 0; }
+  .ns-speeds { display: flex; gap: 4px; }
   .ns-shared { flex-basis: 100%; }
 }
 /* This server's Network: down and up a line each, always, so the row doesn't change height as the speeds change */
