@@ -7,6 +7,8 @@ A private web page for your AIOStreams server. See at a glance whether everythin
 
 ![The Overview tab: status, version, the path a request takes, and each service](../images/control-panel/overview.png)
 
+*Want to see the other pages first? The [Advanced guide](../advanced/control-panel.md) has a screenshot of each: Logs, Network, VPN, Add-ons, Phone alerts, Maintenance and Backup & Restore.*
+
 ⚠️ **Needs AIOStreams installed first** with `setup-aiostreams.sh`, and a **spare subdomain** for the panel, for example `panel.yourdomain.xyz`.
 
 > Every page and button in detail, and how it's locked down → [Advanced guide](../advanced/control-panel.md)
@@ -58,10 +60,12 @@ The pages are icons down the left; point at one to see its name. On a phone they
 - The buttons do the same as the matching options in the setup scripts, so you can mix the panel and SSH freely.
 - Cards and pages for add-ons (AIOMetadata, AIOManager, MediaFlow, the VPN, Phone alerts...) only appear once you've set them up with their scripts.
 - **Edit** at the Overview's top right (a pencil on phones) and **Edit rail** (the pencil at the rail's foot) rearrange or hide cards and pages. The layout is saved on the server, so every device shows the same. The Overview's **Edit** also has **Colours**: System (follows your device), Light, Dark, or **More…** for 24 more themes, from Slate to Dracula, Catppuccin, Solarized and Basic, each shown as a small preview. Saved in that browser only.
-- Tap a card's title to fold it to one line, or open it again; **Fold all cards** (or **Open all cards**), under the headline, does every card at once. A folded card keeps its main action as a small icon in its corner (Update, Restart stack, Reboot server, Details); open or folded, a card's corner links (Details, Logs, Choose services, Clear) are icons, and pointing at one on a computer shows its name. On a phone every card starts folded; on a computer they start open. Each browser remembers its own, and **Reset to default** in Edit puts them back.
+- Tap a card's title to fold it to one line, or open it again; **Fold all cards** (or **Open all cards**), under the headline, does every card at once. A folded card keeps its main action as a small icon in its corner (Update, Restart stack, Reboot server, Details); open or folded, a card's corner links (Details, Logs, Choose services, Clear) are icons, and pointing at one on a computer shows its name. On a phone every card starts folded; on a computer the Overview's cards start open, while the Add-ons cards, the Backup & Restore cards and the VPN page's configs start folded on a new install. Each browser remembers its own, and **Reset to default** in Edit puts them back.
 - Buttons show a small icon before their word. On a phone, a card's buttons sit in two even columns, Update across the top and All releases and Check now under it.
 - **Recent log alerts** on the Overview lists the latest warnings and errors from every service's log, leaving out the expected noise. Tap one to open that log; **Clear** (the bin) takes them off the card, while the Logs page keeps them. **Choose services** (the cog) picks which services it covers: AIOStreams (its own dashboard has the same list) and the optional add-ons start switched off.
-- **Activity** keeps what every button printed, if you want to check how an update or backup went.
+- **Activity** keeps what every button printed, if you want to check how an update or backup went, and the phone alerts that fired. Switch between All, Actions and Alerts at the top.
+
+  ![The Activity page, with its All, Actions and Alerts filter](../images/control-panel/activity.png)
 
 ## Worth knowing
 

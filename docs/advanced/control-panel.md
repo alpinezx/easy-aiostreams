@@ -154,9 +154,9 @@ It appears on the rail once any optional add-on is installed: AIOMetadata, AIOMa
 
 ## Phone alerts page
 
-![The Phone alerts page: status, the last 14 days, the optional alerts and recent events](../images/control-panel/alerts.png)
+![The Phone alerts page: status, the last 14 days, the optional alerts](../images/control-panel/alerts.png)
 
-It appears on the rail once the [watchdog](./watchdog.md) has been set up over SSH (first-time setup asks you to subscribe in the ntfy app, so it stays a script job). It reads `watchdog-state/`: whether the timer is running, the last check, what it watches, the daily tally as 14 squares, the event list, and the two optional switches. The topic is only ever sent to the browser masked (its first five and last two characters). **Change topic** suggests a random topic in groups of four with no look-alike characters, with **Copy**, and links to it on ntfy.sh so you can subscribe first.
+It appears on the rail once the [watchdog](./watchdog.md) has been set up over SSH (first-time setup asks you to subscribe in the ntfy app, so it stays a script job). It reads `watchdog-state/`: whether the timer is running, the last check, what it watches, the daily tally as 14 squares, and the two optional switches (failed checks, alerts and recoveries are listed on the Activity page). The topic is only ever sent to the browser masked (its first five and last two characters). **Change topic** suggests a random topic in groups of four with no look-alike characters, with **Copy**, and links to it on ntfy.sh so you can subscribe first.
 
 ## Maintenance page
 
