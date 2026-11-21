@@ -200,6 +200,23 @@ export function openUpdates(u, installed) {
   $("#rel-x").focus();
 }
 
+// The Maintenance page's last install: its output in the same drawer (was a card at the page's foot)
+export function openOutput(j) {
+  lastFocus = document.activeElement;
+  const list = $("#rel-list");
+  clear(list);
+  const state = j.running ? ["Running", ""] : j.code === 0 ? ["Finished", "ok"] : ["Failed", "bad"];
+  $("#rel-title").textContent = j.what;
+  $("#rel-sub").textContent = `${j.running ? "Started " : ""}${ago(j.at)}.`;
+  $("#rel-foot").hidden = true;
+  list.append(h("p", { class: "out-state" }, h("span", { class: "chip small-chip " + state[1], text: state[0] })),
+    h("pre", { class: "out-pre", text: j.tail.join("\n") }));
+  list.scrollTop = 0;
+  $("#rel-drawer").hidden = false;
+  $("#scrim").hidden = false;
+  $("#rel-x").focus();
+}
+
 $("#rel-x").addEventListener("click", closeReleases);
 $("#scrim").addEventListener("click", closeReleases);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && $("#dialog").hidden) closeReleases(); });

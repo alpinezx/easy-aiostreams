@@ -6,7 +6,7 @@
 const RESTART = '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>';
 const UPDATE = '<path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/>';
 const COPY = '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>';
-const BIN = '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>';
+const BIN = '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/>';   // the same bin as the rows' and cards' icon-only ones
 const STOP = '<rect x="3" y="3" width="18" height="18" rx="2.5"/>';   // as big as the round icons look beside it
 const START = '<path d="M7 4v16l13-8z"/>';
 const SHIELD = '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>';
@@ -24,6 +24,7 @@ const ICONS = {
   // All releases: a stack of sheets, one version on another; List updates stays a list (of packages)
   "All releases": '<path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/>',
   "List updates": LIST,
+  "Show output": '<path d="m4 17 6-6-6-6"/><path d="M12 19h8"/>',
   "Restart stack": RESTART, "Restart": RESTART, "Restart panel": RESTART,
   "Reboot server": '<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/>',
   "Stop": STOP, "Stop watchdog": STOP,
@@ -62,6 +63,7 @@ const ORDER = {
   "Send test alert": 0, "Stop": 1, "Start": 1,
   "Change config": 0, "Change server": 1, "Update VPN": 2,
 };
+const OUTPUT_ORDER = { "Install updates": 0, "Show output": 1, "List updates": 2 };
 // Scripts' rows: Copy, Update, Remove
 const SCRIPTS_ORDER = { "Copy": 0, "Update": 1, "Remove": 2 };
 
@@ -112,7 +114,8 @@ function gridRows(view) {
     if (btns.length < 2) { row.classList.remove("btn-grid"); continue; }
     row.classList.add("btn-grid");
     const isScripts = row.matches(".scripts-panel .cmd-btns");
-    const order = isScripts ? SCRIPTS_ORDER : ORDER;
+    // System updates with Show output: Install updates across the top, Show output and List updates under it
+    const order = isScripts ? SCRIPTS_ORDER : row.querySelector(":scope > .maint-out") ? OUTPUT_ORDER : ORDER;
     const sorted = [...btns].sort((a, b) => (order[a.dataset.act] ?? 5) - (order[b.dataset.act] ?? 5));
     sorted.forEach((b, i) => {
       b.dataset.ord = i;

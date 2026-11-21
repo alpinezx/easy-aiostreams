@@ -6,7 +6,7 @@ import { runAction, ask } from "./actions.js";
 // topic with a test alert straight after. The topic acts like a password, so the
 // server only ever sends it masked.
 
-let st = null, last = null, loading = false, showAll = false;
+let st = null, loading = false;
 
 const actFor = (id) => { const a = st && st.actions.find((x) => x.id === id); return a && a.available ? a : null; };
 
@@ -16,21 +16,6 @@ export function parseCheck(line) {
   if (!m) return { at: null, result: line || "" };
   const t = Date.parse(`${m[1]} ${m[2]} ${m[3] === "UTC" ? "UTC" : ""}`.trim());
   return { at: Number.isNaN(t) ? null : t / 1000, result: m[4] };
-}
-
-const KIND = {
-  fail: ["Failed", "warn"], alert: ["Alert sent", "bad"], recovered: ["Recovered", "ok"],
-  start: ["Started", ""], stop: ["Stopped", ""], test: ["Test alert", ""], topic: ["Topic", ""], reboot: ["Restarted", ""], disk: ["Disk space", ""], cert: ["Certificate", ""],
-  update: ["Update", ""], scripts: ["Scripts", ""], backup: ["Backup", ""], security: ["Security", ""], weekly: ["Weekly", ""],
-};
-
-function when(at) {
-  const d = new Date(at * 1000), now = new Date();
-  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  const days = Math.round((new Date(now.toDateString()) - new Date(d.toDateString())) / 86400000);
-  if (days === 0) return `Today ${time}`;
-  if (days === 1) return `Yesterday ${time}`;
-  return `${d.toLocaleDateString([], { day: "numeric", month: "short" })} ${time}`;
 }
 
 export function setStatus(status) {
@@ -174,7 +159,6 @@ export function todayLine(tally, nowOk = false) {
 }
 
 function render(w) {
-  last = w;
   const box = $("#alerts-root");
   clear(box);
   if (!w.configured) {
@@ -210,27 +194,9 @@ function render(w) {
       actFor("watchdog.topic") ? h("button", { class: "btn small", type: "button", text: "Change topic", disabled: !!(st && st.busy), onclick: changeTopic }) : null));
   box.append(card, extras(w));
 
-  // What happened lately, newest first
-  const list = h("ul", { class: "wd-events" });
-  const evs = showAll ? w.events : w.events.slice(0, 12);
-  for (const e of evs) {
-    const [name, cls] = KIND[e.kind] || [e.kind, ""];
-    // Laid out like the Activity page's rows: what happened, then when, then its pill
-    // Each has a bin, as on Activity: removes just that one
-    const x = h("button", { class: "btn small quiet job-x", type: "button", title: "Remove from Recent events", "aria-label": `Remove "${e.text}" from Recent events`,
-      onclick: () => removeEvent(e) });
-    x.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
-    list.append(h("li", {},
-      h("span", { class: "wd-text", text: e.text }),
-      h("span", { class: "wd-when", title: new Date(e.at * 1000).toLocaleString(), text: when(e.at) }),
-      h("span", { class: "chip" + (cls ? " " + cls : ""), text: name }),
-      x));
-  }
-  box.append(h("div", { class: "wd-sub" }, h("h3", { text: "Recent events" }),
-    w.events.length ? h("button", { class: "btn small quiet", type: "button", text: "Clear history", onclick: clearEvents }) : null),
-    w.events.length ? list : h("p", { class: "dim", text: "Nothing yet. Failed checks, alerts and recoveries show here." }));
-  if (w.events.length > 12 && !showAll) box.append(h("button", { class: "btn small quiet", type: "button", text: `Show all ${w.events.length}`,
-    onclick: () => { showAll = true; render(last); } }));
+  // What happened lately lives on the Activity page now, with what the panel has done
+  box.append(h("p", { class: "dim wd-activity-link" }, "Failed checks, alerts and recoveries are listed on ",
+    h("a", { class: "linkish", href: "#activity", text: "Activity" }), "."));
 }
 
 // The check-in goes by the server's clock, so say which zone that is. A server
@@ -336,25 +302,6 @@ async function resetTally() {
     toast("Stats reset.");
     render(await api("/api/watchdog"));
   } catch (e) { toast(e.message || "Couldn't reset them.", true); }
-}
-
-async function removeEvent(e) {
-  try {
-    await api("/api/watchdog/events/remove", { method: "POST", body: JSON.stringify({ at: e.at, kind: e.kind, text: e.text }) });
-  } catch (err) { toast(err.message || "Couldn't remove it.", true); }
-  try { render(await api("/api/watchdog")); } catch (_) {}
-}
-
-async function clearEvents() {
-  const ok = await ask({ title: "Clear the event history?", confirmLabel: "Clear history", danger: true,
-    body: "Removes every event from this list. The watchdog keeps checking, and new events show here as they happen. The 14-day strip stays." });
-  if (!ok) return;
-  try {
-    await api("/api/watchdog/events/clear", { method: "POST" });
-    showAll = false;
-    toast("Event history cleared.");
-    render(await api("/api/watchdog"));
-  } catch (e) { toast(e.message || "Couldn't clear it.", true); }
 }
 
 // Hard to guess but easy to read back: three groups of four from 31 characters with

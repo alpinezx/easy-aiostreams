@@ -45,7 +45,7 @@ function route() {
 
 function enter() {
   if (view === "logs") { logs.show(status, pendingLogs); pendingLogs = null; }
-  if (view === "activity") showActivity().catch(() => {});
+  if (view === "activity") showActivity(status).catch(() => {});
   if (view === "backups") showBackups(status).catch(() => {});
   if (view === "overview") render(status, goLogs);
   if (view === "scripts") scripts.show(status);
@@ -149,7 +149,7 @@ async function tick(first) {
     }
     // Also when a quick job was over before any look saw it running
     if ((lastBusy || jobStarted) && !status.busy) {
-      if (view === "activity") showActivity().catch(() => {});
+      if (view === "activity") showActivity(status).catch(() => {});
       if (view === "backups") showBackups(status).catch(() => {});
       if (view === "vpn") vpn.show(true, status);     // a VPN switch just finished: check again
       if (view === "alerts") alerts.show(status);

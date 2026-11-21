@@ -10,40 +10,108 @@ let buildTimer = null, buildTries = 0;
 // This server's public IP for the scp command, looked up once per page load. null: not found.
 let serverIp;
 
-export async function showActivity() {
+// What the phone-alerts watchdog noticed on its own, shown in the same list when it's set up.
+// Pill words and colours for each kind of event.
+const ALERT_KIND = {
+  fail: ["Failed", "warn"], alert: ["Alert sent", "bad"], recovered: ["Recovered", "ok"],
+  start: ["Started", ""], stop: ["Stopped", ""], test: ["Test alert", ""], topic: ["Topic", ""], reboot: ["Restarted", ""], disk: ["Disk space", ""], cert: ["Certificate", ""],
+  update: ["Update", ""], scripts: ["Scripts", ""], backup: ["Backup", ""], security: ["Security", ""], weekly: ["Weekly", ""],
+};
+const BIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
+
+// All, Actions (what you started) or Alerts (what the watchdog noticed). Only shown with phone alerts set up.
+let filter = "all";
+try { filter = localStorage.getItem("aios.activityFilter") || "all"; } catch (_) {}
+
+const binButton = (title, label, disabled, onclick) => {
+  const x = h("button", { class: "btn small quiet job-x", type: "button", title, "aria-label": label, disabled, onclick });
+  x.innerHTML = BIN;
+  return x;
+};
+
+export async function showActivity(status) {
   const box = $("#jobs"); clear(box);
-  const jobs = await api("/api/jobs");
+  const alertsOn = !!(status && status.watchdog && status.watchdog.configured);
+  if (!alertsOn) filter = "all";
+  const [jobs, events] = await Promise.all([
+    api("/api/jobs"),
+    alertsOn ? api("/api/watchdog").then((w) => w.events || [], () => []) : [],
+  ]);
+  const showJobs = filter !== "alerts", showEvents = alertsOn && filter !== "actions";
+
+  const bar = $("#activity-filter");
+  bar.hidden = !alertsOn;
+  clear(bar);
+  if (alertsOn) {
+    for (const [id, text] of [["all", "All"], ["actions", "Actions"], ["alerts", "Alerts"]]) {
+      bar.append(h("button", { class: "btn small", type: "button", text, "aria-pressed": String(filter === id),
+        onclick: () => {
+          filter = id;
+          try { localStorage.setItem("aios.activityFilter", id); } catch (_) {}
+          showActivity(status).catch(() => {});
+        } }));
+    }
+  }
+
   const cb = $("#clear-activity");
-  cb.disabled = !jobs.some((j) => j.ended);
+  cb.disabled = !((showJobs && jobs.some((j) => j.ended)) || (showEvents && events.length));
   cb.onclick = async () => {
+    const what = showJobs && showEvents ? "the list of finished actions, their saved output and the phone alerts history"
+      : showEvents ? "the phone alerts history" : "the list of finished actions and their saved output";
     const ok = await ask({ title: "Clear activity?", confirmLabel: "Clear", danger: true,
-      body: "This removes the list of finished actions and their saved output. Anything still running stays." });
+      body: `This removes ${what}. Anything still running stays. The watchdog keeps checking, and the 14-day strip on Phone alerts stays.` });
     if (!ok) return;
-    try { await api("/api/jobs", { method: "DELETE" }); toast("Activity cleared."); }
-    catch (e) { toast(e.message || "Couldn't clear it.", true); }
-    showActivity().catch(() => {});
+    try {
+      if (showJobs) await api("/api/jobs", { method: "DELETE" });
+      if (showEvents) await api("/api/watchdog/events/clear", { method: "POST" });
+      toast("Activity cleared.");
+    } catch (e) { toast(e.message || "Couldn't clear it.", true); }
+    showActivity(status).catch(() => {});
   };
-  if (!jobs.length) {
-    box.append(h("p", { class: "empty", style: null, text: "Nothing has run from here yet. Actions you start on the Overview page show up in this list." }));
+
+  // One list, newest first. Jobs carry their start time, events theirs, both in epoch seconds.
+  const rows = [];
+  if (showJobs) for (const j of jobs) rows.push({ at: j.started, job: j });
+  if (showEvents) for (const e of events) rows.push({ at: e.at, event: e });
+  rows.sort((a, b) => b.at - a.at);
+
+  if (!rows.length) {
+    const text = filter === "alerts" ? "No phone alerts events yet. Failed checks, alerts and recoveries show here."
+      : filter === "actions" || !alertsOn ? "Nothing has run from here yet. Actions you start on the Overview page show up in this list."
+        : "Nothing yet. Actions you start and phone alerts events show up in this list.";
+    box.append(h("p", { class: "empty", style: null, text }));
     box.lastChild.style.padding = "18px 16px";
     return;
   }
-  for (const j of jobs) {
+  for (const { job: j, event: e } of rows) {
+    if (e) {
+      // An alert: nothing to open, so the row isn't a button
+      const [name, cls] = ALERT_KIND[e.kind] || [e.kind, ""];
+      const row = h("div", { class: "item job evt" },
+        h("span", { class: "job-open" },
+          h("span", { class: "what", text: e.text }), " ", h("span", { class: "dim", text: "Phone alerts" })),
+        h("span", { class: "when", title: new Date(e.at * 1000).toLocaleString(), text: ago(e.at) }),
+        h("span", { class: "chip" + (cls ? " " + cls : ""), text: name }));
+      row.append(binButton("Remove from Activity", `Remove "${e.text}" from Activity`, false, async () => {
+        try { await api("/api/watchdog/events/remove", { method: "POST", body: JSON.stringify({ at: e.at, kind: e.kind, text: e.text }) }); }
+        catch (err) { toast(err.message || "Couldn't remove it.", true); }
+        showActivity(status).catch(() => {});
+      }));
+      box.append(row);
+      continue;
+    }
     const state = !j.ended ? ["Running", ""] : j.code === 0 ? ["Done", "ok"] : ["Failed", "bad"];
     // The whole row opens the output; the label is the button, so the keyboard reaches it too.
-    const row = h("div", { class: "item job", onclick: (e) => { if (!e.target.closest(".job-x")) openJob(j.id); } },
+    const row = h("div", { class: "item job", onclick: (ev) => { if (!ev.target.closest(".job-x")) openJob(j.id); } },
       h("button", { class: "job-open", type: "button" },
         h("span", { class: "what", text: j.label }), " ", h("span", { class: "dim", text: actionGroup(j.action) })),
       h("span", { class: "when", text: ago(j.started) }),
       h("span", { class: `chip ${state[1]}`, text: state[0] }));
-    const x = h("button", { class: "btn small quiet job-x", type: "button", title: "Remove from Activity", "aria-label": `Remove ${j.label} from Activity`, disabled: !j.ended,
-      onclick: async () => {
-        try { await api(`/api/jobs/${j.id}`, { method: "DELETE" }); }
-        catch (e) { toast(e.message || "Couldn't remove it.", true); }
-        showActivity().catch(() => {});
-      } });
-    x.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
-    row.append(x);
+    row.append(binButton("Remove from Activity", `Remove ${j.label} from Activity`, !j.ended, async () => {
+      try { await api(`/api/jobs/${j.id}`, { method: "DELETE" }); }
+      catch (err) { toast(err.message || "Couldn't remove it.", true); }
+      showActivity(status).catch(() => {});
+    }));
     box.append(row);
   }
 }
@@ -65,6 +133,7 @@ export async function showBackups(status) {
   // An IPv6 address needs brackets in scp's user@host:path.
   const host = !serverIp ? "YOUR_SERVER" : serverIp.includes(":") ? `[${serverIp}]` : serverIp;
   clearTimeout(buildTimer);
+  backupsHead(items.length);
   if (items.some((it) => it.build_pending) && buildTries < 10) {
     buildTries++;
     buildTimer = setTimeout(() => { if (!$("#view-backups").hidden) showBackups(status).catch(() => {}); }, 3000);
@@ -234,6 +303,47 @@ function chev() {
   return c;
 }
 
+// The "Backups" title. A computer shows it as a plain heading over the open list; on a phone the whole
+// list is one card that folds to this title and a count, folded until opened and remembered per browser.
+let backupsOpen = false;
+try { backupsOpen = localStorage.getItem("aios.backupsOpen") === "1"; } catch (_) {}
+let backupsCount = 0;
+function backupsHead(n) {
+  backupsCount = n;
+  const head = $("#backups-head"), card = $("#backups-card");
+  head.hidden = !n;
+  card.classList.toggle("has-items", n > 0);
+  card.classList.toggle("folded", !backupsOpen);
+  clear(head);
+  const tog = h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(backupsOpen), onclick: () => {
+    backupsOpen = !backupsOpen;
+    try { localStorage.setItem("aios.backupsOpen", backupsOpen ? "1" : "0"); } catch (_) {}
+    card.classList.toggle("folded", !backupsOpen);
+    tog.setAttribute("aria-expanded", String(backupsOpen));
+  } }, "Backups", chev());
+  head.append(tog, h("span", { class: "bk-count", text: String(n) }));
+}
+PHONE.addEventListener("change", () => { backupsHead(backupsCount); asideHead(asideCount); });
+
+// Set aside by restores: the same fold on a phone, with the count in amber while it's folded, since
+// leftovers are clean-up waiting (this is what replaced the pill in the page heading)
+let asideOpen = false;
+try { asideOpen = localStorage.getItem("aios.asideOpen") === "1"; } catch (_) {}
+let asideCount = 0;
+function asideHead(n) {
+  asideCount = n;
+  const head = $("#aside-head"), card = $("#set-asides");
+  card.classList.toggle("folded", !asideOpen);
+  clear(head);
+  const tog = h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(asideOpen), onclick: () => {
+    asideOpen = !asideOpen;
+    try { localStorage.setItem("aios.asideOpen", asideOpen ? "1" : "0"); } catch (_) {}
+    card.classList.toggle("folded", !asideOpen);
+    tog.setAttribute("aria-expanded", String(asideOpen));
+  } }, "Set aside by restores", chev());
+  head.append(tog, h("span", { class: "bk-count aside-count", text: String(n) }));
+}
+
 async function showSchedule() {
   const box = $("#backup-schedule");
   let s;
@@ -289,9 +399,9 @@ async function showSchedule() {
   const row = h("div", { class: "wd-when-row restart-row bk-row" }, every, onDay, day, atLbl, time);
   // On a phone the title folds the card to one line with the state beside it, like the Network page's
   // cards: folded until opened, remembered per browser. A failed or skipped run still shows folded.
-  const card = h("section", { class: `panel sched-card rs-list ${phone ? "rs-phone bk-phone" : "rs-desk bk-desk"}` + (phone && !schedOpen ? " folded" : "") });
+  const card = h("section", { class: `panel sched-card rs-list ${phone ? "rs-phone bk-phone" : "rs-desk bk-desk"}` + (!schedOpen ? " folded" : "") });
   let title = h("h3", { text: "Scheduled backups" });
-  if (phone) {
+  {
     const tog = h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(schedOpen), onclick: () => {
       schedOpen = !schedOpen;
       try { localStorage.setItem("aios.schedOpen", schedOpen ? "1" : "0"); } catch (_) {}
@@ -316,6 +426,7 @@ async function showSetAsides() {
   const items = await api("/api/set-asides");
   clear(box);
   wrap.hidden = !items.length;
+  asideHead(items.length);
   for (const it of items) {
     const size = it.size != null ? fmtBytes(it.size) : "size unknown";
     const when = it.when ? `set aside ${ago(it.when)}` : "";

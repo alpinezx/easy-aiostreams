@@ -173,7 +173,7 @@
   </section>
 
   <section class="view" id="view-activity" aria-label="Activity" hidden>
-    <div class="view-head"><h2>Activity</h2><button class="btn small" id="clear-activity" type="button">Clear activity</button></div>
+    <div class="view-head"><h2>Activity</h2><div class="act-filter" id="activity-filter" role="group" aria-label="Show" hidden></div><button class="btn small" id="clear-activity" type="button">Clear activity</button></div>
     <div class="list" id="jobs"></div>
   </section>
 
@@ -183,9 +183,12 @@
       <p>Restore rolls this server back. <span class="ph-line">Moving to a new server? <a href="https://github.com/alpinezx/easy-aiostreams/blob/main/docs/basic/backup-restore.md#migrating-to-a-new-server" target="_blank" rel="noopener noreferrer" class="guide-link">Guide<span class="ext"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span></a></span></p>
     </div>
     <div id="backup-schedule"></div>
-    <div class="list" id="backups"></div>
+    <div class="bk-card" id="backups-card">
+      <h3 class="sub-head backups-head" id="backups-head" hidden>Backups</h3>
+      <div class="list" id="backups"></div>
+    </div>
     <div id="set-asides" hidden>
-      <h3 class="sub-head">Set aside by restores</h3>
+      <h3 class="sub-head" id="aside-head">Set aside by restores</h3>
       <p class="note note-blue">Your setup from before a restore, kept for rolling back. Delete it once the restored one works.</p>
       <div class="list" id="set-aside-list"></div>
     </div>
