@@ -83,7 +83,7 @@ sudo bash /opt/aiostreams/setup-watchdog.sh
 - **Send test alert**: fire a test message any time, without waiting for a real failure.
 - **Change topic**: a new ntfy topic (it suggests one, and refuses anything ntfy wouldn't accept); it offers to start the watchdog if it's stopped.
 - **Extra alerts**: the release, restart, script update, backup made, security update and weekly check-in alerts on or off, and the check-in's day and time. Each add-on's release alert too, once it's installed: AIOMetadata (option 8), AIOManager (option 9) and MediaFlow (option 10).
-- **Recent events and stats**: what happened lately, newest first, with Clear history and Reset stats.
+- **Stats and events**: the Reset button clears the stats. Failed checks, alerts and recoveries are listed on the panel's Activity page, which has a Clear activity button.
 - **Check now**: run every check once and see the result, without saving or sending anything.
 - **Uninstall**: clean removal (timer, services, saved state).
 
