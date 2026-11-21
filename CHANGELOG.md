@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 21 November 2026
 
+- **Docs:** Control panel screenshots retaken for panel 1.63.0, with the folded cards shown open, and a new Activity screenshot. The guides no longer mention Phone alerts' event list, describe which cards start folded, and the basic guide links to the advanced guide's screenshots of the other pages. ([#213](https://github.com/alpinezx/easy-aiostreams/pull/213))
 - With Phone alerts set up, the Activity page now lists what the watchdog noticed (failed checks, alerts sent, recoveries) alongside the actions you started, newest first, with All, Actions and Alerts buttons to narrow it. The separate Recent events list on the Phone alerts page is gone, replaced by a link to Activity. (Panel 1.63.0, [#212](https://github.com/alpinezx/easy-aiostreams/pull/212))
 - On Backup & Restore, the backup list now has its own "Backups" heading, and Scheduled backups, the backup list and "Set aside by restores" are each a card that folds to its title and a count, folded until opened. The set-aside count turns amber while folded, so an old setup left by a restore isn't missed. (Panel 1.63.0, [#212](https://github.com/alpinezx/easy-aiostreams/pull/212))
 - Every page title is now the same size and sits at the same height, on a computer and on a phone, so the pages no longer jump when you switch between them. (Panel 1.63.0, [#212](https://github.com/alpinezx/easy-aiostreams/pull/212))
