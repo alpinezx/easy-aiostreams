@@ -217,7 +217,19 @@ async function showConfigs(box) {
   clear(box);
   const busy = !!(st && st.busy);
   const off = last && last.mode === "off";
-  const list = h("div", { class: "panel conf-list" });
+  // A card that folds to its title and a count, folded until opened and remembered
+  let open = false;
+  try { open = localStorage.getItem("aios.vpnConfsOpen") === "1"; } catch (_) {}
+  const card = h("div", { class: "panel conf-list conf-card" + (open ? "" : " folded") });
+  const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
+  chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
+  const tog = h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(open), onclick: () => {
+    open = !open;
+    try { localStorage.setItem("aios.vpnConfsOpen", open ? "1" : "0"); } catch (_) {}
+    card.classList.toggle("folded", !open);
+    tog.setAttribute("aria-expanded", String(open));
+  } }, "Configs on this server", chev);
+  const list = h("div", { class: "conf-body" });
   for (const c of rows) {
     const name = c.kind === "file" ? c.path.split("/").pop() : KIND[c.kind] || c.kind;
     list.append(h("div", { class: "conf-item" },
@@ -230,7 +242,8 @@ async function showConfigs(box) {
         !c.in_use ? h("button", { class: "btn small", type: "button", text: "Use", disabled: busy, onclick: () => useFile(c) }) : null,
         !c.in_use || off ? h("button", { class: "btn small danger", type: "button", text: "Delete", disabled: busy, onclick: () => deleteFile(c) }) : null)));
   }
-  box.append(h("h3", { class: "conf-title", text: "Configs on this server" }), list);
+  card.append(h("h3", { class: "conf-title" }, tog, h("span", { class: "conf-count", text: String(rows.length) })), list);
+  box.append(card);
 }
 
 // Another address for the same config: the script looks the endpoint's name

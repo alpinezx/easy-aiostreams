@@ -1134,8 +1134,13 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .vpn-remove-title { font-weight: 600; margin-bottom: 2px; }
 .vpn-remove .dim { font-size: .88rem; }
 /* the configs on the server */
-.conf-title { font-size: 1.05rem; margin: 28px 0 12px; }
-.conf-list { padding: 0; }
+.panel.conf-list { padding: 0; }
+/* a card that folds to its title and a count, as on Backup & Restore */
+.conf-card { margin-top: 28px; overflow: hidden; }
+.conf-card .conf-title { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: .98rem; margin: 0; padding: 16px; }   /* beats .panel h3's 12px bottom margin */
+.conf-count { font-size: .86rem; font-weight: 400; color: var(--dim); }
+.conf-body { border-top: 1px solid var(--line-soft); }
+.conf-card.folded .conf-body { display: none; }
 .route-list { padding: 4px 20px; }
 .flow-tree, .flow-tree ul { list-style: none; margin: 0; padding: 0; }
 .flow-tree { margin-top: 10px; }
