@@ -1,6 +1,6 @@
 import { $, h, clear, api, ago, toast, fmtBytes, timePicker } from "./util.js";
 import { runAction, rebootServer } from "./actions.js";
-import { openUpdates } from "./releases.js";
+import { openUpdates, openOutput } from "./releases.js";
 
 // Maintenance: upkeep that's easy to forget. Each card says what it found, coloured
 // only when something needs a look, with its one button at the bottom right. The
@@ -71,6 +71,7 @@ function updates(m) {
   const u = m.updates;
   if (!u.available) return card(["System updates", u.os], [stat("Waiting", "Can't tell", "This server doesn't use apt")], "", null);
   const pk = u.packages || [];
+  const j = m.last && m.last.what === "Install updates" ? m.last : null;   // another job's output keeps its card at the page's foot
   const c = card(["System updates", u.os], [
     stat("Waiting", u.count ? `${u.count} update${u.count === 1 ? "" : "s"}` : "Up to date",
       (u.count ? (u.security ? `${u.security} for security` : "None for security") + (u.phased ? `, ${u.phased} phasing in` : "")
@@ -79,13 +80,17 @@ function updates(m) {
         + "so Install updates leaves them until its turn, usually within days." : null),
     stat("Restart", u.reboot ? "Needed" : "Not needed", u.reboot ? "To finish installing updates" : "", u.reboot ? "warn" : ""),
     stat("Checked", u.checked_at ? ago(u.checked_at) : "Unknown", "The package lists"),
-  ], "", button("maint.updates", u.count > 0),
+  ], lastLine(j), button("maint.updates", u.count > 0),
+  // The last install's output, in the same drawer
+  j ? h("button", { class: "btn small maint-list maint-out", type: "button", text: "Show output",
+    title: "What the last install printed", onclick: () => openOutput(j) }) : null,
   // What's waiting, by name, in a drawer: nothing is installed from it
   h("button", { class: "btn small maint-list", type: "button", text: "List updates", disabled: !pk.length,
     title: pk.length ? "Which packages are waiting, and their versions" : "Nothing is waiting", onclick: () => openUpdates(u) }),
   u.reboot ? h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer,
     disabled: !!(status && status.busy) || !!(last && last.last && last.last.running) }) : null);
   c.insertBefore(updPeek(u, pk), c.querySelector(".card-foot"));
+  if (j && !j.running && j.code !== 0) c.querySelector(".maint-foot > .dim").classList.add("warn");   // a failed install is seen without opening anything
   return c;
 }
 
@@ -322,9 +327,16 @@ function tzEditor(r, phone) {
 }
 
 // How the last job ended: it may have outlived a panel restart (Docker restarts it)
+// The updates card's quiet line: what the last install did, amber when it failed
+function lastLine(j) {
+  if (!j) return "";
+  const when = `${j.running ? "started " : ""}${ago(j.at)}`;
+  return j.running ? `Installing, ${when}` : j.code === 0 ? `Last install ${when}, finished` : `Last install ${when} failed`;
+}
+
 function lastRun(m) {
   const j = m.last;
-  if (!j) return null;
+  if (!j || j.what === "Install updates") return null;   // shown by the System updates card
   const state = j.running ? ["Running", ""] : j.code === 0 ? ["Finished", "ok"] : ["Failed", "bad"];
   // What ran and when, its state at the right like a card's, then a plain Show output toggle
   const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
