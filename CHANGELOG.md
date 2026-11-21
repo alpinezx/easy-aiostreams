@@ -9,7 +9,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 - Every page title is now the same size and sits at the same height, on a computer and on a phone, so the pages no longer jump when you switch between them. (Panel 1.63.0)
 - On Maintenance, the last Install updates result moved out of its own card into a "Show output" button beside List updates, which opens the output in a drawer. On a computer, Show output now sits left of List updates, so List updates is next to Install updates. (Panel 1.63.0)
 - On the VPN page, "Configs on this server" is now a card that folds to its title and the number of configs, folded until opened. (Panel 1.63.0)
-- On a computer too, every add-on card on the Add-ons page now starts folded to its name, memory use and status, as on a phone. Open one with its title, and it stays open. A warning such as a certificate close to expiry still shows while folded. (Panel 1.63.0)
+- On a computer too, every add-on card on the Add-ons page now starts folded to its name and status (and memory use), as on a phone, and a new install starts with all of them folded. Open one with its title, and it stays open. A warning such as a certificate close to expiry still shows while folded. (Panel 1.63.0)
 
 ## 20 November 2026
 
