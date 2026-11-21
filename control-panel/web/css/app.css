@@ -1950,15 +1950,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 @media (max-width: 720px) { .ao-note:empty { display: none; } }
 /* Each add-on folds to its title and status chip (see addons.js), on computers and phones; a value in amber or red stays.
    The memory figure stays on a computer, a phone has no room for it. */
-.ao-fold.folded .ao-foot:not(:has(.ao-page)), .ao-fold.folded .ao-btn-cell { display: none; }
-/* VPN and Phone alerts have a page of their own: Settings and Uninstall stay in reach folded.
-   Phones keep them on a row under the title; a computer puts them at the right of the title row. */
-@media (min-width: 721px) {
-  .ao-fold.folded:has(.ao-foot .ao-page) { display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 16px; }
-  .ao-fold.folded:has(.ao-foot .ao-page) > .ao-rows { grid-column: 1 / -1; grid-row: 2; }
-  .ao-fold.folded .ao-foot:has(.ao-page) { grid-column: 2; grid-row: 1; border: 0; padding: 0; margin: 0; gap: 8px; }
-  .ao-fold.folded .ao-foot .ao-page { margin: 0; }
-}
+.ao-fold.folded .ao-foot, .ao-fold.folded .ao-btn-cell { display: none !important; }   /* !important: beats the phone button grid's */
 .ao-fold.folded .ao-row:not(:has(.ao-val.warn, .ao-val.bad)) { display: none; }
 .ao-fold.folded .ao-rows:not(:has(.ao-val.warn, .ao-val.bad)) { display: none; }
 .ao-fold .card-head h3 { margin: 0; }
