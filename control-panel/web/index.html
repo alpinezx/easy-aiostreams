@@ -99,8 +99,8 @@
       </div>
       <div class="lg-acts">
         <button class="btn small icon-only" id="log-clear" type="button" title="Clear this log or all logs. Docker's own log files are kept." aria-label="Clear logs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg><span class="lg-word">Clear</span></button>
-        <button class="btn small" id="log-copy" type="button" title="Copy the lines shown"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>Copy</button>
-        <button class="btn small" id="log-download" type="button" title="Save the lines shown as a .log file"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>.log</button>
+        <button class="btn small" id="log-copy" type="button" title="Copy the lines shown" aria-label="Copy the lines shown"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg><span class="lg-word">Copy</span></button>
+        <button class="btn small" id="log-download" type="button" title="Save the lines shown as a .log file" aria-label="Save the lines shown as a .log file"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg><span class="lg-word">Save</span></button>
       </div>
     </div>
     <div class="lg-filters">
@@ -173,7 +173,25 @@
   </section>
 
   <section class="view" id="view-activity" aria-label="Activity" hidden>
-    <div class="view-head"><h2>Activity</h2><div class="act-filter" id="activity-filter" role="group" aria-label="Show" hidden></div><button class="btn small" id="clear-activity" type="button">Clear activity</button></div>
+    <div class="view-head"><h2>Activity</h2></div>
+    <div class="lg-filters">
+      <div class="lg-row">
+        <label class="lg-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="act-filter" type="search" placeholder="Filter activity" aria-label="Filter activity" spellcheck="false" autocomplete="off"></label>
+        <select class="input lg-svc" id="act-show" aria-label="Show" hidden>
+          <option value="all">All</option><option value="actions">Actions</option><option value="alerts">Alerts</option>
+        </select>
+      </div>
+      <div class="lg-row lg-row2">
+        <div class="lg-levels" id="act-states" role="group" aria-label="Show only these results">
+          <button type="button" data-st="ok" aria-pressed="false" title="Done, recovered, started and other notes">OK</button>
+          <button type="button" data-st="warn" aria-pressed="false" title="Failed checks">WARN</button>
+          <button type="button" data-st="bad" aria-pressed="false" title="Failed actions, alerts sent">ERROR</button>
+        </div>
+        <div class="lg-acts">
+          <button class="btn small icon-only" id="clear-activity" type="button" title="Clear the finished actions and phone alerts history" aria-label="Clear activity"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg><span class="lg-word">Clear</span></button>
+        </div>
+      </div>
+    </div>
     <div class="list" id="jobs"></div>
   </section>
 

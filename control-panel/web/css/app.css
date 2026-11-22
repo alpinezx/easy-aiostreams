@@ -1051,33 +1051,34 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .wd-opt:has(input:disabled) { cursor: default; }
 .wd-opt:has(input:disabled) .wd-opt-title { color: var(--dim); }
 .wd-activity-link { margin: 22px 0 0; font-size: .92rem; }
-/* Activity: the All / Actions / Alerts filter above the list, and an alert row that opens nothing */
-.view-head .act-filter { margin-left: auto; display: flex; gap: 10px; }
-.view-head .act-filter[hidden] { display: none; }
-.view-head .act-filter:not([hidden]) + .btn { margin-left: 0; }   /* the filter takes the push to the right; Clear activity sits beside it */
-/* Plain words like Network's time range: the one shown is bold, in the accent colour and underlined */
-#activity-filter .btn { display: inline-flex; align-items: center; margin-left: 0; width: auto; background: none; border-color: transparent;
-  box-shadow: none; padding: 4px 6px; min-height: 0; font-size: .86rem; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
-#activity-filter .btn[aria-pressed="true"] { color: var(--accent); font-weight: 700;
-  text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 6px; }
-@media (hover: hover) { #activity-filter .btn:hover:not([aria-pressed="true"]) { color: var(--text); } }
-/* Computer: level with Clear activity, on the title's baseline. Phones: a line of its own under the heading, at the right */
-@media (min-width: 721px) {
-  /* Computer: in the middle of the heading, like Network's time range, with Clear activity at the right */
-  .view-head:has(> .act-filter:not([hidden])) { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
-  .view-head:has(> .act-filter:not([hidden])) > .act-filter { grid-column: 2; margin: 0; justify-self: center; position: relative; top: 6px; }
-  .view-head:has(> .act-filter:not([hidden])) > #clear-activity { grid-column: 3; justify-self: end; }
-}
-@media (max-width: 720px) {
-  /* Phones, like Network's All traffic / VPN tunnel: on the heading's line at the right; Clear activity drops to the line below */
-  #view-activity .view-head > h2 { flex: 0 0 auto; }   /* not a line of its own: the filter shares it */
-  #view-activity .view-head { align-items: baseline; }   /* with or without the filter: Clear activity on the title's baseline */
-  .view-head .act-filter { order: 1; margin: 0 -3px 0 auto; gap: 4px; }
-  .view-head .act-filter:not([hidden]) + .btn { order: 2; margin-left: auto; }
-}
+/* Activity: an alert row opens nothing */
 .item.job.evt { cursor: default; }
 .item.job.evt:hover { background: none; }
 .item.job.evt > .job-open { font: inherit; color: inherit; }
+/* Activity as a log: status dot, how long ago, what happened, then the group (a phone puts the time and group on a second line) */
+#jobs .item.act-ln { display: flex; align-items: center; gap: 10px; padding: 9px 12px; font-family: var(--mono); font-size: .76rem; }
+#jobs .act-ln .act-sub { display: contents; }
+#jobs .act-ln .lg-dot { order: -3; }
+#jobs .act-ln .lg-time { font-size: inherit; white-space: nowrap; padding: 0; background: none; border-radius: 0; order: -2; }
+#jobs .act-ln .job-open { order: -1; flex: none; max-width: 100%; min-width: 0; font: inherit; color: inherit; cursor: inherit; }
+#jobs .act-ln .act-grp:empty { display: none; }
+#jobs .act-ln .what { font-weight: 400; }
+#jobs .act-ln .lg-dot.neutral { background: var(--faint); }
+#jobs .act-ln .lg-dot.run { background: var(--accent); }
+#jobs .act-ln .lg-dot.warn { background: var(--warn); }
+#jobs .act-ln .lg-dot.bad { background: var(--bad); }
+#jobs .act-ln.warn .what { color: var(--warn); }
+#jobs .act-ln.bad .what { color: var(--bad); }
+#jobs .item.job.act-ln > .btn.job-x { margin-left: auto; margin-top: 0; flex: none; align-self: center; order: 2; }
+/* Phones: the dot and what happened on the first line; under it, from the left edge, how long ago (accent colour) and the group */
+@media (max-width: 720px) {
+  #jobs .item.job.act-ln { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "d w x" "s s x";
+    column-gap: 0; row-gap: 3px; align-items: center; padding: 11px 12px; }
+  #jobs .item.job.act-ln > .lg-dot { grid-area: d; margin-right: 10px; }
+  #jobs .item.job.act-ln > .job-open { grid-area: w; }
+  #jobs .item.job.act-ln > .act-sub { grid-area: s; display: flex; gap: 10px; min-width: 0; }
+  #jobs .item.job.act-ln > .btn.job-x { grid-area: x; align-self: center; margin-top: 0; }
+}
 #dialog .wd-topic-err, .wd-topic-err { margin: -4px 0 0; color: var(--warn); font-size: .88rem; }
 .wd-topic-how { font-size: .88rem; margin: 0; }
 .wd-topic-input { display: flex; gap: 8px; }
@@ -1238,10 +1239,14 @@ a.md-link, .ln.job-before a, .rel-gh a, .drawer-foot a { text-decoration: none; 
 .lg-sub { margin: 4px 0 0; font-size: .86rem; color: var(--faint); }
 .lg-acts { margin-left: auto; display: flex; gap: 8px; }
 .lg-acts .btn { margin-left: 0; }
+/* download, copy, then clear last (the destructive one), on a computer and a phone */
+#view-logs #log-download { order: 1; }
+#view-logs #log-copy { order: 2; }
+#view-logs #log-clear { order: 3; }
 .lg-acts svg, .lg-more svg, .tr-bin svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .lg-more svg { fill: currentColor; stroke: none; }
 .btn.icon-only { padding: 5px 8px; }
-.lg-filters { display: grid; gap: 12px; margin-bottom: 12px; padding: 12px; background: var(--raised); border: 1px solid var(--card-edge); border-radius: var(--radius); }
+.lg-filters { --lg-svc-w: 200px; --lg-regex-w: 39px; display: grid; gap: 12px; margin-bottom: 12px; padding: 12px; background: var(--raised); border: 1px solid var(--card-edge); border-radius: var(--radius); }
 .lg-row { display: flex; gap: 10px; align-items: center; min-width: 0; }
 .lg-search { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 0 12px; background: var(--sunk); border: 1px solid var(--line); border-radius: 9px; }
 .lg-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
@@ -1250,10 +1255,10 @@ a.md-link, .ln.job-before a, .rel-gh a, .drawer-foot a { text-decoration: none; 
 .lg-search:has(input.bad) { border-color: var(--bad); }
 .lg-regex { font-family: var(--mono); padding: 7px 10px; }
 .lg-regex[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
-.lg-svc { width: 200px; flex: none; padding: 8px 10px; }
+.lg-svc { width: var(--lg-svc-w); flex: none; padding: 8px 10px; }
 /* The search box and the service list the same height, .* (and ⋮ on a phone) a square of it */
 .lg-search, .lg-filters .lg-row .lg-svc { height: 39px; }
-.lg-filters .lg-row .lg-regex, .lg-filters .lg-row .lg-more { width: 39px; height: 39px; padding: 0; justify-content: center; align-items: center; }
+.lg-filters .lg-row .lg-regex, .lg-filters .lg-row .lg-more { width: var(--lg-regex-w); height: 39px; padding: 0; justify-content: center; align-items: center; }
 .lg-more { display: none; }
 .lg-row2 { justify-content: space-between; flex-wrap: wrap; }
 .lg-levels { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -1278,8 +1283,11 @@ a.md-link, .ln.job-before a, .rel-gh a, .drawer-foot a { text-decoration: none; 
 @media (prefers-reduced-motion: reduce) { .sw i, .sw i::after { transition: none; } }
 /* the lines: a time pill, a level dot, then [module] message and its details */
 .lg-list { height: min(68vh, 720px); overflow: auto; background: var(--raised); border: 1px solid var(--card-edge); border-radius: var(--radius); font-family: var(--mono); font-size: .76rem; overscroll-behavior: contain; }
-.lg-ln { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-top: 1px solid var(--line-soft); white-space: nowrap; width: max-content; min-width: 100%; }
-.lg-ln:first-child { border-top: 0; }
+.lg-ln { display: flex; align-items: center; gap: 10px; padding: var(--lg-pad, 7px) 12px; border-bottom: 1px solid var(--line-soft); white-space: nowrap; width: max-content; min-width: 100%; }
+/* a line under each row, not above: scrolled to the newest line, a whole top row's own line sat on the box's edge and doubled it.
+   The last row keeps the same height with its line invisible, so snapRows' whole-row sums stay exact */
+.lg-ln:last-child { border-bottom-color: transparent; }
+#view-logs .lg-ln > .lg-time { padding: 0; background: none; border-radius: 0; }   /* Logs: the date and time as plain accent text, like Activity */
 .lg-ln:hover { background: var(--hover); }
 .lg-time { flex: none; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
 .lg-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
@@ -1300,16 +1308,21 @@ a.md-link, .ln.job-before a, .rel-gh a, .drawer-foot a { text-decoration: none; 
 @media (max-width: 720px) {
   .view-head.lg-head { flex-direction: column; gap: 10px; }
   .lg-acts { align-self: flex-end; margin-left: 0; }
-  /* Search and .* on one line, the service list and ⋮ under them: the two boxes the same width and
-     height, the two buttons the same square, in one column on the right */
-  .lg-row:first-child { display: grid; grid-template-columns: minmax(0, 1fr) 39px; gap: 10px; }
-  .lg-filters .lg-row .lg-svc { width: auto; }
+  /* Search, .*, the service list and ⋮ stay on one line (the three tools are on the level chips' row below) */
+  .lg-filters .lg-row .lg-svc { width: auto; flex: 0 1 auto; min-width: 0; max-width: 40%; }   /* a long service name gives way to the search box */
   .lg-more { display: inline-flex; }
+  .lg-filters .lg-row .lg-regex { display: none; }   /* a phone's search is plain text: the room goes to the search box */
   .lg-filters { position: relative; }
   /* Hide noise, Auto-scroll and Wrap open from the ⋮ button */
-  .lg-toggles { display: none; position: absolute; z-index: 15; right: 12px; top: 104px; flex-direction: column; align-items: stretch; gap: 18px; min-width: 220px; padding: 18px; background: var(--raised); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 14px 40px rgba(0, 0, 0, .4); }
+  .lg-toggles { display: none; position: absolute; z-index: 15; right: 12px; top: 60px; flex-direction: column; align-items: stretch; gap: 18px; min-width: 220px; padding: 18px; background: var(--raised); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 14px 40px rgba(0, 0, 0, .4); }
   .lg-toggles.open { display: flex; }
   .lg-toggles .sw { justify-content: space-between; }
+  /* .log and Copy (logs.js moves them in) as plain rows under the switches */
+  #view-logs .lg-toggles > .btn { display: flex; align-items: center; justify-content: flex-start; gap: 10px; width: auto; height: auto; min-height: 0; padding: 0;
+    background: none; border: 0; box-shadow: none; font-size: .9rem; font-weight: 600; color: var(--text); }
+  #view-logs .lg-toggles > .btn .lg-word { display: inline; }
+  #view-logs .lg-toggles > .btn svg { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  #view-logs .lg-toggles > .sw + .btn { margin-top: -4px; padding-top: 16px; border-top: 1px solid var(--line); border-radius: 0; }
   /* The box fills most of a phone's screen, so a finger is nearly always on it: at its end, let
      the swipe carry on to the page, or the box's own bottom can never be scrolled into view */
   .lg-list { height: 60vh; overscroll-behavior: auto; }
@@ -1458,10 +1471,10 @@ html.still *, html.still *::after { animation: none !important; transition: none
 .dialog .btns::before { content: ""; position: absolute; left: 0; right: 0; top: -18px; height: 18px; pointer-events: none;
   background: linear-gradient(to top, var(--raised), transparent); }
 /* Phones: a dialog with three buttons (such as the Network page's Clear traffic history with the VPN) doesn't
-   fit them on a line: Cancel across the top, the two choices side by side under it, the main one filled */
+   fit them on a line: the two choices side by side, the main one filled, Cancel under them as the longest button */
 @media (max-width: 720px) {
   .dialog .btns:has(> .btn:nth-child(3)) { display: grid; grid-template-columns: 1fr 1fr; }
-  .dialog .btns:has(> .btn:nth-child(3)) > .btn:first-child { grid-column: 1 / -1; }
+  .dialog .btns:has(> .btn:nth-child(3)) > .btn:first-child { grid-column: 1 / -1; order: 1; }
 }
 .dialog .check-list { margin: 0 0 4px; padding-left: 20px; font-size: .9rem; display: grid; gap: 4px; }
 .dialog > .check-list { margin-bottom: 18px; }
@@ -2314,25 +2327,19 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 .lg-word { display: none; }
 @media (min-width: 721px) {
   .lg-acts { gap: 10px; }
-  #view-logs .lg-acts .btn { display: inline-flex; align-items: center; gap: 6px; width: auto; background: none; border-color: transparent;
+  :is(#view-logs, #view-activity) .lg-acts .btn { display: inline-flex; align-items: center; gap: 6px; width: auto; background: none; border-color: transparent;
     box-shadow: none; padding: 4px 6px; min-height: 0; font-size: .86rem; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
-  /* level with the Logs title, and 3px in from the card's edge so the rounded corner doesn't make
-     them look past it (optical alignment) */
-  #view-logs .lg-acts { position: relative; top: 16px; }
-  #view-logs .lg-acts .btn:last-child { margin-right: -3px; }
+  /* in the filter card on the level buttons' row (logs.js puts them there): the switches (they change the view) then the tools
+     (they do something) at the right end, a thin rule between them centred under the .* button above. The row sits a little
+     lower, so the items line up with the foot of the rule, which hangs a few pixels higher. */
+  #view-logs .lg-row2 { margin-top: 6px; }
+  #view-logs .lg-row2 > .lg-toggles { margin-left: auto; }
+  #view-logs .lg-row2 > .lg-acts { position: relative; flex: none; align-self: center; justify-content: flex-end; gap: 6px; margin-left: 24px;
+    width: calc(var(--lg-svc-w) + 10px + var(--lg-regex-w) / 2); }   /* the rule lands under the middle of the .* button */
+  #view-logs .lg-row2 > .lg-acts::before { content: ""; position: absolute; left: 0; top: calc(50% - 17px); height: 25px; width: 1px; background: var(--line); }
   .lg-acts .lg-word { display: inline; }
   @media (hover: hover) {
-    #view-logs .lg-acts .btn:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
-  }
-}
-/* Activity on a computer: Clear activity is a side tool, plain icon and word like Logs' (it asks first),
-   3px in from the card's edge */
-@media (min-width: 721px) {
-  #view-activity #clear-activity { display: inline-flex; align-items: center; gap: 6px; background: none; border-color: transparent;
-    box-shadow: none; padding: 4px 6px; min-height: 0; margin-right: -3px; font-size: .86rem; font-weight: 600;
-    color: color-mix(in srgb, var(--dim) 50%, var(--text)); position: relative; top: 6px; }   /* on the title's baseline */
-  @media (hover: hover) {
-    #view-activity #clear-activity:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+    :is(#view-logs, #view-activity) .lg-acts .btn:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
   }
 }
 /* Network: the range or view shown is underlined as well as bolder and in the accent colour, so it
@@ -2459,12 +2466,19 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 /* Logs and Activity on phones: the heading tools plain like a computer's (the bin a bare icon, as on the
    Network page), the last ending on the cards' right-hand line */
 @media (max-width: 720px) {
-  #view-logs .lg-acts { gap: 18px; }
-  #view-logs .lg-acts .btn, #view-activity #clear-activity { display: inline-flex; align-items: center; gap: 6px; width: auto; height: auto;
+  :is(#view-logs, #view-activity) .lg-acts { gap: 18px; }
+  :is(#view-logs, #view-activity) .lg-acts .btn { display: inline-flex; align-items: center; gap: 6px; width: auto; height: auto;
     background: none; border-color: transparent; box-shadow: none; padding: 6px 0; min-height: 0; font-weight: 600;
     color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
-  #view-logs #log-clear svg { width: 17px; height: 17px; stroke-width: 2; }
-  #view-logs .lg-acts .btn:active, #view-activity #clear-activity:active { color: var(--text); }
+  /* the three tools, icons only, on the level chips' row of the filter card (logs.js moves them there): one size,
+     one line weight, download, copy, then the bin last. Each is a 36px target; the row keeps the chips' height
+     and the last icon ends on the card's text line like the ⋮ button above it */
+  :is(#view-logs, #view-activity) .lg-acts svg { width: 16px; height: 16px; stroke-width: 1.8; }
+  :is(#view-logs, #view-activity) .lg-row2 { flex-wrap: nowrap; align-items: center; gap: 5px; }
+  :is(#view-logs, #view-activity) .lg-row2 .lg-levels { flex-wrap: nowrap; flex: none; }
+  :is(#view-logs, #view-activity) .lg-row2 > .lg-acts { margin: -9px -10px -9px auto; gap: 6px; flex: none; align-items: center; align-self: center; }
+  :is(#view-logs, #view-activity) .lg-row2 .lg-acts .btn { width: 36px; height: 36px; padding: 0; justify-content: center; gap: 0; }
+  :is(#view-logs, #view-activity) .lg-acts .btn:active { color: var(--text); }
 }
 /* Backup & Restore on phones: an opened backup's Restore a full-width button, then its helpers as two
    lines of plain words on the card's edges */
@@ -2540,7 +2554,6 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
    doesn't make them look past it (optical alignment) */
 @media (max-width: 720px) {
   #view-logs .lg-acts, #view-vpn .vpn-acts, #view-alerts .vpn-acts, #view-scripts #scripts-acts { margin-right: 3px; }
-  #view-activity #clear-activity { margin-right: 3px; }
   /* Scripts' Check now is plain words now, so it sizes to its text and ends at the right like the others
      (it used to be a boxed button as wide as the cards' right-hand column) */
   #view-scripts #scripts-acts { width: auto; }

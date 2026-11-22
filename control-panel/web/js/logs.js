@@ -184,12 +184,27 @@ const visible = (l) => !hiddenByToggle(l) && matcher(l);
 const PHONE = window.matchMedia("(max-width: 720px)");
 function fitBox() {
   const t = $("#log-term");
-  if (!PHONE.matches || $("#view-logs").hidden) { t.style.height = ""; return; }
+  if (!PHONE.matches || $("#view-logs").hidden) { t.style.height = ""; snapRows(); return; }
   const screen = window.visualViewport ? window.visualViewport.height : window.innerHeight;
   const bar = $(".topbar").getBoundingClientRect().height;
   const above = t.getBoundingClientRect().top - $(".lg-filters").getBoundingClientRect().top;
   const below = parseFloat(getComputedStyle($("main")).paddingBottom) || 0;
   t.style.height = `${Math.max(240, Math.floor(screen - bar - 12 - above - below))}px`;
+  snapRows();
+}
+
+// Scrolled to the newest line, the box's height is rarely a whole number of rows, so the top row was cut by
+// the edge. Share the left-over height between the rows' padding (about a pixel each) so whole rows fit.
+// Not for Wrap, where rows differ in height.
+function snapRows() {
+  const t = $("#log-term"), keep = follow;
+  t.style.removeProperty("--lg-pad");
+  const rows = t.querySelectorAll(".lg-ln");
+  if (wrap || rows.length < 3 || !t.clientHeight) return;
+  const rowH = rows[1].getBoundingClientRect().height, n = Math.floor(t.clientHeight / rowH);
+  if (!(rowH > 0) || n < 1) return;
+  t.style.setProperty("--lg-pad", `${7 + (t.clientHeight - n * rowH) / (2 * n)}px`);
+  if (keep) t.scrollTop = t.scrollHeight;
 }
 
 function syncControls() {
@@ -202,7 +217,7 @@ function syncControls() {
   $("#log-noise").disabled = noiseChip();   // set aside while NOISE shows only the noise
   const n = hasNoise() ? lines.filter((l) => l.noise).length : 0;
   $("#log-noise-n").textContent = n ? `(${n})` : "";
-  document.querySelectorAll(".lg-levels button").forEach((b) => b.setAttribute("aria-pressed", String(levels.has(b.dataset.lv))));
+  document.querySelectorAll("#view-logs .lg-levels button").forEach((b) => b.setAttribute("aria-pressed", String(levels.has(b.dataset.lv))));
   fitBox();
 }
 
@@ -228,6 +243,7 @@ function paint() {
     : "No lines match the current filters.";
   if (!shown.length) term.append(h("div", { class: "term-empty", text: msg }));
   else term.append(...shown.map(node));
+  snapRows();
   if (follow) term.scrollTop = term.scrollHeight;
 }
 
@@ -274,6 +290,7 @@ function connect() {
       if (term.querySelector(".term-empty")) clear(term);
       term.append(node(l));
       while (term.childElementCount > MAX) term.firstChild.remove();
+      if (!term.style.getPropertyValue("--lg-pad")) snapRows();   // the first lines arrive after paint: size the rows once
       if (follow) term.scrollTop = term.scrollHeight;
     }
   };
@@ -311,7 +328,7 @@ export function init() {
     setMatcher(); paint();
   });
   $("#log-svc").addEventListener("change", (e) => { current = e.target.value; connect(); });
-  document.querySelectorAll(".lg-levels button").forEach((b) => b.addEventListener("click", () => {
+  document.querySelectorAll("#view-logs .lg-levels button").forEach((b) => b.addEventListener("click", () => {
     const lv = b.dataset.lv;
     if (levels.has(lv)) levels.delete(lv); else levels.add(lv);
     save("aios.logLevels", JSON.stringify([...levels]));
@@ -327,7 +344,23 @@ export function init() {
   });
   window.addEventListener("resize", fitBox);
   if (window.visualViewport) window.visualViewport.addEventListener("resize", fitBox);
-  PHONE.addEventListener("change", fitBox);
+  // Clear, Copy and .log sit on the level buttons' row of the filter card, which they act on: icons only on a phone,
+  // beside the switches (after the rule that tells them apart) on a computer
+  const acts = $("#view-logs .lg-acts");
+  // On a phone only the bin stays in the row: .log and Copy go into the ⋮ menu (a big text size leaves room for one icon),
+  // and the regex switch is dropped (it is switched off if it was on)
+  const copyB = $("#log-copy"), dlB = $("#log-download"), dlWord = dlB.querySelector(".lg-word");
+  const placeActs = () => {
+    if (PHONE.matches) {
+      $(".lg-row2").append(acts); $("#log-toggles").append(dlB, copyB); dlWord.textContent = "Save as .log";
+      if (regex) $("#log-regex").click();
+    } else {
+      $("#log-toggles").after(acts); acts.prepend(dlB, copyB); dlWord.textContent = "Save";
+    }
+    fitBox();
+  };
+  PHONE.addEventListener("change", placeActs);
+  placeActs();
   document.querySelectorAll("#view-logs details.log-help").forEach((d) => d.addEventListener("toggle", fitBox));
   // Phones: Hide noise, Auto-scroll and Wrap sit behind the ⋮ button
   const more = $("#log-more"), tog = $("#log-toggles");
@@ -335,6 +368,7 @@ export function init() {
   more.addEventListener("click", (e) => { e.stopPropagation(); openMore(!tog.classList.contains("open")); });
   document.addEventListener("click", (e) => { if (!tog.contains(e.target) && !more.contains(e.target)) openMore(false); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") openMore(false); });
+  tog.addEventListener("click", (e) => { if (e.target.closest(".btn")) openMore(false); });   // Copy and .log close the menu
   // The bin asks first: this log, or every service's at once
   $("#log-clear").addEventListener("click", async () => {
     if (!current) return;

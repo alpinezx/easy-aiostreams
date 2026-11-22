@@ -22,6 +22,10 @@ const BIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v
 // All, Actions (what you started) or Alerts (what the watchdog noticed). Only shown with phone alerts set up.
 let filter = "all";
 try { filter = localStorage.getItem("aios.activityFilter") || "all"; } catch (_) {}
+// The filter card above the list: free text, and the OK / WARN / ERROR chips (none pressed shows everything)
+let query = "";
+const states = new Set();
+let wired = false;
 
 const binButton = (title, label, disabled, onclick) => {
   const x = h("button", { class: "btn small quiet job-x", type: "button", title, "aria-label": label, disabled, onclick });
@@ -29,7 +33,9 @@ const binButton = (title, label, disabled, onclick) => {
   return x;
 };
 
+let lastStatus = null;
 export async function showActivity(status) {
+  lastStatus = status;
   const box = $("#jobs"); clear(box);
   const alertsOn = !!(status && status.watchdog && status.watchdog.configured);
   if (!alertsOn) filter = "all";
@@ -37,19 +43,28 @@ export async function showActivity(status) {
     api("/api/jobs"),
     alertsOn ? api("/api/watchdog").then((w) => w.events || [], () => []) : [],
   ]);
+  clear(box);   // only now, so typing in the filter doesn't blink the list
   const showJobs = filter !== "alerts", showEvents = alertsOn && filter !== "actions";
 
-  const bar = $("#activity-filter");
-  bar.hidden = !alertsOn;
-  clear(bar);
-  if (alertsOn) {
-    for (const [id, text] of [["all", "All"], ["actions", "Actions"], ["alerts", "Alerts"]]) {
-      bar.append(h("button", { class: "btn small", type: "button", text, "aria-pressed": String(filter === id),
-        onclick: () => {
-          filter = id;
-          try { localStorage.setItem("aios.activityFilter", id); } catch (_) {}
-          showActivity(status).catch(() => {});
-        } }));
+  const show = $("#act-show");
+  show.hidden = !alertsOn;
+  show.value = filter;
+  if (!wired) {
+    wired = true;
+    const again = () => showActivity(lastStatus).catch(() => {});
+    show.addEventListener("change", () => {
+      filter = show.value;
+      try { localStorage.setItem("aios.activityFilter", filter); } catch (_) {}
+      again();
+    });
+    $("#act-filter").addEventListener("input", (e) => { query = e.target.value.trim().toLowerCase(); again(); });
+    for (const b of $("#act-states").querySelectorAll("button")) {
+      b.addEventListener("click", () => {
+        const on = b.getAttribute("aria-pressed") !== "true";
+        b.setAttribute("aria-pressed", String(on));
+        if (on) states.add(b.dataset.st); else states.delete(b.dataset.st);
+        again();
+      });
     }
   }
 
@@ -74,24 +89,42 @@ export async function showActivity(status) {
   if (showJobs) for (const j of jobs) rows.push({ at: j.started, job: j });
   if (showEvents) for (const e of events) rows.push({ at: e.at, event: e });
   rows.sort((a, b) => b.at - a.at);
+  const tone = (r) => r.event ? (ALERT_KIND[r.event.kind] || ["", ""])[1] : !r.job.ended ? "run" : r.job.code === 0 ? "ok" : "bad";
+  // OK holds everything that went fine or is just a note (Started, Test alert, Running), like INFO in Logs
+  const group = (r) => { const t = tone(r); return t === "warn" || t === "bad" ? t : "ok"; };
+  const words = (r) => r.event ? `${r.event.text} phone alerts ${(ALERT_KIND[r.event.kind] || [r.event.kind])[0]}`
+    : `${r.job.label} ${actionGroup(r.job.action)} ${tone(r) === "ok" ? "done" : tone(r) === "bad" ? "failed" : "running"}`;
+  const total = rows.length;
+  for (let k = rows.length - 1; k >= 0; k--) {
+    if ((states.size && !states.has(group(rows[k]))) || (query && !words(rows[k]).toLowerCase().includes(query))) rows.splice(k, 1);
+  }
 
   if (!rows.length) {
-    const text = filter === "alerts" ? "No phone alerts events yet. Failed checks, alerts and recoveries show here."
+    const text = total ? "Nothing matches that filter." : filter === "alerts" ? "No phone alerts events yet. Failed checks, alerts and recoveries show here."
       : filter === "actions" || !alertsOn ? "Nothing has run from here yet. Actions you start on the Overview page show up in this list."
         : "Nothing yet. Actions you start and phone alerts events show up in this list.";
     box.append(h("p", { class: "empty", style: null, text }));
     box.lastChild.style.padding = "18px 16px";
     return;
   }
+  // A log line: when (a pill, like Logs), a dot for how it went, then what happened. Done and Recovered are a
+  // plain green dot; anything else also says its word, so the colour never carries it alone.
+  const line = (at, tone, word, open, group, extra) => {
+    const dot = h("span", { class: "lg-dot " + (tone || "neutral"), role: "img", "aria-label": word, title: word });
+    return h("div", { class: "item job act-ln" + (tone === "warn" || tone === "bad" ? " " + tone : "") + extra },
+      dot, open,
+      // desktop: time, then name, then group (display: contents + order); a phone: line two, time then group
+      h("span", { class: "act-sub" },
+        h("span", { class: "lg-time", title: new Date(at * 1000).toLocaleString(), text: ago(at) }),
+        h("span", { class: "act-grp dim", text: group })));
+  };
   for (const { job: j, event: e } of rows) {
     if (e) {
       // An alert: nothing to open, so the row isn't a button
       const [name, cls] = ALERT_KIND[e.kind] || [e.kind, ""];
-      const row = h("div", { class: "item job evt" },
-        h("span", { class: "job-open" },
-          h("span", { class: "what", text: e.text }), " ", h("span", { class: "dim", text: "Phone alerts" })),
-        h("span", { class: "when", title: new Date(e.at * 1000).toLocaleString(), text: ago(e.at) }),
-        h("span", { class: "chip" + (cls ? " " + cls : ""), text: name }));
+      const row = line(e.at, cls, name,
+        h("span", { class: "job-open" }, h("span", { class: "what", text: e.text })),
+        "Phone alerts" + (cls === "ok" ? "" : ` · ${name}`), " evt");
       row.append(binButton("Remove from Activity", `Remove "${e.text}" from Activity`, false, async () => {
         try { await api("/api/watchdog/events/remove", { method: "POST", body: JSON.stringify({ at: e.at, kind: e.kind, text: e.text }) }); }
         catch (err) { toast(err.message || "Couldn't remove it.", true); }
@@ -100,13 +133,13 @@ export async function showActivity(status) {
       box.append(row);
       continue;
     }
-    const state = !j.ended ? ["Running", ""] : j.code === 0 ? ["Done", "ok"] : ["Failed", "bad"];
+    const state = !j.ended ? ["Running", "run"] : j.code === 0 ? ["Done", "ok"] : ["Failed", "bad"];
     // The whole row opens the output; the label is the button, so the keyboard reaches it too.
-    const row = h("div", { class: "item job", onclick: (ev) => { if (!ev.target.closest(".job-x")) openJob(j.id); } },
-      h("button", { class: "job-open", type: "button" },
-        h("span", { class: "what", text: j.label }), " ", h("span", { class: "dim", text: actionGroup(j.action) })),
-      h("span", { class: "when", text: ago(j.started) }),
-      h("span", { class: `chip ${state[1]}`, text: state[0] }));
+    const grp = actionGroup(j.action);
+    const row = line(j.started, state[1], state[0],
+      h("button", { class: "job-open", type: "button" }, h("span", { class: "what", text: j.label })),
+      [grp, state[1] === "ok" ? "" : state[0]].filter(Boolean).join(" · "), "");
+    row.addEventListener("click", (ev) => { if (!ev.target.closest(".job-x")) openJob(j.id); });
     row.append(binButton("Remove from Activity", `Remove ${j.label} from Activity`, !j.ended, async () => {
       try { await api(`/api/jobs/${j.id}`, { method: "DELETE" }); }
       catch (err) { toast(err.message || "Couldn't remove it.", true); }
