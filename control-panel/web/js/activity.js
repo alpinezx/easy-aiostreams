@@ -470,9 +470,11 @@ async function showSchedule() {
     title,
     h("div", { class: "rs-block" },
       h("div", { class: "rs-line" }, h("span", { class: "ver-label", text: "Schedule" }), h("span", { class: "rs-word " + word[1], text: word[0] })),
-      ...(phone ? [row, tz, setBtn] : [h("div", { class: "rs-ctl" }, row, setBtn), tz])),
+      ...(phone ? [row, tz, setBtn] : [h("div", { class: "rs-ctl" }, row), tz])),
     // native append writes a null out as the word "null", so the last-run line only when there is one
-    ...(last ? [last] : []), keep);
+    ...(last ? [last] : []),
+    // Desktop: Set schedule in the card's bottom right corner, beside the note
+    ...(phone ? [keep] : [h("div", { class: "bk-foot" }, keep, setBtn)]));
 }
 
 // Old installs a restore moved aside. Only shown when there are some.

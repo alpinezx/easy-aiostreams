@@ -59,12 +59,14 @@ function space(m) {
   const s = m.space;
   const total = s.images + s.build + s.journal;
   const worth = total > 20 * 1024 * 1024;
-  return phoneFold(card("Free up space", [
+  const el = card("Free up space", [
     stat("Old images", fmtBytes(s.images), s.image_count ? `${s.image_count} nothing uses any more` : "None left over"),
     stat("Build leftovers", fmtBytes(s.build), "Panel rebuilds"),
     stat("System logs", fmtBytes(s.journal), "Over the 100 MB kept"),
   ], worth ? [`About ${fmtBytes(total)} can go.`, "Settings, backups and what's in use stay."] : "Nothing worth freeing right now.",
-  button("maint.space", worth)), "space", "Free up space", worth ? [fmtBytes(total), ""] : ["Nothing to clear", "dim"]);
+  button("maint.space", worth));
+  el.classList.add("fs-spread");   // desktop: three figures spread across the card, the last at its right edge
+  return phoneFold(el, "space", "Free up space", worth ? [fmtBytes(total), ""] : ["Nothing to clear", "dim"]);
 }
 
 function updates(m) {
@@ -89,6 +91,7 @@ function updates(m) {
     title: pk.length ? "Which packages are waiting, and their versions" : "Nothing is waiting", onclick: () => openUpdates(u) }),
   u.reboot ? h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer,
     disabled: !!(status && status.busy) || !!(last && last.last && last.last.running) }) : null);
+  c.classList.add("fs-spread");   // desktop: the three figures spread across the card, Checked at its right edge
   c.insertBefore(updPeek(u, pk), c.querySelector(".card-foot"));
   if (j && !j.running && j.code !== 0) c.querySelector(".maint-foot > .dim").classList.add("warn");   // a failed install is seen without opening anything
   return c;
@@ -145,10 +148,12 @@ function updPeek(u, pk) {
 function logs(m) {
   const l = m.logs;
   const sub = !l.limited ? "They can grow without limit" : l.pending ? "Some containers take it when next recreated" : "10 MB per container";
-  return phoneFold(card("Container logs", [
+  const el = card("Container logs", [
     stat("Size limit", l.limited ? "Set" : "Not set", sub, l.limited ? "ok" : "warn"),
     stat("Using now", fmtBytes(l.size), "All containers together"),
-  ], l.limited ? "" : "Setting it restarts every container once: a few seconds of downtime.", l.limited ? null : button("maint.logs", true)),
+  ], l.limited ? "" : "Setting it restarts every container once: a few seconds of downtime.", l.limited ? null : button("maint.logs", true));
+  el.classList.add("lg-right");   // desktop: Using now sits at the card's right edge
+  return phoneFold(el,
   "logs", "Container logs", l.limited ? ["Limit set", "ok"] : ["Not set", "warn"]);
 }
 
