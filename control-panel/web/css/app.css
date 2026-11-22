@@ -2100,18 +2100,13 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 .upd-peek .upd-ver { font-size: .82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .upd-peek .upd-more { margin-top: 10px; font-size: .84rem; }
 .upd-peek.empty p { margin: 0; font-size: .88rem; }
-.upd-tog-row { display: none; }
+/* The heading line (and, on a phone, the whole preview) is a button that opens the full list in the drawer */
+.upd-peek .upd-peek-head { margin: 0 0 8px; font-size: .86rem; color: var(--dim); }
+.upd-peek .upd-peek-head .path-toggle { margin: -6px -8px; }
 @media (max-width: 720px) {
   .upd-peek.empty { display: none; }
-  .upd-tog-row { display: block; }
-  .upd-peek.folded > :not(.upd-tog-row) { display: none; }
-  .upd-peek .upd-tog-row + * { margin-top: 12px; }
-  .upd-peek.folded { padding-bottom: 0; }
-  .upd-peek .upd-peek-head { display: none; }
-  .upd-peek-grid { grid-template-columns: minmax(0, 1fr) max-content; grid-auto-rows: auto; gap: 0 14px; }
-  .upd-peek .upd-ver { grid-column: 1 / -1; margin-bottom: 10px; white-space: normal; overflow-wrap: anywhere; }
+  .upd-peek-row { padding: 10px 0 2px; }
 }
-.upd-peek .upd-peek-head { margin: 0 0 8px; font-size: .86rem; }
 .upd-done { padding: 4px 18px; }
 @media (max-width: 720px) {
   /* Room for a thumb on each */

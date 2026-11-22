@@ -105,7 +105,7 @@ function updates(m) {
   return c;
 }
 
-// The card's spare room on a desktop (a phone's card is long enough already): the first few waiting
+// The card's spare room on a desktop (a phone's card is long enough already, so it only gets the drawer's line): the first few waiting
 // updates, as List updates shows them, or with nothing waiting, what the last install brought.
 const PEEK = 4;
 function peekRows(list) {
@@ -114,43 +114,35 @@ function peekRows(list) {
     h("span", {}, p.security ? h("span", { class: "chip warn small-chip", text: "Security" }) : null),
     h("span", { class: "upd-ver mono dim", title: `${p.from} → ${p.to}`, text: `${p.from} → ${p.to}` })]));
 }
-// Phones: the same list folds under a line of its own, folded until opened, remembered per browser
-function peekFold(box, label) {
-  if (!PHONE_Q.matches) return box;
-  let open = false;
-  try { open = localStorage.getItem("aios.updPeekOpen") === "1"; } catch (_) {}
-  box.classList.add("mfold-peek");
-  box.classList.toggle("folded", !open);
+// The line that opens the full list in a drawer, as Show output does: a button with a right chevron. On a phone
+// it is all there is (the rows would take half the screen); on a desktop it heads the preview.
+function peekOpen(label, open) {
   const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
-  chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
-  const tog = h("button", { class: "path-toggle fold-toggle upd-tog", type: "button", "aria-expanded": String(open), onclick: () => {
-    open = !open;
-    try { localStorage.setItem("aios.updPeekOpen", open ? "1" : "0"); } catch (_) {}
-    box.classList.toggle("folded", !open);
-    tog.setAttribute("aria-expanded", String(open));
-  } }, label, chev);
-  box.prepend(h("div", { class: "upd-tog-row" }, tog));
-  return box;
+  chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>';
+  return h("button", { class: "path-toggle upd-tog", type: "button", onclick: open }, label, chev);
 }
 function updPeek(u, pk) {
   const now = pk.filter((p) => !p.phased);
   if (now.length) {
     const hidden = Math.max(0, now.length - PEEK);
     const bits = [hidden ? `${hidden} more waiting` : "", u.phased ? `${u.phased} phasing in` : ""].filter(Boolean).join(", ");
-    return peekFold(h("div", { class: "upd-peek" }, peekRows(now),
-      bits ? h("button", { class: "linkish upd-more", type: "button", text: bits, onclick: () => openUpdates(u) }) : null),
-      "What's waiting");
+    const open = () => openUpdates(u);
+    if (PHONE_Q.matches) return h("div", { class: "upd-peek upd-peek-row" }, peekOpen("What's waiting", open));
+    return h("div", { class: "upd-peek" },
+      h("p", { class: "upd-peek-head" }, peekOpen("What's waiting", open)), peekRows(now),
+      bits ? h("button", { class: "linkish upd-more", type: "button", text: bits, onclick: open }) : null);
   }
   const done = u.installed;
   const phasing = u.phased ? ` ${u.phased} more ${u.phased === 1 ? "is" : "are"} phasing in.` : "";
   if (!done || !done.packages.length) return h("div", { class: "upd-peek empty" }, h("p", { class: "dim", text: `Nothing waiting.${phasing}` }));
   const more = done.count - PEEK;
   const when = `${done.at ? ` ${ago(done.at)}` : ""}${done.auto ? ", by Ubuntu's automatic updates" : ""}`;
-  return peekFold(h("div", { class: "upd-peek" },
-    h("p", { class: "dim upd-peek-head", text: `Up to date.${phasing} Last installed${when}:` }),
+  const open = () => openUpdates(u, true);
+  if (PHONE_Q.matches) return h("div", { class: "upd-peek upd-peek-row" }, peekOpen("Last installed" + (done.at ? ` ${ago(done.at)}` : ""), open));
+  return h("div", { class: "upd-peek" },
+    h("p", { class: "upd-peek-head" }, peekOpen(`Up to date.${phasing} Last installed${when}:`, open)),
     peekRows(done.packages),
-    more > 0 ? h("button", { class: "linkish upd-more", type: "button", text: `${more} more installed`, onclick: () => openUpdates(u, true) }) : null),
-    "Last installed" + (done.at ? ` ${ago(done.at)}` : ""));
+    more > 0 ? h("button", { class: "linkish upd-more", type: "button", text: `${more} more installed`, onclick: open }) : null);
 }
 
 function logs(m) {
