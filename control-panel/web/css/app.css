@@ -2043,7 +2043,6 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 .upd-list li { display: block; margin: 0; padding: 9px 16px; border-top: 1px solid var(--line-soft); }
 .upd-list .upd-name { display: block; font-weight: 600; overflow-wrap: anywhere; }
 .upd-list .upd-ver { display: block; margin-top: 2px; font-size: .82rem; overflow-wrap: anywhere; }
-.upd-list.upd-done li:first-child { border-top: 0; }
 .rel-body:has(> .upd-list:last-child) { padding-bottom: 4px; }
 .rel-tag.sec { color: var(--warn); }
 .upd-note { margin: 0 0 6px; font-size: .86rem; }
@@ -2122,7 +2121,6 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   .upd-peek.empty { display: none; }
   .upd-peek-row { padding: 10px 0 2px; }
 }
-.upd-done { padding: 4px 18px; }
 @media (max-width: 720px) {
   /* Room for a thumb on each */
   .hero-btns .btn.small { padding: 8px 10px; }
