@@ -561,8 +561,8 @@ async def backups(user: str = Depends(current_user)):
 # Which Overview cards show, and in what order; and the same for the rail's pages (Overview
 # always first, so not among them). One layout each for the install, kept with the panel's
 # state (so phone and desktop match, and a restore brings it back).
-# The default order: the request flow, AIOStreams, This server, the add-ons' cards, then the services
-OVERVIEW_CARDS = ["flow", "warn", "aiostreams", "server", "aiometadata", "aiomanager", "mediaflow", "vpn", "alerts", "services"]
+# The default order: the request flow, This server, AIOStreams, the add-ons' cards, then the services
+OVERVIEW_CARDS = ["flow", "warn", "server", "aiostreams", "aiometadata", "aiomanager", "mediaflow", "vpn", "alerts", "services"]
 # The rail's default: everyday pages, upkeep, Add-ons with each add-on's own page under it, then tools
 RAIL_PAGES = ["logs", "activity", "net", "backups", "maint", "addons", "vpn", "alerts", "scripts"]
 LAYOUTS = {"overview": (OVERVIEW_CARDS, "overview-layout.json"), "rail": (RAIL_PAGES, "rail-layout.json")}
