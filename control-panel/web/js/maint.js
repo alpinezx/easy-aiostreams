@@ -145,9 +145,9 @@ function updPeek(u, pk) {
   const more = done.count - PEEK;
   const when = `${done.at ? ` ${ago(done.at)}` : ""}${done.auto ? ", by Ubuntu's automatic updates" : ""}`;
   const open = () => openUpdates(u, true);
-  if (PHONE_Q.matches) return h("div", { class: "upd-peek upd-peek-row" }, peekOpen("What was installed" + (done.at ? ` ${ago(done.at)}` : ""), open));
+  if (PHONE_Q.matches) return h("div", { class: "upd-peek upd-peek-row" }, peekOpen("Show last update" + (done.at ? ` ${ago(done.at)}` : ""), open));
   return h("div", { class: "upd-peek" },
-    h("p", { class: "upd-peek-head" }, peekOpen(`What was installed${when}`, open), phasing ? h("span", { class: "dim", text: phasing }) : null),
+    h("p", { class: "upd-peek-head" }, peekOpen(`Show last update${when}`, open), phasing ? h("span", { class: "dim", text: phasing }) : null),
     peekRows(done.packages),
     more > 0 ? h("button", { class: "linkish upd-more", type: "button", text: `${more} more installed`, onclick: open }) : null);
 }
