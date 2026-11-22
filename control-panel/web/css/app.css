@@ -2155,6 +2155,8 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 @media (min-width: 721px) {
   .rs-desk .stat-grid > .stat:last-child, .lg-right .stat-grid > .stat:last-child { text-align: right; }
   .lg-right .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fs-spread .stat-grid > .stat:nth-child(2) { text-align: center; }
+  .fs-spread .stat-grid > .stat:last-child { text-align: right; }
 }
 /* Desktop: each row's button says what it sets, and they share one width so they line up */
 .rs-desk .rs-ctl > .btn { min-width: 9.5em; }

@@ -59,12 +59,14 @@ function space(m) {
   const s = m.space;
   const total = s.images + s.build + s.journal;
   const worth = total > 20 * 1024 * 1024;
-  return phoneFold(card("Free up space", [
+  const el = card("Free up space", [
     stat("Old images", fmtBytes(s.images), s.image_count ? `${s.image_count} nothing uses any more` : "None left over"),
     stat("Build leftovers", fmtBytes(s.build), "Panel rebuilds"),
     stat("System logs", fmtBytes(s.journal), "Over the 100 MB kept"),
   ], worth ? [`About ${fmtBytes(total)} can go.`, "Settings, backups and what's in use stay."] : "Nothing worth freeing right now.",
-  button("maint.space", worth)), "space", "Free up space", worth ? [fmtBytes(total), ""] : ["Nothing to clear", "dim"]);
+  button("maint.space", worth));
+  el.classList.add("fs-spread");   // desktop: three figures spread across the card, the last at its right edge
+  return phoneFold(el, "space", "Free up space", worth ? [fmtBytes(total), ""] : ["Nothing to clear", "dim"]);
 }
 
 function updates(m) {
