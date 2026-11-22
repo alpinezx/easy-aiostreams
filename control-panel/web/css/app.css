@@ -2037,10 +2037,15 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 .maint-card .card-head .card-corner { margin-left: auto; font-size: .9rem; }
 /* List updates: each package's name, then its versions under it, both on the left */
 .upd-list { list-style: none; margin: 0; padding: 0; }
-.upd-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 7px 0; border-top: 1px solid var(--line-soft); }
-.upd-list li:first-child { border-top: 0; }
-.upd-name { font-weight: 600; }
-.upd-ver { flex-basis: 100%; font-size: .82rem; overflow-wrap: anywhere; }
+/* The drawer's rows: the name, then its version, flush left; a line above each that runs the full width of the card.
+   Security updates are a section of their own, so no tag is needed on a row. */
+.rel-body .upd-list { list-style: none; margin: 0 -16px; padding: 0; }
+.upd-list li { display: block; margin: 0; padding: 9px 16px; border-top: 1px solid var(--line-soft); }
+.upd-list .upd-name { display: block; font-weight: 600; overflow-wrap: anywhere; }
+.upd-list .upd-ver { display: block; margin-top: 2px; font-size: .82rem; overflow-wrap: anywhere; }
+.upd-list.upd-done li:first-child { border-top: 0; }
+.rel-body:has(> .upd-list:last-child) { padding-bottom: 4px; }
+.rel-tag.sec { color: var(--warn); }
 .upd-note { margin: 0 0 6px; font-size: .86rem; }
 @media (max-width: 720px) {
   /* Two buttons on a Maintenance card (Install updates, List updates) share the row on a phone */
@@ -2096,8 +2101,11 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 }
 /* System updates on a desktop: the first few waiting, under the values */
 .upd-peek { border-top: 1px solid var(--line-soft); margin-top: 4px; padding: 12px 0 4px; }
-.upd-peek-grid { display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content; grid-auto-rows: 26px; align-items: center; gap: 4px 14px; }
+.upd-peek-grid { display: grid; grid-template-columns: max-content minmax(0, 1fr); grid-auto-rows: 26px; align-items: center; gap: 4px 14px; }
 .upd-peek .upd-name { font-weight: 600; }
+.upd-peek .upd-peek-label { grid-column: 1 / -1; align-self: end; }
+.upd-peek .upd-peek-label:not(:first-child) { margin-top: 6px; }
+.upd-peek .upd-peek-label.sec { color: var(--warn); }
 .upd-peek .upd-ver { font-size: .82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .upd-peek .upd-more { margin-top: 10px; font-size: .84rem; }
 .upd-peek.empty p { margin: 0; font-size: .88rem; }

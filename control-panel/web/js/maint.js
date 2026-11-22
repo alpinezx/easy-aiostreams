@@ -109,11 +109,17 @@ function updates(m) {
 // updates, as List updates shows them, or with nothing waiting, what the last install brought.
 const PEEK = 4;
 function peekRows(list) {
-  return h("div", { class: "upd-peek-grid" }, ...list.slice(0, PEEK).flatMap((p) => [
+  const shown = list.slice(0, PEEK);
+  const sec = shown.filter((p) => p.security), rest = shown.filter((p) => !p.security);
+  const row = (p) => [
     h("span", { class: "upd-name mono", text: p.name }),
-    h("span", { class: "upd-ver mono dim", title: `${p.from} → ${p.to}`, text: `${p.from} → ${p.to}` }),
-    // Last, at the card's right edge, so a row without one has no gap left where its chip would be
-    h("span", { class: "upd-flag" }, p.security ? h("span", { class: "chip warn small-chip", text: "Security" }) : null)]));
+    h("span", { class: "upd-ver mono dim", title: `${p.from} → ${p.to}`, text: `${p.from} → ${p.to}` })];
+  // Security updates under a label of their own (and the others under "Other" when both are shown), as in the drawer,
+  // so a row needs no tag
+  const label = (text, kind) => h("div", { class: "ver-label upd-peek-label" + (kind ? ` ${kind}` : ""), text });
+  return h("div", { class: "upd-peek-grid" },
+    ...(sec.length ? [label("Security", "sec")] : []), ...sec.flatMap(row),
+    ...(sec.length && rest.length ? [label("Other")] : []), ...rest.flatMap(row));
 }
 // The line that opens the full list in a drawer, as Show output does: a button with a right chevron. On a phone
 // it is all there is (the rows would take half the screen); on a desktop it heads the preview.
