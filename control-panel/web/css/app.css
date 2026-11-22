@@ -1074,9 +1074,9 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 @media (max-width: 720px) {
   #jobs .item.job.act-ln { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "d w x" "s s x";
     column-gap: 0; row-gap: 3px; align-items: center; padding: 11px 12px; }
-  #jobs .item.job.act-ln > .lg-dot { grid-area: d; margin-right: 10px; }
+  #jobs .item.job.act-ln > .lg-dot { grid-area: d; margin-right: 10px; align-self: start; margin-top: 5px; margin-top: calc((1lh - 8px) / 2); }   /* level with the first line when a long text wraps */
   #jobs .item.job.act-ln > .job-open { grid-area: w; }
-  #jobs .item.job.act-ln > .act-sub { grid-area: s; display: flex; gap: 10px; min-width: 0; }
+  #jobs .item.job.act-ln > .act-sub { grid-area: s; display: flex; flex-wrap: wrap; gap: 2px 10px; min-width: 0; }   /* a long group drops under the time instead of wrapping beside it */
   #jobs .item.job.act-ln > .btn.job-x { grid-area: x; align-self: center; margin-top: 0; }
 }
 #dialog .wd-topic-err, .wd-topic-err { margin: -4px 0 0; color: var(--warn); font-size: .88rem; }
