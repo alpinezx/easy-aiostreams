@@ -2597,7 +2597,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
     padding-left: 0; padding-right: 0; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
   #view-maint .btn.maint-list:active { color: var(--text); }
   /* with Show output: it on the left line, List updates ending on the right one, under Install updates */
-  #view-maint .btn-grid > .maint-list[data-ord="2"] { justify-self: end; }
+  #view-maint .btn-grid > .maint-list[data-act="List updates"] { justify-self: end; }
 }
 /* the drawer's output of the last install, and the small state chip above it */
 .out-state { margin: 0 0 10px; }
