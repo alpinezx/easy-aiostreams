@@ -1060,8 +1060,13 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 #jobs .act-ln .act-sub { display: contents; }
 #jobs .act-ln .lg-dot { order: -3; }
 #jobs .act-ln .lg-time { font-size: inherit; white-space: nowrap; padding: 0; background: none; border-radius: 0; order: -2; }
-#jobs .act-ln .job-open { order: -1; flex: none; max-width: 100%; min-width: 0; font: inherit; color: inherit; cursor: inherit; }
+#jobs .act-ln .job-open { order: -1; flex: 0 1 auto; max-width: 100%; min-width: 0; font: inherit; color: inherit; cursor: inherit; }
 #jobs .act-ln .act-grp:empty { display: none; }
+@media (min-width: 721px) {
+  /* a long text shrinks and wraps beside the group and the bin instead of pushing them out of the card */
+  #jobs .act-ln .job-open { text-align: left; }
+  #jobs .act-ln .act-grp { flex: none; white-space: nowrap; }
+}
 #jobs .act-ln .what { font-weight: 400; }
 #jobs .act-ln .lg-long { display: inline-block; max-width: 100%; overflow-wrap: anywhere; vertical-align: top; }   /* a file name stays whole */
 #jobs .act-ln .lg-dot.neutral { background: var(--faint); }
@@ -2479,6 +2484,13 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   #view-overview .stat.vs-ver > .vs-switch { margin-left: -2px; }
   /* with the switch gone from it, the footer sits closer under the rows */
   #view-overview .vpnc-foot:has(> .vs-moved) { padding-top: 6px; row-gap: 0; }
+}
+/* Logs on a narrower computer or tablet (721 to 1100px): the one-row layout would wrap and strand the rule, so the
+   level buttons and the tools share a row and the switches sit on a line below, with no rule */
+@media (min-width: 721px) and (max-width: 1100px) {
+  #view-logs .lg-row2 > .lg-acts { order: 2; width: auto; margin-left: auto; }
+  #view-logs .lg-row2 > .lg-acts::before { display: none; }
+  #view-logs .lg-row2 > .lg-toggles { order: 3; flex: 1 1 100%; margin-left: 0; }
 }
 /* Logs and Activity on phones: the heading tools plain like a computer's (the bin a bare icon, as on the
    Network page), the last ending on the cards' right-hand line */
