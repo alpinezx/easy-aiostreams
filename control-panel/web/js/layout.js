@@ -6,8 +6,8 @@ import { $, h, clear, api, toast } from "./util.js";
 const CARDS = {
   flow: ["Request flow", "Visitors through Caddy to AIOStreams, and the add-ons"],
   warn: ["Recent log alerts", "The latest from every service's log"],
-  aiostreams: ["AIOStreams", "Its version and updates"],
   server: ["This server", "Uptime, certificate, memory, disk and backups"],
+  aiostreams: ["AIOStreams", "Its version and updates"],
   aiometadata: ["AIOMetadata", "Its version, updates and pages"],
   aiomanager: ["AIOManager", "Its version, updates and sign-ups"],
   mediaflow: ["MediaFlow", "Its version, updates and what's passing through"],
