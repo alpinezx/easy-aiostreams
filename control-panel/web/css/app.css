@@ -1066,14 +1066,20 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
   /* a long text shrinks and wraps beside the group and the bin instead of pushing them out of the card */
   #jobs .act-ln .job-open { text-align: left; }
   #jobs .act-ln .act-grp { flex: none; white-space: nowrap; }
-  /* a row whose text wraps (activity.js marks it): the group on a line of its own under the text, the bin level with the middle */
-  #jobs .item.act-ln.wraps { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; grid-template-areas: "d t w x" ". . g x";
-    column-gap: 10px; row-gap: 3px; align-items: start; }
-  #jobs .item.act-ln.wraps > .lg-dot { grid-area: d; margin-top: 5px; margin-top: calc((1lh - 8px) / 2); }
-  #jobs .item.act-ln.wraps > .act-sub > .lg-time { grid-area: t; }
-  #jobs .item.act-ln.wraps > .job-open { grid-area: w; }
-  #jobs .item.act-ln.wraps > .act-sub > .act-grp { grid-area: g; white-space: normal; }
-  #jobs .item.job.act-ln.wraps > .btn.job-x { grid-area: x; align-self: center; margin-left: 0; }
+  /* a row whose text wraps (activity.js marks it) falls back to the phone layout: the dot at the start of the text so wrapped
+     lines return to the left edge, the time and group on the line under it, the bin at the bottom right */
+  #jobs .item.job.act-ln.wraps { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "w w" "s x";
+    column-gap: 0; row-gap: 3px; align-items: center; padding: 11px 12px; }
+  #jobs .item.job.act-ln.wraps > .lg-dot { display: none; }
+  #jobs .item.job.act-ln.wraps > .job-open { grid-area: w; white-space: normal; max-width: none; }
+  #jobs .act-ln.wraps .what::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 10px; border-radius: 50%; vertical-align: .1em; background: var(--ok); }
+  #jobs .act-ln.wraps.t-neutral .what::before { background: var(--faint); }
+  #jobs .act-ln.wraps.t-run .what::before { background: var(--accent); }
+  #jobs .act-ln.wraps.t-warn .what::before { background: var(--warn); }
+  #jobs .act-ln.wraps.t-bad .what::before { background: var(--bad); }
+  #jobs .item.job.act-ln.wraps > .act-sub { grid-area: s; display: flex; flex-wrap: wrap; gap: 2px 10px; min-width: 0; }
+  #jobs .item.job.act-ln.wraps > .act-sub > .act-grp { white-space: normal; }
+  #jobs .item.job.act-ln.wraps > .btn.job-x { grid-area: x; align-self: end; margin: -9px 0 -7px 8px; }
 }
 #jobs .act-ln .what { font-weight: 400; }
 #jobs .act-ln .lg-long { display: inline-block; max-width: 100%; overflow-wrap: anywhere; vertical-align: top; }   /* a file name stays whole */
