@@ -1063,6 +1063,7 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 #jobs .act-ln .job-open { order: -1; flex: none; max-width: 100%; min-width: 0; font: inherit; color: inherit; cursor: inherit; }
 #jobs .act-ln .act-grp:empty { display: none; }
 #jobs .act-ln .what { font-weight: 400; }
+#jobs .act-ln .lg-long { display: inline-block; max-width: 100%; overflow-wrap: anywhere; vertical-align: top; }   /* a file name stays whole */
 #jobs .act-ln .lg-dot.neutral { background: var(--faint); }
 #jobs .act-ln .lg-dot.run { background: var(--accent); }
 #jobs .act-ln .lg-dot.warn { background: var(--warn); }

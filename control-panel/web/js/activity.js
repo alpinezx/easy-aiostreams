@@ -123,7 +123,7 @@ export async function showActivity(status) {
       // An alert: nothing to open, so the row isn't a button
       const [name, cls] = ALERT_KIND[e.kind] || [e.kind, ""];
       const row = line(e.at, cls, name,
-        h("span", { class: "job-open" }, h("span", { class: "what", text: e.text })),
+        h("span", { class: "job-open" }, h("span", { class: "what" }, longWords(e.text))),
         "Phone alerts" + (cls === "ok" ? "" : ` · ${name}`), " evt");
       row.append(binButton("Remove from Activity", `Remove "${e.text}" from Activity`, false, async () => {
         try { await api("/api/watchdog/events/remove", { method: "POST", body: JSON.stringify({ at: e.at, kind: e.kind, text: e.text }) }); }
@@ -147,6 +147,12 @@ export async function showActivity(status) {
     }));
     box.append(row);
   }
+}
+
+// A long unbroken word (a backup's file name) is kept together: it moves to the next line whole, and only then
+// breaks, at its own hyphens, instead of splitting wherever the line happens to run out
+function longWords(text) {
+  return String(text).split(/(\S{20,})/).map((part, i) => (i % 2 ? h("span", { class: "lg-long", text: part }) : part));
 }
 
 function actionGroup(id) {
