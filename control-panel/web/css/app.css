@@ -1900,7 +1900,7 @@ html:has(> body > .drawer:not([hidden]), > body > #dialog:not([hidden])) { overf
 .sched-head h3 { margin: 0; }
 .sched-card.folded .sched-head { margin-bottom: 0; }
 .sched-card.folded .sched-fold-word { display: inline; }
-.sched-card.folded .rs-block, .sched-card.folded .sched-last:not(.warn), .sched-card.folded > p.small { display: none; }
+.sched-card.folded .rs-block, .sched-card.folded .sched-last:not(.warn), .sched-card.folded > p.small, .sched-card.folded > .bk-foot { display: none; }
 .bk-card.has-items { background: var(--raised); border: 1px solid var(--card-edge); border-radius: var(--radius); overflow: hidden; margin-top: 0; }
 .bk-card.has-items .backups-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0; padding: 16px; font-size: .98rem; }
 .bk-card.has-items .bk-count { display: inline; font-size: .86rem; font-weight: 400; color: var(--dim); }
@@ -2148,6 +2148,14 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 .bk-desk .rs-tz { display: block; margin: 8px 0 0; }
 .bk-desk .rs-tz[hidden] { display: none; }
 .bk-desk .sched-last { margin-top: 12px; }
+.bk-desk .bk-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-top: 12px; }
+.bk-desk .bk-foot .bal { margin: 0; }
+.bk-desk .bk-foot > .btn { flex: none; margin-left: auto; }
+/* Desktop: the second figure of Scheduled server reboot (Last) and Container logs (Using now) at the card's right edge */
+@media (min-width: 721px) {
+  .rs-desk .stat-grid > .stat:last-child, .lg-right .stat-grid > .stat:last-child { text-align: right; }
+  .lg-right .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 /* Desktop: each row's button says what it sets, and they share one width so they line up */
 .rs-desk .rs-ctl > .btn { min-width: 9.5em; }
 

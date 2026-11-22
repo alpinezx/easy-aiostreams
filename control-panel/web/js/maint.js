@@ -145,10 +145,12 @@ function updPeek(u, pk) {
 function logs(m) {
   const l = m.logs;
   const sub = !l.limited ? "They can grow without limit" : l.pending ? "Some containers take it when next recreated" : "10 MB per container";
-  return phoneFold(card("Container logs", [
+  const el = card("Container logs", [
     stat("Size limit", l.limited ? "Set" : "Not set", sub, l.limited ? "ok" : "warn"),
     stat("Using now", fmtBytes(l.size), "All containers together"),
-  ], l.limited ? "" : "Setting it restarts every container once: a few seconds of downtime.", l.limited ? null : button("maint.logs", true)),
+  ], l.limited ? "" : "Setting it restarts every container once: a few seconds of downtime.", l.limited ? null : button("maint.logs", true));
+  el.classList.add("lg-right");   // desktop: Using now sits at the card's right edge
+  return phoneFold(el,
   "logs", "Container logs", l.limited ? ["Limit set", "ok"] : ["Not set", "warn"]);
 }
 
