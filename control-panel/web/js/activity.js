@@ -111,7 +111,7 @@ export async function showActivity(status) {
   // plain green dot; anything else also says its word, so the colour never carries it alone.
   const line = (at, tone, word, open, group, extra) => {
     const dot = h("span", { class: "lg-dot " + (tone || "neutral"), role: "img", "aria-label": word, title: word });
-    return h("div", { class: "item job act-ln" + (tone === "warn" || tone === "bad" ? " " + tone : "") + extra },
+    return h("div", { class: "item job act-ln t-" + (tone || "neutral") + (tone === "warn" || tone === "bad" ? " " + tone : "") + extra },
       dot, open,
       // desktop: time, then name, then group (display: contents + order); a phone: line two, time then group
       h("span", { class: "act-sub" },
