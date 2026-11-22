@@ -165,10 +165,14 @@ export function openUpdates(u, installed) {
     // What the last install brought, from apt's own history
     const d = u.installed;
     $("#rel-title").textContent = "Last installed";
-    $("#rel-sub").textContent = `${d.count} ${d.count === 1 ? "package" : "packages"}${d.at ? `, ${ago(d.at)}` : ""}${d.auto ? ", by Ubuntu's automatic updates" : ""}.`;
+    $("#rel-sub").textContent = `Installed ${d.at ? ago(d.at) : "some time ago"}${d.auto ? ", by Ubuntu's automatic updates" : ""}.`;
     $("#rel-foot").hidden = true;
-    list.append(h("ul", { class: "upd-list upd-done" }, ...d.packages.map((p) => h("li", {},
-      h("span", { class: "upd-name mono", text: p.name }), h("span", { class: "upd-ver mono dim", text: `${p.from} → ${p.to}` })))));
+    // In a card like the waiting list's: a heading with the count, then rows with lines across the whole card
+    list.append(h("div", { class: "rel" },
+      h("div", { class: "rel-head" }, h("span", { class: "rel-tag", text: "Installed" }),
+        h("span", { class: "rel-when cl-count", text: `${d.count} ${d.count === 1 ? "package" : "packages"}` })),
+      h("div", { class: "rel-body" }, h("ul", { class: "upd-list" }, ...d.packages.map((p) => h("li", {},
+        h("span", { class: "upd-name mono", text: p.name }), h("span", { class: "upd-ver mono dim", text: `${p.from} → ${p.to}` })))))));
     list.scrollTop = 0;
     $("#rel-drawer").hidden = false;
     $("#scrim").hidden = false;

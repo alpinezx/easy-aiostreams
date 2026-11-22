@@ -2043,7 +2043,6 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 .upd-list li { display: block; margin: 0; padding: 9px 16px; border-top: 1px solid var(--line-soft); }
 .upd-list .upd-name { display: block; font-weight: 600; overflow-wrap: anywhere; }
 .upd-list .upd-ver { display: block; margin-top: 2px; font-size: .82rem; overflow-wrap: anywhere; }
-.upd-list.upd-done li:first-child { border-top: 0; }
 .rel-body:has(> .upd-list:last-child) { padding-bottom: 4px; }
 .rel-tag.sec { color: var(--warn); }
 .upd-note { margin: 0 0 6px; font-size: .86rem; }
@@ -2111,12 +2110,17 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 .upd-peek.empty p { margin: 0; font-size: .88rem; }
 /* The heading line (and, on a phone, the whole preview) is a button that opens the full list in the drawer */
 .upd-peek .upd-peek-head { margin: 0 0 8px; font-size: .86rem; color: var(--dim); }
-.upd-peek .upd-peek-head .path-toggle { margin: -6px -8px; }
+/* The opening line looks like the plain actions under it (Show output, List updates): list icon, bold word in the same tone */
+.upd-tog { display: inline-flex; align-items: center; gap: 6px; margin: -6px 0; padding: 6px 0; border: 0; background: none; cursor: pointer;
+  font: inherit; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+.upd-tog-ic svg { display: block; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.upd-tog:active { color: var(--text); }
+@media (hover: hover) { .upd-tog:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; } }
+.upd-peek .upd-peek-head .dim { margin-left: 8px; font-weight: 400; }
 @media (max-width: 720px) {
   .upd-peek.empty { display: none; }
   .upd-peek-row { padding: 10px 0 2px; }
 }
-.upd-done { padding: 4px 18px; }
 @media (max-width: 720px) {
   /* Room for a thumb on each */
   .hero-btns .btn.small { padding: 8px 10px; }
@@ -2597,7 +2601,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
     padding-left: 0; padding-right: 0; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
   #view-maint .btn.maint-list:active { color: var(--text); }
   /* with Show output: it on the left line, List updates ending on the right one, under Install updates */
-  #view-maint .btn-grid > .maint-list[data-ord="2"] { justify-self: end; }
+  #view-maint .btn-grid > .maint-list[data-act="List updates"] { justify-self: end; }
 }
 /* the drawer's output of the last install, and the small state chip above it */
 .out-state { margin: 0 0 10px; }

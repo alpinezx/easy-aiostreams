@@ -88,7 +88,7 @@ function updates(m) {
   if (u.phased) waiting.querySelector(".stat-value").title = waiting.querySelector(".ver-sub").title;
   const c = card(["System updates", u.os], [
     waiting,
-    stat("Restart", u.reboot ? "Needed" : "Not needed", u.reboot ? "To finish installing updates" : "", u.reboot ? "warn" : ""),
+    stat("Restart", u.reboot ? "Needed" : "Not needed", "", u.reboot ? "warn" : ""),
     checked,
   ], lastLine(j), button("maint.updates", u.count > 0),
   // The last install's output, in the same drawer
@@ -121,12 +121,12 @@ function peekRows(list) {
     ...(sec.length ? [label("Security", "sec")] : []), ...sec.flatMap(row),
     ...(sec.length && rest.length ? [label("Other")] : []), ...rest.flatMap(row));
 }
-// The line that opens the full list in a drawer, as Show output does: a button with a right chevron. On a phone
-// it is all there is (the rows would take half the screen); on a desktop it heads the preview.
+// The line that opens the full list in a drawer: the list icon and a bold word, like Show output and List updates, so it
+// reads as something to press. On a phone it is all there is (the rows would take half the screen); on a desktop it heads the preview.
 function peekOpen(label, open) {
-  const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
-  chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>';
-  return h("button", { class: "path-toggle upd-tog", type: "button", onclick: open }, label, chev);
+  const ic = h("span", { class: "upd-tog-ic", "aria-hidden": "true" });
+  ic.innerHTML = '<svg viewBox="0 0 24 24"><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/></svg>';
+  return h("button", { class: "upd-tog", type: "button", onclick: open }, ic, label);
 }
 function updPeek(u, pk) {
   const now = pk.filter((p) => !p.phased);
@@ -145,9 +145,9 @@ function updPeek(u, pk) {
   const more = done.count - PEEK;
   const when = `${done.at ? ` ${ago(done.at)}` : ""}${done.auto ? ", by Ubuntu's automatic updates" : ""}`;
   const open = () => openUpdates(u, true);
-  if (PHONE_Q.matches) return h("div", { class: "upd-peek upd-peek-row" }, peekOpen("Last installed" + (done.at ? ` ${ago(done.at)}` : ""), open));
+  if (PHONE_Q.matches) return h("div", { class: "upd-peek upd-peek-row" }, peekOpen("Show last update" + (done.at ? ` ${ago(done.at)}` : ""), open));
   return h("div", { class: "upd-peek" },
-    h("p", { class: "upd-peek-head" }, peekOpen(`Up to date.${phasing} Last installed${when}:`, open)),
+    h("p", { class: "upd-peek-head" }, peekOpen(`Show last update${when}`, open), phasing ? h("span", { class: "dim", text: phasing }) : null),
     peekRows(done.packages),
     more > 0 ? h("button", { class: "linkish upd-more", type: "button", text: `${more} more installed`, onclick: open }) : null);
 }
