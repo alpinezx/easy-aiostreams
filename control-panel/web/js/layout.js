@@ -7,12 +7,12 @@ const CARDS = {
   flow: ["Request flow", "Visitors through Caddy to AIOStreams, and the add-ons"],
   warn: ["Recent log alerts", "The latest from every service's log"],
   aiostreams: ["AIOStreams", "Its version and updates"],
+  server: ["This server", "Uptime, certificate, memory, disk and backups"],
   aiometadata: ["AIOMetadata", "Its version, updates and pages"],
   aiomanager: ["AIOManager", "Its version, updates and sign-ups"],
   mediaflow: ["MediaFlow", "Its version, updates and what's passing through"],
   vpn: ["VPN", "Whether it's connected, where traffic leaves, the server and gluetun's version"],
   alerts: ["Phone alerts", "The watchdog, its last check and 14 days"],
-  server: ["This server", "Uptime, certificate, memory, disk and backups"],
   services: ["Services", "Each container, with Logs, Restart and Stop"],
 };
 const PAGES = {

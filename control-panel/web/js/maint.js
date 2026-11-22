@@ -74,14 +74,22 @@ function updates(m) {
   if (!u.available) return card(["System updates", u.os], [stat("Waiting", "Can't tell", "This server doesn't use apt")], "", null);
   const pk = u.packages || [];
   const j = m.last && m.last.what === "Install updates" ? m.last : null;   // another job's output keeps its card at the page's foot
-  const c = card(["System updates", u.os], [
-    stat("Waiting", u.count ? `${u.count} update${u.count === 1 ? "" : "s"}` : "Up to date",
+  // The lines under Waiting ("2 for security, 3 phasing in") and Checked ("The package lists") are hidden by CSS:
+  // the list under the figures shows the same
+  const checked = stat("Checked", u.checked_at ? ago(u.checked_at) : "Unknown", "The package lists");
+  checked.classList.add("upd-checked");
+  const waiting = stat("Waiting", u.count ? `${u.count} update${u.count === 1 ? "" : "s"}` : "Up to date",
       (u.count ? (u.security ? `${u.security} for security` : "None for security") + (u.phased ? `, ${u.phased} phasing in` : "")
         : u.phased ? `${u.phased} more phasing in` : ""), u.security ? "warn" : u.count ? "" : "ok",
       u.phased ? `Ubuntu rolls some updates out gradually, a few servers at a time. ${u.phased} ${u.phased === 1 ? "isn't" : "aren't"} offered to this server yet, `
-        + "so Install updates leaves them until its turn, usually within days." : null),
+        + "so Install updates leaves them until its turn, usually within days." : null);
+  waiting.classList.add("upd-waiting");
+  // Its explanation sits on the figure too, for a desktop card without the line under it
+  if (u.phased) waiting.querySelector(".stat-value").title = waiting.querySelector(".ver-sub").title;
+  const c = card(["System updates", u.os], [
+    waiting,
     stat("Restart", u.reboot ? "Needed" : "Not needed", u.reboot ? "To finish installing updates" : "", u.reboot ? "warn" : ""),
-    stat("Checked", u.checked_at ? ago(u.checked_at) : "Unknown", "The package lists"),
+    checked,
   ], lastLine(j), button("maint.updates", u.count > 0),
   // The last install's output, in the same drawer
   j ? h("button", { class: "btn small maint-list maint-out", type: "button", text: "Show output",
@@ -97,52 +105,51 @@ function updates(m) {
   return c;
 }
 
-// The card's spare room on a desktop (a phone's card is long enough already): the first few waiting
+// The card's spare room on a desktop (a phone's card is long enough already, so it only gets the drawer's line): the first few waiting
 // updates, as List updates shows them, or with nothing waiting, what the last install brought.
 const PEEK = 4;
 function peekRows(list) {
-  return h("div", { class: "upd-peek-grid" }, ...list.slice(0, PEEK).flatMap((p) => [
+  const shown = list.slice(0, PEEK);
+  const sec = shown.filter((p) => p.security), rest = shown.filter((p) => !p.security);
+  const row = (p) => [
     h("span", { class: "upd-name mono", text: p.name }),
-    h("span", {}, p.security ? h("span", { class: "chip warn small-chip", text: "Security" }) : null),
-    h("span", { class: "upd-ver mono dim", title: `${p.from} → ${p.to}`, text: `${p.from} → ${p.to}` })]));
+    h("span", { class: "upd-ver mono dim", title: `${p.from} → ${p.to}`, text: `${p.from} → ${p.to}` })];
+  // Security updates under a label of their own (and the others under "Other" when both are shown), as in the drawer,
+  // so a row needs no tag
+  const label = (text, kind) => h("div", { class: "ver-label upd-peek-label" + (kind ? ` ${kind}` : ""), text });
+  return h("div", { class: "upd-peek-grid" },
+    ...(sec.length ? [label("Security", "sec")] : []), ...sec.flatMap(row),
+    ...(sec.length && rest.length ? [label("Other")] : []), ...rest.flatMap(row));
 }
-// Phones: the same list folds under a line of its own, folded until opened, remembered per browser
-function peekFold(box, label) {
-  if (!PHONE_Q.matches) return box;
-  let open = false;
-  try { open = localStorage.getItem("aios.updPeekOpen") === "1"; } catch (_) {}
-  box.classList.add("mfold-peek");
-  box.classList.toggle("folded", !open);
+// The line that opens the full list in a drawer, as Show output does: a button with a right chevron. On a phone
+// it is all there is (the rows would take half the screen); on a desktop it heads the preview.
+function peekOpen(label, open) {
   const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
-  chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
-  const tog = h("button", { class: "path-toggle fold-toggle upd-tog", type: "button", "aria-expanded": String(open), onclick: () => {
-    open = !open;
-    try { localStorage.setItem("aios.updPeekOpen", open ? "1" : "0"); } catch (_) {}
-    box.classList.toggle("folded", !open);
-    tog.setAttribute("aria-expanded", String(open));
-  } }, label, chev);
-  box.prepend(h("div", { class: "upd-tog-row" }, tog));
-  return box;
+  chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>';
+  return h("button", { class: "path-toggle upd-tog", type: "button", onclick: open }, label, chev);
 }
 function updPeek(u, pk) {
   const now = pk.filter((p) => !p.phased);
   if (now.length) {
     const hidden = Math.max(0, now.length - PEEK);
     const bits = [hidden ? `${hidden} more waiting` : "", u.phased ? `${u.phased} phasing in` : ""].filter(Boolean).join(", ");
-    return peekFold(h("div", { class: "upd-peek" }, peekRows(now),
-      bits ? h("button", { class: "linkish upd-more", type: "button", text: bits, onclick: () => openUpdates(u) }) : null),
-      "What's waiting");
+    const open = () => openUpdates(u);
+    if (PHONE_Q.matches) return h("div", { class: "upd-peek upd-peek-row" }, peekOpen("What's waiting", open));
+    return h("div", { class: "upd-peek" },
+      h("p", { class: "upd-peek-head" }, peekOpen("What's waiting", open)), peekRows(now),
+      bits ? h("button", { class: "linkish upd-more", type: "button", text: bits, onclick: open }) : null);
   }
   const done = u.installed;
   const phasing = u.phased ? ` ${u.phased} more ${u.phased === 1 ? "is" : "are"} phasing in.` : "";
   if (!done || !done.packages.length) return h("div", { class: "upd-peek empty" }, h("p", { class: "dim", text: `Nothing waiting.${phasing}` }));
   const more = done.count - PEEK;
   const when = `${done.at ? ` ${ago(done.at)}` : ""}${done.auto ? ", by Ubuntu's automatic updates" : ""}`;
-  return peekFold(h("div", { class: "upd-peek" },
-    h("p", { class: "dim upd-peek-head", text: `Up to date.${phasing} Last installed${when}:` }),
+  const open = () => openUpdates(u, true);
+  if (PHONE_Q.matches) return h("div", { class: "upd-peek upd-peek-row" }, peekOpen("Last installed" + (done.at ? ` ${ago(done.at)}` : ""), open));
+  return h("div", { class: "upd-peek" },
+    h("p", { class: "upd-peek-head" }, peekOpen(`Up to date.${phasing} Last installed${when}:`, open)),
     peekRows(done.packages),
-    more > 0 ? h("button", { class: "linkish upd-more", type: "button", text: `${more} more installed`, onclick: () => openUpdates(u, true) }) : null),
-    "Last installed" + (done.at ? ` ${ago(done.at)}` : ""));
+    more > 0 ? h("button", { class: "linkish upd-more", type: "button", text: `${more} more installed`, onclick: open }) : null);
 }
 
 function logs(m) {

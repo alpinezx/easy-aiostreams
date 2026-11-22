@@ -182,16 +182,24 @@ export function openUpdates(u, installed) {
   $("#rel-sub").textContent = [now.length ? `${n(now.length, "update")} ready to install` : "Nothing ready to install",
     later.length ? `${later.length} more phasing in` : ""].filter(Boolean).join(", ") + (u.os ? `, on ${u.os}.` : ".");
   $("#rel-foot").hidden = true;
-  const group = (title, items, open, note) => h("details", { class: "rel", open },
-    h("summary", {}, h("span", { class: "rel-tag", text: title }),
-      h("span", { class: "rel-when cl-count", text: n(items.length, "package") })),
-    h("div", { class: "rel-body" }, note ? h("p", { class: "dim upd-note", text: note }) : null,
+  // Security updates first in a section of their own, then the rest, so no tag is needed on each row. Ready groups are plain
+  // headings (always open); Phasing in folds, unless it's all there is, and a lone group is a plain heading too.
+  const sec = now.filter((p) => p.security), rest = now.filter((p) => !p.security);
+  const groups = [];
+  if (sec.length) groups.push(["Security", sec, "sec"]);
+  if (rest.length) groups.push([sec.length ? "Other updates" : "Ready to install", rest, ""]);
+  const alone = groups.length + (later.length ? 1 : 0) === 1;
+  const group = (title, items, open, note, kind) => {
+    const head = [h("span", { class: "rel-tag" + (kind ? ` ${kind}` : ""), text: title }), h("span", { class: "rel-when cl-count", text: n(items.length, "package") })];
+    const body = h("div", { class: "rel-body" }, note ? h("p", { class: "dim upd-note", text: note }) : null,
       h("ul", { class: "upd-list" }, ...items.map((p) => h("li", {},
         h("span", { class: "upd-name mono", text: p.name }),
-        p.security ? h("span", { class: "chip warn small-chip", text: "Security" }) : null,
-        h("span", { class: "upd-ver mono dim", text: `${p.from} → ${p.to}` }))))));
-  if (now.length) list.append(group("Ready to install", now, true));
-  if (later.length) list.append(group("Phasing in", later, !now.length,
+        h("span", { class: "upd-ver mono dim", text: `${p.from} → ${p.to}` })))));
+    return open === null ? h("div", { class: "rel" }, h("div", { class: "rel-head" }, ...head), body)
+      : h("details", { class: "rel", open }, h("summary", {}, ...head), body);
+  };
+  for (const [title, items, kind] of groups) list.append(group(title, items, null, null, kind));
+  if (later.length) list.append(group("Phasing in", later, alone ? null : false,
     "Ubuntu offers these to a few servers at a time. Install updates leaves them until this server's turn, usually within days."));
   if (!pk.length) list.append(h("p", { class: "dim", text: "Nothing is waiting." }));
   list.scrollTop = 0;

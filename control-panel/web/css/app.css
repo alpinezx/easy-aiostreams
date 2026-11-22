@@ -1447,6 +1447,7 @@ html.still *, html.still *::after { animation: none !important; transition: none
 .rel > summary::after { content: "\25BE"; color: var(--dim); transition: transform .12s; }
 .rel[open] > summary::after { transform: rotate(180deg); }
 .rel > summary:hover { background: var(--hover); border-radius: var(--radius); }
+.rel > .rel-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }   /* a lone group's heading: as a summary, with no chevron */
 .rel-tag { font-weight: 600; }
 .rel-when { margin-left: auto; color: var(--faint); font-size: .86rem; }
 .rel-body { padding: 2px 16px 14px; font-size: .92rem; line-height: 1.55; overflow-wrap: anywhere; }
@@ -1471,7 +1472,7 @@ html.still *, html.still *::after { animation: none !important; transition: none
 /* Phones: the badge starts the entry's first line and the text wraps under it; slimmer edges */
 @media (max-width: 720px) {
   .rel-list { padding: 10px; }
-  .rel > summary { padding: 10px 12px; }
+  .rel > summary, .rel > .rel-head { padding: 10px 12px; }
   .cl-list { padding: 0 12px 12px; gap: 12px; }
   .cl-list li { display: block; }
   .cl-kind { display: inline-block; margin-right: 6px; vertical-align: 1px; }
@@ -1730,20 +1731,20 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 
 /* The Overview: the headline, then the cards in the order Edit saved (layout.js sets
    --o-<card> and data-hide). By default: the request flow it illustrates, the version
-   card, the add-ons' cards (AIOMetadata, AIOManager, MediaFlow, then the VPN, laid out like them, and Phone
-   alerts), then This server and the services. */
+   card, This server, the add-ons' cards (AIOMetadata, AIOManager, MediaFlow, then the VPN, laid out like them,
+   and Phone alerts), then the services. */
 #view-overview:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr); }
 #view-overview .cols, #view-overview .side { display: contents; }
 #view-overview .hero { order: 0; }
 #view-overview .path { order: var(--o-flow, 1); }
 #view-overview .panel.warnc { order: var(--o-warn, 2); margin: 0 0 30px; }
 #view-overview .ver-slot { order: var(--o-aiostreams, 3); margin: 0 0 30px; }
-#view-overview .meta-slot { order: var(--o-aiometadata, 4); }
-#view-overview .mgr-slot { order: var(--o-aiomanager, 5); }
-#view-overview .mf-slot { order: var(--o-mediaflow, 6); }
-#view-overview .panel.vpnc { order: var(--o-vpn, 7); margin: 0 0 30px; }
-#view-overview .panel.wd { order: var(--o-alerts, 8); margin: 0 0 30px; }
-#view-overview .panel.host { order: var(--o-server, 9); margin: 0 0 30px; }
+#view-overview .panel.host { order: var(--o-server, 4); margin: 0 0 30px; }
+#view-overview .meta-slot { order: var(--o-aiometadata, 5); }
+#view-overview .mgr-slot { order: var(--o-aiomanager, 6); }
+#view-overview .mf-slot { order: var(--o-mediaflow, 7); }
+#view-overview .panel.vpnc { order: var(--o-vpn, 8); margin: 0 0 30px; }
+#view-overview .panel.wd { order: var(--o-alerts, 9); margin: 0 0 30px; }
 #view-overview .cols > div { order: var(--o-services, 10); margin: 0 0 30px; }
 #view-overview[data-hide~="flow"] .path, #view-overview[data-hide~="aiostreams"] .ver-slot:not(.meta-slot):not(.mgr-slot):not(.mf-slot),
 #view-overview[data-hide~="aiometadata"] .meta-slot, #view-overview[data-hide~="aiomanager"] .mgr-slot,
@@ -1757,6 +1758,10 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
    left wide gaps when all seven shared one) */
 @media (min-width: 1141px) {
   #view-overview .panel.host .stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  /* The fourth column (Up for, HTTPS certificates) is as wide as its own text and right-aligned, so it
+     ends at the card's right edge under Reboot server; the first three share the rest evenly */
+  #view-overview .panel.host > .stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) auto; }
+  #view-overview .panel.host > .stat-grid > .stat:nth-child(4n) { text-align: right; }
 }
 /* Network's down and up side by side once its column always has room for both */
 @media (min-width: 1300px) {
@@ -2032,10 +2037,15 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 .maint-card .card-head .card-corner { margin-left: auto; font-size: .9rem; }
 /* List updates: each package's name, then its versions under it, both on the left */
 .upd-list { list-style: none; margin: 0; padding: 0; }
-.upd-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 7px 0; border-top: 1px solid var(--line-soft); }
-.upd-list li:first-child { border-top: 0; }
-.upd-name { font-weight: 600; }
-.upd-ver { flex-basis: 100%; font-size: .82rem; overflow-wrap: anywhere; }
+/* The drawer's rows: the name, then its version, flush left; a line above each that runs the full width of the card.
+   Security updates are a section of their own, so no tag is needed on a row. */
+.rel-body .upd-list { list-style: none; margin: 0 -16px; padding: 0; }
+.upd-list li { display: block; margin: 0; padding: 9px 16px; border-top: 1px solid var(--line-soft); }
+.upd-list .upd-name { display: block; font-weight: 600; overflow-wrap: anywhere; }
+.upd-list .upd-ver { display: block; margin-top: 2px; font-size: .82rem; overflow-wrap: anywhere; }
+.upd-list.upd-done li:first-child { border-top: 0; }
+.rel-body:has(> .upd-list:last-child) { padding-bottom: 4px; }
+.rel-tag.sec { color: var(--warn); }
 .upd-note { margin: 0 0 6px; font-size: .86rem; }
 @media (max-width: 720px) {
   /* Two buttons on a Maintenance card (Install updates, List updates) share the row on a phone */
@@ -2091,23 +2101,21 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 }
 /* System updates on a desktop: the first few waiting, under the values */
 .upd-peek { border-top: 1px solid var(--line-soft); margin-top: 4px; padding: 12px 0 4px; }
-.upd-peek-grid { display: grid; grid-template-columns: max-content max-content minmax(0, 1fr); grid-auto-rows: 26px; align-items: center; gap: 4px 14px; }
+.upd-peek-grid { display: grid; grid-template-columns: max-content minmax(0, 1fr); grid-auto-rows: 26px; align-items: center; gap: 4px 14px; }
 .upd-peek .upd-name { font-weight: 600; }
+.upd-peek .upd-peek-label { grid-column: 1 / -1; align-self: end; }
+.upd-peek .upd-peek-label:not(:first-child) { margin-top: 6px; }
+.upd-peek .upd-peek-label.sec { color: var(--warn); }
 .upd-peek .upd-ver { font-size: .82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .upd-peek .upd-more { margin-top: 10px; font-size: .84rem; }
 .upd-peek.empty p { margin: 0; font-size: .88rem; }
-.upd-tog-row { display: none; }
+/* The heading line (and, on a phone, the whole preview) is a button that opens the full list in the drawer */
+.upd-peek .upd-peek-head { margin: 0 0 8px; font-size: .86rem; color: var(--dim); }
+.upd-peek .upd-peek-head .path-toggle { margin: -6px -8px; }
 @media (max-width: 720px) {
   .upd-peek.empty { display: none; }
-  .upd-tog-row { display: block; }
-  .upd-peek.folded > :not(.upd-tog-row) { display: none; }
-  .upd-peek .upd-tog-row + * { margin-top: 12px; }
-  .upd-peek.folded { padding-bottom: 0; }
-  .upd-peek .upd-peek-head { display: none; }
-  .upd-peek-grid { grid-template-columns: minmax(0, 1fr) max-content; grid-auto-rows: auto; gap: 0 14px; }
-  .upd-peek .upd-ver { grid-column: 1 / -1; margin-bottom: 10px; white-space: normal; overflow-wrap: anywhere; }
+  .upd-peek-row { padding: 10px 0 2px; }
 }
-.upd-peek .upd-peek-head { margin: 0 0 8px; font-size: .86rem; }
 .upd-done { padding: 4px 18px; }
 @media (max-width: 720px) {
   /* Room for a thumb on each */
@@ -2158,6 +2166,10 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   .fs-spread .stat-grid > .stat:nth-child(2) { text-align: center; }
   .fs-spread .stat-grid > .stat:last-child { text-align: right; }
 }
+/* System updates, on every screen: no line under the update count or Checked (the list shows the same), and an
+   empty line (Restart, Not needed) takes no room. The update count's explanation is on the figure's tooltip. */
+.fs-spread .stat.upd-checked .ver-sub, .fs-spread .stat.upd-waiting .ver-sub { display: none; }
+.fs-spread .stat .ver-sub:empty { display: none; }
 /* Desktop: each row's button says what it sets, and they share one width so they line up */
 .rs-desk .rs-ctl > .btn { min-width: 9.5em; }
 
@@ -2442,6 +2454,10 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   /* Each row's Copy plain too (it only copies a command, like Backup & Restore's), Update staying a button */
   #view-scripts .cmd-btns .btn[data-act="Copy"] { background: none; border-color: transparent; box-shadow: none;
     font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+  /* An add-on not downloaded is only Copy, so its empty Update and Remove places go and Copy ends at the
+     card's right edge, its word on the text line the buttons above end on */
+  .addons-card li.absent .btn-spacer { display: none; }
+  .addons-card li.absent .cmd-btns .btn[data-act="Copy"] { margin-right: -10px; }
   @media (hover: hover) {
     #view-scripts .cmd-btns .btn[data-act="Copy"]:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
   }

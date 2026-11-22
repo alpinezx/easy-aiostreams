@@ -267,7 +267,7 @@ function row(x, cmd, updateCmd) {
   // An add-on's script that's still here once the add-on is uninstalled can go
   const removable = idle;
   // The command itself is on Copy's tooltip; spelt out, it crowded the row (and phones)
-  return h("li", { class: idle ? "idle" : "" },
+  return h("li", { class: idle ? "idle" : !x.present ? "absent" : "" },
     // On a phone the state words go on a line of their own under the name, on every row alike,
     // however long the name or the words (a break only phones show, put before the words by CSS
     // order); Differs from GitHub stays beside the name
