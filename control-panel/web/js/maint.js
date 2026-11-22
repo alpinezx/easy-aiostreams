@@ -111,8 +111,9 @@ const PEEK = 4;
 function peekRows(list) {
   return h("div", { class: "upd-peek-grid" }, ...list.slice(0, PEEK).flatMap((p) => [
     h("span", { class: "upd-name mono", text: p.name }),
-    h("span", {}, p.security ? h("span", { class: "chip warn small-chip", text: "Security" }) : null),
-    h("span", { class: "upd-ver mono dim", title: `${p.from} → ${p.to}`, text: `${p.from} → ${p.to}` })]));
+    h("span", { class: "upd-ver mono dim", title: `${p.from} → ${p.to}`, text: `${p.from} → ${p.to}` }),
+    // Last, at the card's right edge, so a row without one has no gap left where its chip would be
+    h("span", { class: "upd-flag" }, p.security ? h("span", { class: "chip warn small-chip", text: "Security" }) : null)]));
 }
 // The line that opens the full list in a drawer, as Show output does: a button with a right chevron. On a phone
 // it is all there is (the rows would take half the screen); on a desktop it heads the preview.
