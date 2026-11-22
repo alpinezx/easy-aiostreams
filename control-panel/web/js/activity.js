@@ -58,6 +58,8 @@ export async function showActivity(status) {
       again();
     });
     $("#act-filter").addEventListener("input", (e) => { query = e.target.value.trim().toLowerCase(); again(); });
+    // a row whose text wraps puts its group on a line of its own (see markWraps): re-measure when the list changes size or is shown
+    if (window.ResizeObserver) new ResizeObserver(markWraps).observe(box);
     for (const b of $("#act-states").querySelectorAll("button")) {
       b.addEventListener("click", () => {
         const on = b.getAttribute("aria-pressed") !== "true";
@@ -147,6 +149,20 @@ export async function showActivity(status) {
     }));
     box.append(row);
   }
+  markWraps();
+}
+
+// On a computer, a row whose text wraps onto more than one line gets its group (Phone alerts · Failed) on a clean line
+// underneath, instead of floating beside the middle of the wrapped text. Measured with every row in its one-line layout.
+function markWraps() {
+  const rows = [...document.querySelectorAll("#jobs .act-ln")];
+  for (const r of rows) r.classList.remove("wraps");
+  if (!rows.length || window.matchMedia("(max-width: 720px)").matches) return;
+  const flags = rows.map((r) => {
+    const o = r.querySelector(".job-open");
+    return o.getBoundingClientRect().height > parseFloat(getComputedStyle(o).fontSize) * 2.2;
+  });
+  rows.forEach((r, i) => { if (flags[i]) r.classList.add("wraps"); });
 }
 
 // A long unbroken word (a backup's file name) is kept together: it moves to the next line whole, and only then
