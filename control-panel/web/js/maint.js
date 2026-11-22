@@ -88,7 +88,7 @@ function updates(m) {
   if (u.phased) waiting.querySelector(".stat-value").title = waiting.querySelector(".ver-sub").title;
   const c = card(["System updates", u.os], [
     waiting,
-    stat("Restart", u.reboot ? "Needed" : "Not needed", u.reboot ? "To finish installing updates" : "", u.reboot ? "warn" : ""),
+    stat("Restart", u.reboot ? "Needed" : "Not needed", "", u.reboot ? "warn" : ""),
     checked,
   ], lastLine(j), button("maint.updates", u.count > 0),
   // The last install's output, in the same drawer
