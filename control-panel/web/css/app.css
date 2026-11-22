@@ -2162,6 +2162,10 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   .fs-spread .stat-grid > .stat:nth-child(2) { text-align: center; }
   .fs-spread .stat-grid > .stat:last-child { text-align: right; }
 }
+/* System updates, on every screen: no line under the update count or Checked (the list shows the same), and an
+   empty line (Restart, Not needed) takes no room. The update count's explanation is on the figure's tooltip. */
+.fs-spread .stat.upd-checked .ver-sub, .fs-spread .stat.upd-waiting .ver-sub { display: none; }
+.fs-spread .stat .ver-sub:empty { display: none; }
 /* Desktop: each row's button says what it sets, and they share one width so they line up */
 .rs-desk .rs-ctl > .btn { min-width: 9.5em; }
 

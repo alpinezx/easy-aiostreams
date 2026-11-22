@@ -74,14 +74,22 @@ function updates(m) {
   if (!u.available) return card(["System updates", u.os], [stat("Waiting", "Can't tell", "This server doesn't use apt")], "", null);
   const pk = u.packages || [];
   const j = m.last && m.last.what === "Install updates" ? m.last : null;   // another job's output keeps its card at the page's foot
-  const c = card(["System updates", u.os], [
-    stat("Waiting", u.count ? `${u.count} update${u.count === 1 ? "" : "s"}` : "Up to date",
+  // The lines under Waiting ("2 for security, 3 phasing in") and Checked ("The package lists") are hidden by CSS:
+  // the list under the figures shows the same
+  const checked = stat("Checked", u.checked_at ? ago(u.checked_at) : "Unknown", "The package lists");
+  checked.classList.add("upd-checked");
+  const waiting = stat("Waiting", u.count ? `${u.count} update${u.count === 1 ? "" : "s"}` : "Up to date",
       (u.count ? (u.security ? `${u.security} for security` : "None for security") + (u.phased ? `, ${u.phased} phasing in` : "")
         : u.phased ? `${u.phased} more phasing in` : ""), u.security ? "warn" : u.count ? "" : "ok",
       u.phased ? `Ubuntu rolls some updates out gradually, a few servers at a time. ${u.phased} ${u.phased === 1 ? "isn't" : "aren't"} offered to this server yet, `
-        + "so Install updates leaves them until its turn, usually within days." : null),
+        + "so Install updates leaves them until its turn, usually within days." : null);
+  waiting.classList.add("upd-waiting");
+  // Its explanation sits on the figure too, for a desktop card without the line under it
+  if (u.phased) waiting.querySelector(".stat-value").title = waiting.querySelector(".ver-sub").title;
+  const c = card(["System updates", u.os], [
+    waiting,
     stat("Restart", u.reboot ? "Needed" : "Not needed", u.reboot ? "To finish installing updates" : "", u.reboot ? "warn" : ""),
-    stat("Checked", u.checked_at ? ago(u.checked_at) : "Unknown", "The package lists"),
+    checked,
   ], lastLine(j), button("maint.updates", u.count > 0),
   // The last install's output, in the same drawer
   j ? h("button", { class: "btn small maint-list maint-out", type: "button", text: "Show output",
