@@ -1317,13 +1317,18 @@ a.md-link, .ln.job-before a, .rel-gh a, .drawer-foot a { text-decoration: none; 
   .view-head.lg-head { flex-direction: column; gap: 10px; }
   .lg-acts { align-self: flex-end; margin-left: 0; }
   /* Search, .*, the service list and ⋮ stay on one line (the three tools are on the level chips' row below) */
-  .lg-filters .lg-row .lg-svc { width: auto; flex: 0 1 auto; min-width: 0; max-width: 40%; }   /* a long service name gives way to the search box */
+  .lg-filters .lg-row .lg-svc { width: auto; }
+  /* Logs, like AIOStreams' own log viewer: the search has a row to itself, the service list (as wide as it can be) and ⋮ under it */
+  #view-logs .lg-filters .lg-row:first-child { flex-wrap: wrap; row-gap: 10px; }
+  #view-logs .lg-filters .lg-row:first-child .lg-search { flex: 1 1 100%; }
+  #view-logs .lg-filters .lg-row:first-child .lg-svc { flex: 1 1 0; min-width: 0; }
   .lg-more { display: inline-flex; }
   .lg-filters .lg-row .lg-regex { display: none; }   /* a phone's search is plain text: the room goes to the search box */
   .lg-filters { position: relative; }
   /* Hide noise, Auto-scroll and Wrap open from the ⋮ button */
   .lg-toggles { display: none; position: absolute; z-index: 15; right: 12px; top: 60px; flex-direction: column; align-items: stretch; gap: 18px; min-width: 220px; padding: 18px; background: var(--raised); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 14px 40px rgba(0, 0, 0, .4); }
   .lg-toggles.open { display: flex; }
+  #view-logs .lg-toggles { top: 106px; }   /* under the service list and ⋮ row */
   .lg-toggles .sw { justify-content: space-between; }
   /* .log and Copy (logs.js moves them in) as plain rows under the switches */
   #view-logs .lg-toggles > .btn { display: flex; align-items: center; justify-content: flex-start; gap: 10px; width: auto; height: auto; min-height: 0; padding: 0;
