@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 22 November 2026
 
+- On a computer, This server's fourth column (Up for and HTTPS certificates) is right-aligned to the card's right edge under Reboot server, and on Scripts an add-on that isn't downloaded has its Copy at the right edge of Optional add-ons. (Panel 1.64.2)
 - On a computer, Last on Scheduled server reboot and Using now on Container logs sit at the right edge of their cards, System updates and Free up space spread their three figures across their cards, and Set schedule on Scheduled backups is in the card's bottom right corner. The Maintenance and Backup & Restore screenshots in the guides are retaken. (Panel 1.64.1, [#216](https://github.com/alpinezx/easy-aiostreams/pull/216))
 - **Docs:** The Logs and Activity screenshots in the control panel guides are retaken for panel 1.64.0. ([#215](https://github.com/alpinezx/easy-aiostreams/pull/215))
 - Activity now reads like a log. Each row has a status dot, how long ago in the accent colour, what happened and its group: on one line on a computer, and on a phone with the name first and the time and group under it. The filter card matches Logs, with search, the Show list (when Phone alerts is set up), OK, WARN and ERROR buttons and a clear icon. Logs lose the time pills too and show the date and time as plain coloured text. (Panel 1.64.0, [#214](https://github.com/alpinezx/easy-aiostreams/pull/214))

@@ -1757,6 +1757,10 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
    left wide gaps when all seven shared one) */
 @media (min-width: 1141px) {
   #view-overview .panel.host .stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  /* The fourth column (Up for, HTTPS certificates) is as wide as its own text and right-aligned, so it
+     ends at the card's right edge under Reboot server; the first three share the rest evenly */
+  #view-overview .panel.host > .stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) auto; }
+  #view-overview .panel.host > .stat-grid > .stat:nth-child(4n) { text-align: right; }
 }
 /* Network's down and up side by side once its column always has room for both */
 @media (min-width: 1300px) {
@@ -2442,6 +2446,10 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   /* Each row's Copy plain too (it only copies a command, like Backup & Restore's), Update staying a button */
   #view-scripts .cmd-btns .btn[data-act="Copy"] { background: none; border-color: transparent; box-shadow: none;
     font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+  /* An add-on not downloaded is only Copy, so its empty Update and Remove places go and Copy ends at the
+     card's right edge, its word on the text line the buttons above end on */
+  .addons-card li.absent .btn-spacer { display: none; }
+  .addons-card li.absent .cmd-btns .btn[data-act="Copy"] { margin-right: -10px; }
   @media (hover: hover) {
     #view-scripts .cmd-btns .btn[data-act="Copy"]:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
   }
