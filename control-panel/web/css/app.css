@@ -1447,6 +1447,7 @@ html.still *, html.still *::after { animation: none !important; transition: none
 .rel > summary::after { content: "\25BE"; color: var(--dim); transition: transform .12s; }
 .rel[open] > summary::after { transform: rotate(180deg); }
 .rel > summary:hover { background: var(--hover); border-radius: var(--radius); }
+.rel > .rel-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }   /* a lone group's heading: as a summary, with no chevron */
 .rel-tag { font-weight: 600; }
 .rel-when { margin-left: auto; color: var(--faint); font-size: .86rem; }
 .rel-body { padding: 2px 16px 14px; font-size: .92rem; line-height: 1.55; overflow-wrap: anywhere; }
@@ -1471,7 +1472,7 @@ html.still *, html.still *::after { animation: none !important; transition: none
 /* Phones: the badge starts the entry's first line and the text wraps under it; slimmer edges */
 @media (max-width: 720px) {
   .rel-list { padding: 10px; }
-  .rel > summary { padding: 10px 12px; }
+  .rel > summary, .rel > .rel-head { padding: 10px 12px; }
   .cl-list { padding: 0 12px 12px; gap: 12px; }
   .cl-list li { display: block; }
   .cl-kind { display: inline-block; margin-right: 6px; vertical-align: 1px; }
