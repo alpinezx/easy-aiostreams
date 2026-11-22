@@ -91,6 +91,7 @@ function updates(m) {
     title: pk.length ? "Which packages are waiting, and their versions" : "Nothing is waiting", onclick: () => openUpdates(u) }),
   u.reboot ? h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer,
     disabled: !!(status && status.busy) || !!(last && last.last && last.last.running) }) : null);
+  c.classList.add("fs-spread");   // desktop: the three figures spread across the card, Checked at its right edge
   c.insertBefore(updPeek(u, pk), c.querySelector(".card-foot"));
   if (j && !j.running && j.code !== 0) c.querySelector(".maint-foot > .dim").classList.add("warn");   // a failed install is seen without opening anything
   return c;
