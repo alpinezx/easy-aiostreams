@@ -1348,9 +1348,11 @@ a.md-link, .ln.job-before a, .rel-gh a, .drawer-foot a { text-decoration: none; 
 .lg-cp:active { color: var(--text); }
 @media (hover: hover) { .lg-cp:hover { color: var(--text); background: var(--raised); } }
 /* Jump to latest: a round arrow in the box's bottom right corner, clear of the scroll bars, while Auto-scroll is off
-   and the newest line is well below */
-.lg-box { position: relative; }
-.lg-jump { position: absolute; right: 18px; bottom: 18px; display: grid; place-items: center; width: 40px; height: 40px; padding: 0;
+   and the newest line is well below. Sticky, not absolute: when the box's bottom is below the screen (a phone, page
+   scrolled to the top) the arrow rides the screen's bottom instead, never leaving the box. The negative top margin
+   lays it over the box's corner, and its height and margins add up to nothing, so the page doesn't grow */
+.lg-box { display: flow-root; }   /* the arrow's bottom margin stays inside, so the wrapper is exactly the box's height */
+.lg-jump { position: sticky; bottom: 18px; display: grid; place-items: center; width: 40px; height: 40px; margin: -58px 18px 18px auto; padding: 0;
   border: 0; border-radius: 50%; background: var(--primary); color: var(--primary-ink); cursor: pointer;
   box-shadow: 0 6px 18px rgba(0, 0, 0, .35); z-index: 2; }
 .lg-jump[hidden] { display: none; }
