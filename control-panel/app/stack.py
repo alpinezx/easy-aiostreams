@@ -160,6 +160,13 @@ def weekly_time(kv: dict) -> str:
     return f"{int(h):02d}:00" if h.isdigit() and int(h) < 24 else "10:00"
 
 
+# One event's bin: drop the whole line $2 from the events file $1, rewritten in place (owner and mode stay).
+# No file is nothing to do. grep -v exits 1 when no line is left, which is fine; 2, or a failed rewrite, exits
+# non-zero so the panel says it couldn't, instead of the event coming back on the next look.
+REMOVE_EVENT_SH = ('[ -e "$1" ] || exit 0; grep -vxF -- "$2" "$1" > "$1.tmp"; s=$?; '
+                   'if [ "$s" -le 1 ]; then cat "$1.tmp" > "$1" && s=0 || s=2; fi; rm -f "$1.tmp"; exit "$s"')
+
+
 def mask_topic(topic: str) -> str | None:
     """Enough of the topic to tell which one it is, never enough to subscribe to it."""
     if not topic:
@@ -1705,8 +1712,7 @@ class Backend:
         if not self.p("watchdog-state/config").exists():
             raise ValueError("The watchdog isn't set up on this server.")
         path = str(config.INSTALL_DIR / "watchdog-state" / "events")
-        r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "sh", "-c",
-                            '[ -e "$1" ] || exit 0; grep -vxF -- "$2" "$1" > "$1.tmp"; [ $? -le 1 ] && cat "$1.tmp" > "$1"; rm -f "$1.tmp"',
+        r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "sh", "-c", REMOVE_EVENT_SH,
                             "sh", path, f"{at}|{kind}|{text}"], capture_output=True, text=True, timeout=20)
         if r.returncode != 0:
             raise ValueError("Couldn't remove it.")

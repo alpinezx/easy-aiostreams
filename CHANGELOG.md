@@ -2,6 +2,10 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 23 November 2026
+
+- **Fixed:** Removing one event from Activity now says so if it couldn't be removed, instead of the event coming back on the next look, and typing in Activity's filter box waits for a pause before it looks again. (Panel 1.64.5)
+
 ## 22 November 2026
 
 - On a new install, the Overview lists This server above AIOStreams, right under Recent log alerts, instead of after it (a layout you saved keeps its order). (Panel 1.64.4, [#219](https://github.com/alpinezx/easy-aiostreams/pull/219))
