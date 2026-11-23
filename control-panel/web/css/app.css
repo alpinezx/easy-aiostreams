@@ -926,6 +926,10 @@ select.input:focus, select.input[aria-expanded="true"] { border-color: var(--lin
   .vpnc .stat-grid:has(> .vs-ver) > .vs-server { grid-column: 3; grid-row: 1; text-align: right; }
   /* the size AIOStreams' card gives its status */
   .vpnc .vs-status .ver-value { font-size: .95rem; font-weight: 600; letter-spacing: 0; }
+  /* Phone alerts spread the same way: Watchdog left, Last check centred, Result on the right edge */
+  #view-overview .panel.wd > .stat-grid { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+  #view-overview .panel.wd > .stat-grid > .stat:nth-child(2) { text-align: center; }
+  #view-overview .panel.wd > .stat-grid > .stat:nth-child(3) { text-align: right; }
 }
 .stat-value { font-size: 1.05rem; font-weight: 650; letter-spacing: -.01em; overflow-wrap: anywhere; }
 .stat-value.warn { color: var(--warn); } .stat-value.bad { color: var(--bad); } .stat-value.ok { color: var(--ok); }
