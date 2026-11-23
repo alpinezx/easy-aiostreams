@@ -879,7 +879,8 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .pick-list li:hover, .pick-list li.on { background: var(--hover); }
 .pick-list li[aria-selected="true"] { color: var(--accent); font-weight: 600; }
 .pick-list li.off { color: var(--faint); cursor: default; background: none; }
-select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+/* No focus ring on dropdowns: focus stays on them after a pick, so the ring looked stuck (phones especially) */
+select.input:focus, select.input[aria-expanded="true"] { border-color: var(--line); box-shadow: none; }
 .maint-last { margin-top: 16px; }
 .maint-last summary { cursor: pointer; display: grid; gap: 8px; list-style: none; }
 .maint-last summary::-webkit-details-marker { display: none; }
@@ -1041,7 +1042,10 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
 .wd-opts.folded { padding-top: 16px; padding-bottom: 16px; }
 .wd-opts.folded .wd-opts-head { margin-bottom: 0; }
 .wd-opts.folded .wd-opts-body { display: none; }
-.wd-opt { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-top: 1px solid var(--line-soft); cursor: pointer; }
+.wd-opt { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-top: 1px solid var(--line-soft); }
+/* Only the switch toggles a row; 10px more to tap all round, the switch itself where it was */
+.wd-opt > .sw { padding: 10px; margin: -10px; }
+.wd-opt > .sw:has(input:disabled) { cursor: default; }
 .wd-opt:first-of-type { border-top: 0; }
 .wd-opt > span:first-child { display: grid; gap: 2px; }
 .wd-opt-title { font-weight: 600; font-size: .94rem; }
@@ -1104,7 +1108,9 @@ select.input[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 
   #jobs .act-ln.t-bad .what::before { background: var(--bad); }
   #jobs .item.job.act-ln > .act-sub { grid-area: s; display: flex; flex-wrap: wrap; gap: 2px 10px; min-width: 0; }   /* a long group drops under the time instead of wrapping beside it */
   /* the bin always bottom right, level with the time and group line (never in the middle of a long text); the text above keeps the full width */
-  #jobs .item.job.act-ln > .btn.job-x { grid-area: x; align-self: end; margin: -9px -4px -7px 8px; }
+  #jobs .item.job.act-ln > .btn.job-x { grid-area: x; align-self: end; margin: -9px -8.5px -7px 8px; }   /* -8.5px: the icon under the filter card's bin */
+  /* the group always on a line of its own under the time, so every row reads the same (not beside it when it happens to fit) */
+  #jobs .item.job.act-ln > .act-sub > .act-grp { flex-basis: 100%; }
 }
 #dialog .wd-topic-err, .wd-topic-err { margin: -4px 0 0; color: var(--warn); font-size: .88rem; }
 .wd-topic-how { font-size: .88rem; margin: 0; }
@@ -1504,8 +1510,12 @@ html.still *, html.still *::after { animation: none !important; transition: none
 .dialog .btns { display: flex; justify-content: flex-end; gap: 8px; }
 /* A dialog taller than the screen (a phone with its keyboard up) scrolls behind its buttons: they stay pinned at
    the bottom, text fading out above them, so there's always a way to answer and a hint there's more above */
-.dialog .btns { position: sticky; bottom: -22px; margin: 0 -22px -22px; padding: 14px 22px 22px; background: var(--raised); }
-.dialog .btns::before { content: ""; position: absolute; left: 0; right: 0; top: -18px; height: 18px; pointer-events: none;
+.dialog .btns, .dialog .dlg-foot { position: sticky; bottom: -22px; margin: 0 -22px -22px; padding: 14px 22px 22px; background: var(--raised); }
+/* A typed confirm (Uninstall, Restore): the box to type in is pinned with the buttons, so it never scrolls away */
+.dialog .dlg-foot { display: grid; gap: 14px; }
+.dialog .dlg-foot .btns { position: static; margin: 0; padding: 0; background: none; }
+.dialog .dlg-foot .btns::before { content: none; }
+.dialog .btns::before, .dialog .dlg-foot::before { content: ""; position: absolute; left: 0; right: 0; top: -18px; height: 18px; pointer-events: none;
   background: linear-gradient(to top, var(--raised), transparent); }
 /* Phones: a dialog with three buttons (such as the Network page's Clear traffic history with the VPN) doesn't
    fit them on a line: the two choices side by side, the main one filled, Cancel under them as the longest button */
@@ -2112,7 +2122,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 .upd-peek .upd-peek-head { margin: 0 0 8px; font-size: .86rem; color: var(--dim); }
 /* The opening line looks like the plain actions under it (Show output, List updates): list icon, bold word in the same tone */
 .upd-tog { display: inline-flex; align-items: center; gap: 6px; margin: -6px 0; padding: 6px 0; border: 0; background: none; cursor: pointer;
-  font: inherit; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+  font: inherit; font-size: .86rem; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }   /* the size of Show output and List updates */
 .upd-tog-ic svg { display: block; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .upd-tog:active { color: var(--text); }
 @media (hover: hover) { .upd-tog:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; } }
@@ -2120,6 +2130,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 @media (max-width: 720px) {
   .upd-peek.empty { display: none; }
   .upd-peek-row { padding: 10px 0 2px; }
+  .upd-tog { font-size: .82rem; }   /* Show output and List updates are this size on a phone */
 }
 @media (max-width: 720px) {
   /* Room for a thumb on each */
@@ -2210,6 +2221,8 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 .btn.btn-i { gap: 5px; }
 .btn.btn-i > svg.bi { width: 13px; height: 13px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .btn.btn-i > svg.bi.round { width: 12px; height: 12px; }
+/* Show output's and List updates' icons the size of What's waiting's (the same list icon just above them) */
+#view-maint .btn.maint-list > svg.bi { width: 16px; height: 16px; }
 .btn.rs-wide.btn-i { display: flex; justify-content: center; align-items: center; }
 .btn.rs-wide.btn-i[hidden] { display: none; }
 /* Quiet buttons with words (a drawer's Done and Back, Reset, Clear history): the same soft fill, no outline.
@@ -2550,6 +2563,8 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   :is(#view-logs, #view-activity) .lg-row2 { flex-wrap: nowrap; align-items: center; gap: 5px; }
   :is(#view-logs, #view-activity) .lg-row2 .lg-levels { flex-wrap: nowrap; flex: none; }
   :is(#view-logs, #view-activity) .lg-row2 > .lg-acts { margin: -9px -10px -9px auto; gap: 6px; flex: none; align-items: center; align-self: center; }
+  /* the icons sit on the chips' bottom line rather than centred on them */
+  :is(#view-logs, #view-activity) .lg-row2 > .lg-acts .btn { position: relative; top: 5px; }
   :is(#view-logs, #view-activity) .lg-row2 .lg-acts .btn { width: 36px; height: 36px; padding: 0; justify-content: center; gap: 0; }
   :is(#view-logs, #view-activity) .lg-acts .btn:active { color: var(--text); }
 }

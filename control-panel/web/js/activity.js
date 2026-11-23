@@ -57,7 +57,13 @@ export async function showActivity(status) {
       try { localStorage.setItem("aios.activityFilter", filter); } catch (_) {}
       again();
     });
-    $("#act-filter").addEventListener("input", (e) => { query = e.target.value.trim().toLowerCase(); again(); });
+    // Each look asks the server again (the watchdog's part runs commands on the host), so typing waits for a pause
+    let typing = null;
+    $("#act-filter").addEventListener("input", (e) => {
+      query = e.target.value.trim().toLowerCase();
+      clearTimeout(typing);
+      typing = setTimeout(again, 250);
+    });
     // a row whose text wraps puts its group on a line of its own (see markWraps): re-measure when the list changes size or is shown
     if (window.ResizeObserver) new ResizeObserver(markWraps).observe(box);
     for (const b of $("#act-states").querySelectorAll("button")) {

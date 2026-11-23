@@ -124,6 +124,7 @@ export function toast(text, bad = false) {
   }
   // Starts with a capital (a name like gluetun too: it reads cleaner), each sentence on a line of its own
   // A single sentence with a "Label: details" shape breaks after the colon, so the details (with their commas) stay together
+  // (not when the details are one or two words, such as "on.": those just wrap)
   // One line when it fits. Otherwise the sentence split above, and each line keeps its last two words (and a pair of
   // times) together so nothing ends on one stray word or splits "04:00 or 20:57"
   const whole = text.charAt(0).toUpperCase() + text.slice(1);
@@ -134,7 +135,11 @@ export function toast(text, bad = false) {
   // A nowrap toast can widen its grid column rather than overflow, so compare with the container, not itself
   if (Math.max(t.scrollWidth, t.offsetWidth) > box.clientWidth + 1) {
     const lines = whole.split(/(?<=[.!?])\s+(?=[A-Z0-9"'(])/);
-    if (lines.length === 1) lines.splice(0, 1, ...lines[0].split(/(?<=^[^:]{3,40}:)\s+/));
+    if (lines.length === 1) {
+      // only when the details are a few words: "Label: on." would leave "on." alone on its line
+      const parts = lines[0].split(/(?<=^[^:]{3,40}:)\s+/);
+      if (parts.length === 2 && parts[1].split(/\s+/).length >= 3) lines.splice(0, 1, ...parts);
+    }
     t.style.whiteSpace = "";
     t.textContent = lines.map(l => l.replace(/(\d\d:\d\d) or (\d\d:\d\d)/, "$1\u00a0or\u00a0$2").replace(/\s+(\S+)$/, "\u00a0$1")).join("\n");
   } else t.style.whiteSpace = "";

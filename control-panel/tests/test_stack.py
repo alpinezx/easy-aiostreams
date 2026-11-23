@@ -531,6 +531,33 @@ def test_watchdog_info_reads_events_and_tally_and_masks_the_topic(tmp_path, monk
     assert w["watch_rows"] == [{"name": "Cloudflare Tunnel"}, {"name": "AIOStreams", "host": "streams.example.com", "what": "loads"}, {"name": "Disk space"}]
 
 
+@pytest.mark.skipif(not __import__("shutil").which("sh"), reason="needs sh")
+def test_removing_one_event_drops_only_that_line_and_says_when_it_fails(tmp_path):
+    import subprocess
+    run = lambda f, line: subprocess.run(["sh", "-c", stack.REMOVE_EVENT_SH, "sh", f.as_posix(), line]).returncode
+    ev = tmp_path / "events"
+    ev.write_text("10|fail|Site down\n20|recovered|Passing again | still one field\n10|fail|Site down again\n")
+    assert run(ev, "10|fail|Site down") == 0
+    assert ev.read_text() == "20|recovered|Passing again | still one field\n10|fail|Site down again\n"   # whole lines only
+    assert run(ev, "20|recovered|Passing again | still one field") == 0 and run(ev, "10|fail|Site down again") == 0
+    assert ev.read_text() == "" and not (tmp_path / "events.tmp").exists()      # the last one gone is fine too
+    assert run(tmp_path / "missing", "x") == 0                                     # no file: nothing to do
+    (tmp_path / "dir").mkdir()
+    assert run(tmp_path / "dir", "x") != 0                                         # grep can't read it: a failure, not "removed"
+
+
+def test_remove_event_reports_a_failed_run(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "INSTALL_DIR", tmp_path)
+    (tmp_path / "watchdog-state").mkdir()
+    (tmp_path / "watchdog-state" / "config").write_text("NTFY_TOPIC=x\n")
+    b = stack.Backend.__new__(stack.Backend)
+    codes = iter([0, 2])
+    monkeypatch.setattr(stack.subprocess, "run", lambda *a, **k: SimpleNamespace(returncode=next(codes), stdout="", stderr=""))
+    b.remove_watchdog_event(10, "fail", "Site down")
+    with pytest.raises(ValueError, match="Couldn't remove it"):
+        b.remove_watchdog_event(10, "fail", "Site down")
+
+
 def test_weekly_time_reads_new_and_old_settings():
     assert stack.weekly_time({"weekly_time": "07:05"}) == "07:05"
     assert stack.weekly_time({"weekly_time": "7:05"}) == "07:05"
