@@ -1358,6 +1358,7 @@ a.md-link, .ln.job-before a, .rel-gh a, .drawer-foot a { text-decoration: none; 
 .lg-jump[hidden] { display: none; }
 .lg-jump svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 @media (hover: hover) { .lg-jump:hover { background: var(--primary-hover); } }
+@media (min-width: 721px) { .lg-jump { bottom: 26px; margin: -66px 26px 26px auto; } }   /* desktop: a little further in from the corner and scrollbar */
 .lg-list .term-empty { display: grid; place-items: center; height: 100%; text-align: center; }
 @media (max-width: 720px) {
   .view-head.lg-head { flex-direction: column; gap: 10px; }
