@@ -741,8 +741,10 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .tr-ticks { display: flex; justify-content: space-between; margin-top: 6px; font-size: .76rem; color: var(--faint); }
 .tr-cursor { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--dim); pointer-events: none; }
 .tr-tip { position: absolute; top: 8px; transform: translateX(-50%); background: var(--sunk, var(--bg)); border: 1px solid var(--line);
-  border-radius: 8px; padding: 6px 10px; font-size: .84rem; white-space: nowrap; pointer-events: none; z-index: 1; }
+  border-radius: 8px; padding: 6px 10px; font-size: .84rem; width: max-content; max-width: 100%; box-sizing: border-box; pointer-events: none; z-index: 1; }
+.tr-plot { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }   /* a held finger scrubs, never selects */
 .tr-tip-t { font-weight: 600; margin-bottom: 2px; }
+.tr-tip-v { display: flex; gap: 12px; white-space: nowrap; }
 .tr-cursor[hidden], .tr-tip[hidden] { display: none; }
 .tr-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin-top: 10px; font-size: .84rem; }
 .tr-key::before { content: ""; display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
@@ -810,6 +812,7 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
   .tr-card .vpn-grid.tr-figs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
   .tr-plot { height: 160px; }
   #net-root .tr-plot { height: 104px; }   /* the Network page's graph 35% shorter than the 160px of the other cards */
+  .tr-tip { top: 50%; transform: translate(-50%, -50%); }   /* a held finger's box in the middle: the peaks and the foot stay in sight */
   #net-root .tr-card > .card-foot { display: none; }   /* and no "Recorded since" line under it */
   .tr-ticks span:nth-child(2n) { display: none; }
   .tr-step { margin-left: 0; flex-basis: 100%; }
@@ -1334,9 +1337,31 @@ a.md-link, .ln.job-before a, .rel-gh a, .drawer-foot a { text-decoration: none; 
 .lg-extra { color: var(--faint); }
 /* Wrap: the time and dot start the first line, and the rest of a long line flows back under them
    to the left edge instead of leaving that column empty */
-.lg-list.wrap .lg-ln { display: block; white-space: normal; width: auto; }
-.lg-list.wrap .lg-time, .lg-list.wrap .lg-dot { display: inline-block; margin-right: 10px; vertical-align: middle; }
-.lg-list.wrap .lg-msg { white-space: pre-wrap; word-break: break-word; }
+.lg-list.wrap .lg-ln, .lg-ln.open { display: block; white-space: normal; width: auto; }
+:is(.lg-list.wrap .lg-ln, .lg-ln.open) > :is(.lg-time, .lg-dot) { display: inline-block; margin-right: 10px; vertical-align: middle; }
+:is(.lg-list.wrap .lg-ln, .lg-ln.open) > .lg-msg { white-space: pre-wrap; word-break: break-word; }
+/* A tapped line opens: wrapped, its JSON laid out under it, a copy icon top right. It stays in view when the
+   box is scrolled sideways (closed lines run on past the box's edge) */
+.lg-ln { cursor: pointer; }
+.lg-ln.open { position: sticky; left: 0; padding-right: 46px; background: var(--hover); cursor: auto; }
+.lg-json { margin: 8px -34px 2px 0; padding: 10px 12px; background: var(--sunk); border-radius: 8px; font: inherit; white-space: pre-wrap; word-break: break-word; color: var(--text); }
+.lg-cp { position: absolute; top: calc(var(--lg-pad, 7px) - 5px); right: 5px; display: grid; place-items: center; width: 28px; height: 28px; padding: 0;
+  border: 0; border-radius: 6px; background: none; color: var(--dim); cursor: pointer; }
+.lg-cp svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.lg-cp:active { color: var(--text); }
+@media (hover: hover) { .lg-cp:hover { color: var(--text); background: var(--raised); } }
+/* Jump to latest: a round arrow in the box's bottom right corner, clear of the scroll bars, while Auto-scroll is off
+   and the newest line is well below. Sticky, not absolute: when the box's bottom is below the screen (a phone, page
+   scrolled to the top) the arrow rides the screen's bottom instead, never leaving the box. The negative top margin
+   lays it over the box's corner, and its height and margins add up to nothing, so the page doesn't grow */
+.lg-box { display: flow-root; }   /* the arrow's bottom margin stays inside, so the wrapper is exactly the box's height */
+.lg-jump { position: sticky; bottom: 18px; display: grid; place-items: center; width: 40px; height: 40px; margin: -58px 18px 18px auto; padding: 0;
+  border: 0; border-radius: 50%; background: var(--primary); color: var(--primary-ink); cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .35); z-index: 2; }
+.lg-jump[hidden] { display: none; }
+.lg-jump svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+@media (hover: hover) { .lg-jump:hover { background: var(--primary-hover); } }
+@media (min-width: 721px) { .lg-jump { bottom: 26px; margin: -66px 26px 26px auto; } }   /* desktop: a little further in from the corner and scrollbar */
 .lg-list .term-empty { display: grid; place-items: center; height: 100%; text-align: center; }
 @media (max-width: 720px) {
   .view-head.lg-head { flex-direction: column; gap: 10px; }
@@ -1368,13 +1393,16 @@ a.md-link, .ln.job-before a, .rel-gh a, .drawer-foot a { text-decoration: none; 
   main:has(#view-logs:not([hidden])) { padding-bottom: 16px; }
   /* Wrap on a phone: the time on its own row, then the message at full width with the dot drawn at the start of it,
      so a long line wraps back under the dot instead of hanging indented */
-  .lg-list.wrap .lg-ln:has(> .lg-time) { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px 0; }
-  .lg-list.wrap .lg-ln > .lg-time { justify-self: start; margin-right: 0; }
-  .lg-list.wrap .lg-ln:has(> .lg-time) > .lg-dot { display: none; }
-  .lg-list.wrap .lg-ln:has(> .lg-time) > .lg-msg::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 10px; border-radius: 50%; vertical-align: .1em; background: var(--ok); }
-  .lg-list.wrap .lg-ln.warn:has(> .lg-time) > .lg-msg::before { background: var(--warn); }
-  .lg-list.wrap .lg-ln.error:has(> .lg-time) > .lg-msg::before { background: var(--bad); }
-  .lg-list.wrap .lg-ln.quiet:has(> .lg-time) > .lg-msg::before { background: var(--faint); }
+  :is(.lg-list.wrap .lg-ln, .lg-ln.open):has(> .lg-time) { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px 0; }
+  :is(.lg-list.wrap .lg-ln, .lg-ln.open) > .lg-time { justify-self: start; margin-right: 0; }
+  :is(.lg-list.wrap .lg-ln, .lg-ln.open):has(> .lg-time) > .lg-dot { display: none; }
+  :is(.lg-list.wrap .lg-ln, .lg-ln.open):has(> .lg-time) > .lg-msg::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 10px; border-radius: 50%; vertical-align: .1em; background: var(--ok); }
+  :is(.lg-list.wrap .lg-ln, .lg-ln.open).warn:has(> .lg-time) > .lg-msg::before { background: var(--warn); }
+  :is(.lg-list.wrap .lg-ln, .lg-ln.open).error:has(> .lg-time) > .lg-msg::before { background: var(--bad); }
+  :is(.lg-list.wrap .lg-ln, .lg-ln.open).quiet:has(> .lg-time) > .lg-msg::before { background: var(--faint); }
+  /* the time has its own row, so only that row needs room for the copy icon */
+  .lg-ln.open:has(> .lg-time) { padding-right: 12px; }
+  .lg-ln.open:has(> .lg-time) > .lg-json { margin: 2px 0 2px; }   /* the grid's gap already sits above it */
 }
 
 /* ---------- activity + backups ---------- */
@@ -2412,7 +2440,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   #view-logs .lg-row2 > .lg-acts { position: relative; flex: none; align-self: center; justify-content: flex-end; gap: 6px; margin-left: 24px;
     width: calc(var(--lg-svc-w) + 10px + var(--lg-regex-w) / 2); }   /* the rule lands under the middle of the .* button */
   #view-logs .lg-row2 > .lg-acts::before { content: ""; position: absolute; left: 0; top: calc(50% - 17px); height: 25px; width: 1px; background: var(--line); }
-  .lg-acts .lg-word { display: inline; }
+  .lg-acts .lg-word { display: inline; position: relative; top: 1.5px; }   /* the word's baseline on the foot of the icon's drawing */
   @media (hover: hover) {
     :is(#view-logs, #view-activity) .lg-acts .btn:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
   }
