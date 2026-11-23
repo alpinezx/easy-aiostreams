@@ -338,9 +338,9 @@ export function hide() { if (es) { es.close(); es = null; } }
 
 function setFollow(v) { follow = v; $("#log-follow").checked = v; syncJump(); }
 
-// The Jump to latest button: with Auto-scroll off and the newest line more than about 5 lines below. A line or two
-// up, or a line opened near the bottom, leaves it hidden, so it isn't in the way of what is being read.
-const JUMP_LINES = 5;
+// The Jump to latest button: with Auto-scroll off and 10 or more lines below the view. A few lines up, or a line
+// opened near the bottom, leaves it hidden, so it isn't in the way of what is being read.
+const JUMP_LINES = 10;
 // Counts whole lines below the box from the newest up, stopping at the limit, so an opened (tall) line counts as one.
 function syncJump() {
   const t = $("#log-term"), jump = $("#log-jump");
