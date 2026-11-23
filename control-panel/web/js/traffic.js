@@ -209,7 +209,8 @@ function chart(s, key) {
   const plot = h("div", { class: "tr-plot" },
     h("span", { class: "tr-ymax", text: fmtRate(top) }), h("span", { class: "tr-ymid", text: fmtRate(top / 2) }),
     svg, cursor, tip);
-  // Point at the graph (or touch it) for that moment's speeds
+  // Point at the graph for that moment's speeds. A finger has to press and hold (a tap or a scroll that starts on
+  // the graph shows nothing), then can slide sideways; lifting it hides the box again.
   const show = (e) => {
     const r = plot.getBoundingClientRect();
     const i = Math.max(0, Math.min(n - 1, Math.round(((e.clientX - r.left) / r.width) * (n - 1))));
@@ -217,17 +218,34 @@ function chart(s, key) {
     cursor.hidden = tip.hidden = false;
     const left = (x(i) / W) * 100;
     cursor.style.left = `${left}%`;
-    tip.style.left = `${Math.min(Math.max(left, 12), 88)}%`;
     clear(tip);
     const label = key === "7d" ? `${dayName(p[0])}, ${hhmm(p[0])} to ${hhmm(p[0] + 3600)}`
       : key === "24h" ? `${dayName(p[0]) === "Today" ? "" : dayName(p[0]) + ", "}${hhmm(p[0])} to ${hhmm(p[0] + 300)}` : when(p[0]);
     tip.append(h("div", { class: "tr-tip-t", text: label }));
-    if (p[1] == null) tip.append(h("div", { class: "dim", text: "No data: VPN off or the panel not running" }));
-    else tip.append(h("div", { text: `↓ ${fmtRate(p[1])}` }), h("div", { class: "dim", text: `↑ ${fmtRate(p[2])}` }));
+    // two short lines at most, so the box hides little of the graph
+    if (p[1] == null) tip.append(h("div", { class: "dim", text: "No data" }));
+    else tip.append(h("div", { class: "tr-tip-v" }, h("span", { text: `↓ ${fmtRate(p[1])}` }), h("span", { class: "dim", text: `↑ ${fmtRate(p[2])}` })));
+    // over the moment, but never past the graph's edges
+    const half = tip.offsetWidth / 2, at = (left / 100) * r.width;
+    tip.style.left = `${Math.min(Math.max(at, half), r.width - half)}px`;
   };
-  plot.addEventListener("pointermove", show);
-  plot.addEventListener("pointerdown", show);
-  plot.addEventListener("pointerleave", () => { cursor.hidden = tip.hidden = true; });
+  const hide = () => { cursor.hidden = tip.hidden = true; };
+  let hold = null, held = false, from = null;
+  const stopHold = () => { clearTimeout(hold); hold = null; };
+  plot.addEventListener("pointerdown", (e) => {
+    if (e.pointerType !== "touch") { show(e); return; }
+    held = false; from = { x: e.clientX, y: e.clientY }; stopHold();
+    const at = { clientX: e.clientX };
+    hold = setTimeout(() => { hold = null; held = true; show(at); }, 350);
+  });
+  plot.addEventListener("pointermove", (e) => {
+    if (e.pointerType !== "touch") { show(e); return; }
+    if (held) show(e);
+    else if (hold && Math.hypot(e.clientX - from.x, e.clientY - from.y) > 8) stopHold();   // moving: a scroll, not a hold
+  });
+  for (const ev of ["pointerup", "pointercancel"]) plot.addEventListener(ev, (e) => { if (e.pointerType === "touch") { stopHold(); held = false; hide(); } });
+  plot.addEventListener("pointerleave", (e) => { if (e.pointerType !== "touch") hide(); });
+  plot.addEventListener("contextmenu", (e) => { if (held || hold) e.preventDefault(); });   // the hold isn't a long-press menu
   return h("div", { class: "tr-chart" }, plot, ticks);
 }
 
