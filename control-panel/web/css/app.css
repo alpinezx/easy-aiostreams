@@ -2437,7 +2437,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   #view-logs .lg-row2 > .lg-acts { position: relative; flex: none; align-self: center; justify-content: flex-end; gap: 6px; margin-left: 24px;
     width: calc(var(--lg-svc-w) + 10px + var(--lg-regex-w) / 2); }   /* the rule lands under the middle of the .* button */
   #view-logs .lg-row2 > .lg-acts::before { content: ""; position: absolute; left: 0; top: calc(50% - 17px); height: 25px; width: 1px; background: var(--line); }
-  .lg-acts .lg-word { display: inline; }
+  .lg-acts .lg-word { display: inline; position: relative; top: 1.5px; }   /* the word's baseline on the foot of the icon's drawing */
   @media (hover: hover) {
     :is(#view-logs, #view-activity) .lg-acts .btn:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
   }
