@@ -2122,7 +2122,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 .upd-peek .upd-peek-head { margin: 0 0 8px; font-size: .86rem; color: var(--dim); }
 /* The opening line looks like the plain actions under it (Show output, List updates): list icon, bold word in the same tone */
 .upd-tog { display: inline-flex; align-items: center; gap: 6px; margin: -6px 0; padding: 6px 0; border: 0; background: none; cursor: pointer;
-  font: inherit; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+  font: inherit; font-size: .86rem; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }   /* the size of Show output and List updates */
 .upd-tog-ic svg { display: block; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .upd-tog:active { color: var(--text); }
 @media (hover: hover) { .upd-tog:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; } }
@@ -2130,6 +2130,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 @media (max-width: 720px) {
   .upd-peek.empty { display: none; }
   .upd-peek-row { padding: 10px 0 2px; }
+  .upd-tog { font-size: .82rem; }   /* Show output and List updates are this size on a phone */
 }
 @media (max-width: 720px) {
   /* Room for a thumb on each */
@@ -2220,6 +2221,8 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 .btn.btn-i { gap: 5px; }
 .btn.btn-i > svg.bi { width: 13px; height: 13px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .btn.btn-i > svg.bi.round { width: 12px; height: 12px; }
+/* Show output's and List updates' icons the size of What's waiting's (the same list icon just above them) */
+#view-maint .btn.maint-list > svg.bi { width: 16px; height: 16px; }
 .btn.rs-wide.btn-i { display: flex; justify-content: center; align-items: center; }
 .btn.rs-wide.btn-i[hidden] { display: none; }
 /* Quiet buttons with words (a drawer's Done and Back, Reset, Clear history): the same soft fill, no outline.

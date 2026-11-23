@@ -4,7 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 23 November 2026
 
-- **Fixed:** Phone touches in several places. A box you type in to confirm (Uninstall, Restore) stays in view with its buttons while the rest of the dialog scrolls; dragging on a dropdown scrolls the page; only the switch itself flips Phone alerts' Also tell me and the VPN page's Through the VPN rows; Activity rows always show the group on a line of its own, and its bins line up under the filter card's bin, which now sits level with the chips (on Logs too); and a short message no longer leaves one word alone on its line. (Panel 1.64.7)
+- **Fixed:** Phone touches in several places. A box you type in to confirm (Uninstall, Restore) stays in view with its buttons while the rest of the dialog scrolls; dragging on a dropdown scrolls the page; only the switch itself flips Phone alerts' Also tell me and the VPN page's Through the VPN rows; Activity rows always show the group on a line of its own, and its bins line up under the filter card's bin, which now sits level with the chips (on Logs too); and a short message no longer leaves one word alone on its line. On Maintenance, What's waiting is now the size of Show output and List updates beside it, with the same size icons. (Panel 1.64.7)
 - Dropdowns (Activity's Show, the Logs service and the schedule pickers) no longer get a blue ring when tapped or picked from, which stayed on after a pick, mostly on phones. (Panel 1.64.6)
 - **Fixed:** Removing one event from Activity now says so if it couldn't be removed, instead of the event coming back on the next look, and typing in Activity's filter box waits for a pause before it looks again. (Panel 1.64.5)
 
