@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 23 November 2026
 
+- Dropdowns (Activity's Show, the Logs service and the schedule pickers) no longer get a blue ring when tapped or picked from, which stayed on after a pick, mostly on phones. (Panel 1.64.6)
 - **Fixed:** Removing one event from Activity now says so if it couldn't be removed, instead of the event coming back on the next look, and typing in Activity's filter box waits for a pause before it looks again. (Panel 1.64.5)
 
 ## 22 November 2026
