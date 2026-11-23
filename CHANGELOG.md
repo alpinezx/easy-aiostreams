@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 23 November 2026
 
+- **Fixed:** Maintenance: picking a time zone from the suggestions only fills the box, and **Set time zone** makes the change (greyed until there is a zone to set). Network: the Clear word sits level with the foot of its bin on desktop. (Panel 1.65.2)
 - **Docs:** control panel screenshots in the README and the basic and advanced guides retaken for panel 1.65.1, and the advanced control panel guide condensed by about a third, with the Overview's cards gathered in one section.
 - **Fixed:** Overview on desktop: the Phone alerts card's figures spread across the whole card like the other cards, Watchdog on the left, Last check in the middle and Result on the right edge. (Panel 1.65.1)
 - Logs: tap or click a line to open it, wrapped, with JSON laid out over several lines and a copy icon for that one line; tap again to close it. Opening a line pauses Auto-scroll, and once you are a few lines up a Jump to latest arrow in the log's bottom right corner goes back to the newest line and turns it on again. (Panel 1.65.0, [#221](https://github.com/alpinezx/easy-aiostreams/pull/221))

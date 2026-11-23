@@ -295,7 +295,7 @@ function tzEditor(r, phone) {
     const draw = () => {
       clear(list);
       shown.forEach((z, i) => list.append(h("li", { role: "option", class: i === pick ? "on" : "", "aria-selected": String(i === pick), text: z.replace(/_/g, " "),
-        onmousedown: (e) => { e.preventDefault(); box.value = z; close(); done(); } })));
+        onmousedown: (e) => { e.preventDefault(); fill(z); } })));
       list.hidden = !shown.length;
       box.setAttribute("aria-expanded", String(!list.hidden));
     };
@@ -306,10 +306,13 @@ function tzEditor(r, phone) {
         return city.startsWith(q) ? 0 : l.startsWith(q) ? 1 : l.includes(q) ? 2 : 3; };
       shown = q ? zones.map((z) => [rank(z), z]).filter(([r]) => r < 3).sort((a, b) => a[0] - b[0] || a[1].localeCompare(b[1]))
         .slice(0, 8).map(([, z]) => z) : [];
-      pick = -1; draw();
+      pick = -1; draw(); ready();
     });
     box.addEventListener("blur", close);
-    const go = h("button", { class: "btn small" + (phone ? " rs-wide" : ""), type: "button", text: phone ? "Set time zone" : "Set" });
+    // Set changes the zone; picking a suggestion only fills the box, and Set stays greyed until it has something
+    const go = h("button", { class: "btn small" + (phone ? " rs-wide" : ""), type: "button", text: phone ? "Set time zone" : "Set", disabled: true });
+    const ready = () => { go.disabled = !box.value.trim(); };
+    const fill = (z) => { box.value = z; close(); ready(); };
     const done = async () => {
       const tz = box.value.trim();
       if (!tz) return;
@@ -327,8 +330,8 @@ function tzEditor(r, phone) {
         pick = (pick + (e.key === "ArrowDown" ? 1 : shown.length - 1)) % shown.length;
         draw();
       } else if (e.key === "Enter") {
-        if (pick >= 0) box.value = shown[pick];
-        close(); done();
+        // Enter on a highlighted suggestion picks it; Enter on a filled box sets it, as a form would
+        if (pick >= 0) fill(shown[pick]); else { close(); done(); }
       } else if (e.key === "Escape") {
         if (shown.length) close(); else { box.value = ""; render(true); }
       }
