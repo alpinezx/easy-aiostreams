@@ -262,7 +262,7 @@ function paint() {
   else term.append(...shown.map(node));
   snapRows();
   if (follow) term.scrollTop = term.scrollHeight;
-  setFollow(follow);   // the pill, for the new height
+  syncJump();   // the button, for the new height
 }
 
 // What's on screen (respecting the filters), as the raw lines with full timestamps.
@@ -310,7 +310,7 @@ function connect() {
       while (term.childElementCount > MAX) term.firstChild.remove();
       if (!term.style.getPropertyValue("--lg-pad")) snapRows();   // the first lines arrive after paint: size the rows once
       if (follow) term.scrollTop = term.scrollHeight;
-      else if ($("#log-jump").hidden) setFollow(false);   // paused, and now there is something below
+      else if ($("#log-jump").hidden) syncJump();   // paused, and the new lines may now be far enough below
     }
   };
   es.onerror = () => setConn("retry", "reconnecting");
@@ -336,11 +336,19 @@ export function show(status, pick) {
 
 export function hide() { if (es) { es.close(); es = null; } }
 
-// Auto-scroll off (scrolled up, or switched off) shows the Jump to latest pill, if there is anything below
-function setFollow(v) {
-  follow = v; $("#log-follow").checked = v;
-  const t = $("#log-term");
-  $("#log-jump").hidden = v || t.scrollHeight <= t.clientHeight;
+function setFollow(v) { follow = v; $("#log-follow").checked = v; syncJump(); }
+
+// The Jump to latest button: with Auto-scroll off and the newest line more than about 5 lines below. A line or two
+// up, or a line opened near the bottom, leaves it hidden, so it isn't in the way of what is being read.
+const JUMP_LINES = 5;
+// Counts whole lines below the box from the newest up, stopping at the limit, so an opened (tall) line counts as one.
+function syncJump() {
+  const t = $("#log-term"), jump = $("#log-jump");
+  if (follow) { jump.hidden = true; return; }
+  const bottom = t.getBoundingClientRect().bottom;
+  let below = 0;
+  for (let r = t.lastElementChild; r && below < JUMP_LINES && r.getBoundingClientRect().top >= bottom - 1; r = r.previousElementSibling) below++;
+  jump.hidden = below < JUMP_LINES;
 }
 
 // Tap a line to open it (wrapped, JSON laid out) and again to close it. A drag that selected text leaves it be.
@@ -390,7 +398,7 @@ export function init() {
   $("#log-follow").addEventListener("change", (e) => { setFollow(e.target.checked); if (follow) { const t = $("#log-term"); t.scrollTop = t.scrollHeight; } });
   $("#log-term").addEventListener("scroll", (e) => {
     const t = e.target, end = t.scrollTop + t.clientHeight >= t.scrollHeight - 24;
-    if (end && !follow && Date.now() < holdFollow) return;
+    if (end && !follow && Date.now() < holdFollow) { syncJump(); return; }
     setFollow(end);
   });
   $("#log-term").addEventListener("click", onLineClick);
