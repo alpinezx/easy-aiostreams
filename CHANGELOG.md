@@ -4,7 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 23 November 2026
 
-- **Docs:** control panel screenshots in the README and the basic and advanced guides retaken for panel 1.65.1.
+- **Docs:** control panel screenshots in the README and the basic and advanced guides retaken for panel 1.65.1, and the advanced control panel guide condensed by about a third, with the Overview's cards gathered in one section.
 - **Fixed:** Overview on desktop: the Phone alerts card's figures spread across the whole card like the other cards, Watchdog on the left, Last check in the middle and Result on the right edge. (Panel 1.65.1)
 - Logs: tap or click a line to open it, wrapped, with JSON laid out over several lines and a copy icon for that one line; tap again to close it. Opening a line pauses Auto-scroll, and once you are a few lines up a Jump to latest arrow in the log's bottom right corner goes back to the newest line and turns it on again. (Panel 1.65.0, [#221](https://github.com/alpinezx/easy-aiostreams/pull/221))
 - Network graph on a phone: the box with a moment's speeds opens only when you press and hold, so a tap or a scroll that starts on the graph no longer brings it up; lifting your finger closes it. The box is two short lines (down and up side by side), sits in the middle of the graph so the peaks stay in sight, and stays inside the screen's edges. On a computer, the tool words on Logs and Activity line up with their icons. (Panel 1.65.0, [#221](https://github.com/alpinezx/easy-aiostreams/pull/221))
