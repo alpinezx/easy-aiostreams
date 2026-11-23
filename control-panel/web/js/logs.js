@@ -199,7 +199,7 @@ function fitBox() {
 function snapRows() {
   const t = $("#log-term"), keep = follow;
   t.style.removeProperty("--lg-pad");
-  const rows = t.querySelectorAll(".lg-ln");
+  const rows = t.querySelectorAll(".lg-ln:not(.open)");   // an opened line is taller: measure a closed one
   if (wrap || rows.length < 3 || !t.clientHeight) return;
   const rowH = rows[1].getBoundingClientRect().height, n = Math.floor(t.clientHeight / rowH);
   if (!(rowH > 0) || n < 1) return;
@@ -221,15 +221,32 @@ function syncControls() {
   fitBox();
 }
 
+// A JSON line laid out over several lines, for an opened line; null for any other line
+function pretty(l) {
+  const t = l.text.trimStart();
+  if (!t.startsWith("{")) return null;
+  try { return JSON.stringify(JSON.parse(t), null, 2); } catch (_) { return null; }
+}
+
+// Each row's line, for a tap on it (rows are rebuilt by paint, so a WeakMap lets go of the old ones)
+const rowLine = new WeakMap();
+
 function node(l) {
   // Noise (Caddy's expected warnings, the tunnel's closed connections) is grey, whatever its level.
-  return h("div", { class: `lg-ln ${l.cls}${l.noise ? " quiet" : ""}` },
+  // An opened line wraps and lays out its JSON, with a copy icon for that one line.
+  const json = l.open ? pretty(l) : null;
+  const el = h("div", { class: `lg-ln ${l.cls}${l.noise ? " quiet" : ""}${l.open ? " open" : ""}` },
     l.time ? h("time", { class: "lg-time", text: l.time }) : null,
     h("i", { class: "lg-dot", "aria-hidden": "true" }),
     h("span", { class: "lg-msg" },
       l.mod ? h("span", { class: "lg-mod", text: `[${l.mod}] ` }) : null,
       l.msg,
-      l.extra ? h("span", { class: "lg-extra", text: ` ${l.extra}` }) : null));
+      l.extra && !json ? h("span", { class: "lg-extra", text: ` ${l.extra}` }) : null),
+    json ? h("pre", { class: "lg-json", text: json }) : null,
+    l.open ? h("button", { class: "lg-cp", type: "button", title: "Copy this line", "aria-label": "Copy this line" },
+      $("#log-copy svg").cloneNode(true)) : null);
+  rowLine.set(el, l);
+  return el;
 }
 
 let connected = false;
@@ -245,6 +262,7 @@ function paint() {
   else term.append(...shown.map(node));
   snapRows();
   if (follow) term.scrollTop = term.scrollHeight;
+  setFollow(follow);   // the pill, for the new height
 }
 
 // What's on screen (respecting the filters), as the raw lines with full timestamps.
@@ -292,6 +310,7 @@ function connect() {
       while (term.childElementCount > MAX) term.firstChild.remove();
       if (!term.style.getPropertyValue("--lg-pad")) snapRows();   // the first lines arrive after paint: size the rows once
       if (follow) term.scrollTop = term.scrollHeight;
+      else if ($("#log-jump").hidden) setFollow(false);   // paused, and now there is something below
     }
   };
   es.onerror = () => setConn("retry", "reconnecting");
@@ -317,7 +336,38 @@ export function show(status, pick) {
 
 export function hide() { if (es) { es.close(); es = null; } }
 
-function setFollow(v) { follow = v; $("#log-follow").checked = v; }
+// Auto-scroll off (scrolled up, or switched off) shows the Jump to latest pill, if there is anything below
+function setFollow(v) {
+  follow = v; $("#log-follow").checked = v;
+  const t = $("#log-term");
+  $("#log-jump").hidden = v || t.scrollHeight <= t.clientHeight;
+}
+
+// Tap a line to open it (wrapped, JSON laid out) and again to close it. A drag that selected text leaves it be.
+async function onLineClick(e) {
+  const row = e.target.closest(".lg-ln"), l = row && rowLine.get(row);
+  if (!l) return;
+  if (e.target.closest(".lg-cp")) {
+    try { await navigator.clipboard.writeText(l.raw); toast("Copied the line."); }
+    catch (_) { toast("Couldn't copy the line.", true); }
+    return;
+  }
+  const sel = window.getSelection();
+  if (sel && !sel.isCollapsed && row.contains(sel.anchorNode)) return;
+  l.open = !l.open;
+  holdFollow = l.open ? Date.now() + 400 : 0;   // the browser may scroll to keep what's in view in place as the line grows
+  const t = $("#log-term"), fresh = node(l);
+  row.replaceWith(fresh);
+  if (!l.open) return;
+  // Opened, the line holds still while it is read: Auto-scroll pauses (Jump to latest turns it back on),
+  // and a line that grew past the box's bottom is scrolled up into view, its top kept in sight
+  setFollow(false);
+  const box = t.getBoundingClientRect(), r = fresh.getBoundingClientRect();
+  const by = Math.min(r.bottom - box.bottom, r.top - box.top);
+  if (by > 0) t.scrollTop += by;
+}
+// Until then, a scroll that lands on the newest line (one the panel made) doesn't switch Auto-scroll back on
+let holdFollow = 0;
 
 export function init() {
   $("#log-filter").addEventListener("input", (e) => { filter = e.target.value; setMatcher(); paint(); });
@@ -339,9 +389,12 @@ export function init() {
   $("#log-wrap").addEventListener("change", (e) => { wrap = e.target.checked; save("aios.logWrap", wrap ? "1" : "0"); paint(); });
   $("#log-follow").addEventListener("change", (e) => { setFollow(e.target.checked); if (follow) { const t = $("#log-term"); t.scrollTop = t.scrollHeight; } });
   $("#log-term").addEventListener("scroll", (e) => {
-    const t = e.target;
-    setFollow(t.scrollTop + t.clientHeight >= t.scrollHeight - 24);
+    const t = e.target, end = t.scrollTop + t.clientHeight >= t.scrollHeight - 24;
+    if (end && !follow && Date.now() < holdFollow) return;
+    setFollow(end);
   });
+  $("#log-term").addEventListener("click", onLineClick);
+  $("#log-jump").addEventListener("click", () => { const t = $("#log-term"); setFollow(true); t.scrollTop = t.scrollHeight; });
   window.addEventListener("resize", fitBox);
   if (window.visualViewport) window.visualViewport.addEventListener("resize", fitBox);
   // Clear, Copy and .log sit on the level buttons' row of the filter card, which they act on: icons only on a phone,
