@@ -225,9 +225,10 @@ function extras(w) {
         toast(e.message || "Couldn't save it.", true);
       } finally { input.disabled = !!disabled; }
     });
-    return h("label", { class: "wd-opt" },
+    // Only the switch flips it: a tap on the title or text (easy with a thumb while scrolling) does nothing
+    return h("div", { class: "wd-opt" },
       h("span", {}, h("span", { class: "wd-opt-title", text: title }), h("span", { class: "dim wd-opt-text", text: text })),
-      h("span", { class: "sw" }, input, h("i", { "aria-hidden": "true" })));
+      h("label", { class: "sw", "aria-label": title }, input, h("i", { "aria-hidden": "true" })));
   };
   // When the check-in goes out, shown while it's on
   const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];

@@ -87,7 +87,7 @@ function step(dir) {
 }
 
 // Mouse and touch: stop the browser's own list, open ours on release, as the
-// browser does. A finger that moves (a scroll) opens nothing.
+// browser does. A finger that moves (a scroll) opens nothing, and the page scrolls.
 let downAt = null;
 function onDown(e) {
   const sel = e.target.closest && e.target.closest("select.input");
@@ -130,7 +130,8 @@ document.addEventListener("pointerdown", (e) => {
   onDown(e);
 }, true);
 document.addEventListener("mousedown", onDown, true);
-document.addEventListener("touchstart", onDown, { capture: true, passive: false });
+// No touchstart cancel: it stopped a thumb on a dropdown from scrolling the page. Cancelling pointerdown (above) and the
+// click (below) already keep the phone's own picker shut, and a drag that becomes a scroll never reaches pointerup.
 document.addEventListener("pointerup", onUp, true);
 document.addEventListener("click", (e) => { if (e.target.closest?.("select.input")) e.preventDefault(); }, true);
 document.addEventListener("keydown", onKey, true);

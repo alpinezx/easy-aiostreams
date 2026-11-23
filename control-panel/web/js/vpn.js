@@ -326,10 +326,11 @@ function routesBox(v) {
             body: off ? "It stays on this server's own address when the VPN is next turned on." : "It and AIOStreams restart, so streams pause for a few seconds. It then leaves from this server's own address." });
       if (yes) runAction(act, { service: r.key, on });
     });
-    list.append(h("label", { class: "wd-opt" },
+    // Only the switch asks: a tap on the name or text does nothing
+    list.append(h("div", { class: "wd-opt" },
       h("span", {}, h("span", { class: "wd-opt-title", text: r.name }),
         h("span", { class: "dim wd-opt-text", text: r.on ? (off ? "Through the VPN when it's on" : "Through the VPN") : "This server's own address" })),
-      h("span", { class: "sw" }, input, h("i", { "aria-hidden": "true" }))));
+      h("label", { class: "sw", "aria-label": `${r.name} through the VPN` }, input, h("i", { "aria-hidden": "true" }))));
   }
   return h("div", {}, h("h3", { class: "conf-title", text: "Through the VPN" }), list);
 }

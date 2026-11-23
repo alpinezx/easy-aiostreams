@@ -30,22 +30,28 @@ $("#scrim").addEventListener("click", () => { if (!$("#dialog").hidden) closeDia
 export function ask({ title, body, confirmLabel, danger, options, alt }) {
   return new Promise((resolve) => {
     const done = (v) => { closeDialog(); resolve(v); };
+    const gate = options && options.gate;
+    const btns = h("div", { class: "btns" },
+      h("button", { class: "btn", type: "button", text: "Cancel", onclick: () => done(null) }),
+      alt ? h("button", { class: "btn", type: "button", text: alt.label, onclick: () => done(alt.value) }) : null,
+      h("button", { class: "btn primary" + (danger ? " danger" : ""), type: "button", text: confirmLabel,
+        disabled: !!gate,
+        onclick: () => done(options ? options.read() : true) }));
+    // The box to type the word in goes with the buttons (its label too), pinned at the bottom: on a phone with the
+    // keyboard up only the text above scrolls, so the box never scrolls out of sight
+    const gateBox = gate && gate.parentElement && gate.parentElement.classList.contains("field") ? gate.parentElement : gate;
     openDialog([
       h("h3", { id: "dialog-title", text: title }),
       // A "\n" in the body starts a new line
       body ? h("p", {}, ...body.split("\n").flatMap((t, i) => i ? [h("br"), t] : [t])) : null,
       options ? options.el : null,
-      h("div", { class: "btns" },
-        h("button", { class: "btn", type: "button", text: "Cancel", onclick: () => done(null) }),
-        alt ? h("button", { class: "btn", type: "button", text: alt.label, onclick: () => done(alt.value) }) : null,
-        h("button", { class: "btn primary" + (danger ? " danger" : ""), type: "button", text: confirmLabel,
-          disabled: !!(options && options.gate),
-          onclick: () => done(options ? options.read() : true) })),
+      gate ? h("div", { class: "dlg-foot" }, gateBox, btns) : btns,
     ]);
-    if (options && options.gate) {          // confirm stays off until the word is typed
+    if (gate) {          // confirm stays off until the word is typed
       const btn = $("#dialog .btn.primary");
-      options.gate.addEventListener("input", () => { btn.disabled = options.gate.value.trim().toLowerCase() !== options.word; });
-      options.gate.focus();
+      gate.addEventListener("input", () => { btn.disabled = gate.value.trim().toLowerCase() !== options.word; });
+      gate.focus({ preventScroll: true });
+      $("#dialog").scrollTop = 0;          // the title first; the text scrolls behind the pinned box
     }
   });
 }
