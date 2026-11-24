@@ -387,8 +387,9 @@ function proxies(m) {
     const btn = h("button", { class: "btn small" + (fresh ? " primary" : "") + (phone ? " rs-wide" : ""), type: "button", text: "Update",
       disabled: busy || !a || !a.available,
       title: !a || !a.available ? "This server's scripts are from before this button. Update them on the Scripts tab."
-        : fresh ? `Update ${i.name} to ${i.latest}. The one it replaces comes back if the new one doesn't work.` : `${i.name} looks the newest already; Update checks again`,
-      onclick: () => runAction(a) });
+        : fresh ? `Update ${i.name} to ${i.latest}. The one it replaces comes back if the new one doesn't work.` : null,
+      // Like the Overview and VPN: up to date (and the check worked) just says so, as elsewhere in the panel
+      onclick: () => (!fresh && i.running && i.latest ? toast(`${i.name} is up to date (${i.running}). Nothing to do.`) : runAction(a)) });
     const notes = h("button", { class: "linkish prox-notes", type: "button", text: fresh ? "What's new" : "Release notes",
       onclick: () => releaseNotes(i) });
     const blk = h("div", { class: "rs-block" },
@@ -414,10 +415,12 @@ function proxies(m) {
     render(true);
   });
   const autoWord = p.auto !== "monthly" ? ["Off", "dim"] : p.timer ? ["Monthly", "ok"] : ["Not running", "warn"];
-  cardEl.append(h("div", { class: "rs-block" + (autoWord[1] === "warn" ? " rs-keep" : "") },
+  // Beside the select, so switching it never changes the card's height (the foot stays one line)
+  const autoNote = p.auto !== "monthly" ? "Nothing updates until you press Update."
+    : "First Wednesday of the month at 03:15." + (p.last ? ` Last run ${ago(p.last.at)}: ${p.last.text}` : "");
+  cardEl.append(h("div", { class: "rs-block prox-auto-block" + (autoWord[1] === "warn" ? " rs-keep" : "") },
     h("div", { class: "rs-line" }, h("span", { class: "ver-label", text: "Automatic updates" }), h("span", { class: "rs-word " + autoWord[1], text: autoWord[0] })),
-    h("div", { class: "rs-ctl" }, auto)));
-  const ran = p.last ? ` Last automatic run ${ago(p.last.at)}: ${p.last.text}` : "";
+    h("div", { class: "rs-ctl" }, auto, h("span", { class: "dim prox-auto", text: autoNote }))));
   const check = h("button", { class: "btn small", type: "button", text: "Check now", onclick: async () => {
     check.disabled = true;
     try { last.proxies = await api("/api/proxies?force=1"); setMaint(last); } catch (e) { toast(e.message || "Couldn't check."); }
@@ -425,7 +428,7 @@ function proxies(m) {
   } });
   cardEl.append(h("div", { class: "card-foot" }, h("div", { class: "maint-foot" },
     h("span", { class: "dim", text: p.error ? `Couldn't check for new releases: ${p.error}`
-      : `Checked ${ago(p.checked_at)}. If an update fails, the earlier version comes back.${p.auto === "monthly" ? ran : ""}` }),
+      : `Checked ${ago(p.checked_at)}. If an update fails, the earlier version comes back.` }),
     check)));
   return cardEl;
 }

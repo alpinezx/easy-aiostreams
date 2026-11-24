@@ -2726,9 +2726,14 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 .prox-card .prox-notes { font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
 @media (hover: hover) { .prox-card .prox-notes:hover { text-decoration: underline; } }
 .rs-desk.prox-card .rs-ctl > select { min-width: 16em; }
+/* A short card (Caddy alone, beside a taller one) keeps Automatic updates and the foot at its bottom;
+   the block itself stretches, so its top line stays under Caddy */
+.rs-desk.prox-card .prox-auto-block { flex: 1 0 auto; display: flex; flex-direction: column; justify-content: flex-end; }
+.rs-desk.prox-card .prox-auto {flex: 1 1 14em; min-width: 0; margin-left: 8px; font-size: 13px; line-height: 1.35; }
 @media (max-width: 720px) {
   .rs-phone.prox-card .prox-ver { display: block; margin-top: 8px; }
   .rs-phone.prox-card .rs-ctl > select { display: block; width: 100%; margin-top: 12px; }
+  .rs-phone.prox-card .prox-auto { display: block; margin-top: 8px; font-size: 13px; }
 }
 /* Container logs at the foot of Free up space (maint.js logsBlock) */
 .maint-card:has(> .cl-block) > .card-foot { margin-top: 0; padding-bottom: 16px; }
