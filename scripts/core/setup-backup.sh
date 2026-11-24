@@ -1822,7 +1822,10 @@ do_restore() {
 
     rm -f "$INSTALL_DIR"/{watchdog-state,mediaflow-state,aiometadata-state,aiomanager-state,ui-state}/was-active-at-backup
 
-    if (( start_status )); then
+    if (( start_status == 4 )); then
+        # Still a finished restore: AIOStreams runs, but nothing reaches it
+        warn "Restore finished, but Caddy isn't answering, so your sites are down (see above). Check the Caddyfile and: sudo docker logs caddy"
+    elif (( start_status )); then
         # Still a finished restore (exit 0): the files are in place, and the panel restarts onto them
         warn "Restore finished, but AIOStreams didn't start (see above). Once that's fixed, use Start AIOStreams."
     else

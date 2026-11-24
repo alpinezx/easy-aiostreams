@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 24 November 2026
 
+- **Fixed:** Scripts: a restore keeps the Caddy in use as a spare while it fetches the current one, as Update AIOStreams does. If the new Caddy doesn't answer within a minute, the earlier one is put back so the sites stay up.
 - **Fixed:** Logs page: blank lines (AIOMetadata prints them around its warnings) no longer show as empty rows with only a time and a dot. (Panel 1.65.7)
 - **Fixed:** Phone alerts: the second Watches line names only the checks it counts, so a server that watches just its disk reads "1 system check" instead of "1 service & system check". (Panel 1.65.6)
 - Scripts: Update AIOStreams keeps the Caddy in use as a spare until the new one answers. If the new Caddy doesn't answer within a minute, the earlier one is put back so the sites stay up, and the next update tries again. ([#226](https://github.com/alpinezx/easy-aiostreams/pull/226))

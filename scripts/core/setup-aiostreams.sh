@@ -714,7 +714,8 @@ run_backup_script() {
 # The part of a restore that starts things, called by setup-backup.sh once
 # the backup is extracted and its domain checked. Exits 2 when you choose
 # not to start in direct mode with the VPN switched off, 3 when AIOStreams
-# didn't start (the tunnel wasn't confirmed).
+# didn't start (the tunnel wasn't confirmed), 4 when Caddy isn't answering
+# (neither the pulled one nor the earlier one).
 restore_start_stack() {
     local start_failed=0
     secure_install_dir
@@ -729,9 +730,13 @@ restore_start_stack() {
     # image is cached here, and starting on a stale image fails with a
     # migration error, so always pull fresh first.
     info "Pulling current images before starting"
-    local image_snapshot
+    local image_snapshot caddy_before
     # shellcheck disable=SC2046  # image refs never contain spaces
     image_snapshot=$(snapshot_image_ids $(compose_image_refs "$COMPOSE_FILE"))
+    # The Caddy this server ran, kept as a spare until the pulled one answers (as Update does)
+    caddy_before=$(docker inspect -f '{{.Image}}' caddy 2>/dev/null || true)
+    [[ -n "$caddy_before" ]] || caddy_before=$(docker image inspect -f '{{.Id}}' "$CADDY_IMAGE" 2>/dev/null || true)
+    [[ -n "$caddy_before" ]] && docker tag "$caddy_before" "$CADDY_SPARE"
     # gluetun only if it's missing (compose up fetches it): Update VPN updates it safely
     if ! (cd "$INSTALL_DIR" && docker compose pull aiostreams caddy); then
         local tag
@@ -755,7 +760,13 @@ restore_start_stack() {
     else
         (cd "$INSTALL_DIR" && docker compose up -d --force-recreate --remove-orphans)
     fi
+    # Before the cleanup, which would otherwise delete the spare along with the old ID.
+    # In the install folder: a rollback recreates Caddy with docker compose.
+    if ! (cd "$INSTALL_DIR" && check_caddy_or_roll_back "$caddy_before"); then
+        (( start_failed )) || start_failed=4
+    fi
     cleanup_replaced_images "$image_snapshot"
+    drop_caddy_spare || true
 
     # Through a Cloudflare Tunnel, Cloudflare holds the certificates: start it
     # (its token came back with the backup, so it asks nothing). A VPS's backup
