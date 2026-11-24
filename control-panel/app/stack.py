@@ -2075,6 +2075,26 @@ class Backend:
         with ThreadPoolExecutor(max_workers=8) as pool:
             return [r for r in pool.map(one, want) if r]
 
+    def resumes(self) -> dict[str, list[float]]:
+        """When containers came back in the last day: "*" (every one) at each backup, whose
+        archive is written the second the containers it paused resume (scheduled ones too),
+        and each container at its own last start. Not Docker's events: it keeps only the
+        last 256, which its health checks fill within the hour."""
+        since = time.time() - WARN_DAY
+        out: dict[str, list[float]] = {"*": [b["mtime"] for b in self.backups() if b["mtime"] >= since]}
+        try:
+            for c in self.client.containers.list():
+                started = (c.attrs.get("State") or {}).get("StartedAt") or ""
+                try:
+                    t = datetime.strptime(started[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc).timestamp()
+                except ValueError:
+                    continue
+                if t >= since:
+                    out.setdefault(c.name, []).append(t)
+        except Exception:
+            pass
+        return out
+
     def log_stream(self, container: str, tail: int) -> LogStream:
         c = self.client.containers.get(container)
         kw = {}

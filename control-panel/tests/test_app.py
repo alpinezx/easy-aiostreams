@@ -763,6 +763,26 @@ def test_log_warnings_skip_the_first_minutes_after_boot(monkeypatch):
     assert got[1]["lines"] == svc[1]["lines"]
 
 
+def test_log_warnings_skip_stalls_right_after_a_backup_pause():
+    """AIOMetadata's event loop "stalls" for as long as a backup paused it: that line stays off the
+    card for a minute after a backup (any container) or the container's own start. The same line
+    later, another container's start, and any other line in that minute still show."""
+    from datetime import datetime, timezone
+    import app.main as m
+    t = lambda s: datetime.strptime(s, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc).timestamp()
+    stall = "[EventLoop]  WARN  Event loop stalled for 3792ms in the second before 2026-11-24T21:15:26.664Z"
+    svc = [{"container": "aiometadata", "name": "AIOMetadata", "lines": [
+        f"2026-11-24T21:15:26.664Z {stall} backup",
+        "2026-11-24T21:15:30.1Z [TMDB] WARN request timed out kept",
+        f"2026-11-24T22:00:03.1Z {stall} started",
+        f"2026-11-24T23:40:00.1Z {stall} later"]},
+        {"container": "aiomanager", "name": "AIOManager", "lines": [f"2026-11-24T22:00:03.1Z {stall} other"]}]
+    resumes = {"*": [t("2026-11-24T21:15:26")], "aiometadata": [t("2026-11-24T22:00:01")]}
+    got = m.after_resumes(svc, resumes)
+    assert [ln.split(" ")[-1] for ln in got[0]["lines"]] == ["kept", "later"]
+    assert got[1]["lines"] == svc[1]["lines"]
+
+
 def test_log_warnings_card_clear(client):
     """The card's bin: lines up to then leave the card for good, newer ones still show."""
     from datetime import datetime, timezone

@@ -561,6 +561,11 @@ class DemoBackend:
             "mediaflow-proxy-light": ("MediaFlow", [
                 (9 * 3600, "WARN upstream closed the connection early (bytes 52428800 of 734003200)"),
             ]),
+            # The first right after the backup's unpause (resumes() below) stays off the card; the later one shows
+            "aiometadata": ("AIOMetadata", [
+                (3 * 3600 - 1, "[EventLoop] WARN Event loop stalled for 3792ms in the second before 10:00:00"),
+                (40 * 60, "[EventLoop] WARN Event loop stalled for 2140ms in the second before 10:00:00"),
+            ]),
         }
         out = []
         for cname, (name, rows) in sample.items():
@@ -569,6 +574,10 @@ class DemoBackend:
             lines = [f"{at(ago)} {line % (now - ago) if '%f' in line else line}" for ago, line in sorted(rows, key=lambda r: -r[0])]
             out.append({"container": cname, "name": name, "lines": lines})
         return out
+
+    def resumes(self) -> dict[str, list[float]]:
+        """A backup three hours ago paused and resumed AIOStreams and the add-ons."""
+        return {"*": [time.time() - 3 * 3600]}
 
     def log_stream(self, container: str, tail: int) -> FakeStream:
         return FakeStream(container, 0 if container in self._cleared_logs else tail)

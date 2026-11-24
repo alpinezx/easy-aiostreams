@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import secrets
 import threading
 import time
@@ -1037,16 +1038,40 @@ def outside_jobs(services: list[dict], windows: list[tuple[float, float]]) -> li
             for s in services]
 
 
+# Lines a service writes only because it was just paused (a backup) or started, and so stay off
+# the card for a minute after a backup or that service's own start. Node add-ons (AIOMetadata) see
+# the pause as their event loop stalling for as long as it lasted. The Logs page keeps them, and
+# the same line at any other time still shows: a real stall is worth a look.
+RESUME_QUIET = [re.compile(r"\bEvent loop stalled for \d+ ?ms\b")]
+RESUME_GRACE = 60
+
+
+def after_resumes(services: list[dict], resumes: dict[str, list[float]]) -> list[dict]:
+    """resumes: a container's own starts under its name, and backups (every container) under "*"."""
+    def keep(cname, line):
+        if not any(r.search(line) for r in RESUME_QUIET):
+            return True
+        t = _line_time(line)
+        times = [*resumes.get("*", ()), *resumes.get(cname, ())]
+        return t is None or not any(a - 5 <= t <= a + RESUME_GRACE for a in times)
+    return [{**s, "lines": [ln for ln in s["lines"] if keep(s.get("container"), ln)]} for s in services]
+
+
+def _warn_data(loggable) -> tuple[list[dict], dict[str, list[float]]]:
+    return backend.log_warnings(loggable), backend.resumes()
+
+
 @app.get("/api/log-warnings")
 async def log_warnings(user: str = Depends(current_user)):
     """The Overview's Recent log alerts: each running service's lines of the last day
-    that may be warnings or errors, less those logged during the panel's own actions. The
-    browser sorts them with the Logs page's rules."""
+    that may be warnings or errors, less those logged during the panel's own actions or
+    right after a backup's pause. The browser sorts them with the Logs page's rules."""
     hidden = load_warn_hidden()
     if _warn_cache["data"] is None or time.time() - _warn_cache["at"] > 30:
-        _warn_cache["data"] = await asyncio.to_thread(backend.log_warnings, LOGGABLE - set(hidden))
+        _warn_cache["data"] = await asyncio.to_thread(_warn_data, LOGGABLE - set(hidden))
         _warn_cache["at"] = time.time()
-    return {"services": after_clear(outside_jobs(_warn_cache["data"], _job_windows()), _warn_cleared_at()),
+    data, resumes = _warn_cache["data"]
+    return {"services": after_clear(outside_jobs(after_resumes(data, resumes), _job_windows()), _warn_cleared_at()),
             "hidden": hidden}
 
 
