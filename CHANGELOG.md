@@ -4,8 +4,8 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 24 November 2026
 
-- **Fixed:** Control panel through a Cloudflare Tunnel: the panel now sees each visitor's own address, so the sign-in lockout and the activity log no longer treat everyone as one visitor. Sign-in counts each try before checking the password, so many tries sent at once can't get past the lockout, and actions, reboots and script updates wait while a panel update or a maintenance job is still running. A panel update that didn't build or didn't come up no longer reports success. (Panel 1.65.3)
-- **Fixed:** Scripts with the VPN on: Start, Restart and Update AIOStreams report a failure when the tunnel wasn't confirmed, a restore says so when AIOStreams didn't start, and the VPN route watcher waits for the tunnel check instead of recreating AIOStreams alongside it. Phone alerts no longer put the ntfy topic on a command line, where the server's process list showed it, and Reconfigure's backup copy of the compose file keeps its owner-only permissions.
+- **Fixed:** Control panel through a Cloudflare Tunnel: the panel now sees each visitor's own address, so the sign-in lockout and the activity log no longer treat everyone as one visitor. Sign-in counts each try before checking the password, so many tries sent at once can't get past the lockout, and actions, reboots and script updates wait while a panel update or a maintenance job is still running. A panel update that didn't build or didn't come up no longer reports success. (Panel 1.65.3, [#223](https://github.com/alpinezx/easy-aiostreams/pull/223))
+- **Fixed:** Scripts with the VPN on: Start, Restart and Update AIOStreams report a failure when the tunnel wasn't confirmed, a restore says so when AIOStreams didn't start, and the VPN route watcher waits for the tunnel check instead of recreating AIOStreams alongside it. Phone alerts no longer put the ntfy topic on a command line, where the server's process list showed it, and Reconfigure's backup copy of the compose file keeps its owner-only permissions. ([#223](https://github.com/alpinezx/easy-aiostreams/pull/223))
 
 ## 23 November 2026
 
