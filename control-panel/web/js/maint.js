@@ -159,7 +159,7 @@ function updPeek(u, pk) {
 function logsBlock(m) {
   const l = m.logs;
   const word = l.limited ? ["Limit set", "ok"] : ["Not set", "warn"];
-  const what = !l.limited ? `Using ${fmtBytes(l.size)}, and they can grow without limit. Setting one restarts every container once: a few seconds of downtime.`
+  const what = !l.limited ? `Using ${fmtBytes(l.size)}, with no size limit.`
     : l.pending ? `Using ${fmtBytes(l.size)}. 10 MB per container; some take it when next recreated.` : `Using ${fmtBytes(l.size)}, at most 10 MB per container.`;
   const blk = h("div", { class: "cl-block" + (l.limited ? "" : " cl-keep") },
     h("div", { class: "cl-line" }, h("span", { class: "ver-label", text: "Container logs" }), h("span", { class: "cl-word " + word[1], text: word[0] })),

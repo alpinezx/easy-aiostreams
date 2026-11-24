@@ -2722,7 +2722,9 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 }
 /* Maintenance's Caddy and Cloudflare Tunnel card (maint.js proxies) */
 .prox-card .rs-word .st-i { margin-right: 4px; vertical-align: -1px; }
-.prox-card .prox-ver .mono { font-weight: 600; }
+/* The version as big as All releases beside it (mono is a size smaller elsewhere) */
+.prox-card .prox-ver .mono { font-weight: 600; font-size: 1em; }
+.prox-card .prox-ver > .dim { margin: 0 5px; }
 .prox-card .prox-notes { font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text));
   display: inline; padding: 0; min-height: 0; border: 0; background: none; font-size: inherit; line-height: inherit; }
 #view-maint .prox-card .btn.prox-notes, #view-maint .prox-card .btn.prox-notes:hover:not(:disabled), #view-maint .prox-card .btn.prox-notes:active {
@@ -2730,9 +2732,10 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 .prox-card .prox-notes > svg.bi { display: inline-block; vertical-align: -2px; margin-right: 5px; }
 @media (hover: hover) { .prox-card .prox-notes:hover { text-decoration: underline; } }
 .rs-desk.prox-card .rs-ctl > select { min-width: 16em; }
-/* A short card (Caddy alone, beside a taller one) keeps Automatic updates and the foot at its bottom;
-   the block itself stretches, so its top line stays under Caddy */
-.rs-desk.prox-card .prox-auto-block { flex: 1 0 auto; display: flex; flex-direction: column; justify-content: flex-end; }
+/* A short card (Caddy alone, beside a taller one): Automatic updates stays straight under Caddy and the
+   foot goes to the bottom, so any spare height sits above the foot */
+.rs-desk.prox-card .prox-auto-block { margin-bottom: 10px; }
+.rs-desk.prox-card > .card-foot { margin-top: auto; }
 .rs-desk.prox-card .prox-auto {flex: 1 1 14em; min-width: 0; margin-left: 8px; font-size: 13px; line-height: 1.35; }
 @media (max-width: 720px) {
   /* Phones: the version on the left, All releases on the right, one line (no "serves your sites") */
@@ -2742,9 +2745,10 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   .rs-phone.prox-card .prox-auto { display: block; margin-top: 8px; font-size: 13px; }
 }
 /* Container logs at the foot of Free up space (maint.js logsBlock) */
-.maint-card:has(> .cl-block) > .card-foot { margin-top: 0; padding-bottom: 16px; }
+/* Spare height (beside a taller card) sits above the "can go" line, so it stays on Container logs' line */
+.maint-card:has(> .cl-block) > .card-foot { margin-top: auto; padding-bottom: 16px; }
 .cl-block { margin-top: 16px; border-top: 1px solid var(--line-soft); padding-top: 16px; margin-bottom: 0; }
-.maint-card > .card-foot + .cl-block { margin-top: auto; }
+.maint-card > .card-foot + .cl-block { margin-top: 0; }
 .cl-line { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .cl-word { font-weight: 600; } .cl-word.ok { color: var(--ok); } .cl-word.warn { color: var(--warn); }
 .cl-block .maint-foot { margin-top: 10px; }
