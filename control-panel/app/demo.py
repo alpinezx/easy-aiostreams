@@ -134,7 +134,8 @@ class DemoBackend:
         self.reboot_pending = False   # Install updates "installs a kernel"; a reboot clears it
         self.restart = {"mode": "needed", "every": "weekly", "day": 7, "time": "04:30"}   # as the docs show it
         self.tz = "Europe/London"
-        self.wd_configured = True
+        # UI_DEMO_NOALERTS=1: no Phone alerts, so Activity shows the panel's own restart and backup entries
+        self.wd_configured = not os.environ.get("UI_DEMO_NOALERTS")
         self.wd_options = {"updates": False, "reboots": False, "scripts": False, "backups": False, "security": False, "weekly": False, "metadata": False, "manager": False, "mediaflow": False, "weekly_day": 7, "weekly_time": "10:00"}
         self.schedule = {"every": "daily", "day": 7, "time": "04:00"}
         self.wd_topic = "aios-7f3k29xq81"
@@ -265,6 +266,32 @@ class DemoBackend:
         if type(at) is not int or not isinstance(kind, str) or not isinstance(text, str) or "\n" in kind + text or "|" in kind:
             raise ValueError("Unknown event.")
         self.wd_events = [e for e in self.wd_events if (e["at"], e["kind"], e["text"]) != (at, kind, text)]
+
+    def demo_server_events(self) -> list[dict]:
+        """What serverlog.py would have logged without Phone alerts: the 04:00 backups, a scheduled
+        reboot that went ahead and one that wasn't needed. None with Phone alerts (it logs these then)."""
+        if self.wd_configured:
+            return []
+        now = time.time()
+        lt = time.localtime(now)
+        four = time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, 4, 0, 0, 0, 0, -1))
+        if four > now:
+            four -= 86400
+        out = []
+        for n in range(4):
+            at = int(four - n * 86400 + 25)
+            name = time.strftime("aiostreams-backup-scheduled-%Y%m%d-040000.tar.gz", time.localtime(at - 25))
+            if self.issues and n == 1:
+                out.append({"at": at, "kind": "backup-skipped", "text": "Scheduled backup skipped: The disk is 96% full (1.1GB free), "
+                            "so no backup was made. Free up space, or delete old backups."})
+            else:
+                out.append({"at": at, "kind": "backup", "text": f"Scheduled backup made: {name}, 14MB."})
+        boot = int(four - 2 * 86400 + 31 * 60 + 40)
+        out.append({"at": boot, "kind": "reboot", "text": f"Server restarted at {time.strftime('%H:%M', time.localtime(boot))} "
+                    "for its scheduled reboot. It was down for under 2 minutes."})
+        out.append({"at": int(four - 9 * 86400 + 30 * 60), "kind": "restart-skipped",
+                    "text": "Scheduled reboot skipped. Not needed: no update was waiting for one."})
+        return out
 
     def maintenance_info(self, force: bool = False) -> dict:
         return {"space": {"images": 149_000_000, "image_count": 2, "build": 503_100_000, "journal": 184_000_000},

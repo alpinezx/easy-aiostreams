@@ -1366,6 +1366,18 @@ class Backend:
         self._rsum = (0.0, None)
         return self.restart_schedule()
 
+    def server_facts(self) -> dict:
+        """What serverlog.py looks at once a minute: this boot, the scheduled runs' last
+        lines, and whether Phone alerts is set up (it logs these itself then)."""
+        try:
+            up = float(open("/proc/uptime").read().split()[0])
+        except Exception:
+            up = 0.0
+        from .serverlog import host_tz
+        return {"boot_id": _read(Path("/proc/sys/kernel/random/boot_id")).strip(), "uptime": up,
+                "backup_last": _read(self.p("backup-last-run")), "restart_last": _read(self.p("restart-last-run")),
+                "quiet": self.p("watchdog-state/config").exists(), "tz": host_tz()}
+
     def clock(self) -> dict:
         """Whether the server's clock is kept right: synced, and whether time sync is on at all."""
         kv = dict(l.split("=", 1) for l in self._on_host("timedatectl", "show").splitlines() if "=" in l)

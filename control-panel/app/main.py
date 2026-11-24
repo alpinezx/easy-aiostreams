@@ -45,6 +45,15 @@ if config.DEMO:
 vpn_traffic.start()
 host_traffic.start()
 
+# Restarts and scheduled runs for Activity, when Phone alerts isn't there to log them
+from .serverlog import ServerLog
+
+serverlog = ServerLog(None, None) if config.DEMO else ServerLog(config.STATE_DIR / "server-events.json", backend.server_facts)
+if config.DEMO:
+    for _e in backend.demo_server_events():
+        serverlog.add(**_e)
+serverlog.start()
+
 # And every few seconds while the panel is open, for the speeds "now": the counters as they
 # stand, which the page turns into a speed from one status check to the next
 _net_cache: tuple[float, dict] | None = None
@@ -431,6 +440,33 @@ async def watchdog_remove_event(request: Request, user: str = Depends(current_us
     except ValueError as e:
         raise HTTPException(400, str(e))
     return {"removed": True}
+
+
+@app.get("/api/server-events")
+async def server_events(user: str = Depends(current_user)):
+    """Restarts and scheduled runs the panel logged itself (without Phone alerts), newest first."""
+    return serverlog.events()
+
+
+@app.post("/api/server-events/remove")
+async def server_events_remove(request: Request, user: str = Depends(current_user)):
+    """One entry's bin in Activity: {"at": epoch, "kind": "...", "text": "..."} as listed."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict) or type(body.get("at")) is not int or not isinstance(body.get("kind"), str) \
+            or not isinstance(body.get("text"), str):
+        raise HTTPException(400, "Pick an entry from the list.")
+    if not serverlog.remove(body["at"], body["kind"], body["text"]):
+        raise HTTPException(404, "That entry isn't there any more. Reload the page.")
+    return {"removed": True}
+
+
+@app.post("/api/server-events/clear")
+async def server_events_clear(user: str = Depends(current_user)):
+    serverlog.clear()
+    return {"cleared": True}
 
 
 @app.post("/api/watchdog/tally/clear")
@@ -1181,7 +1217,9 @@ class Jobs:
         # The history so far, this restore included, goes into the restored folder too:
         # the copy above went to the folder that was moved aside.
         self._save(_restored_state() / "history.json")
-        time.sleep(5)           # let the page get the last lines first
+        # And this boot's markers, or the backup's old boot_id would read as a restart
+        serverlog.save(_restored_state() / "server-events.json")
+        time.sleep(5)          # let the page get the last lines first
         try:
             backend.client.containers.get("aios-ui").restart(timeout=5)
         except Exception:

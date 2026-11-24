@@ -17,6 +17,11 @@ const ALERT_KIND = {
   start: ["Started", ""], stop: ["Stopped", ""], test: ["Test alert", ""], topic: ["Topic", ""], reboot: ["Restarted", ""], disk: ["Disk space", ""], cert: ["Certificate", ""],
   update: ["Update", ""], scripts: ["Scripts", ""], backup: ["Backup", ""], security: ["Security", ""], weekly: ["Weekly", ""],
 };
+// Restarts and scheduled runs the panel logged itself, when Phone alerts wasn't set up to (serverlog.py)
+const SERVER_KIND = {
+  reboot: ["Restarted", ""], backup: ["Backup made", "ok"], "backup-failed": ["Backup failed", "bad"],
+  "backup-skipped": ["Backup skipped", "warn"], "restart-skipped": ["Reboot skipped", ""],
+};
 const BIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
 
 // All, Actions (what you started) or Alerts (what the watchdog noticed). Only shown with phone alerts set up.
@@ -39,12 +44,14 @@ export async function showActivity(status) {
   const box = $("#jobs"); clear(box);
   const alertsOn = !!(status && status.watchdog && status.watchdog.configured);
   if (!alertsOn) filter = "all";
-  const [jobs, events] = await Promise.all([
+  const [jobs, events, serverEvents] = await Promise.all([
     api("/api/jobs"),
     alertsOn ? api("/api/watchdog").then((w) => w.events || [], () => []) : [],
+    api("/api/server-events").catch(() => []),
   ]);
   clear(box);   // only now, so typing in the filter doesn't blink the list
-  const showJobs = filter !== "alerts", showEvents = alertsOn && filter !== "actions";
+  // The panel's own entries count with the alerts: what the server did, not what was started here
+  const showJobs = filter !== "alerts", showEvents = alertsOn && filter !== "actions", showServer = filter !== "actions";
 
   const show = $("#act-show");
   show.hidden = !alertsOn;
@@ -77,15 +84,18 @@ export async function showActivity(status) {
   }
 
   const cb = $("#clear-activity");
-  cb.disabled = !((showJobs && jobs.some((j) => j.ended)) || (showEvents && events.length));
+  const hasServer = showServer && serverEvents.length > 0;
+  cb.disabled = !((showJobs && jobs.some((j) => j.ended)) || (showEvents && events.length) || hasServer);
   cb.onclick = async () => {
-    const what = showJobs && showEvents ? "the list of finished actions, their saved output and the phone alerts history"
-      : showEvents ? "the phone alerts history" : "the list of finished actions and their saved output";
+    const parts = [showJobs ? "the list of finished actions and their saved output" : "",
+      hasServer ? "the restarts and scheduled runs listed" : "", showEvents ? "the phone alerts history" : ""].filter(Boolean);
+    const what = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : parts[0];
     const ok = await ask({ title: "Clear activity?", confirmLabel: "Clear", danger: true,
-      body: `This removes ${what}. Anything still running stays. The watchdog keeps checking, and the 14-day strip on Phone alerts stays.` });
+      body: `This removes ${what}. Anything still running stays.` + (alertsOn ? " The watchdog keeps checking, and the 14-day strip on Phone alerts stays." : "") });
     if (!ok) return;
     try {
       if (showJobs) await api("/api/jobs", { method: "DELETE" });
+      if (hasServer) await api("/api/server-events/clear", { method: "POST" });
       if (showEvents) await api("/api/watchdog/events/clear", { method: "POST" });
       toast("Activity cleared.");
     } catch (e) { toast(e.message || "Couldn't clear it.", true); }
@@ -96,11 +106,14 @@ export async function showActivity(status) {
   const rows = [];
   if (showJobs) for (const j of jobs) rows.push({ at: j.started, job: j });
   if (showEvents) for (const e of events) rows.push({ at: e.at, event: e });
+  if (showServer) for (const e of serverEvents) rows.push({ at: e.at, sev: e });
   rows.sort((a, b) => b.at - a.at);
-  const tone = (r) => r.event ? (ALERT_KIND[r.event.kind] || ["", ""])[1] : !r.job.ended ? "run" : r.job.code === 0 ? "ok" : "bad";
+  const tone = (r) => r.event ? (ALERT_KIND[r.event.kind] || ["", ""])[1] : r.sev ? (SERVER_KIND[r.sev.kind] || ["", ""])[1]
+    : !r.job.ended ? "run" : r.job.code === 0 ? "ok" : "bad";
   // OK holds everything that went fine or is just a note (Started, Test alert, Running), like INFO in Logs
   const group = (r) => { const t = tone(r); return t === "warn" || t === "bad" ? t : "ok"; };
   const words = (r) => r.event ? `${r.event.text} phone alerts ${(ALERT_KIND[r.event.kind] || [r.event.kind])[0]}`
+    : r.sev ? `${r.sev.text} server ${(SERVER_KIND[r.sev.kind] || [r.sev.kind])[0]}`
     : `${r.job.label} ${actionGroup(r.job.action)} ${tone(r) === "ok" ? "done" : tone(r) === "bad" ? "failed" : "running"}`;
   const total = rows.length;
   for (let k = rows.length - 1; k >= 0; k--) {
@@ -109,7 +122,8 @@ export async function showActivity(status) {
 
   if (!rows.length) {
     const text = total ? "Nothing matches that filter." : filter === "alerts" ? "No phone alerts events yet. Failed checks, alerts and recoveries show here."
-      : filter === "actions" || !alertsOn ? "Nothing has run from here yet. Actions you start on the Overview page show up in this list."
+      : filter === "actions" ? "Nothing has run from here yet. Actions you start on the Overview page show up in this list."
+      : !alertsOn ? "Nothing yet. Actions you start, server restarts and scheduled backups show up in this list."
         : "Nothing yet. Actions you start and phone alerts events show up in this list.";
     box.append(h("p", { class: "empty", style: null, text }));
     box.lastChild.style.padding = "18px 16px";
@@ -126,7 +140,21 @@ export async function showActivity(status) {
         h("span", { class: "lg-time", title: new Date(at * 1000).toLocaleString(), text: ago(at) }),
         h("span", { class: "act-grp dim", text: group })));
   };
-  for (const { job: j, event: e } of rows) {
+  for (const { job: j, event: e, sev: s } of rows) {
+    if (s) {
+      // Same as an alert's row, under "Server"
+      const [name, cls] = SERVER_KIND[s.kind] || [s.kind, ""];
+      const row = line(s.at, cls, name,
+        h("span", { class: "job-open" }, h("span", { class: "what" }, longWords(s.text))),
+        "Server" + (cls === "ok" ? "" : ` · ${name}`), " evt");
+      row.append(binButton("Remove from Activity", `Remove "${s.text}" from Activity`, false, async () => {
+        try { await api("/api/server-events/remove", { method: "POST", body: JSON.stringify({ at: s.at, kind: s.kind, text: s.text }) }); }
+        catch (err) { toast(err.message || "Couldn't remove it.", true); }
+        showActivity(status).catch(() => {});
+      }));
+      box.append(row);
+      continue;
+    }
     if (e) {
       // An alert: nothing to open, so the row isn't a button
       const [name, cls] = ALERT_KIND[e.kind] || [e.kind, ""];
