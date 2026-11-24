@@ -390,12 +390,12 @@ function proxies(m) {
         : fresh ? `Update ${i.name} to ${i.latest}. The one it replaces comes back if the new one doesn't work.` : null,
       // Like the Overview and VPN: up to date (and the check worked) just says so, as elsewhere in the panel
       onclick: () => (!fresh && i.running && i.latest ? toast(`${i.name} is up to date (${i.running}). Nothing to do.`) : runAction(a)) });
-    const notes = h("button", { class: "linkish prox-notes", type: "button", text: fresh ? "What's new" : "Release notes",
+    const notes = h("button", { class: "btn small quiet prox-notes", type: "button", text: "All releases",
       onclick: () => releaseNotes(i) });
     const blk = h("div", { class: "rs-block" },
       h("div", { class: "rs-line" }, h("span", { class: "ver-label", text: i.name }), state),
       h("div", { class: "rs-ctl" }, h("span", { class: "prox-ver" }, h("span", { class: "mono", text: i.running || "Unknown" }),
-        h("span", { class: "dim", text: ` · ${i.what} · ` }), notes), btn));
+        h("span", { class: "dim", text: " · " }), notes), btn));
     if (fresh) blk.classList.add("rs-keep");   // a folded phone card still shows what's waiting
     cardEl.append(blk);
   }
