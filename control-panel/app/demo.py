@@ -295,10 +295,10 @@ class DemoBackend:
                 "watch_rows": ([{"name": "Cloudflare Tunnel"}] if tunnel else [])
                 + [{"name": "AIOStreams", "host": "streams.example.com", "what": "loads" + tail}]
                 + ([{"name": "AIOStreams through the VPN"}] if vpn else [])
-                + [{"name": "AIOMetadata", "host": "meta.example.com", "what": "health check" + tail},
-                   {"name": "AIOManager", "host": "manager.example.com", "what": "health check" + tail}]
+                + [{"name": "AIOMetadata", "host": "meta.example.com", "what": "loads, health check" + tail},
+                   {"name": "AIOManager", "host": "manager.example.com", "what": "loads, health check" + tail}]
                 + ([{"name": "VPN tunnel"}] if vpn else [])
-                + [{"name": "MediaFlow", "host": "mediaflow.example.com", "what": "health check" + tail}, {"name": "Disk space"}]
+                + [{"name": "MediaFlow", "host": "mediaflow.example.com", "what": "loads, health check" + tail}, {"name": "Disk space"}]
                 + ([] if tunnel else [{"name": "Control panel", "host": "cp.example.com", "what": "certificate"}]),
                 "cert_sites": [] if tunnel else [{"label": "AIOStreams", "host": "streams.example.com"}, {"label": "AIOMetadata", "host": "meta.example.com"},
                                                  {"label": "AIOManager", "host": "manager.example.com"}, {"label": "MediaFlow", "host": "mediaflow.example.com"},

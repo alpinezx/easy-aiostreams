@@ -1681,11 +1681,10 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   .addons-head .sub-head { margin: 0; }
   .addons-lbl { display: none; }
   .scripts-panel .addons-tog { display: block; font-size: .98rem; font-weight: 650; }   /* as the other folded cards' titles */
-  .addons-word { font-size: 14px; }
+  /* the summary on the right of the title, folded or open, like Scheduled backups' On */
+  .scripts-panel .addons-tog { white-space: nowrap; }
+  .addons-word { display: block; white-space: nowrap; }
   .addons-card.folded .addons-head { margin-bottom: 0; }
-  /* the summary on a line of its own under the title, as the Overview's folded cards have theirs */
-  .addons-card.folded .addons-head { flex-wrap: wrap; }
-  .addons-card.folded .addons-word { display: block; flex: 1 0 100%; margin-top: 2px; font-size: .82rem; }
   .addons-card.folded .addons-note, .addons-card.folded .cmds { display: none; }
   /* the note set apart from the first script by the same faint line as between the scripts */
   .addons-card .addons-note { margin-bottom: 0; }

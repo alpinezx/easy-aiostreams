@@ -1603,7 +1603,8 @@ class Backend:
         if not tunnel:
             watches.append(f"HTTPS certificates ({n_sites} sites)" if n_sites > 1 else "HTTPS certificate")
         # The same checks as rows for the panel, a site and its certificate together: the main site is loaded by
-        # address, an add-on gets its health check (inside Docker), and a certificate check each unless a Tunnel
+        # address, an add-on gets its health check (inside Docker) and is loaded by its own address too, and a
+        # certificate check each unless a Tunnel
         host_of: dict[str, str] = {}
         for lbl, host in sites:
             host_of.setdefault(lbl, host)
@@ -1615,11 +1616,11 @@ class Backend:
             rows.append({"name": "AIOStreams through the VPN"})
         for label, state in (("AIOMetadata", "aiometadata-state"), ("AIOManager", "aiomanager-state")):
             if (self.p(state) / "config").exists():
-                rows.append({"name": label, "host": host_of.get(label), "what": "health check" + tail})
+                rows.append({"name": label, "host": host_of.get(label), "what": "loads, health check" + tail})
         if vpn:
             rows.append({"name": "VPN tunnel"})
         if (self.p("mediaflow-state") / "config").exists():
-            rows.append({"name": "MediaFlow", "host": host_of.get("MediaFlow"), "what": "health check" + tail})
+            rows.append({"name": "MediaFlow", "host": host_of.get("MediaFlow"), "what": "loads, health check" + tail})
         rows.append({"name": "Disk space"})
         if cert:
             # any other site Caddy serves (the control panel's own): only its certificate is checked
