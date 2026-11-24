@@ -4,7 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 24 November 2026
 
-- Activity: without Phone alerts, the panel now lists server restarts (with how long the server was down), scheduled backups (made, failed or skipped) and skipped scheduled reboots itself. With Phone alerts set up it leaves these to the watchdog, so nothing shows twice. (Panel 1.66.0)
+- Activity: without Phone alerts (or while it's stopped), the panel now lists server restarts (with how long the server was down), scheduled backups (made, failed or skipped) and skipped scheduled reboots itself. While Phone alerts is on it leaves these to the watchdog, so nothing shows twice. (Panel 1.66.0)
 - **Fixed:** Scripts: a restore keeps the Caddy in use as a spare while it fetches the current one, as Update AIOStreams does. If the new Caddy doesn't answer within a minute, the earlier one is put back so the sites stay up.
 - **Fixed:** Logs page: blank lines (AIOMetadata prints them around its warnings) no longer show as empty rows with only a time and a dot. (Panel 1.65.7)
 - **Fixed:** Phone alerts: the second Watches line names only the checks it counts, so a server that watches just its disk reads "1 system check" instead of "1 service & system check". (Panel 1.65.6)

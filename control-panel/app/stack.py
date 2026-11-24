@@ -1368,7 +1368,8 @@ class Backend:
 
     def server_facts(self) -> dict:
         """What serverlog.py looks at once a minute: this boot, the scheduled runs' last
-        lines, and whether Phone alerts is set up (it logs these itself then)."""
+        lines, and whether Phone alerts is set up and switched on (it logs these itself then;
+        Stop disables its timer and boot unit, so a stopped one logs nothing)."""
         try:
             up = float(open("/proc/uptime").read().split()[0])
         except Exception:
@@ -1376,7 +1377,12 @@ class Backend:
         from .serverlog import host_tz
         return {"boot_id": _read(Path("/proc/sys/kernel/random/boot_id")).strip(), "uptime": up,
                 "backup_last": _read(self.p("backup-last-run")), "restart_last": _read(self.p("restart-last-run")),
-                "quiet": self.p("watchdog-state/config").exists(), "tz": host_tz()}
+                "quiet": self.p("watchdog-state/config").exists() and self.watchdog_enabled(), "tz": host_tz()}
+
+    @staticmethod
+    def watchdog_enabled() -> bool:
+        # The enable symlink on the host. lexists: its target is a host path, not one in this container
+        return os.path.lexists("/proc/1/root/etc/systemd/system/timers.target.wants/aiostreams-watchdog.timer")
 
     def clock(self) -> dict:
         """Whether the server's clock is kept right: synced, and whether time sync is on at all."""

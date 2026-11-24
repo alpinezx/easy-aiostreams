@@ -10,7 +10,7 @@ did, so the panel looks once a minute instead:
   restart-last-run than the last one seen. A scheduled reboot that went ahead isn't its own
   entry: the restart after it says "for its scheduled reboot".
 
-With Phone alerts set up the panel stays quiet (no duplicates) but keeps its markers up to
+While Phone alerts is set up and on, the panel stays quiet (no duplicates) but keeps its markers up to
 date, so switching Phone alerts off later doesn't bring back old news. A first look only
 reports runs from the last ten minutes, like the watchdog's.
 """
