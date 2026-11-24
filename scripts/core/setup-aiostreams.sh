@@ -41,6 +41,67 @@ cleanup_replaced_images() {
     return 0
 }
 
+# An AIOStreams update keeps the Caddy in use under a spare tag until the new one
+# answers; if it doesn't, the earlier one is put back (caddy:2 would fetch the same
+# one again), so a bad Caddy release doesn't take every site down.
+CADDY_IMAGE="caddy:2"
+CADDY_SPARE="caddy:aios-previous"
+
+# Untags the spare; when nothing else uses that image, Docker deletes it
+drop_caddy_spare() { docker image rm "$CADDY_SPARE" >/dev/null 2>&1; }
+
+# True once Caddy gives any HTTP answer on port 80, asked on its own container
+# address (port 80 is plain HTTP through a tunnel, a redirect to HTTPS on a VPS).
+# A 502 still counts: that's AIOStreams behind it, not Caddy.
+wait_caddy_answers() {
+    local domain ip code waited=0
+    domain=$(caddy_domain)
+    domain=${domain:-localhost}
+    while (( waited < 60 )); do
+        if [[ "$(docker inspect -f '{{.State.Running}}' caddy 2>/dev/null)" == true ]]; then
+            ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' caddy 2>/dev/null | awk '{print $1}') || true
+            if [[ -n "$ip" ]]; then
+                code=$(curl -s -o /dev/null -w '%{http_code}' -m 5 --resolve "$domain:80:$ip" "http://$domain/" 2>/dev/null) || true
+                [[ -n "$code" && "$code" != 000 ]] && return 0
+            fi
+        fi
+        sleep 3
+        waited=$((waited + 3))
+    done
+    return 1
+}
+
+# After an update has recreated Caddy: keeps the new one if it answers, otherwise
+# puts the spare back. $1 = image ID Caddy ran before ("" if none). Returns 1 only
+# when Caddy still isn't answering at the end.
+check_caddy_or_roll_back() {
+    local before="$1" after
+    after=$(docker image inspect -f '{{.Id}}' "$CADDY_IMAGE" 2>/dev/null || true)
+    if [[ -z "$before" || "$before" == "$after" ]]; then
+        drop_caddy_spare || true
+        return 0
+    fi
+    echo "Checking the new Caddy answers..."
+    if wait_caddy_answers; then
+        echo "The new Caddy is answering."
+        return 0
+    fi
+    warn "The new Caddy didn't answer within a minute. Its last lines:"
+    docker logs --tail 15 caddy 2>&1 | sed 's/^/    /' || true
+    info "Putting the earlier Caddy back"
+    docker tag "$CADDY_SPARE" "$CADDY_IMAGE"
+    docker compose up -d --no-deps --force-recreate caddy || true
+    drop_caddy_spare || true
+    docker image rm "$after" >/dev/null 2>&1 || true
+    if wait_caddy_answers; then
+        warn "Back on the earlier Caddy, and answering. A later release may fix it: the next update tries again."
+        return 0
+    fi
+    warn "The earlier Caddy isn't answering either, so the update probably isn't the problem."
+    warn "Check the Caddyfile and: sudo docker logs caddy"
+    return 1
+}
+
 compose_image_refs() {
     grep -oP '^\s*image:\s*\K\S+' "$1" 2>/dev/null || true
 }
@@ -1011,7 +1072,7 @@ do_restart_stack() {
 
 # do_update_aio <backup: ask|yes|no> <channel: ask|keep|latest|nightly>
 do_update_aio() {
-    local backup="$1" channel="$2" UPDATE_CHOICE SWITCH_CHANNEL NEW_CHANNEL_CHOICE CONFIRM_CHANNEL_SWITCH failed=0
+    local backup="$1" channel="$2" UPDATE_CHOICE SWITCH_CHANNEL NEW_CHANNEL_CHOICE CONFIRM_CHANNEL_SWITCH failed=0 caddy_failed=0
     echo ""
     cd "$INSTALL_DIR"
     if [[ "$backup" == ask ]]; then
@@ -1091,8 +1152,16 @@ do_update_aio() {
     echo "Updating AIOStreams (pull + recreate)..."
     # shellcheck disable=SC2046  # image refs never contain spaces
     IMAGE_SNAPSHOT=$(snapshot_image_ids $(compose_image_refs "$COMPOSE_FILE"))
+    local caddy_before
+    caddy_before=$(docker inspect -f '{{.Image}}' caddy 2>/dev/null || true)
+    [[ -n "$caddy_before" ]] || caddy_before=$(docker image inspect -f '{{.Id}}' "$CADDY_IMAGE" 2>/dev/null || true)
+    [[ -n "$caddy_before" ]] && docker tag "$caddy_before" "$CADDY_SPARE"
     # Not gluetun: Update VPN updates it, and puts the earlier one back if it won't connect
-    docker compose pull aiostreams caddy
+    if ! docker compose pull aiostreams caddy; then
+        drop_caddy_spare || true
+        warn "Couldn't download the new images, so nothing was changed. Try again later."
+        return 1
+    fi
     if vpn_mode_active; then
         echo "VPN mode detected, recreating gluetun+caddy first, then gating aiostreams"
         echo "behind a confirmed tunnel before it comes up on the new images..."
@@ -1100,7 +1169,10 @@ do_update_aio() {
     else
         docker compose up -d --force-recreate --remove-orphans
     fi
+    # Before the cleanup, which would otherwise delete the spare along with the old ID
+    check_caddy_or_roll_back "$caddy_before" || caddy_failed=1
     cleanup_replaced_images "$IMAGE_SNAPSHOT"
+    drop_caddy_spare || true
     # Nothing else updates cloudflared, and Cloudflare supports each release for about
     # a year, so it comes along with AIOStreams' updates
     if tunnel_active; then
@@ -1114,6 +1186,10 @@ do_update_aio() {
     echo ""
     if (( failed )); then
         warn "Updated, but AIOStreams is still stopped: the tunnel wasn't confirmed (see above)."
+        return 1
+    fi
+    if (( caddy_failed )); then
+        warn "Updated, but Caddy isn't answering, so your sites are down (see above)."
         return 1
     fi
     echo "Update complete. Current images:"
