@@ -4,6 +4,8 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 24 November 2026
 
+- **Fixed:** Phone alerts: right after Start, the page no longer shows the old amber "STOPPED" line beside Watching. It says the first check is running until that check finishes. (Panel 1.66.1)
+- **Fixed:** Phone alerts: starting the watchdog again no longer reports a restart or scheduled backup from while it was stopped (it sent an alert, and timed the restart from when it was stopped). Only what happens after Start is reported; Activity already lists the rest.
 - **Fixed:** Scripts: setting a backup schedule (on the panel or with `setup-backup.sh schedule`) no longer starts a backup straight away when the new time has already passed since the last scheduled run. A run missed while the server was off is still made up.
 - Activity: without Phone alerts (or while it's stopped), the panel now lists server restarts (with how long the server was down), scheduled backups (made, failed or skipped) and skipped scheduled reboots itself. While Phone alerts is on it leaves these to the watchdog, so nothing shows twice. (Panel 1.66.0)
 - **Fixed:** Scripts: a restore keeps the Caddy in use as a spare while it fetches the current one, as Update AIOStreams does. If the new Caddy doesn't answer within a minute, the earlier one is put back so the sites stay up.

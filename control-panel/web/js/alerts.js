@@ -11,9 +11,12 @@ let st = null, loading = false;
 const actFor = (id) => { const a = st && st.actions.find((x) => x.id === id); return a && a.available ? a : null; };
 
 // "18 Oct 2026, 16:02:11 UTC OK" -> when, and what it said
-export function parseCheck(line) {
+// running: just after Start the line is still the one Stop wrote ("STOPPED ..."), until the first check
+// finishes. That's no check yet (starting), not a stale amber STOPPED beside "Watching".
+export function parseCheck(line, running) {
   const m = (line || "").match(/^(\d{1,2} \w{3} \d{4}), (\d{2}:\d{2}:\d{2}) (\S+) (.*)$/);
   if (!m) return { at: null, result: line || "" };
+  if (running && /^STOPPED/.test(m[4])) return { at: null, result: "", starting: true };
   const t = Date.parse(`${m[1]} ${m[2]} ${m[3] === "UTC" ? "UTC" : ""}`.trim());
   return { at: Number.isNaN(t) ? null : t / 1000, result: m[4] };
 }
@@ -168,7 +171,7 @@ function render(w) {
     box.append(h("p", { class: "empty", text: "The watchdog isn't set up on this server." }));
     return;
   }
-  const chk = parseCheck(w.last_check);
+  const chk = parseCheck(w.last_check, w.running);
   const down = w.alert_state === "down";
   const warns = (w.warnings || []).map((x) => ({ disk: "disk nearly full", cert: "certificate not renewing" })[x] || x);
   const [lamp, word] = !w.running ? ["", "Stopped, no checks running"]
@@ -176,7 +179,7 @@ function render(w) {
       : w.fails ? ["degraded", "A check just failed"]
         : warns.length ? ["degraded", `Watching: ${warns.join(", ")}`] : ["ok", "Watching"];
   const passed = chk.result === "OK";
-  const result = !w.running ? "No checks while stopped"
+  const result = !w.running ? "No checks while stopped" : chk.starting ? "Started. The first check is running."
     : passed ? "All checks passed" : chk.result.replace(/^FAIL:\s*/, "") || "No check yet";
 
   const card = h("div", { class: "panel vpn-card" },
@@ -184,7 +187,7 @@ function render(w) {
       h("div", { class: "vpn-state" }, h("span", { class: "lamp", dataset: { s: lamp }, "aria-hidden": "true" }), h("span", { text: word })),
       chk.at && w.running ? h("span", { class: "vpn-checked", text: `Checked ${ago(chk.at)}` }) : null),
     h("div", { class: "vpn-grid wd-grid" },
-      cell("Last check", h("span", { class: passed || !w.running ? "" : "wd-fail", text: result })),
+      cell("Last check", h("span", { class: passed || !w.running || chk.starting ? "" : "wd-fail", text: result })),
       watchCell(w.watches, w.cert_sites, w.cert_note || "", w.watch_rows),
       cell("How often", `Every ${w.every_min} min, alert after ${w.threshold} ${w.threshold === 1 ? "fail" : "fails"}`)),
     h("div", { class: "wd-days-row" },
