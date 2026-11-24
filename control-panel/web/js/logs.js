@@ -296,6 +296,7 @@ function connect() {
     if (m.end) { setConn("", "container stopped"); es.close(); es = null; return; }
     if (m.error) { setConn("retry", m.error); es.close(); es = null; return; }
     const l = parse(m.l);
+    if (!l.text.trim()) return;        // a blank line (AIOMetadata prints them around its warnings): nothing to show
     lines.push(l);
     if (lines.length > MAX) lines.splice(0, lines.length - MAX);
     const term = $("#log-term");
