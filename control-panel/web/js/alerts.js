@@ -86,7 +86,7 @@ function certsItem(text, sites, note = "") {
 // Two short lists: the sites (name, its address under it), then the other checks (tunnel, VPN, disk)
 function watchRows(rows, certNote) {
   const sites = rows.filter((r) => r.host), other = rows.filter((r) => !r.host);
-  const note = certNote || "The main site is loaded, add-ons get a health check, and every certificate is checked.";
+  const note = certNote || "Each site is loaded by its address, add-ons also get a health check, and every certificate is checked.";
   const head = (t) => h("div", { class: "wd-watch-head", text: t });
   return [
     ...(sites.length ? [head("Sites"),

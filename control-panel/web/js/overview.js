@@ -870,7 +870,8 @@ function certTiles(grid, st) {
       : h("div", { class: "stat-value warn", text: "Couldn't check" }),
     h("div", { class: "ver-sub", text: `${w.ok ? "soonest" : "one"} of ${certs.length} sites` })));
   if (isFolded("certs") && !needsLook) return null;
-  return h("div", { class: "cert-sec stat-grid" }, ...certs.map((c) => {
+  // Five sites (every add-on and the panel) get five columns on a wide screen, so none wraps alone onto a second line
+  return h("div", { class: "cert-sec stat-grid" + (certs.length === 5 ? " cert-five" : "") }, ...certs.map((c) => {
     const d = c.days_left, label = c.label || c.host;
     return c.ok
       ? stat(label, `${d} day${d === 1 ? "" : "s"} left`, certTone(c) ? "Not renewed yet: check Caddy's logs" : c.host, certTone(c))

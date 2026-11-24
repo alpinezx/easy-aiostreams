@@ -1803,6 +1803,10 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
      ends at the card's right edge under Reboot server; the first three share the rest evenly */
   #view-overview .panel.host > .stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) auto; }
   #view-overview .panel.host > .stat-grid > .stat:nth-child(4n) { text-align: right; }
+  /* A full set of five sites' certificates on one line (see certTiles), edge to edge with equal gaps, the last
+     right-aligned like the values' fourth column above it */
+  #view-overview .panel.host .stat-grid.cert-five { grid-template-columns: repeat(5, auto); justify-content: space-between; }
+  #view-overview .panel.host .stat-grid.cert-five > .stat:last-child { text-align: right; }
 }
 /* Network's down and up side by side once its column always has room for both */
 @media (min-width: 1300px) {
