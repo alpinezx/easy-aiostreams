@@ -386,6 +386,9 @@ last_run() {
 
 # Brings the systemd timer in line with backup-schedule: written and started
 # when it says daily or weekly, stopped and removed when it's off or missing.
+# "fresh" (a time just set): counts from now. Persistent=true runs one missed
+# while the server was off, and systemd judges "missed" from when the timer
+# last fired, so a new time whose slot came after that would run at once.
 schedule_apply() {
     local every day time cal
     every=$(schedule_get every)
@@ -393,6 +396,13 @@ schedule_apply() {
     time=$(schedule_get time)
     if [[ "$every" =~ ^(daily|weekly)$ && "$time" =~ ^([01][0-9]|2[0-3]):[0-5][0-9]$ ]] \
         && [[ "$every" == daily || "$day" =~ ^[1-7]$ ]]; then
+        if [[ "${1:-}" == fresh ]]; then
+            # Stopped first, so the reload below can't fire it on the old memory;
+            # starting it again reads the last-fired time from this stamp
+            systemctl stop "$BACKUP_UNIT.timer" >/dev/null 2>&1 || true
+            mkdir -p /var/lib/systemd/timers
+            touch "/var/lib/systemd/timers/stamp-$BACKUP_UNIT.timer"
+        fi
         cal="*-*-* $time:00"
         if [[ "$every" == weekly ]]; then cal="${SYSTEMD_DAYS[$((day - 1))]} $cal"; fi
         cat > "$BACKUP_SERVICE_FILE" <<EOF
@@ -455,7 +465,7 @@ schedule_set() {
         } > "$SCHEDULE_FILE.tmp"
         mv "$SCHEDULE_FILE.tmp" "$SCHEDULE_FILE"
     fi
-    schedule_apply || error "Couldn't start the timer. See: systemctl status $BACKUP_UNIT.timer"
+    schedule_apply fresh || error "Couldn't start the timer. See: systemctl status $BACKUP_UNIT.timer"
     if [[ "$every" == off ]]; then
         echo "Scheduled backups: off. Backups already made stay where they are."
     else
@@ -1822,7 +1832,10 @@ do_restore() {
 
     rm -f "$INSTALL_DIR"/{watchdog-state,mediaflow-state,aiometadata-state,aiomanager-state,ui-state}/was-active-at-backup
 
-    if (( start_status )); then
+    if (( start_status == 4 )); then
+        # Still a finished restore: AIOStreams runs, but nothing reaches it
+        warn "Restore finished, but Caddy isn't answering, so your sites are down (see above). Check the Caddyfile and: sudo docker logs caddy"
+    elif (( start_status )); then
         # Still a finished restore (exit 0): the files are in place, and the panel restarts onto them
         warn "Restore finished, but AIOStreams didn't start (see above). Once that's fixed, use Start AIOStreams."
     else

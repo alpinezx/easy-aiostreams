@@ -1204,9 +1204,23 @@ EOF
     systemctl daemon-reload
 }
 
+# On Start: a restart or scheduled backup from while the watchdog was off is
+# old news (the control panel's Activity lists those itself), so only what
+# comes after is reported. Without this, a Start within 15 minutes of a boot
+# reported that boot, timed from when Stop ran instead of the real shutdown.
+mark_current_seen() {
+    local at=""
+    mkdir -p "$STATE_DIR"
+    cat /proc/sys/kernel/random/boot_id > "$BOOT_ID_FILE" 2>/dev/null || true
+    IFS='|' read -r at _ < "$INSTALL_DIR/backup-last-run" 2>/dev/null || true
+    if [[ "$at" =~ ^[0-9]+$ ]]; then echo "$at" > "$STATE_DIR/backup-seen"; fi
+    return 0
+}
+
 do_start() {
     [[ -f "$CONFIG_FILE" ]] || do_configure
     install_systemd_units
+    mark_current_seen
     systemctl enable --now aiostreams-watchdog.timer
     systemctl start --no-block aiostreams-watchdog.service 2>/dev/null || true   # the first check now, not in up to 2 minutes
     systemctl enable aiostreams-watchdog-boot.service >/dev/null 2>&1 || true
@@ -1572,6 +1586,7 @@ fi
 if [[ "${1:-}" == "install-timer" ]]; then
     [[ -f "$CONFIG_FILE" ]] || error "No watchdog config found at $CONFIG_FILE, nothing to reinstall."
     install_systemd_units
+    mark_current_seen
     systemctl enable --now aiostreams-watchdog.timer
     systemctl start --no-block aiostreams-watchdog.service 2>/dev/null || true   # the first check now, not in up to 2 minutes
     systemctl enable aiostreams-watchdog-boot.service >/dev/null 2>&1 || true

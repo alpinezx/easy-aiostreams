@@ -961,7 +961,7 @@ function side(st) {
   // reads as something missing. The Scripts tab lists the add-on for anyone who wants it.
   if (!w.configured) return;
   const wdFolded = isFolded("alerts");
-  const chk = parseCheck(w.last_check);
+  const chk = parseCheck(w.last_check, w.running);
   const nowOk = w.running && chk.result === "OK";
   // The last check failed but everything's back up by the panel's own look: say so, rather than
   // a failure that only clears when the next check runs (up to 2 minutes later)
@@ -976,7 +976,7 @@ function side(st) {
   if (wdFolded) { el.append(wd); return; }
   wd.append(h("div", { class: "stat-grid" },
     stat("Watchdog", w.running ? "Running" : "Stopped", w.running ? "Checks every 2 min" : "No checks running", w.running ? "ok" : "warn"),
-    stat("Last check", chk.at ? ago(chk.at) : "None yet", chk.at ? new Date(chk.at * 1000).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""),
+    stat("Last check", chk.at ? ago(chk.at) : chk.starting ? "Running now" : "None yet", chk.at ? new Date(chk.at * 1000).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""),
     stat("Result", !w.running ? "Stopped" : settling ? "Looks fine now" : failed ? "Failed" : nowOk ? "All passed" : "—",
       settling ? "The last check failed. The next one should confirm it's passing."
         : failed ? chk.result.replace(/^FAIL:\s*/, "").slice(0, 70) : "", failed ? "warn" : nowOk ? "ok" : "")));
