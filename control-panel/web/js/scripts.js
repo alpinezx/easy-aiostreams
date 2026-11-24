@@ -2,7 +2,7 @@
 // GitHub's main, and the commands to run or update them over SSH.
 import { $, h, api, clear, toast, ago, extIcon } from "./util.js";
 import { ask } from "./actions.js";
-import { openChangelog } from "./releases.js";
+import { openChangelog, closeReleases } from "./releases.js";
 
 const REPO = "https://github.com/alpinezx/easy-aiostreams";
 const ADDONS_GUIDE = `${REPO}/blob/main/docs/other-scripts.md`;
@@ -210,16 +210,76 @@ export function checkScripts(status) {
   if (!cmpAsked) { cmpAsked = true; loadCompare(false); } else pill();
 }
 
-// The Overview rebuilds its top row now and then; it calls this to fill the pill in again
-export function pill() {
+// The updates pill at the top of the Overview. It names the most important thing waiting, with "+N"
+// for the rest; a tap opens a drawer listing them all, each linking to its page. Order: security updates
+// (or a restart they need), a cloudflared near the end of Cloudflare's support, Caddy, cloudflared, scripts.
+// Only security updates count from System updates, or the pill would hardly ever go away.
+let maint = null, maintAsked = false;
+// The Maintenance page passes on what it loaded, so the pill follows an update without a reload
+export function setMaint(m) {
+  maintAsked = true;
+  maint = m;
+  pill();
+}
+function upItems() {
   const rows = (last && last.status && last.status.scripts) || statusScripts || [];
   const n = cmp && cmp.files && !cmp.error ? rows.filter((x) => x.present && differs(x)).length : 0;
   const branch = cmp && cmp.branch && cmp.branch !== "main" ? ` (${cmp.branch} branch)` : "";
+  const items = [];
+  const u = maint && maint.updates;
+  if (u && (u.security || u.reboot)) {
+    items.push({ tiny: u.security ? "Security" : "Restart", short: u.security ? `${u.security} security update${u.security === 1 ? "" : "s"}` : "Restart needed",
+      title: "System updates", page: "maint", go: "Maintenance",
+      line: [u.security ? `${u.security} for security, of ${u.count} waiting` : "", u.reboot ? "a restart is needed to finish" : ""].filter(Boolean).join("; ") + "." });
+  }
+  const prox = ((maint && maint.proxies && maint.proxies.items) || []).filter((i) => i.newer);
+  const row = (i) => ({ tiny: i.id, short: `${i.id === "caddy" ? "Caddy" : "cloudflared"} update`, title: i.name, page: "maint", go: "Maintenance",
+    line: `${i.latest} is out; this server runs ${i.running}.` });
+  for (const i of prox.filter((x) => x.old)) {
+    items.push({ ...row(i), tiny: "cloudflared", short: "Old cloudflared",
+      line: `${i.running} is over 10 months old, and Cloudflare stops supporting a release after about a year. ${i.latest} is out.` });
+  }
+  for (const i of prox.filter((x) => !x.old).sort((a, b) => (a.id === "caddy" ? 0 : 1) - (b.id === "caddy" ? 0 : 1))) {
+    items.push({ ...row(i), tiny: i.id === "caddy" ? "Caddy" : "cloudflared" });
+  }
+  if (n) items.push({ tiny: "Scripts", short: n === 1 ? "Script update" : `${n} script updates`, title: "Scripts", page: "scripts", go: "Scripts",
+    line: `${n === 1 ? "A script" : `${n} scripts`} here ${n === 1 ? "differs" : "differ"} from GitHub's copy${branch}.` });
+  return items;
+}
+
+function openStack(items) {
+  const list = $("#rel-list");
+  clear(list);
+  $("#rel-title").textContent = "Updates waiting";
+  $("#rel-sub").textContent = items.length === 1 ? "One thing to look at." : `${items.length} things to look at, most important first.`;
+  $("#rel-foot").hidden = true;
+  for (const it of items) {
+    list.append(h("div", { class: "rel up-row" },
+      h("div", { class: "rel-head" }, h("span", { class: "rel-tag", text: it.title }),
+        h("a", { class: "up-go", href: `#${it.page}`, text: `Open ${it.go}`, onclick: () => closeReleases() })),
+      h("div", { class: "rel-body" }, h("p", { class: "dim", text: it.line }))));
+  }
+  list.scrollTop = 0;
+  $("#rel-drawer").hidden = false;
+  $("#scrim").hidden = false;
+  $("#rel-x").focus();
+}
+
+// The Overview rebuilds its top row now and then; it calls this to fill the pill in again
+export function pill() {
+  if (!maintAsked) { maintAsked = true; api("/api/maintenance").then((m) => { maint = m; pill(); }).catch(() => {}); }
+  const items = upItems();
   for (const el of [$("#scripts-pill")]) {
     if (!el) continue;
-    el.hidden = !n;
-    el.textContent = n === 1 ? "Script update" : `${n} script updates`;
-    el.title = `${n === 1 ? "A script" : `${n} scripts`} here ${n === 1 ? "differs" : "differ"} from GitHub's copy${branch}. Update ${n === 1 ? "it" : "them"} on the Scripts tab.`;
+    el.hidden = !items.length;
+    clear(el);
+    if (!items.length) continue;
+    const ic = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    ic.setAttribute("viewBox", "0 0 24 24"); ic.setAttribute("aria-hidden", "true"); ic.setAttribute("class", "st-i");
+    ic.innerHTML = '<path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>';
+    el.append(ic, h("span", { class: "up-long", text: items[0].short }), h("span", { class: "up-tiny", text: items[0].tiny }), items.length > 1 ? h("span", { class: "up-more", text: `+${items.length - 1}` }) : "");
+    el.title = items.map((i) => `${i.title}: ${i.line}`).join(" · ");
+    el.onclick = (e) => { e.preventDefault(); openStack(items); };
   }
 }
 

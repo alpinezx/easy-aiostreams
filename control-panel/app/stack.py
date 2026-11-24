@@ -1110,11 +1110,12 @@ class Backend:
             updates = hit["updates"]
             if updates.get("available"):
                 updates = {**updates, "reboot": self.reboot_needed()}
-            return {**hit, "updates": updates, "last": self._maint_last()}
+            return {**hit, "updates": updates, "last": self._maint_last(), "proxies": self.proxies_info()}
         info = {"space": self._maint_space(), "updates": self._maint_updates(), "logs": self._maint_logs(),
                 "checked_at": now}
         self._maint_cache = (now, info)
-        return {**info, "last": self._maint_last()}
+        # Its own 3-hour cache (releases.py); Check now on the card asks again
+        return {**info, "last": self._maint_last(), "proxies": self.proxies_info()}
 
     def _maint_space(self) -> dict:
         images = count = build = journal = 0
@@ -1366,6 +1367,116 @@ class Backend:
         self._rsum = (0.0, None)
         return self.restart_schedule()
 
+    # ---- Caddy and the Cloudflare Tunnel's cloudflared, for Maintenance's card and the
+    # Overview's updates pill: what runs now, the newest release on GitHub, and whether
+    # they update by themselves (setup-maintenance.sh auto-updates, off unless chosen).
+
+    def _caddy_version(self) -> str | None:
+        """The running Caddy's release ("v2.11.9"), from its image's CADDY_VERSION; with Caddy
+        stopped, from the caddy:2 image it would start."""
+        env = None
+        try:
+            env = self.client.containers.get("caddy").attrs.get("Config", {}).get("Env")
+        except Exception:
+            try:
+                env = self.client.images.get("caddy:2").attrs.get("Config", {}).get("Env")
+            except Exception:
+                pass
+        for e in env or []:
+            if str(e).startswith("CADDY_VERSION="):
+                v = str(e).split("=", 1)[1].strip()
+                return v if re.fullmatch(r"v\d+\.\d+\.\d+", v) else None
+        return None
+
+    _cfd_cache: tuple[str, str | None] = ("", None)
+
+    def _cloudflared_version(self) -> str | None:
+        """The running cloudflared's release ("2026.11.2"). Its image has no version label, so
+        it's asked once per container image and kept."""
+        try:
+            c = self.client.containers.get("cloudflared")
+            img = c.attrs.get("Image") or ""
+            if img and self._cfd_cache[0] == img:
+                return self._cfd_cache[1]
+            r = c.exec_run(["cloudflared", "--version"])
+            m = re.search(r"version (\d{4}\.\d{1,2}\.\d+)", r.output.decode(errors="replace"))
+            v = m.group(1) if m else None
+            if v:
+                Backend._cfd_cache = (img, v)
+            return v
+        except Exception:
+            return None
+
+    # A release counts as out once it's a day old: the images (caddy:2, cloudflared:latest)
+    # follow GitHub's release by some hours, and Update would find nothing new before then.
+    RELEASE_SETTLE = 24 * 3600
+    # Cloudflare supports a cloudflared release for about a year: from 10 months the pill says so
+    CFD_OLD_MONTHS = 10
+
+    @staticmethod
+    def _settled(rels: list[dict], now: float) -> dict | None:
+        for r in rels:
+            try:
+                at = datetime.strptime(str(r.get("published") or ""), "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).timestamp()
+            except ValueError:
+                continue
+            if now - at >= Backend.RELEASE_SETTLE:
+                return r
+        return None
+
+    @staticmethod
+    def _ver_key(v: str) -> tuple:
+        return tuple(int(x) for x in re.findall(r"\d+", v or ""))
+
+    def proxies_info(self, force: bool = False) -> dict:
+        from . import releases
+        now = time.time()
+        tunnel = _read(self.p("tunnel-state/token.env")).strip() != ""
+        rows = [("caddy", "Caddy", "serves your sites", self._caddy_version())]
+        if tunnel:
+            rows.append(("cloudflared", "Cloudflare Tunnel", "cloudflared", self._cloudflared_version()))
+        items, checked, errors = [], [], []
+        for key, name, what, running in rows:
+            got = releases.get(force, key)
+            checked.append(got["checked_at"])
+            if got["error"]:
+                errors.append(got["error"])
+            rel = self._settled(got["releases"], now)
+            latest = rel["tag"] if rel else None
+            newer = bool(running and latest and self._ver_key(latest) > self._ver_key(running))
+            item = {"id": key, "name": name, "what": what, "running": running, "latest": latest,
+                    "newer": newer, "url": rel.get("url") if rel else None}
+            if key == "cloudflared" and running:
+                y, mo = (int(x) for x in running.split(".")[:2])
+                t = time.gmtime(now)
+                item["old"] = (t.tm_year * 12 + t.tm_mon) - (y * 12 + mo) >= self.CFD_OLD_MONTHS
+            items.append(item)
+        main, maint = _read(self.p("setup-aiostreams.sh")), _read(self.p("setup-maintenance.sh"))
+        last = None
+        parts = _read(self.p("auto-update-last-run")).strip().split("|", 2)
+        if len(parts) == 3 and parts[0].isdigit() and parts[1] in ("updated", "nothing", "failed", "skipped"):
+            last = {"at": int(parts[0]), "status": parts[1], "text": parts[2]}
+        auto = "monthly" if "mode=monthly" in _read(self.p("auto-updates")).splitlines() else "off"
+        return {"items": items, "tunnel": tunnel, "checked_at": min(checked) if checked else None,
+                "error": errors[0] if errors else None, "auto": auto,
+                "timer": auto == "monthly" and self._systemd_active("aiostreams-auto-update.timer"),
+                "can_auto": "auto-updates" in main and "auto_apply()" in maint, "last": last}
+
+    def set_auto_updates(self, mode) -> dict:
+        """Caddy and cloudflared: "off" (only when Update is pressed) or "monthly"."""
+        if mode not in ("off", "monthly"):
+            raise ValueError("Pick off or monthly.")
+        if "auto-updates" not in _read(self.p("setup-aiostreams.sh")) or "auto_apply()" not in _read(self.p("setup-maintenance.sh")):
+            raise ValueError("This server's scripts are from before automatic updates. Update them on the Scripts tab.")
+        cmd = ["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "env", "-i",
+               f"HOME={self.home}", f"PATH={HOST_PATH}", "TERM=dumb", "LANG=C.UTF-8",
+               "bash", str(config.INSTALL_DIR / "setup-aiostreams.sh"), "auto-updates", mode]
+        r = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
+        if r.returncode != 0:
+            why = [ANSI.sub("", l).replace("XX", "", 1).strip() for l in (r.stdout + r.stderr).splitlines() if "XX" in l]
+            raise ValueError(why[-1] if why else "Couldn't set it.")
+        return self.proxies_info()
+
     def server_facts(self) -> dict:
         """What serverlog.py looks at once a minute: this boot, the scheduled runs' last
         lines, and whether Phone alerts is set up and switched on (it logs these itself then;
@@ -1377,6 +1488,7 @@ class Backend:
         from .serverlog import host_tz
         return {"boot_id": _read(Path("/proc/sys/kernel/random/boot_id")).strip(), "uptime": up,
                 "backup_last": _read(self.p("backup-last-run")), "restart_last": _read(self.p("restart-last-run")),
+                "auto_last": _read(self.p("auto-update-last-run")),
                 "quiet": self.p("watchdog-state/config").exists() and self.watchdog_enabled(), "tz": host_tz()}
 
     @staticmethod

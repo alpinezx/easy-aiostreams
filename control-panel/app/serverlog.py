@@ -9,6 +9,8 @@ did, so the panel looks once a minute instead:
 - scheduled backups and skipped scheduled reboots: a newer line in backup-last-run or
   restart-last-run than the last one seen. A scheduled reboot that went ahead isn't its own
   entry: the restart after it says "for its scheduled reboot".
+- automatic updates for Caddy and the tunnel: a newer line in auto-update-last-run. The
+  watchdog doesn't report these, so they're logged with Phone alerts on too.
 
 While Phone alerts is set up and on, the panel stays quiet (no duplicates) but keeps its markers up to
 date, so switching Phone alerts off later doesn't bring back old news. A first look only
@@ -71,7 +73,7 @@ class ServerLog:
         self.path = path          # None: kept in memory only (the demo)
         self.facts = facts        # None: never looks (the demo)
         self.lock = threading.Lock()
-        self.state = {"boot_id": None, "alive": 0, "backup": None, "restart": None, "events": []}
+        self.state = {"boot_id": None, "alive": 0, "backup": None, "restart": None, "auto": None, "events": []}
         try:
             saved = json.loads(path.read_text()) if path else None
             if isinstance(saved, dict):
@@ -80,7 +82,7 @@ class ServerLog:
                 # long after came back from a backup (tar can't keep a file's ctime): its markers are
                 # another time's, so this is a first look again. The list itself stays.
                 if not isinstance(self.state["alive"], int) or abs(path.stat().st_ctime - self.state["alive"]) > TRUST:
-                    self.state.update({"boot_id": None, "alive": 0, "backup": None, "restart": None})
+                    self.state.update({"boot_id": None, "alive": 0, "backup": None, "restart": None, "auto": None})
         except Exception:
             pass
 
@@ -131,7 +133,7 @@ class ServerLog:
         new = []
 
         # Scheduled reboots that were skipped; one that went ahead only marks the restart after it
-        for key in ("restart", "backup"):
+        for key in ("restart", "backup", "auto"):
             if not isinstance(st[key], int):
                 st[key] = int(now - FRESH)
         r = last_run(f.get("restart_last", ""), ("restarted", "skipped"))
@@ -148,6 +150,15 @@ class ServerLog:
             new.append((b[0], kind, f"{words}: {b[2]}"))
             st["backup"] = b[0]
 
+        # Automatic updates for Caddy and the tunnel: logged even while Phone alerts is on
+        loud = []
+        a = last_run(f.get("auto_last", ""), ("updated", "nothing", "failed", "skipped"))
+        if a and a[0] > st["auto"]:
+            kind, words = {"updated": ("auto-update", "Automatic update"), "nothing": ("auto-update", "Automatic update check"),
+                           "skipped": ("auto-update-skipped", "Automatic update skipped")}.get(a[1], ("auto-update-failed", "Automatic update failed"))
+            loud.append((a[0], kind, f"{words}: {a[2]}"))
+            st["auto"] = a[0]
+
         # A restart since the panel last ran. Only when it ran in the boot before (alive from before
         # this boot): a first start, or a restore that brought an old file back, says nothing.
         bid = (f.get("boot_id") or "").strip()
@@ -160,9 +171,8 @@ class ServerLog:
             st["boot_id"] = bid
         st["alive"] = int(now)
 
-        if not f.get("quiet"):
-            for e in new:
-                self.add(*e)
+        for e in (new if not f.get("quiet") else []) + loud:
+            self.add(*e)
         self.save()
 
     def start(self) -> None:

@@ -299,6 +299,7 @@ class DemoBackend:
                             "packages": DEMO_PACKAGES,
                             "installed": {"at": time.time() - 5 * 86400, "auto": False, "count": 6, "packages": DEMO_PACKAGES[2:8]}},
                 "logs": {"limited": False, "pending": False, "size": 488_000},
+                "proxies": self.proxies_info(),
                 "checked_at": time.time(),
                 "last": {"what": "Install updates", "at": int(time.time()) - 10 * 3600, "running": False, "code": 0,
                          "tail": ["Reading package lists...", "6 upgraded, 0 newly installed, 0 to remove."]}}
@@ -605,6 +606,27 @@ class DemoBackend:
                 else {"synced": True, "ntp": True, "can_ntp": True, "known": True},
                 "toolkit": os.environ.get("UI_DEMO_TOOLKIT") or None}
 
+    # Caddy one release behind; cloudflared (UI_DEMO_TUNNEL=1) up to date
+    caddy_ver = "v2.11.8"
+    auto_updates = "off"
+
+    def proxies_info(self, force: bool = False) -> dict:
+        items = [{"id": "caddy", "name": "Caddy", "what": "serves your sites", "running": self.caddy_ver, "latest": "v2.11.9",
+                  "newer": self.caddy_ver != "v2.11.9", "url": "https://github.com/caddyserver/caddy/releases/tag/v2.11.9"}]
+        if self.tunnel:
+            items.append({"id": "cloudflared", "name": "Cloudflare Tunnel", "what": "cloudflared", "running": "2026.11.2",
+                          "latest": "2026.11.2", "newer": False, "old": False,
+                          "url": "https://github.com/cloudflare/cloudflared/releases/tag/2026.11.2"})
+        return {"items": items, "tunnel": self.tunnel, "checked_at": time.time() - (5 if force else 2 * 3600), "error": None,
+                "auto": self.auto_updates, "timer": self.auto_updates == "monthly", "can_auto": True,
+                "last": {"at": int(time.time() - 20 * 86400), "status": "nothing", "text": "Already the newest."}}
+
+    def set_auto_updates(self, mode) -> dict:
+        if mode not in ("off", "monthly"):
+            raise ValueError("Pick off or monthly.")
+        self.auto_updates = mode
+        return self.proxies_info()
+
     def set_restart_schedule(self, mode, every, day, t) -> dict:
         if mode == "off":
             self.restart["mode"] = "off"
@@ -660,6 +682,13 @@ class DemoBackend:
                       "Waiting for it to answer (up to a minute)...", "MediaFlow Proxy Light is on 1.1.2 and answering."]:
                 say(l, 0.5)
             self.mf_version = "1.1.2"
+        elif action.id == "maint.caddy":
+            for l in [" caddy Pulled", " Container caddy  Recreated", "Checking the new Caddy answers...", "The new Caddy is answering.",
+                      f"Caddy updated from {self.caddy_ver} to v2.11.9."]:
+                say(l, 0.5)
+            self.caddy_ver = "v2.11.9"
+        elif action.id == "maint.cloudflared":
+            say("cloudflared is already the newest.")
         elif action.id == "maint.updates":
             for l in ["==> Refreshing the package lists", "==> Installing updates", "Setting up linux-image-6.8.0-88-generic ...",
                       "==> Making sure everything is running", "Updates installed.",

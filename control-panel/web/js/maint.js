@@ -1,6 +1,7 @@
 import { $, h, clear, api, ago, toast, fmtBytes, timePicker } from "./util.js";
 import { runAction, rebootServer } from "./actions.js";
-import { openUpdates, openOutput } from "./releases.js";
+import { openUpdates, openOutput, openReleases } from "./releases.js";
+import { setMaint } from "./scripts.js";
 
 // Maintenance: upkeep that's easy to forget. Each card says what it found, coloured
 // only when something needs a look, with its one button at the bottom right. The
@@ -66,6 +67,7 @@ function space(m) {
   ], worth ? [`About ${fmtBytes(total)} can go.`, "Settings, backups and what's in use stay."] : "Nothing worth freeing right now.",
   button("maint.space", worth));
   el.classList.add("fs-spread");   // desktop: three figures spread across the card, the last at its right edge
+  el.append(logsBlock(m));
   return phoneFold(el, "space", "Free up space", worth ? [fmtBytes(total), ""] : ["Nothing to clear", "dim"]);
 }
 
@@ -152,16 +154,17 @@ function updPeek(u, pk) {
     more > 0 ? h("button", { class: "linkish upd-more", type: "button", text: `${more} more installed`, onclick: open }) : null);
 }
 
-function logs(m) {
+// Container logs as the foot of Free up space, a line above it: its state on the right, what it
+// uses and Set limits under it. Not set stays in view on a folded phone card (amber).
+function logsBlock(m) {
   const l = m.logs;
-  const sub = !l.limited ? "They can grow without limit" : l.pending ? "Some containers take it when next recreated" : "10 MB per container";
-  const el = card("Container logs", [
-    stat("Size limit", l.limited ? "Set" : "Not set", sub, l.limited ? "ok" : "warn"),
-    stat("Using now", fmtBytes(l.size), "All containers together"),
-  ], l.limited ? "" : "Setting it restarts every container once: a few seconds of downtime.", l.limited ? null : button("maint.logs", true));
-  el.classList.add("lg-right");   // desktop: Using now sits at the card's right edge
-  return phoneFold(el,
-  "logs", "Container logs", l.limited ? ["Limit set", "ok"] : ["Not set", "warn"]);
+  const word = l.limited ? ["Limit set", "ok"] : ["Not set", "warn"];
+  const what = !l.limited ? `Using ${fmtBytes(l.size)}, and they can grow without limit. Setting one restarts every container once: a few seconds of downtime.`
+    : l.pending ? `Using ${fmtBytes(l.size)}. 10 MB per container; some take it when next recreated.` : `Using ${fmtBytes(l.size)}, at most 10 MB per container.`;
+  const blk = h("div", { class: "cl-block" + (l.limited ? "" : " cl-keep") },
+    h("div", { class: "cl-line" }, h("span", { class: "ver-label", text: "Container logs" }), h("span", { class: "cl-word " + word[1], text: word[0] })),
+    h("div", { class: "maint-foot" }, h("span", { class: "dim", text: what }), l.limited ? null : button("maint.logs", true)));
+  return blk;
 }
 
 // Scheduled server reboot: setup-maintenance.sh's timer restarts the server at a set time, only when an
@@ -341,6 +344,104 @@ function tzEditor(r, phone) {
   }
 }
 
+// Caddy and the Cloudflare Tunnel's cloudflared, each with its version, whether a newer release is out
+// (with its notes), and its own Update; then whether they update by themselves each month (off unless
+// chosen). Without a tunnel the card is Caddy's alone.
+let proxOpen = false;
+try { proxOpen = localStorage.getItem("aios.proxOpen") === "1"; } catch (_) {}
+function upIcon() {
+  const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("aria-hidden", "true"); s.setAttribute("class", "st-i");
+  s.innerHTML = '<path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>';
+  return s;
+}
+function proxies(m) {
+  const p = m.proxies;
+  if (!p) return null;
+  const phone = PHONE.matches;
+  const newer = p.items.filter((i) => i.newer);
+  const cardEl = h("section", { class: "panel maint-card rs-list prox-card " + (phone ? "rs-phone" : "rs-desk") + (phone && !proxOpen ? " folded" : "") });
+  const word = newer.length ? [`${newer.length} update${newer.length === 1 ? "" : "s"}`, "warn"] : ["Up to date", "ok"];
+  // A phone says "tunnel" so the title and its word share one line
+  const tunnel = p.items.length > 1;
+  const title = !tunnel ? "Caddy" : phone ? "Caddy and tunnel" : "Caddy and Cloudflare Tunnel";
+  let head = h("div", { class: "card-head" }, h("h3", { text: title }));
+  if (phone) {
+    const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
+    chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
+    const tog = h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(proxOpen), onclick: () => {
+      proxOpen = !proxOpen;
+      try { localStorage.setItem("aios.proxOpen", proxOpen ? "1" : "0"); } catch (_) {}
+      cardEl.classList.toggle("folded", !proxOpen);
+      tog.setAttribute("aria-expanded", String(proxOpen));
+    } }, title, chev);
+    head = h("div", { class: "card-head sched-head" }, h("h3", {}, tog), h("span", { class: "rs-word sched-fold-word " + word[1], text: word[0] }));
+  }
+  cardEl.append(head);
+  const busy = !!(status && status.busy) || !!(last && last.last && last.last.running);
+  for (const i of p.items) {
+    const fresh = i.newer;
+    const state = fresh ? h("span", { class: "rs-word warn" }, upIcon(), `${i.latest} available`)
+      : i.running ? h("span", { class: "rs-word ok", text: "Up to date" }) : h("span", { class: "rs-word dim", text: "Not running" });
+    const a = ((status && status.actions) || []).find((x) => x.id === `maint.${i.id}`);
+    const btn = h("button", { class: "btn small" + (fresh ? " primary" : "") + (phone ? " rs-wide" : ""), type: "button", text: "Update",
+      disabled: busy || !a || !a.available,
+      title: !a || !a.available ? "This server's scripts are from before this button. Update them on the Scripts tab."
+        : fresh ? `Update ${i.name} to ${i.latest}. The one it replaces comes back if the new one doesn't work.` : null,
+      // Like the Overview and VPN: up to date (and the check worked) just says so, as elsewhere in the panel
+      onclick: () => (!fresh && i.running && i.latest ? toast(`${i.name} is up to date (${i.running}). Nothing to do.`) : runAction(a)) });
+    const notes = h("button", { class: "btn small quiet prox-notes", type: "button", text: "All releases",
+      onclick: () => releaseNotes(i) });
+    const blk = h("div", { class: "rs-block" },
+      h("div", { class: "rs-line" }, h("span", { class: "ver-label", text: i.name }), state),
+      h("div", { class: "rs-ctl" }, h("span", { class: "prox-ver" }, h("span", { class: "mono", text: i.running || "Unknown" }),
+        h("span", { class: "dim", text: " · " }), notes), btn));
+    if (fresh) blk.classList.add("rs-keep");   // a folded phone card still shows what's waiting
+    cardEl.append(blk);
+  }
+  const auto = h("select", { class: "input", "aria-label": "Automatic updates", disabled: !p.can_auto,
+    title: p.can_auto ? null : "This server's scripts are from before automatic updates. Update them on the Scripts tab." },
+    h("option", { value: "off", text: "Only when I press Update" }), h("option", { value: "monthly", text: "Automatically, once a month" }));
+  auto.value = p.auto;
+  const both = tunnel ? "Caddy and the tunnel" : "Caddy";
+  auto.addEventListener("change", async () => {
+    auto.disabled = true;
+    try {
+      last.proxies = await api("/api/auto-updates", { method: "PUT", body: JSON.stringify({ mode: auto.value }) });
+      setMaint(last);
+      toast(auto.value === "off" ? `${both} update only when you press Update.`
+        : `${both} update by themselves once a month, on the first Wednesday at 03:15 server time. Activity says when.`);
+    } catch (e) { toast(e.message || "Couldn't change it."); }
+    render(true);
+  });
+  const autoWord = p.auto !== "monthly" ? ["Off", "dim"] : p.timer ? ["Monthly", "ok"] : ["Not running", "warn"];
+  // Beside the select, so switching it never changes the card's height (the foot stays one line)
+  const autoNote = p.auto !== "monthly" ? "Nothing updates until you press Update."
+    : "First Wednesday of the month at 03:15." + (p.last ? ` Last run ${ago(p.last.at)}: ${p.last.text}` : "");
+  cardEl.append(h("div", { class: "rs-block prox-auto-block" + (autoWord[1] === "warn" ? " rs-keep" : "") },
+    h("div", { class: "rs-line" }, h("span", { class: "ver-label", text: "Automatic updates" }), h("span", { class: "rs-word " + autoWord[1], text: autoWord[0] })),
+    h("div", { class: "rs-ctl" }, auto, h("span", { class: "dim prox-auto", text: autoNote }))));
+  const check = h("button", { class: "btn small", type: "button", text: "Check now", onclick: async () => {
+    check.disabled = true;
+    try { last.proxies = await api("/api/proxies?force=1"); setMaint(last); } catch (e) { toast(e.message || "Couldn't check."); }
+    render(true);
+  } });
+  cardEl.append(h("div", { class: "card-foot" }, h("div", { class: "maint-foot" },
+    h("span", { class: "dim", text: p.error ? `Couldn't check for new releases: ${p.error}`
+      : `Checked ${ago(p.checked_at)}. If an update fails, the earlier version comes back.` }),
+    check)));
+  return cardEl;
+}
+
+// Its releases from GitHub in the release drawer, with the running one marked
+async function releaseNotes(i) {
+  try {
+    const rel = await api(`/api/${i.id}-releases`);
+    openReleases({ ...rel, name: i.id === "caddy" ? "Caddy" : "cloudflared",
+      page: i.id === "caddy" ? "https://github.com/caddyserver/caddy/releases" : "https://github.com/cloudflare/cloudflared/releases" }, i.running || "");
+  } catch (e) { toast(e.message || "Couldn't load the release notes."); }
+}
+
 // How the last job ended: it may have outlived a panel restart (Docker restarts it)
 // The updates card's quiet line: what the last install did, amber when it failed
 function lastLine(j) {
@@ -376,6 +477,7 @@ async function load(force) {
   }
   catch (e) { if (!last) { clear(root); root.append(h("p", { class: "empty", text: e.message || "Couldn't load it." })); } return; }
   finally { loading = false; }
+  setMaint(last);
   render();
 }
 
@@ -387,7 +489,7 @@ function render(force) {
   editing = false;
   const open = !!(root.querySelector(".maint-last") || {}).open;   // keep the output open across refreshes
   clear(root);
-  root.append(h("div", { class: "maint-grid" }, updates(last), rs && rs.available ? restart(rs) : null, space(last), logs(last)));
+  root.append(h("div", { class: "maint-grid" }, updates(last), proxies(last), rs && rs.available ? restart(rs) : null, space(last)));
   const run = lastRun(last);
   if (run) root.append(run);
   if (open && root.querySelector(".maint-last")) root.querySelector(".maint-last").open = true;
