@@ -64,6 +64,8 @@ def net_now() -> dict:
 
 app =FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 lockout = auth.Lockout()
+PASSWORD_MAX = 1024
+_login_slots = asyncio.Semaphore(2)
 COOKIE = "ui_session"
 LOGGABLE = {"cloudflared", "caddy", "gluetun", "aiostreams", "mediaflow-proxy-light", "aiometadata", "aiomanager", "aios-ui"}
 
@@ -134,19 +136,26 @@ async def login(request: Request, response: Response):
     if cfg is None:
         raise HTTPException(503, "Login is not set up yet. Run setup-ui.sh again.")
     ip = client_ip(request)
-    wait = lockout.locked_for(ip)
-    if wait:
-        raise HTTPException(429, f"Too many wrong passwords. Try again in {wait // 60 + 1} minutes.")
     try:
         body = await request.json()
         username, password = str(body.get("username", "")), str(body.get("password", ""))
     except Exception:
         raise HTTPException(400, "Bad request")
+    wait = lockout.locked_for(ip)
+    if wait:
+        raise HTTPException(429, f"Too many wrong passwords. Try again in {wait // 60 + 1} minutes.")
+    # Counted before the hash, with no await in between, so many tries sent at
+    # once can't all slip past the lockout. A right password clears it again.
+    lockout.record_fail(ip)
+    if len(password) > PASSWORD_MAX or len(username) > PASSWORD_MAX:
+        await asyncio.sleep(0.5)
+        raise HTTPException(401, "Wrong username or password.")
     # Always run the hash so a wrong username takes as long as a wrong password.
-    pw_ok = await asyncio.to_thread(auth.verify_password, password, cfg.pw_hash)
+    # A few at a time: each one takes 32 MB, and a small server has little to spare.
+    async with _login_slots:
+        pw_ok = await asyncio.to_thread(auth.verify_password, password, cfg.pw_hash)
     user_ok = secrets.compare_digest(username.encode(), cfg.user.encode())
     if not (pw_ok and user_ok):
-        lockout.record_fail(ip)
         await asyncio.sleep(0.5)
         raise HTTPException(401, "Wrong username or password.")
     lockout.clear(ip)
@@ -215,8 +224,8 @@ async def panel_update(request: Request, user: str = Depends(current_user)):
         body = {}
     if not isinstance(body, dict) or str(body.get("confirm", "")).strip().lower() != "update":
         raise HTTPException(400, "Type update to confirm.")
-    if jobs.current_id():
-        raise HTTPException(409, "An action is still running. Wait for it to finish first.")
+    if busy := await asyncio.to_thread(host_busy):
+        raise HTTPException(409, busy)
     if config.DEMO:
         return {"ok": True, "demo": True}
     try:
@@ -502,8 +511,8 @@ async def vpn_config_addresses(user: str = Depends(current_user)):
 @app.post("/api/scripts/{script_id}/remove")
 async def remove_script(script_id: str, user: str = Depends(current_user)):
     """Deletes an add-on's script once the add-on isn't set up."""
-    if jobs.current_id():
-        raise HTTPException(409, "Another action is still running. Wait for it to finish.")
+    if busy := await asyncio.to_thread(host_busy):
+        raise HTTPException(409, busy)
     try:
         name = await asyncio.to_thread(backend.remove_script, script_id)
     except ValueError as e:
@@ -516,8 +525,8 @@ async def remove_script(script_id: str, user: str = Depends(current_user)):
 @app.post("/api/scripts/{script_id}/update")
 async def update_script(script_id: str, user: str = Depends(current_user)):
     """Replaces a script with GitHub's main copy (verified), on the host."""
-    if jobs.current_id():
-        raise HTTPException(409, "Another action is still running. Wait for it to finish.")
+    if busy := await asyncio.to_thread(host_busy):
+        raise HTTPException(409, busy)
     try:
         res = await asyncio.to_thread(backend.update_script, script_id)
     except ValueError as e:
@@ -750,6 +759,8 @@ async def backup_meta(name: str, request: Request, user: str = Depends(current_u
     try:
         body = await request.json()
     except Exception:
+        raise HTTPException(400, "Bad request")
+    if not isinstance(body, dict):
         raise HTTPException(400, "Bad request")
     items = await asyncio.to_thread(backend.backups)
     if name not in {b["name"] for b in items}:
@@ -1192,6 +1203,21 @@ def _restored_state() -> Path:
 jobs = Jobs()
 
 
+def host_busy() -> str | None:
+    """Why a change to the server has to wait, or None. Besides this panel's own
+    action, a panel update and a Maintenance job run on the host, outside this
+    container, and carry on through its restarts."""
+    if jobs.current_id():
+        return "An action is still running. Wait for it to finish first."
+    if config.DEMO:
+        return None
+    if panelupdate.running():
+        return "The panel is updating. Wait for it to finish first."
+    if backend._maint_running():
+        return "A maintenance job is still running. Wait for it to finish first."
+    return None
+
+
 @app.post("/api/actions/{action_id}")
 async def run_action(action_id: str, request: Request, user: str = Depends(current_user)):
     try:
@@ -1200,6 +1226,8 @@ async def run_action(action_id: str, request: Request, user: str = Depends(curre
         body = {}
     params = body.get("params") if isinstance(body, dict) else None
     params = params if isinstance(params, dict) else None
+    if busy := await asyncio.to_thread(host_busy):
+        raise HTTPException(409, busy)
     if action_id in ("vpn.delete", "vpn.file"):
         # Only a config the list has just found, never the one in use
         # (Delete may take the one in use too while the VPN is off; none is left then.)
@@ -1345,8 +1373,8 @@ async def server_reboot(request: Request, user: str = Depends(current_user)):
         body = {}
     if not isinstance(body, dict) or str(body.get("confirm", "")).strip().lower() != "reboot":
         raise HTTPException(400, "Type reboot to confirm.")
-    if jobs.current_id():
-        raise HTTPException(409, "An action is still running. Wait for it to finish before rebooting.")
+    if busy := await asyncio.to_thread(host_busy):
+        raise HTTPException(409, busy)
     audit.log(f"server reboot requested by {user} from {client_ip(request)}")
 
     def go():
@@ -1364,8 +1392,8 @@ async def service_restart(key: str, request: Request, user: str = Depends(curren
     """Restart a single container (AIOStreams, MediaFlow, AIOMetadata, AIOManager)."""
     if key not in RESTARTABLE:
         raise HTTPException(404, "That service can't be restarted on its own.")
-    if jobs.current_id():
-        raise HTTPException(409, "An action is still running. Wait for it to finish first.")
+    if busy := await asyncio.to_thread(host_busy):
+        raise HTTPException(409, busy)
     try:
         name = await asyncio.to_thread(backend.restart_service, key)
     except RuntimeError as e:
@@ -1383,8 +1411,8 @@ async def panel_restart(request: Request, user: str = Depends(current_user)):
     """Restarting this container re-resolves its bind mounts, which a restore
     (it moves the install folder aside) leaves pointing at the old folder.
     Refused while an action runs: the action's script would be killed with it."""
-    if jobs.current_id():
-        raise HTTPException(409, "An action is still running. Wait for it to finish first.")
+    if busy := await asyncio.to_thread(host_busy):
+        raise HTTPException(409, busy)
     if config.DEMO:
         return {"ok": True, "demo": True}
     def go():

@@ -1822,7 +1822,12 @@ do_restore() {
 
     rm -f "$INSTALL_DIR"/{watchdog-state,mediaflow-state,aiometadata-state,aiomanager-state,ui-state}/was-active-at-backup
 
-    info "Restore complete!"
+    if (( start_status )); then
+        # Still a finished restore (exit 0): the files are in place, and the panel restarts onto them
+        warn "Restore finished, but AIOStreams didn't start (see above). Once that's fixed, use Start AIOStreams."
+    else
+        info "Restore complete!"
+    fi
     echo ""
     local main_now
     main_now=$(caddy_domain)

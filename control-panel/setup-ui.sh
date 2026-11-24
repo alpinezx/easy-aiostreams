@@ -125,6 +125,9 @@ write_caddy_snippet() {
     # Cloudflare otherwise keeps a 404 for /css/app.css or /js/*.js for a few
     # minutes and hands it to everyone, cookie or not, so one visitor without
     # the cookie left the panel with no styles or scripts.
+    # X-Forwarded-For is set to the visitor's own address. Through a Cloudflare
+    # Tunnel Caddy trusts cloudflared and would otherwise add cloudflared's
+    # address last, so every visitor looked like one to the login lockout.
     cat > "$CADDY_SNIPPET" << CADDY_EOF
 ${domain} {
     @unlock path /unlock/${token}
@@ -139,7 +142,9 @@ ${domain} {
     handle @gated {
         header Set-Cookie "ui_gate=${token}; Path=/; Max-Age=31536000; HttpOnly; Secure; SameSite=Lax"
         encode @static zstd gzip
-        reverse_proxy ${CONTAINER_NAME}:${INTERNAL_PORT}
+        reverse_proxy ${CONTAINER_NAME}:${INTERNAL_PORT} {
+            header_up X-Forwarded-For {client_ip}
+        }
     }
 
     handle {
@@ -364,9 +369,19 @@ do_rebuild() {
     rm -f "$STATE_DIR/terminal.json"
     require_panel_dir
     write_compose
-    build_image && (cd "$STATE_DIR" && docker compose -f "$UI_COMPOSE" up -d --force-recreate)
-    wait_until_up || warn "The panel didn't answer within 30s. Check: docker logs $CONTAINER_NAME"
+    if ! build_image; then
+        warn "Couldn't build the new panel, so the one already running carries on."
+        return 1
+    fi
+    (cd "$STATE_DIR" && docker compose -f "$UI_COMPOSE" up -d --force-recreate) || true
+    local up=true
+    wait_until_up || up=false
     refresh_caddy_snippet
+    if ! $up; then
+        # No "Rebuilt." line: the panel's Update result looks for it
+        warn "The panel didn't answer within 30s. Check: docker logs $CONTAINER_NAME"
+        return 1
+    fi
     echo "Rebuilt. Your login and unlock link are unchanged."
 }
 
@@ -440,7 +455,7 @@ while true; do
         1) do_status ;;
         2) do_start ;;
         3) do_stop ;;
-        4) do_update ;;
+        4) do_update || true ;;
         5) do_new_link ;;
         6) do_reset_password ;;
         7) print_unlock ;;

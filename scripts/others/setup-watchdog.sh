@@ -913,7 +913,10 @@ send_ntfy() {
     panel=$(panel_domain)
     # A button under the alert rather than a tap action, so tapping the alert just opens it in ntfy
     [[ -n "$panel" ]] && args+=(-H "Actions: view, Open panel, https://$panel/#$page")
-    curl "${args[@]}" -d "$msg" "https://ntfy.sh/$topic" >/dev/null 2>&1 || { warn "Couldn't reach ntfy.sh."; return 1; }
+    # The address goes in through curl's config on stdin: the topic is a password,
+    # and a command line shows in the process list
+    printf 'url = "https://ntfy.sh/%s"
+' "$topic" | curl -K - "${args[@]}" -d "$msg" >/dev/null 2>&1         || { warn "Couldn't reach ntfy.sh."; return 1; }
 }
 
 do_run_check() {

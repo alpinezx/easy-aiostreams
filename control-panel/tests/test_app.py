@@ -52,6 +52,31 @@ def test_wrong_password_and_lockout(client):
     assert r.status_code == 429
 
 
+def test_login_counts_the_try_before_the_hash(client, monkeypatch):
+    # Tries sent all at once each wait on the hash: counting first means they can't all slip past the lockout
+    from app import main
+    seen = []
+    real = auth.verify_password
+    monkeypatch.setattr(auth, "verify_password", lambda pw, h: (seen.append(len(main.lockout._recent("testclient"))), real(pw, h))[1])
+    assert login(client, "nope").status_code == 401
+    assert seen == [1]
+    assert login(client).status_code == 200 and seen == [1, 2]       # counted too, until it turns out right
+    assert "testclient" not in main.lockout._fails                     # and then cleared
+    assert login(client, "x" * 5000).status_code == 401 and seen == [1, 2]   # far too long: never hashed
+
+
+def test_host_busy_sees_work_outside_the_panel(monkeypatch):
+    from app import main
+    monkeypatch.setattr(main.config, "DEMO", False)
+    monkeypatch.setattr(main.panelupdate, "running", lambda: True)
+    assert "updating" in main.host_busy()
+    monkeypatch.setattr(main.panelupdate, "running", lambda: False)
+    monkeypatch.setattr(main.backend, "_maint_running", lambda: True, raising=False)
+    assert "maintenance" in main.host_busy()
+    monkeypatch.setattr(main.backend, "_maint_running", lambda: False, raising=False)
+    assert main.host_busy() is None
+
+
 def test_wrong_username_rejected(client):
     assert login(client, user="someone").status_code == 401
 
@@ -195,6 +220,9 @@ def test_backup_lock_and_note(client):
     client.put(f"/api/backups/{name}/meta", json={"locked": False})
     assert client.delete(f"/api/backups/{name}").status_code == 200
     assert client.put(f"/api/backups/{name}/meta", json={"note": "x"}).status_code == 404
+    left = client.get("/api/backups").json()[0]["name"]
+    for body in ("null", "123", "[]"):    # JSON, but not an object
+        assert client.put(f"/api/backups/{left}/meta", content=body).status_code == 400
     assert name not in (config.STATE_DIR / "backup-meta.json").read_text()
 
 

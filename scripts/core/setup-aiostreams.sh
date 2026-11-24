@@ -122,7 +122,20 @@ confirm_gluetun_tunnel() {
 # Brings the VPN-mode stack up: gluetun + caddy start first (--no-deps so
 # aiostreams isn't dragged along via depends_on), the tunnel is confirmed
 # connected, and only then does aiostreams start.
+# Holds the VPN route watcher's lock throughout: gluetun's start wakes the
+# watcher, which would otherwise recreate aiostreams before the tunnel is
+# confirmed, at the same time as this.
 vpn_gated_start_aiostreams() {
+    local rc=0
+    if command -v flock >/dev/null 2>&1; then
+        { flock 9; gated_start_unlocked "$@" || rc=$?; } 9> /run/aiostreams-routes.lock
+    else
+        gated_start_unlocked "$@" || rc=$?
+    fi
+    return "$rc"
+}
+
+gated_start_unlocked() {
     cd "$INSTALL_DIR" || { warn "Could not cd to $INSTALL_DIR"; return 1; }
 
     docker compose up -d --no-deps "$@" gluetun caddy || \
@@ -633,8 +646,10 @@ run_backup_script() {
 
 # The part of a restore that starts things, called by setup-backup.sh once
 # the backup is extracted and its domain checked. Exits 2 when you choose
-# not to start in direct mode with the VPN switched off.
+# not to start in direct mode with the VPN switched off, 3 when AIOStreams
+# didn't start (the tunnel wasn't confirmed).
 restore_start_stack() {
+    local start_failed=0
     secure_install_dir
     link_install_shortcuts
     ensure_shared_network
@@ -669,7 +684,7 @@ restore_start_stack() {
         fi
         info "VPN layer detected in this backup, bringing the tunnel up before starting AIOStreams"
         # --force-recreate: the running containers still have the folder that was just set aside
-        vpn_gated_start_aiostreams --force-recreate --remove-orphans || true
+        vpn_gated_start_aiostreams --force-recreate --remove-orphans || start_failed=3
     else
         (cd "$INSTALL_DIR" && docker compose up -d --force-recreate --remove-orphans)
     fi
@@ -683,7 +698,7 @@ restore_start_stack() {
         if [[ -z "${TUNNEL_JUST_ON:-}" ]] && script=$(tunnel_script); then
             bash "$script" on < /dev/null || warn "The Cloudflare Tunnel didn't start. Run: sudo bash $INSTALL_DIR/setup-tunnel.sh"
         fi
-        return 0
+        return "$start_failed"
     fi
     # DNS matching doesn't rule out a blocked port on a new server, so
     # confirm the certificate itself.
@@ -692,7 +707,7 @@ restore_start_stack() {
         restored_domain=$(caddy_domain)
         [[ -n "$restored_domain" ]] && wait_for_cert_and_diagnose "$restored_domain"
     fi
-    return 0
+    return "$start_failed"
 }
 
 # ---- Maintenance lives in setup-maintenance.sh (menu option 10, and the
@@ -951,6 +966,8 @@ do_start_aio() {
         echo "VPN mode detected, bringing the tunnel up before starting AIOStreams..."
         if vpn_gated_start_aiostreams --remove-orphans; then
             echo "Started, tunnel confirmed."
+        else
+            return 1
         fi
     else
         # 'up -d' rather than 'start': also handles the case where
@@ -964,6 +981,7 @@ do_start_aio() {
 }
 
 do_restart_stack() {
+    local failed=0
     echo ""
     cd "$INSTALL_DIR"
     tidy_caddyfile
@@ -971,19 +989,23 @@ do_restart_stack() {
         echo "VPN mode detected (gluetun present), recreating gluetun+caddy first, then"
         echo "gating aiostreams behind a confirmed tunnel, so it never re-attaches to a"
         echo "stale or not-yet-connected namespace..."
-        vpn_gated_start_aiostreams --force-recreate --remove-orphans || true
+        vpn_gated_start_aiostreams --force-recreate --remove-orphans || failed=1
     else
         warn_if_vpn_layer_off "Restarting the stack" || return 1
         echo "Restarting the stack..."
         docker compose restart
     fi
     if tunnel_active; then docker restart cloudflared >/dev/null 2>&1 || true; fi
+    if (( failed )); then
+        warn "Restarted, but AIOStreams is still stopped: the tunnel wasn't confirmed (see above)."
+        return 1
+    fi
     echo "Restarted. Check status with: docker compose ps"
 }
 
 # do_update_aio <backup: ask|yes|no> <channel: ask|keep|latest|nightly>
 do_update_aio() {
-    local backup="$1" channel="$2" UPDATE_CHOICE SWITCH_CHANNEL NEW_CHANNEL_CHOICE CONFIRM_CHANNEL_SWITCH
+    local backup="$1" channel="$2" UPDATE_CHOICE SWITCH_CHANNEL NEW_CHANNEL_CHOICE CONFIRM_CHANNEL_SWITCH failed=0
     echo ""
     cd "$INSTALL_DIR"
     if [[ "$backup" == ask ]]; then
@@ -1068,7 +1090,7 @@ do_update_aio() {
     if vpn_mode_active; then
         echo "VPN mode detected, recreating gluetun+caddy first, then gating aiostreams"
         echo "behind a confirmed tunnel before it comes up on the new images..."
-        vpn_gated_start_aiostreams --force-recreate --remove-orphans || true
+        vpn_gated_start_aiostreams --force-recreate --remove-orphans || failed=1
     else
         docker compose up -d --force-recreate --remove-orphans
     fi
@@ -1084,6 +1106,10 @@ do_update_aio() {
         fi
     fi
     echo ""
+    if (( failed )); then
+        warn "Updated, but AIOStreams is still stopped: the tunnel wasn't confirmed (see above)."
+        return 1
+    fi
     echo "Update complete. Current images:"
     docker compose images
 }
@@ -1278,8 +1304,9 @@ if [[ -f "$COMPOSE_FILE" ]]; then
 
             echo "Reconfiguring. The current settings files are kept as .bak copies first."
             BACKUP_SUFFIX="$(date +%Y%m%d%H%M%S)"
-            cp "$COMPOSE_FILE" "${COMPOSE_FILE}.bak_${BACKUP_SUFFIX}"
-            [[ -f "$CADDYFILE" ]] && cp "$CADDYFILE" "${CADDYFILE}.bak_${BACKUP_SUFFIX}"
+            # -p keeps the live files' modes: the compose file holds the secrets (600)
+            cp -p "$COMPOSE_FILE" "${COMPOSE_FILE}.bak_${BACKUP_SUFFIX}"
+            [[ -f "$CADDYFILE" ]] && cp -p "$CADDYFILE" "${CADDYFILE}.bak_${BACKUP_SUFFIX}"
             echo "Backed up to *.bak_${BACKUP_SUFFIX}"
             # falls through to the install flow below
             ;;
