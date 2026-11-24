@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 24 November 2026
 
+- **Fixed:** Phone alerts: the second Watches line names only the checks it counts, so a server that watches just its disk reads "1 system check" instead of "1 service & system check". (Panel 1.65.6)
 - Scripts: Update AIOStreams keeps the Caddy in use as a spare until the new one answers. If the new Caddy doesn't answer within a minute, the earlier one is put back so the sites stay up, and the next update tries again. ([#226](https://github.com/alpinezx/easy-aiostreams/pull/226))
 - Phone alerts: the watchdog now also loads each add-on's own address (MediaFlow, AIOMetadata, AIOManager), not only its health check, so a broken site or certificate for an add-on is caught too. Add-ons stopped on purpose are still skipped, and the Phone alerts page lists the new check. (Panel 1.65.5, [#225](https://github.com/alpinezx/easy-aiostreams/pull/225))
 - **Fixed:** Control panel on phones: the Backups list on Backup & Restore starts open (each backup still folded), and Optional add-ons on Scripts keeps its summary on the right of the title, folded or open. On a wide screen, five sites' HTTPS certificates fit on one line across the This server card. (Panel 1.65.5, [#225](https://github.com/alpinezx/easy-aiostreams/pull/225))

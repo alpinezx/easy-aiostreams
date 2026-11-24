@@ -100,9 +100,12 @@ function watchCell(watches, certSites = [], certNote = "", rows = null) {
   // Short and unfolded: how many sites (certificates included unless a Tunnel handles them) and how many other checks
   if (rows && rows.length) {
     const sites = rows.filter((r) => r.host).length, other = rows.length - sites;
+    // Disk space is the one system check; the other host-less rows (tunnel, VPN) are services
+    const system = rows.filter((r) => !r.host && r.name === "Disk space").length, services = other - system;
+    const kind = services && system ? "service & system" : services ? "service" : "system";
     return h("div", { class: "wd-watch" }, h("div", { class: "vpn-label", text: "Watches" }),
       ...(sites ? [h("div", { class: "vpn-value", text: `${sites} site${sites === 1 ? "" : "s"}${certNote ? "" : ", certificates included"}` })] : []),
-      ...(other ? [h("div", { class: "vpn-value wd-watch-more", text: `${other} service & system check${other === 1 ? "" : "s"}` })] : []),
+      ...(other ? [h("div", { class: "vpn-value wd-watch-more", text: `${other} ${kind} check${other === 1 ? "" : "s"}` })] : []),
       certNote ? h("div", { class: "dim wd-watch-note", text: certNote }) : null);
   }
   const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
