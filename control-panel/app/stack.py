@@ -2078,10 +2078,15 @@ class Backend:
     def resumes(self) -> dict[str, list[float]]:
         """When containers came back in the last day: "*" (every one) at each backup, whose
         archive is written the second the containers it paused resume (scheduled ones too),
-        and each container at its own last start. Not Docker's events: it keeps only the
+        plus the last scheduled run, and each container at its own last start. Backups from
+        the panel count through its job history (main.after_resumes). Not Docker's events: it keeps only the
         last 256, which its health checks fill within the hour."""
         since = time.time() - WARN_DAY
         out: dict[str, list[float]] = {"*": [b["mtime"] for b in self.backups() if b["mtime"] >= since]}
+        # The last scheduled one, even after its file is deleted (the panel's own are in its job history)
+        last = _read(self.p("backup-last-run")).split("|", 1)[0].strip()
+        if last.isdigit() and int(last) >= since:
+            out["*"].append(float(last))
         try:
             for c in self.client.containers.list():
                 started = (c.attrs.get("State") or {}).get("StartedAt") or ""
