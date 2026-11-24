@@ -81,3 +81,17 @@ def test_remove_refuses_while_set_up(backend, tmp_path):
     assert (tmp_path / "setup-mediaflow.sh").exists() and backend.ran == []
     with pytest.raises(ValueError):
         backend.remove_script("aiostreams")                      # never the main script
+
+
+def test_resumes_read_the_backup_record_and_guess_without_it(backend, tmp_path):
+    """Backups' resume times come from setup-backup.sh's backup-resumes. Without that file
+    (older scripts) the backup files and the last scheduled run stand in."""
+    import time
+    now = int(time.time())
+    backend._client = SimpleNamespace(containers=SimpleNamespace(list=lambda: []))
+    backend.backups = lambda: [{"mtime": now - 600}]
+    (tmp_path / "backup-last-run").write_text(f"{now - 300}|ok|aiostreams-backup-scheduled-x.tar.gz, 36MB.\n")
+    assert sorted(backend.resumes()["*"]) == [now - 600, now - 300]
+    # The record wins, files and last run aside; a day-old line and junk are left out
+    (tmp_path / "backup-resumes").write_text(f"{now - 2 * 86400}\nnot-a-time\n{now - 3600}\n{now - 60}\n")
+    assert backend.resumes()["*"] == [now - 3600, now - 60]

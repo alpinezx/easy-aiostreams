@@ -781,10 +781,6 @@ def test_log_warnings_skip_stalls_right_after_a_backup_pause():
     got = m.after_resumes(svc, resumes)
     assert [ln.split(" ")[-1] for ln in got[0]["lines"]] == ["kept", "later"]
     assert got[1]["lines"] == svc[1]["lines"]
-    # A Back up now from the panel counts by its job, even with the backup file deleted since
-    job = [(t("2026-11-24T23:39:54") - 5, t("2026-11-24T23:39:58") + m.JOB_GRACE)]
-    got = m.after_resumes(svc, {}, job)
-    assert [ln.split(" ")[-1] for ln in got[0]["lines"]] == ["backup", "kept", "started"]
 
 
 def test_log_warnings_card_clear(client):

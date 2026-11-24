@@ -231,6 +231,20 @@ do_backup() {
     # server_secret.key all at rest, so they're copied as one.
     local paused=() names c started base n=()
     base="$(basename "$INSTALL_DIR")"
+    # When the containers came back, for the control panel: a paused container
+    # shows as unhealthy until its next health check (AIOMetadata's and
+    # AIOManager's run every 30s) and AIOMetadata logs the pause as its event
+    # loop stalling, so the panel needs to tell a backup's pause from real
+    # trouble. One time per line; only the last two days are kept (the panel
+    # looks back one). This server's own record: never in a backup, kept on
+    # restore, cleared by nothing in the panel.
+    note_resumed() {
+        local f="$INSTALL_DIR/backup-resumes" now
+        now=$(date +%s)
+        { if [[ -f "$f" ]]; then awk -v c=$((now - 172800)) '$1 ~ /^[0-9]+$/ && $1 >= c' "$f"; fi
+          echo "$now"; } > "$f.tmp" 2>/dev/null \
+            && chmod 640 "$f.tmp" && mv -f -- "$f.tmp" "$f" || rm -f -- "$f.tmp"
+    }
     for c in aiostreams aiometadata aiomanager; do
         if [[ "$(docker inspect -f '{{.State.Status}}' "$c" 2>/dev/null)" == "running" ]] \
             && docker pause "$c" >/dev/null 2>&1; then
@@ -239,7 +253,7 @@ do_backup() {
     done
     if (( ${#paused[@]} )); then
         # shellcheck disable=SC2064  # expand now: the list is local
-        trap "docker unpause ${paused[*]} >/dev/null 2>&1 || true" EXIT
+        trap "docker unpause ${paused[*]} >/dev/null 2>&1 || true; note_resumed" EXIT
         for c in "${paused[@]}"; do
             case "$c" in
                 aiostreams) n+=("AIOStreams") ;;
@@ -258,7 +272,7 @@ do_backup() {
     # 50 MB) are left out: it downloads them again when it starts. So are
     # AIOManager's debug traces, written only when tracing is switched on.
     if ( umask 077; tar --warning=no-file-changed --sort=name --exclude="$base/caddy-logs" \
-            --exclude="$base/public-ip" --exclude="$base/backup-last-run" \
+            --exclude="$base/public-ip" --exclude="$base/backup-last-run" --exclude="$base/backup-resumes" \
             --exclude="$base/aiometadata-state/data/*.cache" --exclude="$base/aiometadata-state/data/imdb-ratings.bin" \
             --exclude="$base/aiomanager-state/data/trace.log*" \
             -czf "$out" -C "$(dirname "$INSTALL_DIR")" "$base" ); then
@@ -269,6 +283,7 @@ do_backup() {
     if (( ${#paused[@]} )); then
         docker unpause "${paused[@]}" >/dev/null 2>&1 || warn "Couldn't unpause everything. Run: docker unpause ${paused[*]}"
         trap - EXIT
+        note_resumed
         echo "$names resumed (paused for $((SECONDS - started))s)."
     fi
     # GNU tar: 0 = clean, 1 = file changed while being read (archive still
@@ -1545,6 +1560,10 @@ do_restore() {
     # This server's own setting, never in a backup (see PUBLIC_IP_FILE).
     if [[ -n "$aside" && -f "$aside/public-ip" ]]; then
         cp -p -- "$aside/public-ip" "$PUBLIC_IP_FILE"
+    fi
+    # The same for the times this server's backups resumed its containers (note_resumed)
+    if [[ -n "$aside" && -f "$aside/backup-resumes" ]]; then
+        cp -p -- "$aside/backup-resumes" "$INSTALL_DIR/backup-resumes"
     fi
     # The backups' locks and notes describe the backup files on this server,
     # so the current list wins over the backup's older copy. Otherwise a lock

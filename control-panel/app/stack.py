@@ -2076,17 +2076,25 @@ class Backend:
             return [r for r in pool.map(one, want) if r]
 
     def resumes(self) -> dict[str, list[float]]:
-        """When containers came back in the last day: "*" (every one) at each backup, whose
-        archive is written the second the containers it paused resume (scheduled ones too),
-        plus the last scheduled run, and each container at its own last start. Backups from
-        the panel count through its job history (main.after_resumes). Not Docker's events: it keeps only the
+        """When containers came back in the last day: "*" (every one) each time a backup resumed
+        the ones it paused, and each container at its own last start.
+
+        Backups: setup-backup.sh's backup-resumes, one time per line, written by every backup
+        (panel, schedule, SSH, before updates and restores), never in a backup and cleared by
+        nothing here. Without it (scripts older than this panel, or deleted by hand) a best
+        guess: the backup files still on the server, whose archive is written the second the
+        containers resume, and the last scheduled run. Not Docker's events: it keeps only the
         last 256, which its health checks fill within the hour."""
         since = time.time() - WARN_DAY
-        out: dict[str, list[float]] = {"*": [b["mtime"] for b in self.backups() if b["mtime"] >= since]}
-        # The last scheduled one, even after its file is deleted (the panel's own are in its job history)
-        last = _read(self.p("backup-last-run")).split("|", 1)[0].strip()
-        if last.isdigit() and int(last) >= since:
-            out["*"].append(float(last))
+        rec = self.p("backup-resumes")
+        if rec.exists():
+            times = [float(x) for x in _read(rec).split() if x.isdigit()]
+        else:
+            times = [b["mtime"] for b in self.backups()]
+            last = _read(self.p("backup-last-run")).split("|", 1)[0].strip()
+            if last.isdigit():
+                times.append(float(last))
+        out: dict[str, list[float]] = {"*": [t for t in times if t >= since]}
         try:
             for c in self.client.containers.list():
                 started = (c.attrs.get("State") or {}).get("StartedAt") or ""

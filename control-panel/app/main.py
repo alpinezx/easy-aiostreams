@@ -1046,18 +1046,15 @@ RESUME_QUIET = [re.compile(r"\bEvent loop stalled for \d+ ?ms\b")]
 RESUME_GRACE = 60
 
 
-def after_resumes(services: list[dict], resumes: dict[str, list[float]],
-                  windows: list[tuple[float, float]] = ()) -> list[dict]:
-    """resumes: a container's own starts under its name, and backups (every container) under "*".
-    windows: the panel's own actions (_job_windows), so its backups count even once the file is deleted."""
+def after_resumes(services: list[dict], resumes: dict[str, list[float]]) -> list[dict]:
+    """resumes (Backend.resumes): a container's own starts under its name, and backups
+    (every container) under "*"."""
     def keep(cname, line):
         if not any(r.search(line) for r in RESUME_QUIET):
             return True
         t = _line_time(line)
-        if t is None:
-            return True
         times = [*resumes.get("*", ()), *resumes.get(cname, ())]
-        return not (any(a - 5 <= t <= a + RESUME_GRACE for a in times) or any(a <= t <= b for a, b in windows))
+        return t is None or not any(a - 5 <= t <= a + RESUME_GRACE for a in times)
     return [{**s, "lines": [ln for ln in s["lines"] if keep(s.get("container"), ln)]} for s in services]
 
 
@@ -1075,8 +1072,7 @@ async def log_warnings(user: str = Depends(current_user)):
         _warn_cache["data"] = await asyncio.to_thread(_warn_data, LOGGABLE - set(hidden))
         _warn_cache["at"] = time.time()
     data, resumes = _warn_cache["data"]
-    windows = _job_windows()
-    return {"services": after_clear(outside_jobs(after_resumes(data, resumes, windows), windows), _warn_cleared_at()),
+    return {"services": after_clear(outside_jobs(after_resumes(data, resumes), _job_windows()), _warn_cleared_at()),
             "hidden": hidden}
 
 
