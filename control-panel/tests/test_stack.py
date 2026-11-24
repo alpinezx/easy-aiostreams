@@ -532,6 +532,19 @@ def test_watchdog_info_reads_events_and_tally_and_masks_the_topic(tmp_path, monk
 
 
 @pytest.mark.skipif(not __import__("shutil").which("sh"), reason="needs sh")
+def test_setting_one_option_keeps_the_others_in_place(tmp_path):
+    import subprocess
+    run = lambda drop, line: subprocess.run(["sh", "-c", stack.SET_OPTION_SH, "sh", (tmp_path / "options").as_posix(), drop, line]).returncode
+    assert run("^updates=", "updates=on") == 0                                    # no file yet
+    opts = tmp_path / "options"
+    opts.write_text("updates=on\nweekly_hour=9\nreboots=off\n")
+    ino = opts.stat().st_ino
+    assert run("^(weekly_time|weekly_hour)=", "weekly_time=07:30") == 0
+    assert opts.read_text() == "updates=on\nreboots=off\nweekly_time=07:30\n" and opts.stat().st_ino == ino
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["options", "state.lock"]   # no temp file left
+
+
+@pytest.mark.skipif(not __import__("shutil").which("sh"), reason="needs sh")
 def test_removing_one_event_drops_only_that_line_and_says_when_it_fails(tmp_path):
     import subprocess
     run = lambda f, line: subprocess.run(["sh", "-c", stack.REMOVE_EVENT_SH, "sh", f.as_posix(), line]).returncode

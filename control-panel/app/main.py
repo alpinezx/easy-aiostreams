@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import secrets
 import threading
 import time
@@ -1101,22 +1102,38 @@ class Jobs:
             pass
 
     def _save(self, path: Path | None = None):
+        # Snapshot under the lock, write outside it: a temp file, then a rename, so a crash or a
+        # full disk mid-write never leaves a half-written history behind.
         try:
-            done = [self.items[i] for i in self.order if self.items[i]["ended"]][-self.KEEP:]
-            slim = [{**j, "lines": j["lines"][-400:]} for j in done]
-            (path or self._path()).write_text(json.dumps(slim))
+            with self.lock:
+                done = [self.items[i] for i in self.order if i in self.items and self.items[i]["ended"]][-self.KEEP:]
+                slim = [{**j, "lines": j["lines"][-400:]} for j in done]
+            target = path or self._path()
+            tmp = target.with_name(target.name + ".tmp")
+            tmp.write_text(json.dumps(slim))
+            os.replace(tmp, target)
         except Exception:
             pass
 
-    def current_id(self) -> str | None:
+    def _current_id(self) -> str | None:
+        """The running job's id. The caller holds self.lock."""
         for i in reversed(self.order):
-            if not self.items[i]["ended"]:
+            j = self.items.get(i)
+            if j and not j["ended"]:
                 return i
         return None
 
+    def current_id(self) -> str | None:
+        with self.lock:
+            return self._current_id()
+
+    def summaries(self) -> list[dict]:
+        with self.lock:
+            return [self.summary(self.items[i]) for i in reversed(self.order) if i in self.items]
+
     def start(self, action, params, after=None) -> dict:
         with self.lock:
-            if self.current_id():
+            if self._current_id():
                 raise HTTPException(409, "Another action is still running. Wait for it to finish.")
             job = {"id": uuid.uuid4().hex[:12], "action": action.id, "label": action.label,
                    "running": action.running, "done": action.done, "started": time.time(),
@@ -1303,7 +1320,7 @@ def label_new_backups(before: set, note: str) -> None:
 
 @app.get("/api/jobs")
 async def list_jobs(user: str = Depends(current_user)):
-    return [jobs.summary(jobs.items[i]) for i in reversed(jobs.order)]
+    return jobs.summaries()
 
 
 @app.delete("/api/jobs")

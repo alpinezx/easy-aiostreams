@@ -4,6 +4,9 @@ from __future__ import annotations
 import re
 
 _WG_KEY = re.compile(r"[A-Za-z0-9+/]{42,43}=")
+# A line the VPN script reads, with a trailing "# comment" after its value
+_PARSED = re.compile(r"^((?:PrivateKey|PublicKey|Address|Endpoint)\s*=[^#]*?)\s*#.*$", re.I)
+_ADDRESS = re.compile(r"[0-9a-fA-F.:]+(/\d{1,3})?")
 
 
 def check_wireguard_conf(text: str) -> tuple[str, dict]:
@@ -12,6 +15,8 @@ def check_wireguard_conf(text: str) -> tuple[str, dict]:
     VPN page may show (endpoint, port, address), never the keys. Raises
     ValueError with a reason to show."""
     lines = [l.strip() for l in text.replace("\r", "").split("\n")]
+    # The script would keep such a comment as part of the value, so it's dropped here
+    lines = [_PARSED.sub(r"\1", l) for l in lines]
     body = "\n".join(lines).strip() + "\n"
     def val(key):
         m = re.search(rf"^{key}\s*=\s*(.+)$", body, re.M | re.I)
@@ -30,8 +35,11 @@ def check_wireguard_conf(text: str) -> tuple[str, dict]:
     is_ip = re.fullmatch(r"\d{1,3}(\.\d{1,3}){3}", host) is not None
     if is_ip and any(int(x) > 255 for x in host.split(".")):
         raise ValueError("Its Endpoint isn't a valid IPv4 address.")
-    address = val("Address").split(",")[0].strip()
-    if not re.fullmatch(r"[0-9a-fA-F.:/]+", address):
+    # Every entry on every Address line, as the VPN script reads them
+    addresses = [a.strip() for v in re.findall(r"^Address\s*=\s*(.*)$", body, re.M | re.I) for a in v.split(",")]
+    addresses = [a for a in addresses if a]
+    if not addresses or not all(_ADDRESS.fullmatch(a) for a in addresses):
         raise ValueError("Its Address line doesn't look right.")
+    address = addresses[0]
     return body, {"endpoint_host": None if is_ip else host, "endpoint_ip": host if is_ip else None,
                   "endpoint_port": port, "address": address}

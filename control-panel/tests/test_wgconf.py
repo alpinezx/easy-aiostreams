@@ -43,3 +43,13 @@ def test_bad_configs_say_why(change, why):
     with pytest.raises(ValueError) as e:
         check_wireguard_conf(change(GOOD))
     assert why in str(e.value)
+
+
+def test_every_address_entry_is_checked_and_comments_dropped():
+    two = GOOD.replace("Address = 10.5.0.2/16", "Address = 10.5.0.2/16, fd7d:76ee::2/64  # both\nAddress = 10.6.0.2/32")
+    body, info = check_wireguard_conf(two)
+    assert info["address"] == "10.5.0.2/16" and "#" not in body
+    assert "Address = 10.5.0.2/16, fd7d:76ee::2/64\n" in body and "Address = 10.6.0.2/32\n" in body
+    for bad in ("10.5.0.2/16, $(reboot)", "10.5.0.2/16\nAddress = 1.2.3.4;x", "10.5.0.2/16,,x y"):
+        with pytest.raises(ValueError, match="Address"):
+            check_wireguard_conf(GOOD.replace("Address = 10.5.0.2/16", "Address = " + bad))

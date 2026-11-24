@@ -241,11 +241,17 @@ tunnel_active() { [[ -s "$INSTALL_DIR/tunnel-state/token.env" ]]; }
 # Caddy wants a tab at the start of an indented line, and otherwise logs
 # "Caddyfile input is not formatted" every time it loads the file. Older
 # installs (and the VPN script's saved copies) were written with four
-# spaces; this turns those into tabs and touches nothing else.
+# spaces; this turns those into tabs and touches nothing else. The live
+# Caddyfile is a single-file bind mount, so it's rewritten in place (same
+# inode) rather than with sed -i, which would leave Caddy on the old file.
 tidy_caddyfile() {
-    local f
+    local f text
     for f in "$CADDYFILE" "$INSTALL_DIR/vpn-state/Caddyfile.direct" "$INSTALL_DIR/vpn-state/Caddyfile.vpn"; do
-        if [[ -f "$f" ]] && grep -q '^    ' "$f"; then sed -i 's/^    /\t/' "$f"; fi
+        if [[ -f "$f" ]] && grep -q '^    ' "$f"; then
+            # The trailing x keeps the file's final newlines through $( )
+            text=$(sed 's/^    /\t/' "$f"; printf x) || continue
+            printf '%s' "${text%x}" > "$f"
+        fi
     done
     return 0
 }
