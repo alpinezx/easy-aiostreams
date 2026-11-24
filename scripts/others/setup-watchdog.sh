@@ -99,11 +99,14 @@ check_gluetun_tunnel() {
 #     leaving aiostreams "running" but stranded in the old dead one, so
 #     Caddy can't reach it and it has no internet
 # Any HTTP answer at all (even a 401/404) means aiostreams is listening in
-# gluetun's current namespace. Only "nothing there" counts as down.
+# gluetun's current namespace. Anything else counts as down, including a
+# docker exec that fails in a way not seen before (gluetun gone, wget
+# missing): alerts need two failed checks in a row, so a one-off blip
+# doesn't page.
 check_aiostreams_reachable() {
     local out
     out=$(docker exec gluetun wget -q -O /dev/null -T 5 http://127.0.0.1:3000/ 2>&1) && return 0
-    ! grep -qiE "refused|timed out|can't connect|unable to connect|bad address|no route" <<< "$out"
+    grep -qiE "server returned error|HTTP/[0-9.]+ [0-9]{3}" <<< "$out"
 }
 
 aiostreams_running() {
@@ -312,11 +315,24 @@ run_checks() {
 # test, topic, reboot, disk, cert, update, scripts, backup, security, weekly. Never holds the topic itself. Keeps the last 200.
 log_event() {
     mkdir -p "$STATE_DIR"
-    printf '%s|%s|%s\n' "$(date +%s)" "$1" "${2//$'\n'/ }" >> "$EVENTS_FILE"
-    if (( $(wc -l < "$EVENTS_FILE") > 220 )); then
-        tail -n 200 "$EVENTS_FILE" > "$EVENTS_FILE.tmp" && mv "$EVENTS_FILE.tmp" "$EVENTS_FILE"
-    fi
+    (
+        state_lock
+        printf '%s|%s|%s\n' "$(date +%s)" "$1" "${2//$'\n'/ }" >> "$EVENTS_FILE"
+        if (( $(wc -l < "$EVENTS_FILE") > 220 )); then
+            local tmp
+            tmp=$(mktemp "$EVENTS_FILE.XXXXXX") || exit 0
+            tail -n 200 "$EVENTS_FILE" > "$tmp" && cat "$tmp" > "$EVENTS_FILE"
+            rm -f "$tmp"
+        fi
+    ) 9>>"$STATE_DIR/state.lock"
     return 0
+}
+
+# Run inside ( ... ) 9>>"$STATE_DIR/state.lock": waits up to 10 s for the
+# lock the control panel also takes when it edits the events or options
+# file, so a check and a click on the panel never overwrite each other.
+state_lock() {
+    flock -w 10 9 2>/dev/null || true
 }
 
 # One line per day with how many checks passed and failed. Keeps 14 days.
@@ -465,8 +481,13 @@ set_option() {
     # a new time replaces an older copy's weekly_hour; anything else leaves it be
     local drop="^$k="
     [[ "$k" == weekly_time ]] && drop="^(weekly_time|weekly_hour)="
-    { grep -v -E "$drop" "$OPTIONS_FILE" 2>/dev/null || true; echo "$k=$v"; } > "$OPTIONS_FILE.tmp" \
-        && mv "$OPTIONS_FILE.tmp" "$OPTIONS_FILE"
+    (
+        state_lock
+        tmp=$(mktemp "$OPTIONS_FILE.XXXXXX") || exit 1
+        { grep -v -E "$drop" "$OPTIONS_FILE" 2>/dev/null || true; echo "$k=$v"; } > "$tmp" \
+            && cat "$tmp" > "$OPTIONS_FILE"
+        s=$?; rm -f "$tmp"; exit "$s"
+    ) 9>>"$STATE_DIR/state.lock" || { echo "Couldn't save $k." >&2; return 1; }
     echo "$k is now $v."
 }
 

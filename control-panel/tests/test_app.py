@@ -458,6 +458,9 @@ def test_logs_hide_mediaflows_password():
     from app.stack import LogStream
     lines = list(LogStream([b'"GET /proxy/ip?api_password=abc123&x=1 HTTP/1.1" 200\n', b"GET /health api_password=tail"]))
     assert lines == ['"GET /proxy/ip?api_password=[hidden]&x=1 HTTP/1.1" 200', "GET /health api_password=[hidden]"]
+    tok = "ab12" * 16
+    lines = list(LogStream([f'"uri":"/unlock/{tok}","status":302\n'.encode(), b'"uri":"/unlock/short"']))
+    assert lines == ['"uri":"/unlock/[hidden]","status":302', '"uri":"/unlock/short"']
 
 
 def test_vpn_change_server_takes_only_an_ipv4_address(client):

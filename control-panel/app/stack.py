@@ -163,8 +163,18 @@ def weekly_time(kv: dict) -> str:
 # One event's bin: drop the whole line $2 from the events file $1, rewritten in place (owner and mode stay).
 # No file is nothing to do. grep -v exits 1 when no line is left, which is fine; 2, or a failed rewrite, exits
 # non-zero so the panel says it couldn't, instead of the event coming back on the next look.
-REMOVE_EVENT_SH = ('[ -e "$1" ] || exit 0; grep -vxF -- "$2" "$1" > "$1.tmp"; s=$?; '
-                   'if [ "$s" -le 1 ]; then cat "$1.tmp" > "$1" && s=0 || s=2; fi; rm -f "$1.tmp"; exit "$s"')
+# The watchdog script writes the same file, so both hold watchdog-state/state.lock (flock) while they
+# change it, and each uses its own temp name. Without flock it goes ahead unlocked, as before.
+_STATE_LOCK_SH = 'exec 9>>"${1%/*}/state.lock"; flock -w 10 9 2>/dev/null; '
+REMOVE_EVENT_SH = ('[ -e "$1" ] || exit 0; ' + _STATE_LOCK_SH + 't=$(mktemp "$1.XXXXXX") || exit 2; '
+                   'grep -vxF -- "$2" "$1" > "$t"; s=$?; '
+                   'if [ "$s" -le 1 ]; then cat "$t" > "$1" && s=0 || s=2; fi; rm -f "$t"; exit "$s"')
+
+# One setting in the options file $1: drop the lines matching the regex $2, add the line $3. Read and
+# written under the same lock as the script's set-option, so neither loses the other's change.
+SET_OPTION_SH = (_STATE_LOCK_SH + 't=$(mktemp "$1.XXXXXX") || exit 2; '
+                 '{ grep -vE -- "$2" "$1" 2>/dev/null; printf "%s\\n" "$3"; } > "$t" && cat "$t" > "$1"; s=$?; '
+                 'rm -f "$t"; exit "$s"')
 
 
 def mask_topic(topic: str) -> str | None:
@@ -223,8 +233,13 @@ def clean_line(line: str) -> str | None:
     return line
 
 
-# MediaFlow logs its password in the query string of some requests
-_LOG_SECRET = re.compile(r"(api_password=)[^&\s\"']+")
+# MediaFlow logs its password in the query string of some requests, and Caddy's access log can hold
+# the panel's unlock link (/unlock/ and the 64-hex gate token): neither is shown in the Logs viewer.
+_LOG_SECRET = re.compile(r"(api_password=)[^&\s\"']+|(/unlock/)[0-9A-Fa-f]{64}(?![0-9A-Fa-f])")
+
+
+def hide_secrets(line: str) -> str:
+    return _LOG_SECRET.sub(lambda m: (m.group(1) or m.group(2)) + "[hidden]", line)
 
 
 # The Overview's Recent log alerts: lines that might be a warning or an error, plus Caddy's
@@ -242,7 +257,7 @@ def warn_hints(raw: bytes) -> list[str]:
     out = []
     for line in raw.decode("utf-8", "replace").splitlines():
         if WARN_HINT.search(line):
-            out.append(_LOG_SECRET.sub(r"\1[hidden]", line.rstrip("\r")))
+            out.append(hide_secrets(line.rstrip("\r")))
     return out[-WARN_KEEP:]
 
 
@@ -310,9 +325,9 @@ class LogStream:
             buf += chunk
             while b"\n" in buf:
                 line, buf = buf.split(b"\n", 1)
-                yield _LOG_SECRET.sub(r"\1[hidden]", line.decode("utf-8", "replace").rstrip("\r"))
+                yield hide_secrets(line.decode("utf-8", "replace").rstrip("\r"))
         if buf:
-            yield _LOG_SECRET.sub(r"\1[hidden]", buf.decode("utf-8", "replace"))
+            yield hide_secrets(buf.decode("utf-8", "replace"))
 
     def close(self):
         try:
@@ -1679,13 +1694,10 @@ class Backend:
         if not self.p("watchdog-state/config").exists():
             raise ValueError("The watchdog isn't set up on this server.")
         # a new time replaces an older script's weekly_hour, as the script's set-option does
-        drop = (name + "=",) + (("weekly_hour=",) if name == "weekly_time" else ())
-        lines = [l for l in _read(self.p("watchdog-state/options")).split() if not l.startswith(drop)]
-        body = "\n".join(lines + [f"{name}={text}"]) + "\n"
+        drop = f"^({name}|weekly_hour)=" if name == "weekly_time" else f"^{name}="
         path = str(config.INSTALL_DIR / "watchdog-state" / "options")
-        r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "sh", "-c",
-                            'cat > "$1.tmp" && mv "$1.tmp" "$1"', "sh", path],
-                           input=body, capture_output=True, text=True, timeout=20)
+        r = subprocess.run(["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--", "sh", "-c", SET_OPTION_SH,
+                            "sh", path, drop, f"{name}={text}"], capture_output=True, text=True, timeout=20)
         if r.returncode != 0:
             raise ValueError("Couldn't save it.")
 
@@ -1950,7 +1962,10 @@ class Backend:
         self.client.containers.get(container)          # NotFound if it doesn't exist
         marks = self._cleared()
         marks[container] = int(time.time())
-        self._cleared_path().write_text(json.dumps(marks))
+        path = self._cleared_path()
+        tmp = path.with_name(path.name + ".tmp")
+        tmp.write_text(json.dumps(marks))
+        os.replace(tmp, path)
         return "hidden"
 
     # ---- run an action on the host ---------------------------------------
@@ -1987,11 +2002,22 @@ class Backend:
         timed_out = threading.Event()
 
         def killer():
+            # SIGTERM first; whatever is left of the process group 10 s later gets SIGKILL (the
+            # script itself may have ended while a child it started still holds the output pipe),
+            # so the pipe closes and the job ends with 124 instead of hanging.
             timed_out.set()
             try:
                 os.killpg(proc.pid, signal.SIGTERM)
             except Exception:
+                return
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
                 pass
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except Exception:
+                pass                # the whole group already ended
         timer = threading.Timer(action.timeout, killer)
         timer.start()
         try:
