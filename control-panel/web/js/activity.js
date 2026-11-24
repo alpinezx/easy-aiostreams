@@ -366,8 +366,8 @@ function chev() {
 
 // The "Backups" title. A computer shows it as a plain heading over the open list; on a phone the whole
 // list is one card that folds to this title and a count, folded until opened and remembered per browser.
-let backupsOpen = false;
-try { backupsOpen = localStorage.getItem("aios.backupsOpen") === "1"; } catch (_) {}
+let backupsOpen = true;   // open by default; folding it is remembered
+try { backupsOpen = localStorage.getItem("aios.backupsOpen") !== "0"; } catch (_) {}
 let backupsCount = 0;
 function backupsHead(n) {
   backupsCount = n;

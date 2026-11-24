@@ -129,58 +129,70 @@ site_domain() {
 # check landing in the moment Caddy restarts fails mid-handshake, which would
 # otherwise be logged as a bad certificate. A timeout has waited long enough.
 check_site() {
-    local domain code rc=0
+    local domain
     domain=$(site_domain)
     [[ -n "$domain" ]] || return 0
-    if tunnel_on; then
-        check_site_tunnel "$domain"
-        return
-    fi
-    code=$(curl -s -o /dev/null -w '%{http_code}' -m 15 --resolve "$domain:443:127.0.0.1" "https://$domain/") || rc=$?
-    if [[ $rc -ne 0 && $rc -ne 28 ]]; then
-        sleep 5
-        rc=0
-        code=$(curl -s -o /dev/null -w '%{http_code}' -m 15 --resolve "$domain:443:127.0.0.1" "https://$domain/") || rc=$?
-    fi
-    case "$rc" in
-        0) ;;
-        7) FAIL_REASON="nothing is answering on port 443, so Caddy looks down and https://$domain is unreachable. Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"; return 1 ;;
-        28) FAIL_REASON="https://$domain didn't answer within 15 seconds. Check: docker logs caddy, docker logs aiostreams"; return 1 ;;
-        35|51|58|60) FAIL_REASON="the HTTPS certificate for $domain isn't valid (expired, or Caddy couldn't get one). Check: docker logs caddy"; return 1 ;;
-        *) FAIL_REASON="https://$domain couldn't be loaded (curl error $rc). Check: docker logs caddy"; return 1 ;;
-    esac
-    case "$code" in
-        502|503|504) FAIL_REASON="https://$domain is up but AIOStreams isn't answering behind it (HTTP $code). Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"; return 1 ;;
-        5??) FAIL_REASON="https://$domain answered with a server error (HTTP $code). Check: docker logs aiostreams"; return 1 ;;
-    esac
-    return 0
-}
-
-# Through a Cloudflare Tunnel: is cloudflared connected (it's the only way in),
-# then does the site load from Caddy, over Docker's network as cloudflared asks it
-check_site_tunnel() {
-    local domain="$1" ip code rc=0
-    if ! docker exec cloudflared cloudflared tunnel --metrics localhost:20241 ready >/dev/null 2>&1; then
-        sleep 5
-        if ! docker exec cloudflared cloudflared tunnel --metrics localhost:20241 ready >/dev/null 2>&1; then
-            FAIL_REASON="the Cloudflare Tunnel isn't connected, so https://$domain can't be reached from outside. Check: sudo bash setup-tunnel.sh status, docker logs cloudflared"
-            return 1
-        fi
-    fi
-    ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' caddy 2>/dev/null | awk '{print $1}')
-    if [[ -z "$ip" ]]; then
-        FAIL_REASON="Caddy isn't running, so https://$domain is unreachable. Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"
+    if tunnel_on && ! tunnel_ready; then
+        FAIL_REASON="the Cloudflare Tunnel isn't connected, so https://$domain can't be reached from outside. Check: sudo bash setup-tunnel.sh status, docker logs cloudflared"
         return 1
     fi
-    code=$(curl -s -o /dev/null -w '%{http_code}' -m 15 --resolve "$domain:80:$ip" "http://$domain/") || rc=$?
-    case "$rc" in
-        0) ;;
-        28) FAIL_REASON="https://$domain didn't answer within 15 seconds. Check: docker logs caddy, docker logs aiostreams"; return 1 ;;
-        *) FAIL_REASON="Caddy isn't answering for $domain (curl error $rc). Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"; return 1 ;;
-    esac
+    check_site_at "$domain" AIOStreams aiostreams "Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"
+}
+
+# An add-on's own address (the first site in its caddy.d file), loaded the
+# same way as the main site. Its health check has already passed by then, so
+# a failure here is Caddy's side: its site block or its certificate.
+# Args: caddy.d file, name, container, what to do when it's down behind Caddy.
+check_addon_site() {
+    local domain
+    domain=$(awk 'NF && $1 !~ /^#/ && $2 == "{" && $1 ~ /\./ {print $1; exit}' "$INSTALL_DIR/caddy.d/$1" 2>/dev/null || true)
+    [[ -n "$domain" ]] || return 0
+    check_site_at "$domain" "$2" "$3" "$4"
+}
+
+# Through a Cloudflare Tunnel cloudflared is the only way in. Asked once per
+# check, before any site.
+tunnel_ready() {
+    docker exec cloudflared cloudflared tunnel --metrics localhost:20241 ready >/dev/null 2>&1 && return 0
+    sleep 5
+    docker exec cloudflared cloudflared tunnel --metrics localhost:20241 ready >/dev/null 2>&1
+}
+
+# check_site_at <domain> <name> <container> <fix when it's down behind Caddy>
+# Directly: HTTPS on this server's port 443. Through a Cloudflare Tunnel: plain
+# HTTP from Caddy, over Docker's network as cloudflared asks it.
+check_site_at() {
+    local domain="$1" name="$2" ctr="$3" fix="$4" ip code rc=0
+    if tunnel_on; then
+        ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' caddy 2>/dev/null | awk '{print $1}')
+        if [[ -z "$ip" ]]; then
+            FAIL_REASON="Caddy isn't running, so https://$domain is unreachable. Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"
+            return 1
+        fi
+        code=$(curl -s -o /dev/null -w '%{http_code}' -m 15 --resolve "$domain:80:$ip" "http://$domain/") || rc=$?
+        case "$rc" in
+            0) ;;
+            28) FAIL_REASON="https://$domain didn't answer within 15 seconds. Check: docker logs caddy, docker logs $ctr"; return 1 ;;
+            *) FAIL_REASON="Caddy isn't answering for $domain (curl error $rc). Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"; return 1 ;;
+        esac
+    else
+        code=$(curl -s -o /dev/null -w '%{http_code}' -m 15 --resolve "$domain:443:127.0.0.1" "https://$domain/") || rc=$?
+        if [[ $rc -ne 0 && $rc -ne 28 ]]; then
+            sleep 5
+            rc=0
+            code=$(curl -s -o /dev/null -w '%{http_code}' -m 15 --resolve "$domain:443:127.0.0.1" "https://$domain/") || rc=$?
+        fi
+        case "$rc" in
+            0) ;;
+            7) FAIL_REASON="nothing is answering on port 443, so Caddy looks down and https://$domain is unreachable. Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"; return 1 ;;
+            28) FAIL_REASON="https://$domain didn't answer within 15 seconds. Check: docker logs caddy, docker logs $ctr"; return 1 ;;
+            35|51|58|60) FAIL_REASON="the HTTPS certificate for $domain isn't valid (expired, or Caddy couldn't get one). Check: docker logs caddy"; return 1 ;;
+            *) FAIL_REASON="https://$domain couldn't be loaded (curl error $rc). Check: docker logs caddy"; return 1 ;;
+        esac
+    fi
     case "$code" in
-        502|503|504) FAIL_REASON="https://$domain is up but AIOStreams isn't answering behind it (HTTP $code). Fix: sudo bash setup-aiostreams.sh, option 4 (Restart the stack)"; return 1 ;;
-        5??) FAIL_REASON="https://$domain answered with a server error (HTTP $code). Check: docker logs aiostreams"; return 1 ;;
+        502|503|504) FAIL_REASON="https://$domain is up but $name isn't answering behind it (HTTP $code). $fix"; return 1 ;;
+        5??) FAIL_REASON="https://$domain answered with a server error (HTTP $code). Check: docker logs $ctr"; return 1 ;;
     esac
     return 0
 }
@@ -209,7 +221,7 @@ check_mediaflow() {
         FAIL_REASON="MediaFlow Proxy is running but not answering its health check. Check: docker logs mediaflow-proxy-light"
         return 1
     fi
-    return 0
+    check_addon_site 50-mediaflow.caddy "MediaFlow Proxy" mediaflow-proxy-light "Check: docker logs caddy, docker logs mediaflow-proxy-light"
 }
 
 # AIOMetadata the same way: no published port, so its own health check
@@ -235,7 +247,7 @@ check_aiometadata() {
         FAIL_REASON="AIOMetadata is running but not answering its health check. Check: docker logs aiometadata"
         return 1
     fi
-    return 0
+    check_addon_site 55-aiometadata.caddy AIOMetadata aiometadata "Check: docker logs caddy, docker logs aiometadata"
 }
 
 # AIOManager too: /api/health, what its own health check asks, which also
@@ -260,7 +272,7 @@ check_aiomanager() {
         FAIL_REASON="AIOManager is running but not answering its health check. Check: docker logs aiomanager"
         return 1
     fi
-    return 0
+    check_addon_site 56-aiomanager.caddy AIOManager aiomanager "Check: docker logs caddy, docker logs aiomanager"
 }
 
 # Sets FAIL_REASON on failure, for the alert text. The site is checked in

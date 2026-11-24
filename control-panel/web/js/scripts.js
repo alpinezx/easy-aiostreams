@@ -349,12 +349,13 @@ function render() {
   box.append(h("section", { class: "panel scripts-panel scripts-core" },
     h("ul", { class: "cmds" }, panelRow(`sudo bash ${dir}/control-panel/setup-ui.sh`), ...core.map(rowOf))));
   if (addons.length) {
-    // On a phone the title folds the card to one line with a summary on the right: how many differ from
-    // GitHub (amber) if any, else how many are active. Folded until opened, remembered per browser.
+    // On a phone the title folds the card to one line with a summary on the right (kept there when open):
+    // how many differ from GitHub (amber) if any, else how many are active. Folded until opened, remembered per browser.
     // A computer shows it all, with a plain title.
     const nDiff = addons.filter((x) => x.present && differs(x)).length;
     const nUp = addons.filter((x) => x.present && x.in_use !== false).length;
-    const word = nDiff ? [`${nDiff} differ${nDiff === 1 ? "s" : ""} from GitHub`, "warn"] : nUp ? [`${nUp} active`, "ok"] : ["None active", "dim"];
+    // Short, so it fits beside the title on a phone (each row's own pill says "Differs from GitHub")
+    const word = nDiff ? [`${nDiff} differ${nDiff === 1 ? "s" : ""}`, "warn"] : nUp ? [`${nUp} active`, "ok"] : ["None active", "dim"];
     const card = h("section", { class: "panel scripts-panel addons-card" + (addonsOpen ? "" : " folded") });
     const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
     chev.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
