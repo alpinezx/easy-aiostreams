@@ -466,9 +466,12 @@ restart_last() {
 # backup, an update, a restore, a panel job) or apt. Empty when nothing is.
 # The VPN's watch-routes runs all the time while the VPN is on (a service, not
 # a job), so it never counts, or no scheduled reboot would ever happen.
+# $1: the jobs that don't count, as a pattern: the caller's own (its subshells
+# show the same command line) and, for the automatic updates, a reboot that is
+# itself waiting (a reboot waits for them, not the other way round).
 restart_busy() {
-    local p
-    p=$(pgrep -af 'setup-[a-z-]+\.sh' 2>/dev/null | grep -v -e "^$$ " -e 'scheduled-restart' -e 'watch-routes' | grep -oP 'setup-[a-z-]+\.sh' | head -n 1 || true)
+    local p skip="${1:-scheduled-restart}"
+    p=$(pgrep -af 'setup-[a-z-]+\.sh' 2>/dev/null | grep -v -e "^$$ " -e 'watch-routes' | grep -vE -- "$skip" | grep -oP 'setup-[a-z-]+\.sh' | head -n 1 || true)
     if [[ -n "$p" ]]; then echo "$p"; return 0; fi
     # unattended-upgrade itself, not the -shutdown helper Ubuntu keeps running all day
     p=$( { pgrep -x 'apt|apt-get|dpkg'; pgrep -f 'bin/unattended-upgrade( |$)'; } 2>/dev/null | head -n 1 || true)
@@ -635,12 +638,12 @@ do_scheduled_auto_update() {
         echo "Started $(( up / 60 )) minutes ago. Waiting until 10 minutes after the start..."
         sleep $(( 600 - up ))
     fi
-    busy=$(restart_busy)
+    busy=$(restart_busy 'scheduled-(auto-update|restart)')
     while [[ -n "$busy" ]] && (( waited < RESTART_WAIT_MIN )); do
         echo "Waiting for $busy to finish..."
         sleep 60
         waited=$((waited + 1))
-        busy=$(restart_busy)
+        busy=$(restart_busy 'scheduled-(auto-update|restart)')
     done
     if [[ -n "$busy" ]]; then
         auto_last skipped "$busy was still running after $RESTART_WAIT_MIN minutes. Next month tries again."

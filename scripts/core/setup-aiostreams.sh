@@ -136,8 +136,13 @@ do_update_caddy() {
     cleanup_replaced_images "$snapshot"
     drop_caddy_spare || true
     new=$(caddy_version)
-    if [[ "$new" == "$old" ]]; then
-        echo "Caddy is still on ${old:-the earlier release}."
+    # Put back (running the image it ran before): a failure, so the panel and the monthly run say so, though the sites are up
+    if [[ -n "$before" && "$(docker inspect -f '{{.Image}}' caddy 2>/dev/null || true)" == "$before" ]]; then
+        warn "The update didn't work, so Caddy is still on ${old:-the earlier release}. Your sites are up."
+        return 1
+    elif [[ "$new" == "$old" ]]; then
+        # The same release rebuilt (a newer base image, say)
+        echo "Caddy updated to a newer build of ${new:-the same release}."
     else
         echo "Caddy updated${old:+ from $old}${new:+ to $new}."
     fi
