@@ -2209,10 +2209,9 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 .bk-desk .bk-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-top: 12px; }
 .bk-desk .bk-foot .bal { margin: 0; }
 .bk-desk .bk-foot > .btn { flex: none; margin-left: auto; }
-/* Desktop: the second figure of Scheduled server reboot (Last) and Container logs (Using now) at the card's right edge */
+/* Desktop: the second figure of Scheduled server reboot (Last) at the card's right edge */
 @media (min-width: 721px) {
-  .rs-desk .stat-grid > .stat:last-child, .lg-right .stat-grid > .stat:last-child { text-align: right; }
-  .lg-right .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rs-desk .stat-grid > .stat:last-child { text-align: right; }
   .fs-spread .stat-grid > .stat:nth-child(2) { text-align: center; }
   .fs-spread .stat-grid > .stat:last-child { text-align: right; }
 }
@@ -2721,3 +2720,33 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   #jobs .item.job > .chip { grid-area: c; font-size: .74rem; padding: 1px 8px; }   /* the small pill size, like Recent events */
   #jobs .item.job > .when { grid-area: w; justify-self: start; }
 }
+/* Maintenance's Caddy and Cloudflare Tunnel card (maint.js proxies) */
+.prox-card .rs-word .st-i { margin-right: 4px; vertical-align: -1px; }
+.prox-card .prox-ver .mono { font-weight: 600; }
+.prox-card .prox-notes { font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+@media (hover: hover) { .prox-card .prox-notes:hover { text-decoration: underline; } }
+.rs-desk.prox-card .rs-ctl > select { min-width: 16em; }
+@media (max-width: 720px) {
+  .rs-phone.prox-card .prox-ver { display: block; margin-top: 8px; }
+  .rs-phone.prox-card .rs-ctl > select { display: block; width: 100%; margin-top: 12px; }
+}
+/* Container logs at the foot of Free up space (maint.js logsBlock) */
+.maint-card:has(> .cl-block) > .card-foot { margin-top: 0; padding-bottom: 16px; }
+.cl-block { margin-top: 16px; border-top: 1px solid var(--line-soft); padding-top: 16px; margin-bottom: 0; }
+.maint-card > .card-foot + .cl-block { margin-top: auto; }
+.cl-line { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.cl-word { font-weight: 600; } .cl-word.ok { color: var(--ok); } .cl-word.warn { color: var(--warn); }
+.cl-block .maint-foot { margin-top: 10px; }
+@media (max-width: 720px) { .maint-card.mfold.folded > .cl-block:not(.cl-keep) { display: none; } .maint-card.mfold.folded > .cl-block { border-top: 0; padding-top: 12px; } }
+/* The Overview's updates pill (scripts.js pill) and its drawer */
+.scripts-pill { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.scripts-pill .up-more { font-weight: 700; padding-left: 8px; margin-left: 2px; border-left: 1px solid color-mix(in srgb, currentColor 45%, transparent); }
+.up-row .rel-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.up-row .up-go { font-weight: 600; text-decoration: none; }
+@media (hover: hover) { .up-row .up-go:hover { text-decoration: underline; } }
+.up-row .rel-body p { margin: 6px 0 0; }
+.scripts-pill .up-tiny { display: none; }
+@media (max-width: 720px) { .scripts-pill .up-long { display: none; } .scripts-pill .up-tiny { display: inline; } }
+/* Phones: the pill at the right of the headline line, its edge over the Edit pencil
+   (when it wraps under the headline, it stays at the right too) */
+@media (max-width: 720px) { .hero-head > .scripts-pill { margin-left: auto; } }

@@ -159,7 +159,8 @@ do_backup() {
     # Format 2 added the panel's, format 3 the webhook's reboot notification,
     # format 4 the backup schedule (backup-schedule, absent when it's off),
     # format 5 AIOMetadata's, format 6 AIOManager's, format 7 the scheduled
-    # restart (restart-schedule, absent when it's off).
+    # restart (restart-schedule, absent when it's off), format 8 automatic
+    # updates for Caddy and the tunnel (auto-updates, absent when they're off).
     # The AIOStreams build is only there for the control panel to show on the
     # backup; a restore doesn't act on it, so it doesn't change the format.
     # Read now, before AIOStreams is paused below. Its image is distroless,
@@ -171,7 +172,7 @@ do_backup() {
         build=""
     done
     {
-        printf '# Written by setup-backup.sh with each backup.\nformat=7\n'
+        printf '# Written by setup-backup.sh with each backup.\nformat=8\n'
         if [[ "$build" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\ (v[0-9]+\.[0-9]+\.[0-9]+|[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]{4}-nightly)$ ]]; then
             printf 'aiostreams_version=%s\naiostreams_tag=%s\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
         fi
@@ -1733,6 +1734,30 @@ do_restore() {
             summary+=("Scheduled server reboot: this backup is from before it existed, so it's off now. Turn it on again on the panel's Maintenance page.")
         else
             summary+=("Scheduled server reboot: off when the backup was made, left off.")
+        fi
+    fi
+
+    # Automatic updates for Caddy and the tunnel, the same way (format 8 on)
+    local had_auto=false
+    [[ -f /etc/systemd/system/aiostreams-auto-update.timer ]] && had_auto=true
+    if grep -q 'auto_apply()' "$maint" 2>/dev/null; then
+        bash "$maint" auto-updates apply < /dev/null >/dev/null 2>&1 || true
+    elif $had_auto; then
+        systemctl disable --now aiostreams-auto-update.timer >/dev/null 2>&1 || true
+        rm -f /etc/systemd/system/aiostreams-auto-update.timer /etc/systemd/system/aiostreams-auto-update.service
+        systemctl daemon-reload
+    fi
+    if [[ -f "$INSTALL_DIR/auto-updates" ]]; then
+        if systemctl is-active --quiet aiostreams-auto-update.timer 2>/dev/null; then
+            summary+=("Automatic updates for Caddy and the tunnel: monthly, as when the backup was made.")
+        else
+            summary+=("Automatic updates for Caddy and the tunnel were on, but the timer couldn't be started. Set them again on the panel's Maintenance page, or: sudo bash $maint auto-updates monthly")
+        fi
+    elif $had_auto; then
+        if (( sched_format < 8 )); then
+            summary+=("Automatic updates for Caddy and the tunnel: this backup is from before they existed, so they're off now. Turn them on again on the panel's Maintenance page.")
+        else
+            summary+=("Automatic updates for Caddy and the tunnel: off when the backup was made, left off.")
         fi
     fi
 

@@ -284,6 +284,20 @@ async def gluetun_releases(force: bool = False, user: str = Depends(current_user
     return await asyncio.to_thread(releases.get, force, "gluetun")
 
 
+@app.get("/api/caddy-releases")
+async def caddy_releases(force: bool = False, user: str = Depends(current_user)):
+    if config.DEMO:
+        return releases.demo("caddy")
+    return await asyncio.to_thread(releases.get, force, "caddy")
+
+
+@app.get("/api/cloudflared-releases")
+async def cloudflared_releases(force: bool = False, user: str = Depends(current_user)):
+    if config.DEMO:
+        return releases.demo("cloudflared")
+    return await asyncio.to_thread(releases.get, force, "cloudflared")
+
+
 @app.get("/api/aiostreams-releases")
 async def aiostreams_releases(force: bool = False, channel: str = "stable", user: str = Depends(current_user)):
     if channel not in releases.CHANNELS:
@@ -719,6 +733,24 @@ async def set_restart_schedule(request: Request, user: str = Depends(current_use
                                        body.get("day"), body.get("time"))
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+@app.get("/api/proxies")
+async def proxies(force: bool = False, user: str = Depends(current_user)):
+    """Maintenance's Caddy and Cloudflare Tunnel card: versions, the newest releases (force asks GitHub again)."""
+    return await asyncio.to_thread(backend.proxies_info, force)
+
+
+@app.put("/api/auto-updates")
+async def set_auto_updates(request: Request, user: str = Depends(current_user)):
+    """{"mode": "off" | "monthly"}: whether Caddy and cloudflared update by themselves."""
+    body = await _json_body(request)
+    try:
+        got = await asyncio.to_thread(backend.set_auto_updates, body.get("mode"))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    audit.log(f"automatic updates for Caddy and the tunnel set to {body.get('mode')} by {user} from {client_ip(request)}")
+    return got
 
 
 @app.get("/api/server/timezones")

@@ -1,6 +1,7 @@
 """AIOStreams releases from GitHub, the same list AIOStreams' own dashboard
 reads: stable tags (v2.35.9) or nightly ones (2026.10.10.1200-nightly), and
-AIOMetadata's (v3.6.1), AIOManager's (v2.0.0) and gluetun's v3 line. Kept for a few hours: GitHub
+AIOMetadata's (v3.6.1), AIOManager's (v2.0.0), gluetun's v3 line, Caddy's v2 line
+and cloudflared's (2026.11.2). Kept for a few hours: GitHub
 allows 60 unauthenticated requests an hour per IP."""
 from __future__ import annotations
 
@@ -17,6 +18,8 @@ META_URL = "https://api.github.com/repos/cedya77/aiometadata/releases"
 MANAGER_URL = "https://api.github.com/repos/sonicx161/aiomanager/releases"
 MEDIAFLOW_URL = "https://api.github.com/repos/mhdzumair/MediaFlow-Proxy-Light/releases"
 GLUETUN_URL = "https://api.github.com/repos/qdm12/gluetun/releases"
+CADDY_URL = "https://api.github.com/repos/caddyserver/caddy/releases"
+CLOUDFLARED_URL = "https://api.github.com/repos/cloudflare/cloudflared/releases"
 FRESH = 3 * 3600
 RETRY = 10 * 60
 FORCE_GAP = 60
@@ -32,7 +35,11 @@ CHANNELS = ("stable", "nightly")
 SOURCES = {"stable": (URL, STABLE), "nightly": (URL, NIGHTLY), "aiometadata": (META_URL, STABLE),
            "aiomanager": (MANAGER_URL, STABLE), "mediaflow": (MEDIAFLOW_URL, re.compile(r"^v?\d+\.\d+\.\d+$")),
            # Only v3: the image's v3 tag, which Update VPN pulls, never moves to a v4
-           "gluetun": (GLUETUN_URL, re.compile(r"^v3\.\d+\.\d+$"))}
+           "gluetun": (GLUETUN_URL, re.compile(r"^v3\.\d+\.\d+$")),
+           # Only v2, what caddy:2 follows; no betas or release candidates
+           "caddy": (CADDY_URL, re.compile(r"^v2\.\d+\.\d+$")),
+           # Year.month.patch, as cloudflared names its releases
+           "cloudflared": (CLOUDFLARED_URL, re.compile(r"^\d{4}\.\d{1,2}\.\d+$"))}
 
 _lock = threading.Lock()
 _cache: dict = {}
@@ -75,7 +82,7 @@ class CheckFailed(Exception):
 
 def _key(tag: str, channel: str):
     # Nightly tags are timestamps, so sorting them as text is chronological.
-    return tag if channel == "nightly" else tuple(int(x) for x in STABLE.match(tag).groups())
+    return tag if channel == "nightly" else tuple(int(x) for x in re.findall(r"\d+", tag))
 
 
 def _fetch(channel: str) -> list[dict]:
@@ -94,7 +101,7 @@ def _fetch(channel: str) -> list[dict]:
             if rel.get("draft") or not wanted.match(tag):
                 continue
             # MediaFlow tags its releases 1.1.2: listed as v1.1.2, like the rest
-            if not tag.startswith("v") and STABLE.match("v" + tag):
+            if channel == "mediaflow" and not tag.startswith("v") and STABLE.match("v" + tag):
                 tag = "v" + tag
             url = str(rel.get("html_url") or "")
             found.append({"tag": tag, "published": rel.get("published_at"),
@@ -151,6 +158,19 @@ def demo(channel: str = "stable") -> dict:
                  "v3.41.2": "## Fixes\n\n- DNS: keep the DoT connection alive across restarts\n"}
         rels = [{"tag": t, "published": p, "url": f"https://github.com/qdm12/gluetun/releases/tag/{t}", "body": notes[t]}
                 for t, p in (("v3.41.3", "2026-07-30T14:56:14Z"), ("v3.41.2", "2026-06-12T09:10:00Z"))]
+        return {"channel": channel, "checked_at": now, "error": None, "keep": KEEP, "releases": rels}
+    if channel == "caddy":
+        notes = {"v2.11.9": "## Changelog\n\n* reverseproxy: keep upstream health checks running across config reloads\n"
+                            "* tls: renew certificates a little earlier when the CA asks to\n",
+                 "v2.11.8": "## Changelog\n\n* http: fix a rare panic on very long request headers\n"}
+        rels = [{"tag": t, "published": p, "url": f"https://github.com/caddyserver/caddy/releases/tag/{t}", "body": notes[t]}
+                for t, p in (("v2.11.9", "2026-11-12T18:02:11Z"), ("v2.11.8", "2026-10-21T15:40:00Z"))]
+        return {"channel": channel, "checked_at": now, "error": None, "keep": KEEP, "releases": rels}
+    if channel == "cloudflared":
+        notes = {"2026.11.2": "## 2026.11.2\n\n* Fix QUIC connections stalling after a network change\n",
+                 "2026.11.1": "## 2026.11.1\n\n* Update Go to 1.26.4\n"}
+        rels = [{"tag": t, "published": p, "url": f"https://github.com/cloudflare/cloudflared/releases/tag/{t}", "body": notes[t]}
+                for t, p in (("2026.11.2", "2026-11-23T13:15:59Z"), ("2026.11.1", "2026-11-10T10:00:00Z"))]
         return {"channel": channel, "checked_at": now, "error": None, "keep": KEEP, "releases": rels}
     if channel == "aiomanager":
         notes = {"v2.0.0": "# AIOManager 2.0.0\n\n* Nuvio, RealStream and Hydra as connections\n* End-to-end encrypted cloud sync\n",

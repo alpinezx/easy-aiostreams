@@ -102,6 +102,47 @@ check_caddy_or_roll_back() {
     return 1
 }
 
+# The Caddy release running now ("v2.11.9"), empty when Caddy isn't running
+caddy_version() {
+    docker exec caddy caddy version 2>/dev/null | awk 'NR == 1 {print $1}' || true
+}
+
+# Caddy on its own: the newest caddy:2, with the same spare and rollback as an
+# AIOStreams update. Nothing else restarts; sites pause for a few seconds.
+do_update_caddy() {
+    local before old new snapshot
+    cd "$INSTALL_DIR"
+    old=$(caddy_version)
+    snapshot=$(snapshot_image_ids "$CADDY_IMAGE")
+    before=$(docker inspect -f '{{.Image}}' caddy 2>/dev/null || true)
+    [[ -n "$before" ]] || before=$(docker image inspect -f '{{.Id}}' "$CADDY_IMAGE" 2>/dev/null || true)
+    [[ -n "$before" ]] && docker tag "$before" "$CADDY_SPARE"
+    if ! docker compose pull -q caddy; then
+        drop_caddy_spare || true
+        warn "Couldn't download the newest Caddy. Nothing was changed."
+        return 1
+    fi
+    if [[ -n "$before" && "$before" == "$(docker image inspect -f '{{.Id}}' "$CADDY_IMAGE" 2>/dev/null || true)" ]]; then
+        drop_caddy_spare || true
+        echo "Caddy is already the newest${old:+ ($old)}."
+        return 0
+    fi
+    docker compose up -d --no-deps --force-recreate caddy
+    # Before the cleanup, which would otherwise delete the spare along with the old ID
+    if ! check_caddy_or_roll_back "$before"; then
+        warn "Caddy isn't answering, so your sites are down (see above)."
+        return 1
+    fi
+    cleanup_replaced_images "$snapshot"
+    drop_caddy_spare || true
+    new=$(caddy_version)
+    if [[ "$new" == "$old" ]]; then
+        echo "Caddy is still on ${old:-the earlier release}."
+    else
+        echo "Caddy updated${old:+ from $old}${new:+ to $new}."
+    fi
+}
+
 compose_image_refs() {
     grep -oP '^\s*image:\s*\K\S+' "$1" 2>/dev/null || true
 }
@@ -339,6 +380,18 @@ remove_addons_on_uninstall() {
             removed+=("scheduled backups timer")
         fi
     fi
+    # Maintenance's timers, the same way: a restore puts them back from its markers
+    local unit
+    for unit in aiostreams-restart aiostreams-auto-update; do
+        [[ -f "/etc/systemd/system/$unit.timer" ]] || continue
+        if [[ "$mode" == restore ]]; then
+            systemctl stop "$unit.timer" >/dev/null 2>&1 || true
+        else
+            systemctl disable --now "$unit.timer" >/dev/null 2>&1 || true
+            rm -f "/etc/systemd/system/$unit.timer" "/etc/systemd/system/$unit.service"
+            removed+=("$( [[ "$unit" == aiostreams-restart ]] && echo "scheduled reboot timer" || echo "automatic updates timer")")
+        fi
+    done
     if [[ -f /etc/systemd/system/aiostreams-vpn-boot.service ]]; then
         systemctl disable aiostreams-vpn-boot.service >/dev/null 2>&1 || true
         rm -f /etc/systemd/system/aiostreams-vpn-boot.service /usr/local/bin/aiostreams-vpn-boot.sh
@@ -1257,13 +1310,20 @@ case "${1:-}" in
         esac
         exit 0
         ;;
+    update-caddy)
+        [[ -f "$COMPOSE_FILE" ]] || error "No AIOStreams install found at $INSTALL_DIR."
+        { require_cmd docker && docker compose version >/dev/null 2>&1; } || error "Docker/Compose isn't available."
+        UNATTENDED=true
+        do_update_caddy || exit 1
+        exit 0
+        ;;
     status)
         [[ -f "$COMPOSE_FILE" ]] || error "No AIOStreams install found at $INSTALL_DIR."
         show_status
         exit 0
         ;;
     # Maintenance's commands: the control panel runs these (older panels too)
-    free-space|system-updates|log-limits|restart-schedule|scheduled-restart)
+    free-space|system-updates|log-limits|restart-schedule|scheduled-restart|auto-updates|scheduled-auto-update)
         script=$(maint_script) || exit 1
         exec bash "$script" "$@"
         ;;

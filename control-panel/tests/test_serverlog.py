@@ -117,6 +117,25 @@ def test_remove_and_clear_and_save(tmp_path):
     assert ServerLog(path, None).events() == [] and not (tmp_path / "s.json.tmp").exists()
 
 
+def test_automatic_updates_are_logged_even_with_phone_alerts_on(tmp_path):
+    """The watchdog doesn't report these, so quiet doesn't hold them back."""
+    f = Facts(quiet=True)
+    log = ServerLog(tmp_path / "s.json", f)
+    log.check(T)
+    f.v["auto_last"] = f"{T + 30}|updated|Caddy v2.11.8 to v2.11.9.\n"
+    log.check(T + 60)
+    [e] = log.events()
+    assert (e["kind"], e["text"]) == ("auto-update", "Automatic update: Caddy v2.11.8 to v2.11.9.")
+    f.v["auto_last"] = f"{T + 90}|failed|cloudflared: the update didn't work, so the earlier release was kept or put back.\n"
+    log.check(T + 120)
+    assert log.events()[0]["kind"] == "auto-update-failed"
+    log.check(T + 180)                             # only once
+    assert len(log.events()) == 2
+    f.v["auto_last"] = f"{T + 200}|nothing|Already the newest.\n"
+    log.check(T + 240)
+    assert log.events()[0]["text"] == "Automatic update check: Already the newest."
+
+
 def test_rough():
     assert [rough(s) for s in (5, 119, 120, 3600, 7200, 3 * 86400)] == \
         ["under 2 minutes", "under 2 minutes", "about 2 min", "about 60 min", "about 2 h", "about 3 days"]

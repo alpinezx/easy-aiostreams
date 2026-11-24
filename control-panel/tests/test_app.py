@@ -991,6 +991,43 @@ def test_scheduled_restart_reads_the_schedule_and_its_last_run(tmp_path):
     assert (r["mode"], r["timer"], r["next"], r["available"]) == ("off", False, None, False)
 
 
+def test_caddy_and_cloudflared_versions_and_their_newest_releases(tmp_path, monkeypatch):
+    """The card's rows: Caddy always, cloudflared only with a tunnel set up; a release counts once
+    it's a day old (its image follows), and a cloudflared 10 months old is flagged."""
+    import time
+    from types import SimpleNamespace
+    from app import releases, stack
+    now = time.time()
+    iso = lambda h: time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - h * 3600))
+    lists = {"caddy": [{"tag": "v2.11.9", "published": iso(3), "url": "https://github.com/caddyserver/caddy/releases/tag/v2.11.9"},
+                       {"tag": "v2.11.8", "published": iso(500), "url": "https://github.com/caddyserver/caddy/releases/tag/v2.11.8"}],
+             "cloudflared": [{"tag": "2026.11.2", "published": iso(48), "url": None}]}
+    monkeypatch.setattr(releases, "get", lambda force, ch: {"checked_at": now - 60, "releases": lists[ch], "error": None})
+    (tmp_path / "setup-aiostreams.sh").write_text("    auto-updates|scheduled-auto-update)\n")
+    (tmp_path / "setup-maintenance.sh").write_text("auto_apply() {\n")
+    (tmp_path / "auto-update-last-run").write_text("1790000000|updated|Caddy v2.11.7 to v2.11.8.\n")
+    ns = SimpleNamespace(p=lambda n: tmp_path / n, _caddy_version=lambda: "v2.11.7", _cloudflared_version=lambda: "2025.12.1",
+                         _systemd_active=lambda u: True, _settled=stack.Backend._settled, _ver_key=stack.Backend._ver_key,
+                         CFD_OLD_MONTHS=10)
+    r = stack.Backend.proxies_info(ns)
+    assert [i["id"] for i in r["items"]] == ["caddy"] and r["tunnel"] is False
+    # v2.11.9 is only 3 hours old: v2.11.8 is what Update would get
+    assert (r["items"][0]["latest"], r["items"][0]["newer"]) == ("v2.11.8", True)
+    assert (r["auto"], r["can_auto"], r["last"]["status"]) == ("off", True, "updated")
+    (tmp_path / "tunnel-state").mkdir()
+    (tmp_path / "tunnel-state" / "token.env").write_text("TUNNEL_TOKEN=x\n")
+    (tmp_path / "auto-updates").write_text("# set by the panel\nmode=monthly\n")
+    r = stack.Backend.proxies_info(ns)
+    cfd = r["items"][1]
+    assert (cfd["id"], cfd["latest"], cfd["newer"]) == ("cloudflared", "2026.11.2", True)
+    t = time.gmtime(now)
+    assert cfd["old"] is ((t.tm_year * 12 + t.tm_mon) - (2025 * 12 + 12) >= 10)
+    assert (r["auto"], r["timer"]) == ("monthly", True)
+    # Scripts from before automatic updates: the setting isn't offered
+    (tmp_path / "setup-maintenance.sh").write_text("do_free_space() {\n")
+    assert stack.Backend.proxies_info(ns)["can_auto"] is False
+
+
 def test_the_overview_carries_the_reboot_schedule(tmp_path):
     """This server's Next reboot: the schedule and whether an update waits, or None with an older script."""
     from types import SimpleNamespace
@@ -1042,7 +1079,7 @@ def test_maintenance_restart_needed_is_never_from_the_cache():
     from types import SimpleNamespace
     from app import stack
     ns = SimpleNamespace(_maint_cache=(time.time(), {"updates": {"available": True, "count": 0, "reboot": False}}),
-                         _maint_last=lambda: None, reboot_needed=lambda: True)
+                         _maint_last=lambda: None, reboot_needed=lambda: True, proxies_info=lambda: None)
     assert stack.Backend.maintenance_info(ns)["updates"]["reboot"] is True
     assert ns._maint_cache[1]["updates"]["reboot"] is False      # the cached copy is left alone
 

@@ -130,6 +130,16 @@ _STATIC: dict[str, Action] = {a.id: a for a in [
            args=("log-limits",), timeout=900, needs=(AIO,), detached=True,
            confirm="Caps each container's log at 10 MB. Docker restarts and every container is recreated once: "
                    "a few seconds of downtime, and this page reconnects by itself."),
+    # Caddy and the Cloudflare Tunnel's cloudflared, each on its own. Each keeps its earlier
+    # release until the new one answers (Caddy) or connects (cloudflared), and goes back if not.
+    Action("maint.caddy", "Update Caddy", "Updating Caddy", "Caddy update finished", AIO,
+           args=("update-caddy",), timeout=600, needs=(AIO,), script_has="update-caddy)",
+           confirm="Downloads the newest Caddy and restarts it: your sites pause for a few seconds. "
+                   "If the new one doesn't answer within a minute, the earlier one comes back."),
+    Action("maint.cloudflared", "Update cloudflared", "Updating cloudflared", "cloudflared update finished", "setup-tunnel.sh",
+           args=("update",), timeout=600, needs=("setup-tunnel.sh", "tunnel-state/token.env"),
+           confirm="Downloads the newest cloudflared and reconnects the tunnel: visitors wait a few seconds. "
+                   "If the new one doesn't connect, the earlier one comes back."),
     Action("watchdog.start", "Start", "Starting", "Start finished", "setup-watchdog.sh",
            args=("install-timer",), timeout=60,
            needs=("setup-watchdog.sh", "watchdog-state/config")),

@@ -9,6 +9,8 @@
 #   sudo bash /opt/aiostreams/setup-maintenance.sh restart-schedule  the scheduled reboot, and to set it:
 #   ... restart-schedule off | needed|always daily HH:MM | needed|always weekly <1-7> HH:MM
 #       (needed: only when an update is waiting for a restart; 1 Monday .. 7 Sunday)
+#   sudo bash /opt/aiostreams/setup-maintenance.sh auto-updates      Caddy and cloudflared updating by themselves:
+#   ... auto-updates off | monthly                                   (off: only when you press Update)
 #
 # None of the commands ask anything; the control panel's Maintenance page runs
 # them. setup-aiostreams.sh's option 10 and its commands of the same names hand
@@ -260,8 +262,9 @@ maintenance_menu() {
         echo "  2) Install system updates"
         echo "  3) Container log limits"
         echo "  4) Scheduled reboot (now: $(restart_text))"
+        echo "  5) Automatic updates for Caddy$(tunnel_set_up && echo " and the tunnel") (now: $(auto_text))"
         echo "  0) Back"
-        read -rp "Choose [0-4]: " c || return 0
+        read -rp "Choose [0-5]: " c || return 0
         case "$c" in
             1) do_free_space ;;
             2)
@@ -273,6 +276,7 @@ maintenance_menu() {
                 if [[ "$yn" =~ ^[Yy]$ ]]; then do_log_limits; fi
                 ;;
             4) restart_menu ;;
+            5) auto_menu ;;
             0|"") return 0 ;;
             *) warn "Not a valid option." ;;
         esac
@@ -507,6 +511,179 @@ do_scheduled_restart() {
     systemctl reboot
 }
 
+# ---- Automatic updates for Caddy and the Cloudflare Tunnel's cloudflared: menu option 5,
+# "auto-updates" and what its timer runs, "scheduled-auto-update". Off unless chosen:
+# without it they update when you press Update (the panel's Maintenance page, or
+# Update AIOStreams). auto-updates says when (absent: off); auto-update-last-run
+# says how the last one went ("epoch|updated|text", or nothing, failed, skipped).
+# Each keeps its earlier release until the new one works, and goes back if it doesn't.
+AUTO_FILE="$INSTALL_DIR/auto-updates"
+AUTO_LAST_FILE="$INSTALL_DIR/auto-update-last-run"
+AUTO_UNIT="aiostreams-auto-update"
+AUTO_SERVICE_FILE="/etc/systemd/system/$AUTO_UNIT.service"
+AUTO_TIMER_FILE="/etc/systemd/system/$AUTO_UNIT.timer"
+# The first Wednesday of each month, early morning, server time. A missed one
+# (the server was off) runs after the next start, once it has been up 10 minutes.
+AUTO_CAL="Wed *-*-01..07 03:15:00"
+
+auto_mode() {
+    if grep -qx 'mode=monthly' "$AUTO_FILE" 2>/dev/null; then echo monthly; else echo off; fi
+}
+
+auto_text() {
+    if [[ "$(auto_mode)" == monthly ]]; then echo "monthly, first Wednesday at 03:15"; else echo "off"; fi
+}
+
+tunnel_set_up() { [[ -s "$INSTALL_DIR/tunnel-state/token.env" ]]; }
+
+# Brings the timer in line with auto-updates, as restart_apply does for the reboot
+auto_apply() {
+    if [[ "$(auto_mode)" == monthly ]]; then
+        cat > "$AUTO_SERVICE_FILE" <<EOF
+[Unit]
+Description=Easy AIOStreams automatic updates for Caddy and the Cloudflare Tunnel
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash $INSTALL_DIR/setup-maintenance.sh scheduled-auto-update
+TimeoutStartSec=$(( (RESTART_WAIT_MIN + 30) * 60 ))
+EOF
+        cat > "$AUTO_TIMER_FILE" <<EOF
+[Unit]
+Description=Easy AIOStreams automatic updates for Caddy and the Cloudflare Tunnel (monthly)
+
+[Timer]
+OnCalendar=$AUTO_CAL
+# Made up after the server was off; the job itself waits until 10 minutes after the start
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+        systemctl daemon-reload
+        systemctl enable "$AUTO_UNIT.timer" >/dev/null 2>&1 || return 1
+        systemctl restart "$AUTO_UNIT.timer" >/dev/null 2>&1 || return 1
+    elif [[ -f "$AUTO_TIMER_FILE" || -f "$AUTO_SERVICE_FILE" ]]; then
+        systemctl disable --now "$AUTO_UNIT.timer" >/dev/null 2>&1 || true
+        rm -f "$AUTO_TIMER_FILE" "$AUTO_SERVICE_FILE"
+        systemctl daemon-reload
+    fi
+    return 0
+}
+
+# auto-updates off | monthly, without questions
+auto_set() {
+    case "${1:-}" in
+        off|monthly) ;;
+        *) error "Usage: auto-updates off | monthly" ;;
+    esac
+    [[ -f "$COMPOSE_FILE" ]] || error "No installation found at $INSTALL_DIR."
+    if [[ "$1" == off ]]; then
+        rm -f "$AUTO_FILE"
+    else
+        printf '# Automatic updates for Caddy and the Cloudflare Tunnel: set with setup-maintenance.sh auto-updates, or the control panel\nmode=monthly\n' > "$AUTO_FILE.tmp"
+        mv "$AUTO_FILE.tmp" "$AUTO_FILE"
+        # Persistent=true would run a first one at once from an old stamp
+        rm -f "/var/lib/systemd/timers/stamp-$AUTO_UNIT.timer"
+    fi
+    auto_apply || error "Couldn't start the timer. See: systemctl status $AUTO_UNIT.timer"
+    echo "Automatic updates for Caddy$(tunnel_set_up && echo " and the tunnel"): $(auto_text)."
+}
+
+auto_status() {
+    local at status text
+    echo "Automatic updates for Caddy$(tunnel_set_up && echo " and the tunnel"): $(auto_text)"
+    if [[ -f "$AUTO_LAST_FILE" ]] && IFS='|' read -r at status text < "$AUTO_LAST_FILE" && [[ "$at" =~ ^[0-9]+$ ]]; then
+        echo "Last time: $(date -d "@$at" '+%a %d %b, %H:%M'), $status. $text"
+    fi
+    if [[ "$(auto_mode)" == monthly ]] && ! systemctl is-active --quiet "$AUTO_UNIT.timer" 2>/dev/null; then
+        warn "The timer isn't running. Set it again to start it."
+    fi
+    return 0
+}
+
+auto_menu() {
+    local c
+    echo ""
+    auto_status
+    echo ""
+    echo "  1) Only when I press Update"
+    echo "  2) Automatically, once a month"
+    echo "  0) Back"
+    read -rp "Choose [0-2]: " c || return 0
+    case "$c" in
+        1) auto_set off ;;
+        2) auto_set monthly ;;
+        *) return 0 ;;
+    esac
+}
+
+auto_last() {
+    printf '%s|%s|%s\n' "$(date +%s)" "$1" "${2//$'\n'/ }" > "$AUTO_LAST_FILE"
+}
+
+caddy_ver() { docker exec caddy caddy version 2>/dev/null | awk 'NR == 1 {print $1}' || true; }
+cloudflared_ver() { docker exec cloudflared cloudflared --version 2>/dev/null | awk 'NR == 1 {print $3}' || true; }
+
+# What the timer runs (or by hand). Every way it ends leaves a line in auto-update-last-run.
+do_scheduled_auto_update() {
+    local up busy waited=0 old new done=() bad=() main="$INSTALL_DIR/setup-aiostreams.sh" tunnel="$INSTALL_DIR/setup-tunnel.sh"
+    [[ -f "$COMPOSE_FILE" ]] || { echo "No installation found. Nothing to do."; return 0; }
+    # A run made up after a start waits until things have settled
+    up=$(cut -d. -f1 /proc/uptime)
+    if (( up < 600 )); then
+        echo "Started $(( up / 60 )) minutes ago. Waiting until 10 minutes after the start..."
+        sleep $(( 600 - up ))
+    fi
+    busy=$(restart_busy)
+    while [[ -n "$busy" ]] && (( waited < RESTART_WAIT_MIN )); do
+        echo "Waiting for $busy to finish..."
+        sleep 60
+        waited=$((waited + 1))
+        busy=$(restart_busy)
+    done
+    if [[ -n "$busy" ]]; then
+        auto_last skipped "$busy was still running after $RESTART_WAIT_MIN minutes. Next month tries again."
+        echo "$busy still running. Skipped."
+        return 0
+    fi
+    if ! grep -q -- '^    update-caddy)' "$main" 2>/dev/null; then
+        auto_last failed "setup-aiostreams.sh is older than this script. Update it on the panel's Scripts tab."
+        warn "setup-aiostreams.sh is older than this script. Update it on the panel's Scripts tab."
+        return 1
+    fi
+    info "Caddy"
+    old=$(caddy_ver)
+    if bash "$main" update-caddy < /dev/null; then
+        new=$(caddy_ver)
+        if [[ -n "$new" && "$new" != "$old" ]]; then done+=("Caddy ${old:+$old }to $new"); fi
+    else
+        bad+=("Caddy")
+    fi
+    if tunnel_set_up && [[ -f "$tunnel" ]]; then
+        info "Cloudflare Tunnel"
+        old=$(cloudflared_ver)
+        if bash "$tunnel" update < /dev/null; then
+            new=$(cloudflared_ver)
+            if [[ -n "$new" && "$new" != "$old" ]]; then done+=("cloudflared ${old:+$old }to $new"); fi
+        else
+            bad+=("cloudflared")
+        fi
+    fi
+    local x ok="" failed=""
+    for x in "${done[@]}"; do ok+="${ok:+, }$x"; done
+    for x in "${bad[@]}"; do failed+="${failed:+ and }$x"; done
+    if [[ -n "$failed" ]]; then
+        auto_last failed "$failed: the update didn't work, so the earlier release was kept or put back.${ok:+ Updated: $ok.}"
+        return 1
+    elif [[ -n "$ok" ]]; then
+        auto_last updated "$ok."
+    else
+        auto_last nothing "Already the newest."
+    fi
+    return 0
+}
+
 case "${1:-}" in
     free-space) do_free_space ;;
     system-updates) do_system_updates ;;
@@ -520,7 +697,16 @@ case "${1:-}" in
         esac
         ;;
     scheduled-restart) do_scheduled_restart ;;
+    auto-updates)
+        shift
+        case "${1:-}" in
+            "") auto_status ;;
+            apply) auto_apply || error "Couldn't start the timer. See: systemctl status $AUTO_UNIT.timer" ;;
+            *) auto_set "$1" ;;
+        esac
+        ;;
+    scheduled-auto-update) do_scheduled_auto_update || exit 1 ;;
     "") maintenance_menu ;;
-    *) error "Unknown command '$1'. Use: free-space, system-updates, log-limits or restart-schedule, or nothing for the menu." ;;
+    *) error "Unknown command '$1'. Use: free-space, system-updates, log-limits, restart-schedule or auto-updates, or nothing for the menu." ;;
 esac
 exit 0
