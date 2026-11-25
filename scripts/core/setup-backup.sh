@@ -755,9 +755,12 @@ tunnel_restore_note() {
     echo "two servers running the same tunnel both take visitors, half each."
 }
 
+# A restore runs this against its unpacked copy (in_staged), before the swap,
+# so Abort changes nothing. Through a tunnel there's nothing to check: the
+# restore says what matters (tunnel_restore_note) once the backup is in place.
 check_restored_domain_dns() {
     [[ -f "$CADDYFILE" ]] || return 0   # nothing to check against
-    if tunnel_active; then tunnel_restore_note; return 0; fi
+    tunnel_active && return 0
     local domain
     domain=$(caddy_domain)
     [[ -n "$domain" ]] || return 0
@@ -801,8 +804,7 @@ check_restored_domain_dns() {
         fi
         warn "Starting the stack now will likely fail to get an HTTPS certificate."
         # The check just before a same-server restore found DNS pointing
-        # here, so this is a blip, and the install has been moved aside by
-        # now: start it rather than leave the server down.
+        # here, so this is a blip: go on, as the check said it would.
         if $UNATTENDED; then
             warn "Continuing anyway: it pointed here moments ago, and this server keeps its certificate."
             return 0
@@ -870,7 +872,7 @@ check_restored_domain_dns() {
                 return 0
                 ;;
             5)
-                error "Restore aborted. Fix DNS (or the domain) and re-run restore when ready."
+                error "Restore aborted. Nothing was changed on this server. Fix DNS (or the domain) and run the restore again when ready."
                 ;;
             *)
                 warn "Not a valid choice."
@@ -1284,6 +1286,16 @@ remove_stale_staging() {
     return 0
 }
 
+# Runs a command against the restore's unpacked copy instead of the install:
+# the functions it calls read these paths, and bash's locals reach them. What
+# they fill in (the ADDON_* lists, PUBLIC_IP, RESTORE_OLD_DOMAIN) is global, so
+# it's still there afterwards. Usage: in_staged <folder> <command> [args...]
+in_staged() {
+    local INSTALL_DIR="$1"; shift
+    local CADDYFILE="$INSTALL_DIR/Caddyfile" COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"         PUBLIC_IP_FILE="$INSTALL_DIR/public-ip"
+    "$@"
+}
+
 # ---------------------------------------------------------------------------
 # Same-server check
 # ---------------------------------------------------------------------------
@@ -1584,18 +1596,6 @@ do_restore() {
         fi
     fi
 
-    if require_cmd docker; then
-        info "Docker is already installed, skipping install."
-    else
-        info "Installing Docker..."
-        curl -fsSL https://get.docker.com | sh
-        systemctl enable docker >/dev/null 2>&1 || true
-        systemctl start docker >/dev/null 2>&1 || true
-    fi
-    if ! docker compose version >/dev/null 2>&1; then
-        error "Docker Compose plugin not found even after install. Check 'docker compose version' manually."
-    fi
-
     # Unpacked into a staging folder next to the install first, so a backup
     # that can't be unpacked whole (a full disk, a read error) or holds no
     # SECRET_KEY never touches the running install. Same disk, so swapping it
@@ -1665,6 +1665,97 @@ do_restore() {
         relay_dropped=true
     fi
 
+    # Every question that can stop the restore is asked here, against the
+    # staged copy, so Abort (or Ctrl+C) changes nothing: the EXIT trap removes
+    # the staging folder. Answers that change a domain land in the staged copy.
+
+    # Restoring onto a computer at home: a backup from a VPS has no tunnel yet,
+    # so it gets one. Home when the installer's first question said so
+    # (AIOS_HOME), when this server already runs a tunnel (kept, token and
+    # all), or when asked on a fresh server. A same-server restore puts back
+    # exactly what the backup holds.
+    local home=false checks_done=false
+    if ! in_staged "$staged" tunnel_active && ! $UNATTENDED && [[ "${AIOS_HOME:-}" != 0 ]]; then
+        if [[ "${AIOS_HOME:-}" == 1 ]]; then
+            home=true
+        elif $has_install && [[ -s "$INSTALL_DIR/tunnel-state/token.env" ]]; then
+            home=true
+            mkdir -p "$staged/tunnel-state"
+            chmod 700 "$staged/tunnel-state"
+            cp -p -- "$INSTALL_DIR/tunnel-state/token.env" "$staged/tunnel-state/token.env"
+            echo ""
+            echo "This server uses a Cloudflare Tunnel, so the restore keeps it, token and all."
+        elif ! $has_install && ask_where; then
+            home=true
+        fi
+    fi
+    if $home; then
+        in_staged "$staged" offer_home_names
+        # The tunnel's own questions (its token), asked now too. setup-tunnel.sh
+        # asks them; one from before it could ask them here asks them once the
+        # backup is in place instead, as restores did before.
+        if ! in_staged "$staged" tunnel_active; then
+            local tscript="" cand
+            for cand in "$staged/setup-tunnel.sh" "$INSTALL_DIR/setup-tunnel.sh" "$SELF_DIR/setup-tunnel.sh"; do
+                grep -q '_ask-token)' "$cand" 2>/dev/null && { tscript="$cand"; break; }
+            done
+            if [[ -z "$tscript" ]] && curl -fsSL "$RAW_BASE/setup-tunnel.sh" -o "$keep/tunnel-dl.sh" 2>/dev/null                 && grep -q '_ask-token)' "$keep/tunnel-dl.sh"; then
+                tscript="$keep/tunnel-dl.sh"
+            fi
+            if [[ -n "$tscript" ]]; then
+                # The restored install keeps the copy that can do this
+                grep -q '_ask-token)' "$staged/setup-tunnel.sh" 2>/dev/null                     || install_script_copy "$tscript" setup-tunnel.sh "$staged"
+                local ask_rc=0
+                bash "$tscript" _ask-token "$staged" || ask_rc=$?
+                # 3: you'd rather not, as the site works directly: no tunnel, like "tunnel on"
+                (( ask_rc == 3 )) && home=false
+                (( ask_rc == 0 || ask_rc == 3 )) || warn "The tunnel's token wasn't saved. It's asked for again once the backup is in place."
+            fi
+        fi
+    fi
+
+    # The DNS checks, unless the tunnel is still to be asked for: they'd ask
+    # about DNS the tunnel makes needless, so they wait for it, as before.
+    if ! $home || in_staged "$staged" tunnel_active; then
+        in_staged "$staged" check_restored_domain_dns
+        in_staged "$staged" check_addon_domains
+        checks_done=true
+    fi
+
+    # A backup whose VPN was switched off starts AIOStreams without it. Asked
+    # here rather than at the start, which would come after the swap.
+    # AIOS_ALLOW_DIRECT (--without-vpn, or yes here) tells the start it's answered.
+    if [[ -f "$staged/vpn-state/active" ]] && ! grep -q 'container_name: gluetun' "$staged/docker-compose.yml"         && [[ "${AIOS_ALLOW_DIRECT:-}" != 1 ]]; then
+        echo ""
+        alert "This backup's VPN was switched off (direct mode)"
+        alert "AIOStreams' traffic, debrid API calls included, would go out through this"
+        alert "server's own IP, not through the VPN."
+        echo ""
+        if $UNATTENDED; then
+            error "Not restored: its VPN is switched off. Restore it over SSH, which asks whether to go on in direct mode. Nothing was changed on this server."
+        fi
+        local vpn_c
+        read -rp "Restore it anyway and start AIOStreams in direct mode? [y/N]: " vpn_c || vpn_c=""
+        if [[ ! "$vpn_c" =~ ^[Yy]$ ]]; then
+            rm -rf -- "$stage"
+            echo "Restore cancelled. Nothing was changed on this server."
+            return 0
+        fi
+        export AIOS_ALLOW_DIRECT=1
+    fi
+
+    if require_cmd docker; then
+        info "Docker is already installed, skipping install."
+    else
+        info "Installing Docker..."
+        curl -fsSL https://get.docker.com | sh
+        systemctl enable docker >/dev/null 2>&1 || true
+        systemctl start docker >/dev/null 2>&1 || true
+    fi
+    if ! docker compose version >/dev/null 2>&1; then
+        error "Docker Compose plugin not found even after install. Check 'docker compose version' manually."
+    fi
+
     # The swap: the current install's add-ons stop, it moves aside, and the
     # staged copy takes its place. cd /: a shell sitting in the folder loses it.
     local aside=""
@@ -1720,29 +1811,10 @@ do_restore() {
         fi
     fi
 
-    # Restoring onto a computer at home: a backup from a VPS has no tunnel yet,
-    # so set it up before anything starts. Its token makes the DNS checks below
-    # skip, as for any tunnel backup. Home when the installer's first question
-    # said so (AIOS_HOME), when this server already ran a tunnel (kept, token
-    # and all), or when asked on a fresh server. A same-server restore puts back
-    # exactly what the backup holds.
-    local home=false
-    if ! tunnel_active && ! $UNATTENDED && [[ "${AIOS_HOME:-}" != 0 ]]; then
-        if [[ "${AIOS_HOME:-}" == 1 ]]; then
-            home=true
-        elif [[ -n "$aside" && -s "$aside/tunnel-state/token.env" ]]; then
-            home=true
-            mkdir -p "$INSTALL_DIR/tunnel-state"
-            chmod 700 "$INSTALL_DIR/tunnel-state"
-            cp -p -- "$aside/tunnel-state/token.env" "$INSTALL_DIR/tunnel-state/token.env"
-            echo ""
-            echo "This server used a Cloudflare Tunnel, so the restore keeps it, token and all."
-        elif [[ -z "$aside" ]] && ask_where; then
-            home=true
-        fi
-    fi
+    # Home (asked above): the tunnel starts before anything else, its token
+    # already saved, so it asks nothing (unless its script was too old to ask
+    # before the swap).
     if $home; then
-        offer_home_names
         local tunnel_rc=0
         bash "$INSTALL_DIR/setup-aiostreams.sh" tunnel on || tunnel_rc=$?
         # exported: the restore's start (setup-aiostreams.sh) then doesn't run it again
@@ -1752,8 +1824,11 @@ do_restore() {
         fi
     fi
 
-    check_restored_domain_dns
-    check_addon_domains
+    if ! $checks_done; then
+        check_restored_domain_dns
+        check_addon_domains
+    fi
+    tunnel_active && tunnel_restore_note
 
     # MediaFlow's fail2ban jail lives outside the backup. Whether it was on
     # shows in its Caddy site (the access log is only there for the jail);
