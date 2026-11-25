@@ -163,7 +163,7 @@ What would you like to do?
 ```
 - Just updated DNS a moment ago? Pick **2** and let it poll for you.
 - Realize the domain in the backup isn't the one you want live on this server (e.g. testing under a separate subdomain)? Pick **3** and type the correct one: it rewrites the config on the spot and re-checks immediately.
-- Nothing here will start Docker or touch your certificates until you choose: it's safe to sit and think.
+- Nothing on the server changes until every question is answered, and **Abort** (or Ctrl+C) leaves it exactly as it was: it's safe to sit and think.
 
 **Then it checks your add-ons' subdomains** (AIOMetadata, AIOManager, MediaFlow, control panel), whether or not they were running (at home, that each has its route). For any that don't point at this server yet, it asks whether to move it to another subdomain, keep it and fix DNS yourself (Enter), or leave it off for now. The summary at the end says what's running, what's waiting for DNS, and anything to update elsewhere, like MediaFlow's Public URL in the AIOStreams dashboard. [More detail](../advanced/backup-restore.md#add-ons-on-restore).
 

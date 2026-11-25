@@ -32,7 +32,10 @@ ROOT_HOME="$(getent passwd root 2>/dev/null | cut -d: -f6)"
 ROOT_HOME="${ROOT_HOME:-/root}"
 COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"
 CADDY_DROPIN_DIR="$INSTALL_DIR/caddy.d"
-SHARED_NET="aios_shared"
+# The panel's own Docker network: only the panel and Caddy are on it, so the
+# stack's other containers (AIOStreams, the VPN, the tunnel, add-ons) can't
+# reach the panel round Caddy's cookie gate.
+PANEL_NET="aios_panel"
 
 # The panel's code lives in $INSTALL_DIR/control-panel (where it would land
 # if it came from the GitHub repo) and is built straight from there. Its
@@ -66,8 +69,20 @@ fi
 docker ps --format '{{.Names}}' 2>/dev/null | grep -qx caddy || \
     error "The 'caddy' container isn't running. Start AIOStreams first (setup-aiostreams.sh, option 3)."
 
-ensure_shared_network() {
-    docker network inspect "$SHARED_NET" >/dev/null 2>&1 || docker network create "$SHARED_NET" >/dev/null
+# Makes the panel's network and puts Caddy on it. Caddy's compose file doesn't
+# name it, so a recreated Caddy comes back without it: the panel connects it
+# again itself, at once (Backend.keep_caddy_connected). Done here too so Caddy
+# can reach a new panel from its first second.
+ensure_panel_network() {
+    docker network inspect "$PANEL_NET" >/dev/null 2>&1 || docker network create "$PANEL_NET" >/dev/null \
+        || error "Couldn't create the panel's Docker network ($PANEL_NET)."
+    connect_caddy
+}
+
+connect_caddy() {
+    [[ -n "$(docker inspect -f "{{if index .NetworkSettings.Networks \"$PANEL_NET\"}}y{{end}}" caddy 2>/dev/null)" ]] && return 0
+    docker network connect "$PANEL_NET" caddy >/dev/null 2>&1 \
+        || warn "Couldn't connect Caddy to the panel's network; the panel does it when it starts."
 }
 
 # Runs from the panel's own folder, the only place it is built from.
@@ -90,7 +105,7 @@ services:
     # Root-equivalent on this server, on purpose: it has to run your setup-*.sh
     # scripts on the host itself (through nsenter into PID 1) and read Docker.
     # That is why it sits behind Caddy's secret-cookie gate AND its own login.
-    # It publishes no ports. Only Caddy can reach it.
+    # It publishes no ports, and only Caddy shares its network.
     privileged: true
     pid: host
     environment:
@@ -103,9 +118,9 @@ services:
       - ${INSTALL_DIR}:${INSTALL_DIR}:ro
       - ${STATE_DIR}:/state
     networks:
-      - ${SHARED_NET}
+      - ${PANEL_NET}
 networks:
-  ${SHARED_NET}:
+  ${PANEL_NET}:
     external: true
 COMPOSE_EOF
     chmod 600 "$UI_COMPOSE"
@@ -195,16 +210,56 @@ set_credentials() {
     chmod 600 "$AUTH_FILE"
 }
 
+login_answers() {
+    docker exec "$CONTAINER_NAME" python -c \
+        "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:${INTERNAL_PORT}/login', timeout=5).status==200 else 1)" \
+        >/dev/null 2>&1
+}
+
+container_started() { docker inspect -f '{{.State.StartedAt}}' "$CONTAINER_NAME" 2>/dev/null || true; }
+
+# Up = the login page answers within a minute, and still answers 10 seconds
+# later from the same start of the container: a panel that comes up and then
+# falls over (Docker restarting it) doesn't count.
 wait_until_up() {
-    for _ in $(seq 1 30); do
-        if docker exec "$CONTAINER_NAME" python -c \
-            "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:${INTERNAL_PORT}/login').status==200 else 1)" \
-            >/dev/null 2>&1; then
-            return 0
+    local started deadline=$((SECONDS + 60))
+    while (( SECONDS < deadline )); do
+        if login_answers; then
+            started=$(container_started)
+            sleep 10
+            if login_answers && [[ "$(container_started)" == "$started" ]]; then
+                return 0
+            fi
         fi
-        sleep 1
+        sleep 2
     done
     return 1
+}
+
+# An update or rebuild keeps the image in use under a spare tag until the new
+# panel is up; if it isn't, the earlier one is put back. Without the tag, the
+# earlier image has no name once the new one is built, and the monthly
+# cleanup deletes it.
+SPARE_IMAGE="aios-ui:aios-previous"
+# An update also keeps a copy of the panel's files as they were, and runs from
+# that copy, which the download can't overwrite halfway.
+PREVIOUS_DIR="$STATE_DIR/panel-previous"
+
+# Untags the spare; when nothing else uses that image, Docker deletes it
+drop_spare() { docker image rm "$SPARE_IMAGE" >/dev/null 2>&1; }
+
+# The image ID the panel runs now, or aios-ui:local's when it's stopped; "" if neither
+running_image() {
+    local id
+    id=$(docker inspect -f '{{.Image}}' "$CONTAINER_NAME" 2>/dev/null || true)
+    [[ -n "$id" ]] || id=$(docker image inspect -f '{{.Id}}' "$IMAGE_NAME" 2>/dev/null || true)
+    echo "$id"
+}
+
+local_image() { docker image inspect -f '{{.Id}}' "$IMAGE_NAME" 2>/dev/null || true; }
+
+show_panel_log() {
+    docker logs --tail 15 "$CONTAINER_NAME" 2>&1 | sed 's/^/    /' || true
 }
 
 print_unlock() {
@@ -254,7 +309,7 @@ do_install() {
         [[ "$CONT" =~ ^[Yy]$ ]] || exit 0
     fi
 
-    ensure_shared_network
+    ensure_panel_network
     mkdir -p "$STATE_DIR"; chmod 700 "$STATE_DIR"
     require_panel_dir
     printf 'DOMAIN=%s\n' "$DOMAIN" > "$CONFIG_FILE"
@@ -271,7 +326,7 @@ do_install() {
 
     info "Starting"
     (cd "$STATE_DIR" && docker compose -f "$UI_COMPOSE" up -d)
-    wait_until_up || warn "The panel didn't answer within 30s. Check: docker logs $CONTAINER_NAME"
+    wait_until_up || warn "The panel didn't answer within a minute. Check: docker logs $CONTAINER_NAME"
 
     write_caddy_snippet "$DOMAIN" "$(cat "$GATE_FILE")"
     reload_caddy || error "Caddy wouldn't take the new site. See the message above."
@@ -292,6 +347,7 @@ do_status() {
 }
 
 do_start() {
+    ensure_panel_network
     (cd "$STATE_DIR" && docker compose -f "$UI_COMPOSE" up -d)
     [[ -f "$CADDY_SNIPPET" ]] || { write_caddy_snippet "$(grep -oP '^DOMAIN=\K.*' "$CONFIG_FILE")" "$(cat "$GATE_FILE")"; reload_caddy || true; }
     echo "Started."
@@ -308,7 +364,7 @@ do_stop() {
 # Update button runs it that way, through systemd-run, so it isn't inside the
 # panel container it replaces.
 do_update() {
-    local C tmp
+    local C
     if [[ "${1:-}" == yes ]]; then
         C=y
     else
@@ -318,23 +374,95 @@ do_update() {
         do_rebuild
         return
     fi
+    require_panel_dir
+    # The panel as it is now, to go back to. The rest runs from this copy: the
+    # download replaces the files in $PANEL_DIR, this script among them.
+    rm -rf "${PREVIOUS_DIR:?}"
+    if ! cp -a "$PANEL_DIR" "$PREVIOUS_DIR"; then
+        rm -rf "${PREVIOUS_DIR:?}"
+        warn "Couldn't keep a copy of the panel's files to go back to, so nothing was changed."
+        return 1
+    fi
+    exec bash "$PREVIOUS_DIR/setup-ui.sh" _update-run "${1:-}"
+}
+
+# Puts the files kept in $PREVIOUS_DIR back into $PANEL_DIR
+put_files_back() {
+    rm -rf "${PANEL_DIR:?}/app" "${PANEL_DIR:?}/web" "${PANEL_DIR:?}/tests"
+    cp -a "$PREVIOUS_DIR/." "$PANEL_DIR/" && chmod 700 "$PANEL_DIR/setup-ui.sh"
+}
+
+# The update itself, run from the copy in $PREVIOUS_DIR. $1 = yes when unattended.
+do_update_run() {
+    local unattended="${1:-}" tmp before rc=0
     info "Downloading the newest control panel ($PANEL_BRANCH branch)"
     tmp=$(mktemp -d)
     if ! curl -fsSL "$PANEL_TARBALL" | tar xz -C "$tmp" --strip-components=1 "easy-aiostreams-${PANEL_BRANCH}/control-panel" \
         || [[ ! -f "$tmp/control-panel/app/main.py" || ! -f "$tmp/control-panel/setup-ui.sh" ]]; then
-        rm -rf "$tmp"
+        rm -rf "$tmp" "${PREVIOUS_DIR:?}"
         warn "Couldn't download it. Nothing was changed; the panel keeps running as it is."
-        [[ "${1:-}" == yes ]] && return 1
+        [[ "$unattended" == yes ]] && return 1
         return 0
     fi
+    before=$(running_image)
+    [[ -n "$before" ]] && docker tag "$before" "$SPARE_IMAGE"
     # Swap the code in. Only code lives here: settings and login are in ui-state.
-    rm -rf "${PANEL_DIR:?}/app" "${PANEL_DIR:?}/web" "${PANEL_DIR:?}/tests"
-    cp -a "$tmp/control-panel/." "$PANEL_DIR/"
-    chmod 700 "$PANEL_DIR/setup-ui.sh"
+    if ! { rm -rf "${PANEL_DIR:?}/app" "${PANEL_DIR:?}/web" "${PANEL_DIR:?}/tests" \
+            && cp -a "$tmp/control-panel/." "$PANEL_DIR/" && chmod 700 "$PANEL_DIR/setup-ui.sh"; }; then
+        rm -rf "$tmp"
+        warn "Couldn't put the new files in place, so the earlier ones go back. The panel keeps running."
+        put_files_back || warn "Couldn't put them back either. They're kept in $PREVIOUS_DIR."
+        drop_spare || true
+        return 1
+    fi
     rm -rf "$tmp"
     echo "Downloaded."
-    # Rebuild with the new copy of this script, in case it changed too.
-    exec bash "$PANEL_DIR/setup-ui.sh" rebuild
+    # Built with the new copy of this script, in case it changed too. It only
+    # builds and starts: keeping and putting back the earlier panel is done here.
+    AIOS_UI_UPDATE_RUN=1 bash "$PANEL_DIR/setup-ui.sh" rebuild < /dev/null || rc=$?
+    if (( rc == 0 )) && login_answers; then
+        drop_spare || true
+        rm -rf "${PREVIOUS_DIR:?}"
+        return 0
+    fi
+    roll_back_update "$before"
+}
+
+# The new panel didn't build or isn't up: the earlier files, image, compose
+# file and Caddy site go back. $1 = the image ID the panel ran before.
+roll_back_update() {
+    local before="$1" new compose_was=""
+    if [[ -z "$before" ]]; then
+        warn "There's no earlier panel image on this server to go back to. Check: docker logs $CONTAINER_NAME"
+        return 1
+    fi
+    info "Putting the earlier panel back"
+    if ! put_files_back; then
+        warn "Couldn't put the earlier files back. They're kept in $PREVIOUS_DIR."
+    fi
+    new=$(local_image)
+    docker tag "$SPARE_IMAGE" "$IMAGE_NAME"
+    [[ -f "$UI_COMPOSE" ]] && compose_was=$(cat "$UI_COMPOSE")
+    write_compose
+    # A build that failed left the earlier panel running: it isn't restarted
+    if [[ "$(running_image)" != "$before" || "$(cat "$UI_COMPOSE")" != "$compose_was" ]] \
+        || ! docker ps --format '{{.Names}}' | grep -qx "$CONTAINER_NAME"; then
+        (cd "$STATE_DIR" && docker compose -f "$UI_COMPOSE" up -d --force-recreate) || true
+    fi
+    [[ -n "$new" && "$new" != "$before" ]] && { docker image rm "$new" >/dev/null 2>&1 || true; }
+    refresh_caddy_snippet
+    if wait_until_up; then
+        drop_spare || true
+        # No "Rebuilt." line: the panel's Update result looks for this one instead
+        echo "Rolled back: the panel is on $(tr -d '[:space:]' < "$PANEL_DIR/VERSION") again and answering. Nothing else changed."
+        rm -rf "${PREVIOUS_DIR:?}"
+        return 1
+    fi
+    warn "The earlier panel isn't answering either, so the update probably isn't the problem. Its last lines:"
+    show_panel_log
+    warn "Kept for another try: the image $SPARE_IMAGE and the files in $PREVIOUS_DIR."
+    warn "To try again: sudo bash $PANEL_DIR/setup-ui.sh rebuild"
+    return 1
 }
 
 # A newer version of this script may write the Caddy site differently; bring
@@ -368,21 +496,51 @@ do_rebuild() {
     # The web terminal was removed in panel 1.59.0; its key's hash has nothing left to open
     rm -f "$STATE_DIR/terminal.json"
     require_panel_dir
+    # On its own (a restore, or the menu's rebuild) it keeps the image in use
+    # and puts it back if the new one isn't up. An update does that itself.
+    local before="" guard=true new
+    [[ "${AIOS_UI_UPDATE_RUN:-}" == 1 ]] && guard=false
+    if $guard; then
+        before=$(running_image)
+        [[ -n "$before" ]] && docker tag "$before" "$SPARE_IMAGE"
+    fi
     write_compose
     if ! build_image; then
+        if $guard; then drop_spare || true; fi
         warn "Couldn't build the new panel, so the one already running carries on."
         return 1
     fi
+    ensure_panel_network
     (cd "$STATE_DIR" && docker compose -f "$UI_COMPOSE" up -d --force-recreate) || true
     local up=true
     wait_until_up || up=false
     refresh_caddy_snippet
-    if ! $up; then
-        # No "Rebuilt." line: the panel's Update result looks for it
-        warn "The panel didn't answer within 30s. Check: docker logs $CONTAINER_NAME"
+    if $up; then
+        if $guard; then drop_spare || true; fi
+        echo "Rebuilt. Your login and unlock link are unchanged."
+        return 0
+    fi
+    # No "Rebuilt." line: the panel's Update result looks for it
+    warn "The panel didn't answer within a minute. Its last lines:"
+    show_panel_log
+    if ! $guard || [[ -z "$before" || "$(running_image)" == "$before" ]]; then
+        warn "Check: docker logs $CONTAINER_NAME"
         return 1
     fi
-    echo "Rebuilt. Your login and unlock link are unchanged."
+    info "Putting the earlier panel image back"
+    new=$(local_image)
+    docker tag "$SPARE_IMAGE" "$IMAGE_NAME"
+    (cd "$STATE_DIR" && docker compose -f "$UI_COMPOSE" up -d --force-recreate) || true
+    if wait_until_up; then
+        drop_spare || true
+        [[ -n "$new" && "$new" != "$before" ]] && { docker image rm "$new" >/dev/null 2>&1 || true; }
+        echo "Rolled back: the panel is on its earlier image again and answering."
+        warn "The files in $PANEL_DIR are still the new ones, so the next rebuild tries them again."
+    else
+        warn "The earlier image isn't answering either, so the new files probably aren't the problem."
+        warn "Its image is kept as $SPARE_IMAGE. Check: docker logs $CONTAINER_NAME"
+    fi
+    return 1
 }
 
 do_reset_password() {
@@ -408,6 +566,8 @@ do_uninstall() {
     rm -f "$CADDY_SNIPPET" "${CADDY_SNIPPET}.rejected"
     reload_caddy || true
     docker image rm "$IMAGE_NAME" >/dev/null 2>&1 || true
+    docker network disconnect "$PANEL_NET" caddy >/dev/null 2>&1 || true
+    docker network rm "$PANEL_NET" >/dev/null 2>&1 || true
     # The backups' locks and notes describe the backup files, not the panel, and
     # scheduled backups keep using them, so they stay.
     find "${STATE_DIR:?}" -mindepth 1 -maxdepth 1 ! -name backup-meta.json -exec rm -rf {} +
@@ -430,6 +590,11 @@ if [[ "${1:-}" == "rebuild" && -f "$CONFIG_FILE" ]]; then
 fi
 if [[ "${1:-}" == "update-unattended" && -f "$CONFIG_FILE" ]]; then
     do_update yes
+    exit 0
+fi
+# The second half of an update, run from the copy do_update keeps
+if [[ "${1:-}" == "_update-run" && -f "$CONFIG_FILE" ]]; then
+    do_update_run "${2:-}"
     exit 0
 fi
 

@@ -260,7 +260,7 @@ function extras(w) {
     catch (e) { toast(e.message || "Couldn't save it.", true); }
   });
   const when = h("div", { class: "wd-when-row", hidden: !opt.weekly },
-    h("span", { class: "dim", text: "Send it on" }), day, h("span", { class: "dim", text: "from" }), time, setBtn,
+    day, time, setBtn,
     h("span", { class: "dim", text: `24-hour, ${tzNote(w.timezone)}, within 2 minutes of it` }));
   const body = h("div", { class: "wd-opts-body" },
     row("updates", "When a new AIOStreams release is out", w.channel === "nightly"

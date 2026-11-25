@@ -175,7 +175,8 @@ def running() -> bool:
 
 
 def last_update() -> dict | None:
-    """The last update's output, or None if there never was one."""
+    """The last update's output, or None if there never was one. rolled_back:
+    the new panel didn't build or start, so setup-ui.sh put the earlier one back."""
     try:
         p = _log_path()
         text = p.read_text(errors="replace")
@@ -183,8 +184,9 @@ def last_update() -> dict | None:
     except OSError:
         return None
     lines = [re.sub(r"\x1b\[[0-9;]*m", "", l) for l in text.splitlines()]
-    ok = any(l.startswith("Rebuilt.") for l in lines)
-    return {"at": at, "ok": ok, "tail": lines[-40:]}
+    rolled_back = any(l.startswith("Rolled back:") for l in lines)
+    ok = not rolled_back and any(l.startswith("Rebuilt.") for l in lines)
+    return {"at": at, "ok": ok, "rolled_back": rolled_back, "tail": lines[-40:]}
 
 
 def start() -> None:

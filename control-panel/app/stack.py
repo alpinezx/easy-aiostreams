@@ -28,6 +28,29 @@ from .traffic import dev_counters, host_net
 from .wgconf import check_wireguard_conf
 
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+# The Docker network only the panel and Caddy are on; setup-ui.sh creates it
+PANEL_NET = "aios_panel"
+
+DOCKER_SOCK = "unix:///var/run/docker.sock"
+# The Docker API version the panel is written for. Docker answers in that version's
+# format, so a newer Docker can't change what the panel reads. One that no longer takes
+# it (Ubuntu's docker.io 29 takes 1.44 and up) gets the oldest it does take, the closest
+# to this; one older than it gets its newest.
+DOCKER_API = "1.41"
+
+
+def _api_key(v: str) -> tuple[int, ...]:
+    return tuple(int(x) for x in v.split("."))
+
+
+def pick_api_version(info: dict) -> str:
+    """The API version to talk to this Docker in, from its /version answer."""
+    try:
+        low = str(info.get("MinAPIVersion") or DOCKER_API)
+        high = str(info.get("ApiVersion") or DOCKER_API)
+        return min(max(DOCKER_API, low, key=_api_key), high, key=_api_key)
+    except (AttributeError, ValueError):
+        return DOCKER_API
 BACKUP_NAME = re.compile(r"aiostreams-backup-[0-9A-Za-z._-]+\.tar\.gz")
 _BUILD_VERSION = re.compile(r"\d+\.\d+\.\d+")
 _BUILD_TAG = re.compile(r"v\d+\.\d+\.\d+|\d{4}\.\d\d\.\d\d\.\d{4}-nightly")
@@ -388,15 +411,62 @@ class Backend:
         self._last_view = 0.0          # when /api/status was last asked for
         self._cert_cache: dict = {}
         threading.Thread(target=self._stats_loop, daemon=True).start()
+        threading.Thread(target=self._caddy_net_loop, daemon=True).start()
 
     @property
     def client(self):
         # Created on first use, not at startup, so the panel still opens (and
         # says "can't reach Docker") if Docker is down when the container starts.
-        # A pinned API version avoids a connection attempt in the constructor.
+        # Docker's own /version (not tied to an API version) says which versions
+        # it takes; a failure leaves no client, so the next use asks again.
         if self._client is None:
-            self._client = docker.DockerClient(base_url="unix:///var/run/docker.sock", timeout=15, version="1.41")
+            probe = docker.DockerClient(base_url=DOCKER_SOCK, timeout=15, version=DOCKER_API)
+            try:
+                info = probe.api.version(api_version=False)
+            finally:
+                probe.close()
+            self._client = docker.DockerClient(base_url=DOCKER_SOCK, timeout=15, version=pick_api_version(info))
         return self._client
+
+    # ---- the panel's own network -----------------------------------------
+    # The panel sits alone on PANEL_NET with Caddy, so the other containers can't
+    # reach it round Caddy's cookie gate. Caddy's compose file doesn't name that
+    # network (it's written by several scripts, old and new), so whenever Caddy
+    # is recreated it comes back without it; this puts it back.
+    def keep_caddy_connected(self) -> bool:
+        """Connects Caddy to the panel's network if it isn't on it. False when there's
+        nothing to do it with: no such network (setup-ui.sh from before it) or no Caddy."""
+        try:
+            net = self.client.networks.get(PANEL_NET)
+            caddy = self.client.containers.get("caddy")
+        except Exception:
+            return False
+        if PANEL_NET in ((caddy.attrs.get("NetworkSettings") or {}).get("Networks") or {}):
+            return True
+        try:
+            net.connect(caddy)
+        except Exception:
+            return False
+        return True
+
+    def _caddy_net_loop(self):
+        # Right away at the panel's start, at once when Caddy starts (Docker's events), and
+        # every minute in case an event was missed. Each events call ends after 10 seconds,
+        # inside the client's 15 second read timeout.
+        last, mark = 0.0, int(time.time())
+        while True:
+            try:
+                if time.time() - last >= 60:
+                    self.keep_caddy_connected()
+                    last = time.time()
+                until = mark + 10
+                for _ in self.client.events(decode=True, since=mark, until=until,
+                                            filters={"type": "container", "event": "start", "container": "caddy"}):
+                    self.keep_caddy_connected()
+                mark = until
+            except Exception:
+                time.sleep(10)
+                mark = int(time.time())
 
     # ---- paths ---------------------------------------------------------
     @property

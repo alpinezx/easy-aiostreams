@@ -55,6 +55,8 @@ Switched from the script's **6) Extra alerts** menu, the control panel's Phone a
 14. **A new AIOMetadata release** (`set-option metadata on`), listed only once AIOMetadata is installed (option 8 in **6) Extra alerts**). Every 6 hours it asks GitHub for AIOMetadata's latest release and compares it with the one running (the container's image tag, or the pinned release while it's stopped). Its releases come up to twice a day, so it sends at most one alert a day, naming the newest.
 15. **A new AIOManager release** (`set-option manager on`), listed only once AIOManager is installed (option 9). The same check, every 6 hours; its releases are months apart, so one alert per release.
 16. **A new MediaFlow Proxy release** (`set-option mediaflow on`), listed only once MediaFlow is set up (option 10). The same again, one alert per release. A MediaFlow set up before its releases were pinned runs "latest", so it gets none until its next Start pins it.
+17. **A new Caddy release** (`set-option caddy on`; option 11 in **6) Extra alerts**). Every 6 hours it compares the running Caddy (its image's version, or the `caddy:2` image while it's stopped) with the newest v2 release on GitHub that has been out for at least a day, the same rule as Maintenance's Update button, so an alert and its button agree. One alert per release. With monthly automatic updates on, it says they install it on the first Wednesday of the month, and how to update sooner.
+18. **A new cloudflared release** (`set-option cloudflared on`; option 12), only on a Cloudflare Tunnel setup. The same check against `cloudflared --version` in its container, on its year.month.patch releases, one alert per release.
 
 ---
 
@@ -77,7 +79,7 @@ Each alert has a title, an icon and a priority, so your phone can treat them dif
 
 In the ntfy app's default settings, urgent, high and normal alerts make a sound and low ones arrive silently. To change that on your phone, give each priority its own sound: on Android, Settings, Apps, ntfy, Notifications lists a category per priority.
 
-With the [control panel](./control-panel.md) installed, each alert has an **Open panel** button that opens its Phone alerts page (the update alert's opens the Overview, the script updates alert's the Scripts tab). Tapping the alert itself just opens it in ntfy.
+With the [control panel](./control-panel.md) installed, each alert has an **Open panel** button that opens the page it's about: Activity for a restart, Overview for the site going down or back up and for the AIOStreams and add-on releases, Maintenance for disk space, security updates and the Caddy and cloudflared releases, Scripts for script updates, Backup & Restore for backups, Phone alerts for the rest. Tapping the alert itself just opens it in ntfy.
 
 ## When it stays quiet on purpose
 

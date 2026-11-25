@@ -17,7 +17,7 @@ A private web dashboard for the Easy AIOStreams stack: what's running, start, st
 | `/opt/aiostreams/ui-state` | Settings, login, unlock token, activity history, `panel.log` (what was done from the panel), the Overview's and rail's layouts (`overview-layout.json`, `rail-layout.json`) and traffic history (`host-traffic.json`, `vpn-traffic.json`). Part of every backup. |
 | `/opt/aiostreams/caddy.d/60-ui.caddy` | Its Caddy site, picked up through the drop-in folder. |
 
-It runs as one container, `aios-ui`, on the shared `aios_shared` network with no published ports: only Caddy can reach it. `setup-ui.sh` only runs from `/opt/aiostreams/control-panel`; anywhere else it stops and says where it belongs.
+It runs as one container, `aios-ui`, on its own `aios_panel` Docker network with no published ports. Only Caddy shares that network, so AIOStreams, the VPN, the tunnel and the add-ons can't reach the panel. A script that recreates Caddy brings it back without that network, and the panel connects it again within a second or so. `setup-ui.sh` only runs from `/opt/aiostreams/control-panel`; anywhere else it stops and says where it belongs.
 
 ## Install, update, uninstall
 
@@ -30,13 +30,13 @@ sudo bash /opt/aiostreams/control-panel/setup-ui.sh
 
 After that the same command opens the menu.
 
-- **4) Update** downloads the newest `control-panel` folder from `main` (replacing `app/`, `web/` and `tests/` so removed files don't linger) and rebuilds with the new `setup-ui.sh`. Answer **n** to rebuild from the files already there, for example after editing them. Login, unlock link and terminal key are kept; a failed or incomplete download changes nothing. To try `dev`: `sudo AIOS_UI_BRANCH=dev bash /opt/aiostreams/control-panel/setup-ui.sh`.
+- **4) Update** downloads the newest `control-panel` folder from `main` (replacing `app/`, `web/` and `tests/` so removed files don't linger) and rebuilds with the new `setup-ui.sh`. Until the new panel is up (its login page answers within a minute, and still does 10 seconds later), the earlier one is kept: its image as `aios-ui:aios-previous` and its files in `ui-state/panel-previous/`, the copy the update runs from. If the new one doesn't build or start, the earlier files, image and Caddy site go back, the log (`ui-state/last-update.log`) ends with `Rolled back:`, and the update screen and the Scripts tab say so. If the earlier one doesn't answer either, both are kept for another try and the log says how. Answer **n** to rebuild from the files already there, for example after editing them; a rebuild on its own (also what a restore runs) puts the earlier image back the same way, though the files stay the new ones. Login, unlock link and terminal key are kept; a failed or incomplete download changes nothing. To try `dev`: `sudo AIOS_UI_BRANCH=dev bash /opt/aiostreams/control-panel/setup-ui.sh`.
 - **8) Uninstall** removes the container, its Caddy site, its image and `ui-state` (login, unlock token, history), then asks whether to delete `control-panel` too (**n** to reinstall from the same files, **y** to leave nothing). AIOStreams isn't touched. Delete the panel's DNS record afterwards if you're not reinstalling.
 
 ## How it's locked down
 
 - **Caddy gate.** Without the unlock cookie, every URL on the subdomain is a bare 404, login page included. Opening `/unlock/<token>` once sets the cookie (each visit renews it). Menu option 5 makes a new token and signs out every browser.
-- **Only Caddy reaches it.** No published ports, and the visitor's address and HTTPS are taken from forwarded headers only when they come from Caddy's own container (`app/proxy.py`), so nothing else on the Docker network can pose as a visitor.
+- **Only Caddy reaches it.** No published ports, and the visitor's address and HTTPS are taken from forwarded headers only when they come from Caddy's own container (`app/proxy.py`), so nothing else can pose as a visitor.
 - **Login.** scrypt-hashed password, 7-day signed session cookie (HttpOnly, Secure). 5 wrong passwords lock that address out for 15 minutes.
 - **SameSite=Lax** on both cookies, so a link from another app (a phone alert) gets in, while other sites' POSTs still never carry them; every change in the panel is a POST. A rebuild updates Caddy's site file, reloading Caddy only if it changed.
 - **No free-form commands.** The browser can only ask for actions from a fixed list (`app/actions.py`), and logs are limited to the stack's own containers.

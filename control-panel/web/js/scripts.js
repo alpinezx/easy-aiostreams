@@ -67,7 +67,9 @@ function statusLine() {
   // Only a panel update that didn't finish: the panel restarted since, so this is the one place its output is left.
   // One that finished needs no line.
   const lastLine = v.last && !v.last.ok && !v.running
-    ? h("details", {}, h("summary", { text: `Last update ${ago(v.last.at)}: didn't finish. Show its output` }),
+    ? h("details", {}, h("summary", { text: v.last.rolled_back
+        ? `Last update ${ago(v.last.at)}: the new version didn't build or start, so the panel went back to ${v.current}. Show its output`
+        : `Last update ${ago(v.last.at)}: didn't finish. Show its output` }),
         h("pre", { text: v.last.tail.join("\n") }))
     : null;
   return h("div", { class: "scripts-status" },
@@ -172,11 +174,15 @@ function waitForNewPanel(oldVersion) {
       if (r.ok) j = await r.json(); else wasDown = true;
     } catch (_) { wasDown = true; }
     if (j) {
+      const thisOne = !j.running && j.last && j.last.at >= started - 5;
       // The new panel can answer a second or two before the update job writes its last line and ends:
       // reload only once the job is over, or the page shows Updating and "didn't finish" until a refresh.
-      if (!j.running && (j.current !== oldVersion || wasDown)) { location.reload(); return; }
-      if (!j.running && j.last && j.last.at >= started - 5 && !j.last.ok) {
-        note.textContent = "The update stopped before the new panel was built. Nothing was changed. Its output:";
+      // An update that went back to the earlier panel isn't reloaded: it says so here.
+      if (!j.running && (j.current !== oldVersion || wasDown) && !(thisOne && j.last.rolled_back)) { location.reload(); return; }
+      if (thisOne && !j.last.ok) {
+        note.textContent = j.last.rolled_back
+          ? `The new version didn't build or start, so the panel went back to ${j.current}. Nothing else changed. Its output:`
+          : "The update stopped before the new panel was built. Nothing was changed. Its output:";
         box.append(h("pre", { class: "veil-log", text: j.last.tail.join("\n") }),
           h("button", { class: "btn small", type: "button", text: "Close", onclick: () => { veil.remove(); loadPanelVersion(false); } }));
         return;

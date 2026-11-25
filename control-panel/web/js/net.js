@@ -1,5 +1,5 @@
 import { $, h, clear } from "./util.js";
-import { trafficCard, updateNow, fmtRate, arrowed, netOrder, clearHistory } from "./traffic.js";
+import { trafficCard, updateNow, setTunnelOff, liveRate, fmtRate, arrowed, netOrder, clearHistory } from "./traffic.js";
 
 // The Network page: the server's traffic, or the VPN tunnel's once the VPN is set up, as the
 // same Traffic card the VPN page has; and each service's speed right now.
@@ -75,17 +75,22 @@ function services(box) {
       ...rows.map((s) => {
         // On the VPN's network, Docker reports gluetun's counters for these too: one count, under the tunnel
         const shared = (s.key === "aiostreams" || s.via_vpn) && onVpn;
+        // The VPN's own row is the tunnel, as the graph's Now has it. Docker's figure for the gluetun container adds up
+        // every interface in it (the tunnel and the encrypted link out), so it counts the same bytes twice.
+        const tunnel = s.key === "gluetun" ? liveRate("vpn") : null;
+        const rx = tunnel ? tunnel[0] : s.rx, tx = tunnel ? tunnel[1] : s.tx;
         return h("div", { class: "ns-row" },
           h("span", { class: "ns-name", text: s.name }),
           shared ? h("span", { class: "ns-shared dim", text: "Counted under VPN" })
-            : s.rx == null ? h("span", { class: "ns-shared dim", text: measured ? "" : "Measuring…" })
-            : h("span", { class: "ns-speeds" }, arrowed("↓", fmtRate(s.rx)), arrowed("↑", fmtRate(s.tx))));
+            : rx == null ? h("span", { class: "ns-shared dim", text: measured ? "" : "Measuring…" })
+            : h("span", { class: "ns-speeds" }, arrowed("↓", fmtRate(rx)), arrowed("↑", fmtRate(tx))));
       })));
   box.append(card);
 }
 
 export function show(status) {
   if (status) st = status;
+  setTunnelOff(st && st.vpn === "off");
   // The Overview's VPN line opens the page at #net/vpn: the VPN tunnel's graph
   if (location.hash === "#net/vpn") {
     source = "vpn";
@@ -110,6 +115,7 @@ export function setStatus(status) {
   const hadVpn = hasVpn();
   st = status;
   if (hadVpn !== hasVpn()) { show(st); return; }
+  setTunnelOff(st && st.vpn === "off");
   updateNow();
   const sbox = $("#net-root .net-services");
   if (sbox) services(sbox);

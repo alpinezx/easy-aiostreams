@@ -651,3 +651,67 @@ def test_add_ons_read_from_their_saved_settings(tmp_path, monkeypatch):
         import shutil
         shutil.rmtree(root / rel)
     assert b.addons_info() == []
+
+
+def test_caddy_put_back_on_the_panels_network_only_when_off_it():
+    """A recreated Caddy is off the panel's own network: the panel connects it again. Already on
+    it, nothing is done; no such network (setup-ui.sh from before it) or no Caddy, nothing either."""
+    import docker as dk
+    joined = []
+    caddy = SimpleNamespace(name="caddy", attrs={"NetworkSettings": {"Networks": {"aiostreams_default": {}}}})
+    net = SimpleNamespace(connect=lambda c: joined.append(c.name))
+    nets = {"aios_panel": net}
+
+    def get_net(n):
+        if n not in nets:
+            raise dk.errors.NotFound(n)
+        return nets[n]
+    b = stack.Backend.__new__(stack.Backend)
+    b._client = SimpleNamespace(networks=SimpleNamespace(get=get_net),
+                                containers=SimpleNamespace(get=lambda n: caddy))
+    assert b.keep_caddy_connected() and joined == ["caddy"]
+    caddy.attrs["NetworkSettings"]["Networks"]["aios_panel"] = {}
+    assert b.keep_caddy_connected() and joined == ["caddy"]
+    nets.clear()
+    assert not b.keep_caddy_connected() and joined == ["caddy"]
+
+
+def test_docker_api_version_follows_what_docker_takes():
+    """1.41 while Docker takes it; Docker's oldest accepted version once 1.41 is too old for it;
+    its newest when Docker is older than 1.41; 1.41 when the answer is missing or odd."""
+    pick = stack.pick_api_version
+    assert pick({"ApiVersion": "1.57", "MinAPIVersion": "1.40"}) == "1.41"
+    assert pick({"ApiVersion": "1.52", "MinAPIVersion": "1.44"}) == "1.44"
+    assert pick({"ApiVersion": "1.60", "MinAPIVersion": "1.100"}) == "1.60"
+    assert pick({"ApiVersion": "1.40", "MinAPIVersion": "1.12"}) == "1.40"
+    assert pick({}) == "1.41"
+    assert pick({"ApiVersion": "x", "MinAPIVersion": "1.44"}) == "1.41"
+
+
+def test_docker_client_asks_docker_which_version_first(monkeypatch):
+    """The first use asks Docker's unversioned /version, then talks in the picked version;
+    Docker unreachable leaves no client, so the next use tries again."""
+    made = []
+
+    class Fake:
+        def __init__(self, base_url, timeout, version):
+            made.append(version)
+            self.api = SimpleNamespace(version=lambda api_version: answer(api_version))
+
+        def close(self):
+            pass
+
+    def answer(api_version):
+        assert api_version is False
+        if fail:
+            raise ConnectionError("no docker")
+        return {"ApiVersion": "1.52", "MinAPIVersion": "1.44"}
+    monkeypatch.setattr(stack.docker, "DockerClient", Fake)
+    b = stack.Backend.__new__(stack.Backend)
+    b._client = None
+    fail = True
+    with pytest.raises(ConnectionError):
+        b.client
+    assert b._client is None
+    fail = False
+    assert isinstance(b.client, Fake) and made[-1] == "1.44"

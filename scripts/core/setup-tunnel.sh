@@ -504,6 +504,19 @@ case "${1:-}" in
     token) do_token ;;
     update) do_update ;;
     _apply) do_apply ;;
+    # For setup-backup.sh's restore at home: the questions "on" asks, against the
+    # restore's unpacked copy before it replaces the install, so a cancel there
+    # changes nothing. Saves the token in that folder; exit 3 when you decline.
+    _ask-token)
+        [[ -n "${2:-}" && -f "$2/docker-compose.yml" ]] || error "_ask-token needs an unpacked install folder."
+        INSTALL_DIR="$2"
+        CADDYFILE="$INSTALL_DIR/Caddyfile"
+        STATE_DIR="$INSTALL_DIR/tunnel-state"
+        TOKEN_FILE="$STATE_DIR/token.env"
+        tunnel_on && exit 0
+        confirm_direct_site || { echo "Left off."; exit 3; }
+        ask_token
+        ;;
     "") tunnel_menu ;;
     *) error "Unknown command '$1'. Use: on, off, status, check, routes, token or update, or nothing for the menu." ;;
 esac
