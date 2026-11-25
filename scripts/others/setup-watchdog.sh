@@ -34,7 +34,8 @@ SHUTDOWN_FILE="$STATE_DIR/shutdown-at"  # written as the server shuts down clean
 BOOT_ID_FILE="$STATE_DIR/boot-reported" # the kernel's boot ID once that boot is reported
 PLANNED_FILE="$STATE_DIR/planned-restart" # setup-maintenance.sh's scheduled reboot, just before it restarts
 OPTIONS_FILE="$STATE_DIR/options"   # extra alerts: "updates=on", "reboots=on", "scripts=on", "backups=on", "security=on", "weekly=on",
-                                    # "metadata=on" (AIOMetadata releases), "manager=on" and "mediaflow=on" (theirs), and the
+                                    # "metadata=on" (AIOMetadata releases), "manager=on" and "mediaflow=on" (theirs),
+                                    # "caddy=on" and "cloudflared=on" (their releases), and the
                                     # check-in's "weekly_day=7" (1 Mon .. 7 Sun), "weekly_time=10:15"
                                     # (older copies saved "weekly_hour=10", still read as 10:00)
 SCRIPT_COPY="$STATE_DIR/watchdog.sh"
@@ -367,7 +368,7 @@ tally_check() {
 # one goes wrong and one when it's fine again, kept in <name>-state.
 # Args: name, now (bad|ok), then for each way: title, message, event text.
 flag_change() {
-    local f="$STATE_DIR/$1-state" was title msg event prio tags
+    local f="$STATE_DIR/$1-state" was title msg event prio tags page=alerts
     was=$(cat "$f" 2>/dev/null || echo ok)
     [[ "$was" == "$2" ]] && return 0
     echo "$2" > "$f"
@@ -376,7 +377,9 @@ flag_change() {
     fi
     local what=alert sent="Alert sent."
     [[ "$2" == ok ]] && what=all-clear sent="All-clear sent."
-    if send_ntfy "$msg" "$title" "$prio" "$tags"; then
+    # Disk space: Maintenance, where Free up space is
+    [[ "$1" == disk ]] && page=maint
+    if send_ntfy "$msg" "$title" "$prio" "$tags" "$page"; then
         log_event "$1" "$event $sent"
     else
         log_event "$1" "$event The $what couldn't be sent (ntfy.sh unreachable)."
@@ -475,7 +478,7 @@ check_cert() {
 }
 
 # The control panel's address, if it's installed, for the alert's
-# "Open panel" button (its Phone alerts page).
+# "Open panel" button (to the page each alert names, Phone alerts by default).
 panel_domain() {
     awk 'NF && $1 !~ /^#/ && $2 == "{" {print $1; exit}' "$INSTALL_DIR/caddy.d/60-ui.caddy" 2>/dev/null || true
 }
@@ -666,6 +669,84 @@ check_mediaflow_updates() {
         log_event update "MediaFlow Proxy $latest is out (this server runs $running). The alert couldn't be sent (ntfy.sh unreachable)."
     fi
     return 0
+}
+
+# settled_release <owner/repo> <tag pattern>: the newest release whose tag fits the
+# pattern and that came out at least a day ago. The same rule as the control panel's
+# Maintenance page, so an alert and its Update button agree: a day gives the image
+# time to be ready. Nothing if GitHub can't be reached.
+settled_release() {
+    local repo=$1 re=$2 now
+    now=$(date +%s)
+    curl -fsS -m 15 "https://api.github.com/repos/$repo/releases?per_page=30" 2>/dev/null \
+        | grep -oP '"(tag_name|published_at)":\s*("[^"]*"|null)' \
+        | sed -E 's/^"([a-z_]+)":[[:space:]]*"?([^"]*)"?$/\1 \2/' \
+        | {
+            local k v tag="" at
+            while read -r k v; do
+                if [[ "$k" == tag_name ]]; then tag=$v; continue; fi
+                if [[ -n "$tag" && "$tag" =~ $re ]]; then
+                    at=$(date -d "$v" +%s 2>/dev/null) || at=""
+                    [[ -n "$at" ]] && (( now - at >= 86400 )) && echo "$tag"
+                fi
+                tag=""
+            done
+        } | sort -V | tail -n 1 || true
+}
+
+# alert_proxy_release <option> <name> <latest> <running> <panel words> <ssh command>:
+# one alert per release, for Caddy and cloudflared
+alert_proxy_release() {
+    local opt=$1 name=$2 latest=$3 running=$4 how
+    [[ -n "$latest" && -n "$running" && "$running" != "$latest" ]] || return 0
+    [[ "$(printf '%s\n%s\n' "$running" "$latest" | sort -V | tail -n 1)" == "$latest" ]] || return 0
+    [[ "$(cat "$STATE_DIR/$opt-notified" 2>/dev/null)" == "$latest" ]] && return 0
+    echo "$latest" > "$STATE_DIR/$opt-notified"
+    how="Update with: $6."
+    [[ -n "$(panel_domain)" ]] && how="Use Open panel, then $5."
+    # Monthly automatic updates will get to it on their own
+    grep -qx 'mode=monthly' "$INSTALL_DIR/auto-updates" 2>/dev/null \
+        && how="Automatic updates install it on the first Wednesday of the month. To update sooner: ${how#Update with: }"
+    if send_ntfy "$name $latest is out; this server runs $running. $how" \
+        "$name update" 3 package maint; then
+        log_event update "$name $latest is out (this server runs $running). Alert sent."
+    else
+        log_event update "$name $latest is out (this server runs $running). The alert couldn't be sent (ntfy.sh unreachable)."
+    fi
+    return 0
+}
+
+# Optional, off until switched on: a new Caddy release (the v2 line caddy:2 follows).
+# Asks GitHub every 6 hours, like the other release alerts.
+check_caddy_updates() {
+    option_on caddy || return 0
+    local stamp="$STATE_DIR/caddy-checked" latest running
+    if [[ -f "$stamp" ]] && (( $(date +%s) - $(stat -c %Y "$stamp") < 21600 )); then return 0; fi
+    touch "$stamp"
+    # The running Caddy's release from its image; with Caddy stopped, the caddy:2 image it would start
+    running=$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' caddy 2>/dev/null \
+        | grep -oP '^CADDY_VERSION=\Kv[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1) || true
+    [[ -n "$running" ]] || running=$(docker image inspect -f '{{range .Config.Env}}{{println .}}{{end}}' caddy:2 2>/dev/null \
+        | grep -oP '^CADDY_VERSION=\Kv[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1) || true
+    [[ -n "$running" ]] || return 0
+    latest=$(settled_release caddyserver/caddy '^v2\.[0-9]+\.[0-9]+$')
+    alert_proxy_release caddy Caddy "$latest" "$running" \
+        "Update on the Maintenance page" "sudo bash setup-aiostreams.sh update-caddy"
+}
+
+# The same for cloudflared, on a Cloudflare Tunnel setup. Its releases are named
+# year.month.patch (2026.11.2).
+check_cloudflared_updates() {
+    option_on cloudflared || return 0
+    tunnel_on || return 0
+    local stamp="$STATE_DIR/cloudflared-checked" latest running
+    if [[ -f "$stamp" ]] && (( $(date +%s) - $(stat -c %Y "$stamp") < 21600 )); then return 0; fi
+    touch "$stamp"
+    running=$(docker exec cloudflared cloudflared --version 2>/dev/null | awk 'NR == 1 {print $3}') || true
+    [[ "$running" =~ ^[0-9]{4}\.[0-9]{1,2}\.[0-9]+$ ]] || return 0
+    latest=$(settled_release cloudflare/cloudflared '^[0-9]{4}\.[0-9]{1,2}\.[0-9]+$')
+    alert_proxy_release cloudflared cloudflared "$latest" "$running" \
+        "Update on the Maintenance page" "sudo bash setup-tunnel.sh update"
 }
 
 # The branch the control panel follows for its updates (main, or dev while
@@ -968,7 +1049,7 @@ do_run_check() {
         tally_check ok
         echo 0 > "$FAILCOUNT_FILE"
         if [[ "$alert_state" == "down" ]]; then
-            if send_ntfy "All checks passing again." "AIOStreams is back" 3 white_check_mark; then
+            if send_ntfy "All checks passing again." "AIOStreams is back" 3 white_check_mark overview; then
                 log_event recovered "All checks passing again. All-clear sent."
             else
                 log_event recovered "All checks passing again. The all-clear couldn't be sent (ntfy.sh unreachable)."
@@ -984,7 +1065,7 @@ do_run_check() {
         echo "$fails" > "$FAILCOUNT_FILE"
         [[ "$fails" -eq 1 && "$alert_state" == "up" ]] && log_event fail "$FAIL_REASON"
         if [[ "$fails" -ge "$FAIL_THRESHOLD" && "$alert_state" == "up" ]]; then
-            if send_ntfy "${FAIL_REASON}." "AIOStreams is down" 5 rotating_light; then
+            if send_ntfy "${FAIL_REASON}." "AIOStreams is down" 5 rotating_light overview; then
                 log_event alert "Still failing on the next check. Alert sent."
             else
                 log_event alert "Still failing on the next check. The alert couldn't be sent (ntfy.sh unreachable)."
@@ -999,6 +1080,8 @@ do_run_check() {
     check_metadata_updates || true
     check_manager_updates || true
     check_mediaflow_updates || true
+    check_caddy_updates || true
+    check_cloudflared_updates || true
     check_scripts || true
     check_backup || true
     check_security || true
@@ -1060,7 +1143,7 @@ do_boot() {
     fi
     # A few tries: the network can take a moment after boot
     for _ in 1 2 3 4 5 6; do
-        if send_ntfy "The server restarted at $when$why$down." "Server restarted" "$prio" arrows_counterclockwise; then sent=1; break; fi
+        if send_ntfy "The server restarted at $when$why$down." "Server restarted" "$prio" arrows_counterclockwise activity; then sent=1; break; fi
         sleep 10
     done
     if (( sent )); then
@@ -1263,6 +1346,8 @@ extras_line() {
     aiometadata_configured && line+="; AIOMetadata releases $(option_on metadata && echo on || echo off)"
     aiomanager_configured && line+="; AIOManager releases $(option_on manager && echo on || echo off)"
     mediaflow_configured && line+="; MediaFlow releases $(option_on mediaflow && echo on || echo off)"
+    line+="; Caddy releases $(option_on caddy && echo on || echo off)"
+    tunnel_on && line+="; cloudflared releases $(option_on cloudflared && echo on || echo off)"
     echo "$line"
 }
 
@@ -1362,11 +1447,11 @@ do_extras() {
         aiometadata_configured && echo "8) New AIOMetadata release: $(option_on metadata && echo on || echo off)  (at most one alert a day; releases can come twice a day)"
         aiomanager_configured && echo "9) New AIOManager release: $(option_on manager && echo on || echo off)  (one alert per release)"
         mediaflow_configured && echo "10) New MediaFlow Proxy release: $(option_on mediaflow && echo on || echo off)  (one alert per release)"
+        echo "11) New Caddy release: $(option_on caddy && echo on || echo off)  (one alert per release, a day after it's out)"
+        tunnel_on && echo "12) New cloudflared release: $(option_on cloudflared && echo on || echo off)  (one alert per release, a day after it's out)"
         echo "0) Back"
-        local top=7
-        aiometadata_configured && top=8
-        aiomanager_configured && top=9
-        mediaflow_configured && top=10
+        local top=11
+        tunnel_on && top=12
         read -rp "Choose [0-$top]: " c || return 0
         case "$c" in
             1) if option_on updates; then set_option updates off; else set_option updates on; fi ;;
@@ -1392,6 +1477,14 @@ do_extras() {
             10)
                 if mediaflow_configured; then
                     if option_on mediaflow; then set_option mediaflow off; else set_option mediaflow on; fi
+                else
+                    echo "Not a valid option."
+                fi
+                ;;
+            11) if option_on caddy; then set_option caddy off; else set_option caddy on; fi ;;
+            12)
+                if tunnel_on; then
+                    if option_on cloudflared; then set_option cloudflared off; else set_option cloudflared on; fi
                 else
                     echo "Not a valid option."
                 fi
@@ -1542,13 +1635,13 @@ if [[ "${1:-}" == "set-topic" ]]; then
     exit $?
 fi
 
-# set-option <updates|reboots|scripts|backups|security|weekly|metadata|manager|mediaflow> <on|off>, or set-option weekly_day <1-7> /
+# set-option <updates|reboots|scripts|backups|security|weekly|metadata|manager|mediaflow|caddy|cloudflared> <on|off>, or set-option weekly_day <1-7> /
 # weekly_time <HH:MM>: the optional alerts, without questions
 if [[ "${1:-}" == "set-option" ]]; then
-    [[ ( "${2:-}" =~ ^(updates|reboots|scripts|backups|security|weekly|metadata|manager|mediaflow)$ && "${3:-}" =~ ^(on|off)$ ) || ( "${2:-}" == weekly_day && "${3:-}" =~ ^[1-7]$ )
+    [[ ( "${2:-}" =~ ^(updates|reboots|scripts|backups|security|weekly|metadata|manager|mediaflow|caddy|cloudflared)$ && "${3:-}" =~ ^(on|off)$ ) || ( "${2:-}" == weekly_day && "${3:-}" =~ ^[1-7]$ )
        || ( "${2:-}" == weekly_hour && "${3:-}" =~ ^([01]?[0-9]|2[0-3])$ )
        || ( "${2:-}" == weekly_time && "${3:-}" =~ ^([01]?[0-9]|2[0-3]):[0-5][0-9]$ ) ]] \
-        || error "Usage: set-option updates|reboots|scripts|backups|security|weekly|metadata|manager|mediaflow on|off, set-option weekly_day 1-7 (Mon-Sun), set-option weekly_time HH:MM"
+        || error "Usage: set-option updates|reboots|scripts|backups|security|weekly|metadata|manager|mediaflow|caddy|cloudflared on|off, set-option weekly_day 1-7 (Mon-Sun), set-option weekly_time HH:MM"
     [[ -f "$CONFIG_FILE" ]] || error "Not configured yet. Set the watchdog up first."
     set_option "$2" "$3"
     exit 0

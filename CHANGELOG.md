@@ -2,6 +2,10 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 25 November 2026
+
+- Phone alerts: two new switches under Also tell me send one alert per new Caddy release and, on a Cloudflare Tunnel setup, per new cloudflared release, a day after it's out (when the Maintenance page offers it too), with how to update or, with automatic updates on, when they'll install it. An alert's Open panel button now goes where it helps: a restart to Activity, site down and back up to the Overview, disk space and these releases to Maintenance. Deleting a backup, or a restore's set-aside setup, now leaves an entry in Activity saying which one and from where. (Panel 1.68.0)
+
 ## 24 November 2026
 
 - **Fixed:** Logs and the Overview's Recent log alerts show AIOMetadata's cache statistics in grey. Lines such as "Error Rate: 25.00%" are counts from its scheduled warm-ups, not failures; its real warnings and errors still show. (Panel 1.67.2)

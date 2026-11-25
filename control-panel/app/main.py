@@ -796,7 +796,7 @@ async def set_asides(user: str = Depends(current_user)):
 
 
 @app.delete("/api/set-asides/{name}")
-async def delete_set_aside(name: str, user: str = Depends(current_user)):
+async def delete_set_aside(name: str, request: Request, user: str = Depends(current_user)):
     try:
         await asyncio.to_thread(backend.delete_set_aside, name)
     except ValueError:
@@ -805,6 +805,10 @@ async def delete_set_aside(name: str, user: str = Depends(current_user)):
         raise HTTPException(404, "That folder isn't on the server any more.")
     except Exception:
         raise HTTPException(500, "Couldn't delete it.")
+    # The rollback copy can't come back either, so Activity and the panel's own log say so, as for a backup
+    ip = client_ip(request)
+    audit.log(f"set-aside folder {name} deleted by {user} from {ip}")
+    jobs.record("stack.set-aside-delete", "Delete setup from before a restore", [f"==> Deleted {name}", f"From {ip}."])
     return {"ok": True}
 
 
@@ -857,7 +861,7 @@ async def backup_meta(name: str, request: Request, user: str = Depends(current_u
 
 
 @app.delete("/api/backups/{name}")
-async def delete_backup(name: str, user: str = Depends(current_user)):
+async def delete_backup(name: str, request: Request, user: str = Depends(current_user)):
     if load_meta().get(name, {}).get("locked"):
         raise HTTPException(409, "That backup is locked. Unlock it first.")
     try:
@@ -875,6 +879,11 @@ async def delete_backup(name: str, user: str = Depends(current_user)):
                 save_meta(meta)
             except OSError:
                 pass
+    # It can't be undone, so Activity and the panel's own log say which one went, when, and from where
+    ip = client_ip(request)
+    audit.log(f"backup {name} deleted by {user} from {ip}")
+    jobs.record("stack.backup-delete", "Delete backup",
+                [f"==> Deleted {name}", *(f"Removed from {d}" for d in gone), f"From {ip}."])
     return {"ok": True, "deleted_from": gone}
 
 
@@ -1240,6 +1249,20 @@ class Jobs:
         note_planned()   # services starting during or just after an action: grey "Starting"
         threading.Thread(target=self._run, args=(job, action, after), daemon=True).start()
         return job
+
+    def record(self, action_id: str, label: str, lines: list[str]) -> None:
+        """A finished entry for something done straight away, without a script (deleting a
+        backup), so Activity still shows it. Never blocks or waits on a running action."""
+        now = time.time()
+        job = {"id": uuid.uuid4().hex[:12], "action": action_id, "label": label, "running": label, "done": label,
+               "started": now, "ended": now, "code": 0, "lines": [{"k": classify(l), "t": l} for l in lines]}
+        with self.lock:
+            self.items[job["id"]] = job
+            self.order.append(job["id"])
+            while len(self.order) > self.KEEP + 5:
+                old = self.order.pop(0)
+                self.items.pop(old, None)
+        self._save()
 
     def _run(self, job, action, after=None):
         def emit(line: str):

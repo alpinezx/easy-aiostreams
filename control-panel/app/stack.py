@@ -1823,6 +1823,10 @@ class Backend:
             "aiometadata": (self.p("aiometadata-state") / "config").exists(),
             "aiomanager": (self.p("aiomanager-state") / "config").exists(),
             "mediaflow": (self.p("mediaflow-state") / "config").exists(),
+            # Caddy's and cloudflared's release switches, only once the copy the timer runs has those checks
+            "proxy_alerts": "check_caddy_updates()" in _read(d / "watchdog.sh"),
+            "tunnel": tunnel,
+            "auto_updates": "mode=monthly" in _read(self.p("auto-updates")).splitlines(),
         }
 
     def _host_timezone(self) -> str | None:
@@ -1846,6 +1850,7 @@ class Backend:
                 "security": kv.get("security") == "on",
                 "weekly": kv.get("weekly") == "on", "metadata": kv.get("metadata") == "on",
                 "manager": kv.get("manager") == "on", "mediaflow": kv.get("mediaflow") == "on",
+                "caddy": kv.get("caddy") == "on", "cloudflared": kv.get("cloudflared") == "on",
                 "weekly_day": int(day) if day in {str(i) for i in range(1, 8)} else 7,
                 "weekly_time": weekly_time(kv)}
 
@@ -1854,7 +1859,7 @@ class Backend:
         and the check-in's day and hour. Kept in watchdog-state/options, which
         the script reads; written on the host, since the install folder is
         read-only here."""
-        if name in ("updates", "reboots", "scripts", "backups", "security", "weekly", "metadata", "manager", "mediaflow") and isinstance(value, bool):
+        if name in ("updates", "reboots", "scripts", "backups", "security", "weekly", "metadata", "manager", "mediaflow", "caddy", "cloudflared") and isinstance(value, bool):
             text = "on" if value else "off"
         elif name == "weekly_day" and isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 7:
             text = str(value)

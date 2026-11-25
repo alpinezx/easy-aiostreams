@@ -137,7 +137,7 @@ class DemoBackend:
         self.tz = "Europe/London"
         # UI_DEMO_NOALERTS=1: no Phone alerts, so Activity shows the panel's own restart and backup entries
         self.wd_configured = not os.environ.get("UI_DEMO_NOALERTS")
-        self.wd_options = {"updates": False, "reboots": False, "scripts": False, "backups": False, "security": False, "weekly": False, "metadata": False, "manager": False, "mediaflow": False, "weekly_day": 7, "weekly_time": "10:00"}
+        self.wd_options = {"updates": False, "reboots": False, "scripts": False, "backups": False, "security": False, "weekly": False, "metadata": False, "manager": False, "mediaflow": False, "caddy": False, "cloudflared": False, "weekly_day": 7, "weekly_time": "10:00"}
         self.schedule = {"every": "daily", "day": 7, "time": "04:00"}
         self.wd_topic = "aios-7f3k29xq81"
         now = time.time()
@@ -247,7 +247,7 @@ class DemoBackend:
 
     def set_watchdog_option(self, name: str, value) -> None:
         from .stack import TIME_RE
-        ok = (name in ("updates", "reboots", "scripts", "backups", "security", "weekly", "metadata", "manager", "mediaflow") and isinstance(value, bool)) or \
+        ok = (name in ("updates", "reboots", "scripts", "backups", "security", "weekly", "metadata", "manager", "mediaflow", "caddy", "cloudflared") and isinstance(value, bool)) or \
             (name == "weekly_day" and type(value) is int and 1 <= value <= 7) or \
             (name == "weekly_time" and isinstance(value, str) and bool(TIME_RE.match(value.strip())))
         if not ok:
@@ -335,6 +335,7 @@ class DemoBackend:
                 "cert_note": "Cloudflare handles the certificates" if tunnel else None,
                 "options": dict(self.wd_options), "channel": "nightly" if self.channel == "nightly" else "stable",
                 "aiometadata": True, "aiomanager": True, "mediaflow": True,
+                "proxy_alerts": True, "tunnel": tunnel, "auto_updates": self.auto_updates == "monthly",
                 "timezone": os.environ.get("UI_DEMO_TZ", "Europe/London")}
 
     def update_script(self, script_id: str) -> dict:

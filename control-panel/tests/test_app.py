@@ -199,9 +199,16 @@ def test_delete_backup_endpoint(client):
     login(client)
     n = len(client.get("/api/backups").json())
     name = client.get("/api/backups").json()[0]["name"]
+    before = len(client.get("/api/jobs").json())
     assert client.delete("/api/backups/" + name).json()["ok"]
     assert len(client.get("/api/backups").json()) == n - 1
+    # It can't be undone, so Activity keeps a finished entry naming the file
+    got = client.get("/api/jobs").json()
+    assert len(got) == before + 1 and got[0]["action"] == "stack.backup-delete" and got[0]["label"] == "Delete backup"
+    assert got[0]["ended"] and got[0]["code"] == 0
+    assert any(name in l["t"] for l in client.get(f"/api/jobs/{got[0]['id']}").json()["lines"])
     assert client.delete("/api/backups/" + name).status_code == 404
+    assert len(client.get("/api/jobs").json()) == before + 1        # a failed delete leaves no entry
     assert client.delete("/api/backups/notabackup").status_code in (400, 404)
     c2 = client.__class__(client.app, base_url="http://testserver")
     assert c2.delete("/api/backups/" + name, headers={"X-UI-Request": "1"}).status_code == 401
@@ -311,9 +318,15 @@ def test_set_aside_endpoints(client):
     assert len(items) == 1
     name = items[0]["name"]
     assert client.delete("/api/set-asides/aiostreams").status_code == 400
+    before = len(client.get("/api/jobs").json())
     assert client.delete("/api/set-asides/" + name).json()["ok"]
     assert client.get("/api/set-asides").json() == []
+    # It can't be undone, so Activity keeps a finished entry naming the folder
+    got = client.get("/api/jobs").json()
+    assert len(got) == before + 1 and got[0]["action"] == "stack.set-aside-delete" and got[0]["code"] == 0
+    assert any(name in l["t"] for l in client.get(f"/api/jobs/{got[0]['id']}").json()["lines"])
     assert client.delete("/api/set-asides/" + name).status_code == 404
+    assert len(client.get("/api/jobs").json()) == before + 1        # a failed delete leaves no entry
 
 
 def test_backup_builds_are_read_in_the_background_and_kept(client):
@@ -607,7 +620,7 @@ def test_phone_alerts_one_event_can_be_removed(client):
 def test_phone_alerts_switches(client):
     assert client.post("/api/watchdog/options", json={"name": "weekly", "on": True}).status_code == 401
     login(client)
-    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": False, "scripts": False, "backups": False, "security": False, "weekly": False, "metadata": False, "manager": False, "mediaflow": False, "weekly_day": 7, "weekly_time": "10:00"}
+    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": False, "scripts": False, "backups": False, "security": False, "weekly": False, "metadata": False, "manager": False, "mediaflow": False, "caddy": False, "cloudflared": False, "weekly_day": 7, "weekly_time": "10:00"}
     for bad in ({"name": "nope", "on": True}, {"name": "weekly", "on": "yes"}, {}, {"name": "weekly_day", "value": 8},
                 {"name": "weekly_time", "value": "24:00"}, {"name": "weekly_time", "value": "9"}, {"name": "weekly_time", "value": 9},
                 {"name": "weekly_day", "value": True}, {"name": "weekly_hour", "value": 9}, {"name": "reboots", "on": "off"}):
@@ -622,7 +635,9 @@ def test_phone_alerts_switches(client):
     assert client.post("/api/watchdog/options", json={"name": "metadata", "on": True}).json() == {"metadata": True}
     assert client.post("/api/watchdog/options", json={"name": "manager", "on": True}).json() == {"manager": True}
     assert client.post("/api/watchdog/options", json={"name": "mediaflow", "on": True}).json() == {"mediaflow": True}
-    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": True, "scripts": True, "backups": True, "security": True, "weekly": True, "metadata": True, "manager": True, "mediaflow": True, "weekly_day": 1, "weekly_time": "07:05"}
+    assert client.post("/api/watchdog/options", json={"name": "caddy", "on": True}).json() == {"caddy": True}
+    assert client.post("/api/watchdog/options", json={"name": "cloudflared", "on": True}).json() == {"cloudflared": True}
+    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": True, "scripts": True, "backups": True, "security": True, "weekly": True, "metadata": True, "manager": True, "mediaflow": True, "caddy": True, "cloudflared": True, "weekly_day": 1, "weekly_time": "07:05"}
     assert client.post("/api/watchdog/tally/clear").json() == {"cleared": True}
     assert client.get("/api/watchdog").json()["tally"] == []
 
