@@ -57,6 +57,9 @@ const QUIET = [
   // AIOMetadata: its cache statistics, logged at info level (ℹ) during its scheduled warm-ups; "Error Rate" and
   // "Errors: 2" are counts, not failures. Every info line of that module; its WARN and ERROR lines stay.
   /\[Cache-Health\] ℹ /,
+  // AIOMetadata: a download or lookup that took a few seconds ("took 2006ms: waiting for a connection ..."), a slow
+  // answer from the other end, not a failure. Every "took N ms" notice of that module; its other lines stay.
+  /\[HTTP-Timing\]\s+WARN\s.* took \d+ms/,
 ];
 const CADDY_STOP = /shutting down apps, then terminating|"msg":"shutdown complete"|exiting; byeee/;
 const RESTART_WINDOW = 10;

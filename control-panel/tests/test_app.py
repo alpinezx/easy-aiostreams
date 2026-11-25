@@ -1187,7 +1187,7 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
     js = (Path(__file__).resolve().parents[1] / "web" / "js" / "logs.js").read_text(encoding="utf-8")
     block = re.search(r"const QUIET = \[(.*?)\n\];", js, re.S).group(1)
     quiet = [re.compile(p) for p in re.findall(r"^\s*/(.+)/,", block, re.M)]
-    assert len(quiet) == 12
+    assert len(quiet) == 13
     grey = [
         # gluetun's first health check, before its DNS was up: it restarted the tunnel itself and was fine seconds later
         '2026-11-18T14:52:57Z WARN [vpn] restarting VPN because it failed to pass the healthcheck: startup check: all check tries failed: parallel attempt 1/2 failed: dialing: dial tcp4: lookup cloudflare.com: i/o timeout, parallel attempt 2/2 failed: dialing: dial tcp4: lookup github.com: i/o timeout',
@@ -1220,6 +1220,7 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
         # AIOMetadata's cache statistics during a scheduled warm-up: counts, not failures
         '2026-11-25T00:14:33.519250172Z [Cache-Health] ℹ Hit Rate: 50.00%, Error Rate: 25.00%, Total: 8',
         '[Cache-Health] ℹ Hits: 4, Misses: 4, Errors: 2, Cached Errors: 0',
+        '[HTTP-Timing]  WARN  GET datasets.imdbws.com/title.ratings.tsv.gz took 2006ms: waiting for a connection 25ms, server 11ms, body 1970ms',
     ]
     red = [
         'ERR  error="Unable to reach the origin service. dial tcp: lookup caddy on 127.0.0.11:53: server misbehaving" connIndex=3 event=1 originService=http://caddy:80',
@@ -1242,6 +1243,8 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
         # AIOMetadata's cache module reporting a real problem stays
         '[Cache-Health]  ERROR  Redis connection lost: connect ECONNREFUSED 172.18.0.5:6379',
         '[Cache-Health]  WARN  Error rate above threshold',
+        '[HTTP-Timing]  ERROR  GET datasets.imdbws.com/title.ratings.tsv.gz failed: ECONNRESET',
+        '[HTTP-Timing]  WARN  GET datasets.imdbws.com/title.ratings.tsv.gz timed out after 30000ms: no response',
     ]
     for line in grey:
         assert any(r.search(line) for r in quiet), line

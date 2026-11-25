@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 25 November 2026
 
+- **Fixed:** Log alerts: AIOMetadata's "took N ms" notices from its HTTP timing (a download that was slow to answer) are grey, not highlighted, on the Overview and Logs. Its errors and other timing lines stay. (Panel 1.68.4, [#230](https://github.com/alpinezx/easy-aiostreams/pull/230))
 - **Fixed:** Network: a mouse over a time range, All traffic or VPN underlines it in the accent colour it takes once chosen (a finger never does, and the chosen one stays bold with no underline). (Panel 1.68.3, [#230](https://github.com/alpinezx/easy-aiostreams/pull/230))
 - **Fixed:** Network on a computer: Last 7 days is a card of its own, as on a phone, and it and By service fold (closed until opened, remembered per browser); the graph stays open. (Panel 1.68.2, [#230](https://github.com/alpinezx/easy-aiostreams/pull/230))
 - **Fixed:** Network: the VPN tab says "VPN is off" instead of staying on "Measuring…" when the VPN is switched off but still installed, and the VPN row under By service shows the tunnel's own speed, the same as the graph, instead of Docker's figure for the whole gluetun container, which counted the tunnel twice. On phones the Network tabs no longer have an underline (the accent colour and bold show the chosen one), Edit's Reset to default confirms with a toast that sits above the drawer's buttons, and Phone alerts' weekly check-in puts the day, time and Set on one row. (Panel 1.68.1, [#230](https://github.com/alpinezx/easy-aiostreams/pull/230))
