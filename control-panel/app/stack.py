@@ -30,6 +30,27 @@ from .wgconf import check_wireguard_conf
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 # The Docker network only the panel and Caddy are on; setup-ui.sh creates it
 PANEL_NET = "aios_panel"
+
+DOCKER_SOCK = "unix:///var/run/docker.sock"
+# The Docker API version the panel is written for. Docker answers in that version's
+# format, so a newer Docker can't change what the panel reads. One that no longer takes
+# it (Ubuntu's docker.io 29 takes 1.44 and up) gets the oldest it does take, the closest
+# to this; one older than it gets its newest.
+DOCKER_API = "1.41"
+
+
+def _api_key(v: str) -> tuple[int, ...]:
+    return tuple(int(x) for x in v.split("."))
+
+
+def pick_api_version(info: dict) -> str:
+    """The API version to talk to this Docker in, from its /version answer."""
+    try:
+        low = str(info.get("MinAPIVersion") or DOCKER_API)
+        high = str(info.get("ApiVersion") or DOCKER_API)
+        return min(max(DOCKER_API, low, key=_api_key), high, key=_api_key)
+    except (AttributeError, ValueError):
+        return DOCKER_API
 BACKUP_NAME = re.compile(r"aiostreams-backup-[0-9A-Za-z._-]+\.tar\.gz")
 _BUILD_VERSION = re.compile(r"\d+\.\d+\.\d+")
 _BUILD_TAG = re.compile(r"v\d+\.\d+\.\d+|\d{4}\.\d\d\.\d\d\.\d{4}-nightly")
@@ -396,9 +417,15 @@ class Backend:
     def client(self):
         # Created on first use, not at startup, so the panel still opens (and
         # says "can't reach Docker") if Docker is down when the container starts.
-        # A pinned API version avoids a connection attempt in the constructor.
+        # Docker's own /version (not tied to an API version) says which versions
+        # it takes; a failure leaves no client, so the next use asks again.
         if self._client is None:
-            self._client = docker.DockerClient(base_url="unix:///var/run/docker.sock", timeout=15, version="1.41")
+            probe = docker.DockerClient(base_url=DOCKER_SOCK, timeout=15, version=DOCKER_API)
+            try:
+                info = probe.api.version(api_version=False)
+            finally:
+                probe.close()
+            self._client = docker.DockerClient(base_url=DOCKER_SOCK, timeout=15, version=pick_api_version(info))
         return self._client
 
     # ---- the panel's own network -----------------------------------------
