@@ -1172,7 +1172,7 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
     js = (Path(__file__).resolve().parents[1] / "web" / "js" / "logs.js").read_text(encoding="utf-8")
     block = re.search(r"const QUIET = \[(.*?)\n\];", js, re.S).group(1)
     quiet = [re.compile(p) for p in re.findall(r"^\s*/(.+)/,", block, re.M)]
-    assert len(quiet) == 11
+    assert len(quiet) == 12
     grey = [
         # gluetun's first health check, before its DNS was up: it restarted the tunnel itself and was fine seconds later
         '2026-11-18T14:52:57Z WARN [vpn] restarting VPN because it failed to pass the healthcheck: startup check: all check tries failed: parallel attempt 1/2 failed: dialing: dial tcp4: lookup cloudflare.com: i/o timeout, parallel attempt 2/2 failed: dialing: dial tcp4: lookup github.com: i/o timeout',
@@ -1202,6 +1202,9 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
         # Cloudflare closing one connection with "no error"; it registers again seconds later
         '2026-11-12T18:10:36Z WRN Serve tunnel error error="datagram manager error: Application error 0x0 (remote)" connIndex=3 event=0 ip=198.41.200.53',
         '2026-11-12T18:10:37Z WRN Connection terminated error="datagram manager error: Application error 0x0 (remote)" connIndex=3',
+        # AIOMetadata's cache statistics during a scheduled warm-up: counts, not failures
+        '2026-11-25T00:14:33.519250172Z [Cache-Health] ℹ Hit Rate: 50.00%, Error Rate: 25.00%, Total: 8',
+        '[Cache-Health] ℹ Hits: 4, Misses: 4, Errors: 2, Cached Errors: 0',
     ]
     red = [
         'ERR  error="Unable to reach the origin service. dial tcp: lookup caddy on 127.0.0.11:53: server misbehaving" connIndex=3 event=1 originService=http://caddy:80',
@@ -1221,6 +1224,9 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
         '2026-11-12T18:10:36Z WRN Serve tunnel error error="datagram manager error: Application error 0x1 (remote)" connIndex=3 event=0 ip=198.41.200.53',
         '2026-11-12T18:10:36Z WRN Serve tunnel error error="datagram manager error: Application error 0x0 (local)" connIndex=3 event=0 ip=198.41.200.53',
         '2026-11-06T21:12:30Z ERROR [vpn] cannot get version information: bad response HTTP status code: 500 500 Internal Server Error',
+        # AIOMetadata's cache module reporting a real problem stays
+        '[Cache-Health]  ERROR  Redis connection lost: connect ECONNREFUSED 172.18.0.5:6379',
+        '[Cache-Health]  WARN  Error rate above threshold',
     ]
     for line in grey:
         assert any(r.search(line) for r in quiet), line

@@ -54,6 +54,9 @@ const QUIET = [
   /ERR {2}error="unexpected EOF" .*originService=/,   // a cut connection's first half; its Request failed line says what it was
   // A restart cut a live page: AIOStreams' dashboard, or this panel's own Logs.
   /Request failed error="unexpected EOF" .*dest=https?:\/\/[^/ ]+\/api\/(v1\/dashboard\/[^ ]*\/stream|logs\/[^ ]*) /,
+  // AIOMetadata: its cache statistics, logged at info level (ℹ) during its scheduled warm-ups; "Error Rate" and
+  // "Errors: 2" are counts, not failures. Every info line of that module; its WARN and ERROR lines stay.
+  /\[Cache-Health\] ℹ /,
 ];
 const CADDY_STOP = /shutting down apps, then terminating|"msg":"shutdown complete"|exiting; byeee/;
 const RESTART_WINDOW = 10;
