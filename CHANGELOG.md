@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 25 November 2026
 
+- The control panel has a Docker network of its own that only Caddy shares, so AIOStreams, the VPN, the tunnel and the add-ons can't reach it round Caddy's unlock link. An update moves it over, and Caddy stays up. When a script recreates Caddy, the panel puts it back on that network itself within a second or so. (Panel 1.70.0, [#230](https://github.com/alpinezx/easy-aiostreams/pull/230))
 - Updating the control panel keeps the earlier panel (its image, as `aios-ui:aios-previous`, and its files) until the new one is up, and puts it back by itself if the new one doesn't build or start. The update screen and the Scripts tab say when that happened. A rebuild on its own, after a restore say, keeps the earlier image the same way. (Panel 1.69.0, [#230](https://github.com/alpinezx/easy-aiostreams/pull/230))
 - **Docs:** The watchdog guide lists the Caddy and cloudflared release alerts, and says which page each alert's Open panel button opens. (Panel 1.68.4, [#230](https://github.com/alpinezx/easy-aiostreams/pull/230))
 - **Fixed:** Log alerts: AIOMetadata's "took N ms" notices from its HTTP timing (a download that was slow to answer) are grey, not highlighted, on the Overview and Logs. Its errors and other timing lines stay. (Panel 1.68.4, [#230](https://github.com/alpinezx/easy-aiostreams/pull/230))

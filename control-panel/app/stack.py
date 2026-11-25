@@ -28,6 +28,8 @@ from .traffic import dev_counters, host_net
 from .wgconf import check_wireguard_conf
 
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+# The Docker network only the panel and Caddy are on; setup-ui.sh creates it
+PANEL_NET = "aios_panel"
 BACKUP_NAME = re.compile(r"aiostreams-backup-[0-9A-Za-z._-]+\.tar\.gz")
 _BUILD_VERSION = re.compile(r"\d+\.\d+\.\d+")
 _BUILD_TAG = re.compile(r"v\d+\.\d+\.\d+|\d{4}\.\d\d\.\d\d\.\d{4}-nightly")
@@ -388,6 +390,7 @@ class Backend:
         self._last_view = 0.0          # when /api/status was last asked for
         self._cert_cache: dict = {}
         threading.Thread(target=self._stats_loop, daemon=True).start()
+        threading.Thread(target=self._caddy_net_loop, daemon=True).start()
 
     @property
     def client(self):
@@ -397,6 +400,46 @@ class Backend:
         if self._client is None:
             self._client = docker.DockerClient(base_url="unix:///var/run/docker.sock", timeout=15, version="1.41")
         return self._client
+
+    # ---- the panel's own network -----------------------------------------
+    # The panel sits alone on PANEL_NET with Caddy, so the other containers can't
+    # reach it round Caddy's cookie gate. Caddy's compose file doesn't name that
+    # network (it's written by several scripts, old and new), so whenever Caddy
+    # is recreated it comes back without it; this puts it back.
+    def keep_caddy_connected(self) -> bool:
+        """Connects Caddy to the panel's network if it isn't on it. False when there's
+        nothing to do it with: no such network (setup-ui.sh from before it) or no Caddy."""
+        try:
+            net = self.client.networks.get(PANEL_NET)
+            caddy = self.client.containers.get("caddy")
+        except Exception:
+            return False
+        if PANEL_NET in ((caddy.attrs.get("NetworkSettings") or {}).get("Networks") or {}):
+            return True
+        try:
+            net.connect(caddy)
+        except Exception:
+            return False
+        return True
+
+    def _caddy_net_loop(self):
+        # Right away at the panel's start, at once when Caddy starts (Docker's events), and
+        # every minute in case an event was missed. Each events call ends after 10 seconds,
+        # inside the client's 15 second read timeout.
+        last, mark = 0.0, int(time.time())
+        while True:
+            try:
+                if time.time() - last >= 60:
+                    self.keep_caddy_connected()
+                    last = time.time()
+                until = mark + 10
+                for _ in self.client.events(decode=True, since=mark, until=until,
+                                            filters={"type": "container", "event": "start", "container": "caddy"}):
+                    self.keep_caddy_connected()
+                mark = until
+            except Exception:
+                time.sleep(10)
+                mark = int(time.time())
 
     # ---- paths ---------------------------------------------------------
     @property

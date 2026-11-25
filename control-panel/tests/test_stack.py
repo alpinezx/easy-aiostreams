@@ -651,3 +651,26 @@ def test_add_ons_read_from_their_saved_settings(tmp_path, monkeypatch):
         import shutil
         shutil.rmtree(root / rel)
     assert b.addons_info() == []
+
+
+def test_caddy_put_back_on_the_panels_network_only_when_off_it():
+    """A recreated Caddy is off the panel's own network: the panel connects it again. Already on
+    it, nothing is done; no such network (setup-ui.sh from before it) or no Caddy, nothing either."""
+    import docker as dk
+    joined = []
+    caddy = SimpleNamespace(name="caddy", attrs={"NetworkSettings": {"Networks": {"aiostreams_default": {}}}})
+    net = SimpleNamespace(connect=lambda c: joined.append(c.name))
+    nets = {"aios_panel": net}
+
+    def get_net(n):
+        if n not in nets:
+            raise dk.errors.NotFound(n)
+        return nets[n]
+    b = stack.Backend.__new__(stack.Backend)
+    b._client = SimpleNamespace(networks=SimpleNamespace(get=get_net),
+                                containers=SimpleNamespace(get=lambda n: caddy))
+    assert b.keep_caddy_connected() and joined == ["caddy"]
+    caddy.attrs["NetworkSettings"]["Networks"]["aios_panel"] = {}
+    assert b.keep_caddy_connected() and joined == ["caddy"]
+    nets.clear()
+    assert not b.keep_caddy_connected() and joined == ["caddy"]

@@ -32,7 +32,10 @@ ROOT_HOME="$(getent passwd root 2>/dev/null | cut -d: -f6)"
 ROOT_HOME="${ROOT_HOME:-/root}"
 COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"
 CADDY_DROPIN_DIR="$INSTALL_DIR/caddy.d"
-SHARED_NET="aios_shared"
+# The panel's own Docker network: only the panel and Caddy are on it, so the
+# stack's other containers (AIOStreams, the VPN, the tunnel, add-ons) can't
+# reach the panel round Caddy's cookie gate.
+PANEL_NET="aios_panel"
 
 # The panel's code lives in $INSTALL_DIR/control-panel (where it would land
 # if it came from the GitHub repo) and is built straight from there. Its
@@ -66,8 +69,20 @@ fi
 docker ps --format '{{.Names}}' 2>/dev/null | grep -qx caddy || \
     error "The 'caddy' container isn't running. Start AIOStreams first (setup-aiostreams.sh, option 3)."
 
-ensure_shared_network() {
-    docker network inspect "$SHARED_NET" >/dev/null 2>&1 || docker network create "$SHARED_NET" >/dev/null
+# Makes the panel's network and puts Caddy on it. Caddy's compose file doesn't
+# name it, so a recreated Caddy comes back without it: the panel connects it
+# again itself, at once (Backend.keep_caddy_connected). Done here too so Caddy
+# can reach a new panel from its first second.
+ensure_panel_network() {
+    docker network inspect "$PANEL_NET" >/dev/null 2>&1 || docker network create "$PANEL_NET" >/dev/null \
+        || error "Couldn't create the panel's Docker network ($PANEL_NET)."
+    connect_caddy
+}
+
+connect_caddy() {
+    [[ -n "$(docker inspect -f "{{if index .NetworkSettings.Networks \"$PANEL_NET\"}}y{{end}}" caddy 2>/dev/null)" ]] && return 0
+    docker network connect "$PANEL_NET" caddy >/dev/null 2>&1 \
+        || warn "Couldn't connect Caddy to the panel's network; the panel does it when it starts."
 }
 
 # Runs from the panel's own folder, the only place it is built from.
@@ -90,7 +105,7 @@ services:
     # Root-equivalent on this server, on purpose: it has to run your setup-*.sh
     # scripts on the host itself (through nsenter into PID 1) and read Docker.
     # That is why it sits behind Caddy's secret-cookie gate AND its own login.
-    # It publishes no ports. Only Caddy can reach it.
+    # It publishes no ports, and only Caddy shares its network.
     privileged: true
     pid: host
     environment:
@@ -103,9 +118,9 @@ services:
       - ${INSTALL_DIR}:${INSTALL_DIR}:ro
       - ${STATE_DIR}:/state
     networks:
-      - ${SHARED_NET}
+      - ${PANEL_NET}
 networks:
-  ${SHARED_NET}:
+  ${PANEL_NET}:
     external: true
 COMPOSE_EOF
     chmod 600 "$UI_COMPOSE"
@@ -294,7 +309,7 @@ do_install() {
         [[ "$CONT" =~ ^[Yy]$ ]] || exit 0
     fi
 
-    ensure_shared_network
+    ensure_panel_network
     mkdir -p "$STATE_DIR"; chmod 700 "$STATE_DIR"
     require_panel_dir
     printf 'DOMAIN=%s\n' "$DOMAIN" > "$CONFIG_FILE"
@@ -332,6 +347,7 @@ do_status() {
 }
 
 do_start() {
+    ensure_panel_network
     (cd "$STATE_DIR" && docker compose -f "$UI_COMPOSE" up -d)
     [[ -f "$CADDY_SNIPPET" ]] || { write_caddy_snippet "$(grep -oP '^DOMAIN=\K.*' "$CONFIG_FILE")" "$(cat "$GATE_FILE")"; reload_caddy || true; }
     echo "Started."
@@ -494,6 +510,7 @@ do_rebuild() {
         warn "Couldn't build the new panel, so the one already running carries on."
         return 1
     fi
+    ensure_panel_network
     (cd "$STATE_DIR" && docker compose -f "$UI_COMPOSE" up -d --force-recreate) || true
     local up=true
     wait_until_up || up=false
@@ -549,6 +566,8 @@ do_uninstall() {
     rm -f "$CADDY_SNIPPET" "${CADDY_SNIPPET}.rejected"
     reload_caddy || true
     docker image rm "$IMAGE_NAME" >/dev/null 2>&1 || true
+    docker network disconnect "$PANEL_NET" caddy >/dev/null 2>&1 || true
+    docker network rm "$PANEL_NET" >/dev/null 2>&1 || true
     # The backups' locks and notes describe the backup files, not the panel, and
     # scheduled backups keep using them, so they stay.
     find "${STATE_DIR:?}" -mindepth 1 -maxdepth 1 ! -name backup-meta.json -exec rm -rf {} +

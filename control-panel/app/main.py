@@ -1053,17 +1053,28 @@ def outside_jobs(services: list[dict], windows: list[tuple[float, float]]) -> li
 # the same line at any other time still shows: a real stall is worth a look.
 RESUME_QUIET = [re.compile(r"\bEvent loop stalled for \d+ ?ms\b")]
 RESUME_GRACE = 60
+# The same for a container's own start only, not a backup. Caddy recreated by any script comes
+# back without the panel's network, and can't find the panel until the panel connects it again
+# (Backend.keep_caddy_connected, a second or so later). Any other time the line still shows.
+START_QUIET = {"caddy": [re.compile(r"\blookup aios-ui\b")]}
 
 
 def after_resumes(services: list[dict], resumes: dict[str, list[float]]) -> list[dict]:
     """resumes (Backend.resumes): a container's own starts under its name, and backups
     (every container) under "*"."""
+    def near(t, times):
+        return any(a - 5 <= t <= a + RESUME_GRACE for a in times)
+
     def keep(cname, line):
-        if not any(r.search(line) for r in RESUME_QUIET):
+        own = any(r.search(line) for r in START_QUIET.get(cname, ()))
+        if not own and not any(r.search(line) for r in RESUME_QUIET):
             return True
         t = _line_time(line)
-        times = [*resumes.get("*", ()), *resumes.get(cname, ())]
-        return t is None or not any(a - 5 <= t <= a + RESUME_GRACE for a in times)
+        if t is None:
+            return True
+        if own:
+            return not near(t, resumes.get(cname, ()))
+        return not near(t, [*resumes.get("*", ()), *resumes.get(cname, ())])
     return [{**s, "lines": [ln for ln in s["lines"] if keep(s.get("container"), ln)]} for s in services]
 
 

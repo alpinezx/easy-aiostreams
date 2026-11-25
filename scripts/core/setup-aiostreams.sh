@@ -1530,6 +1530,8 @@ if [[ -f "$COMPOSE_FILE" ]]; then
                 docker image rm "$img" >/dev/null 2>&1 || true
             done
             docker network rm "$SHARED_NET" >/dev/null 2>&1 || true
+            # The control panel's own network (setup-ui.sh), if the panel was set up
+            docker network rm aios_panel >/dev/null 2>&1 || true
 
             read -rp "Delete the config directory ($INSTALL_DIR), including your SECRET_KEY backup? [y/N]: " REMOVE_CONFIG
             if [[ "$REMOVE_CONFIG" =~ ^[Yy]$ ]]; then

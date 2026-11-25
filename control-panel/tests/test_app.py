@@ -798,6 +798,24 @@ def test_log_warnings_skip_stalls_right_after_a_backup_pause():
     assert got[1]["lines"] == svc[1]["lines"]
 
 
+def test_log_warnings_skip_caddy_missing_the_panel_right_after_its_start():
+    """Caddy recreated by a script is off the panel's network until the panel connects it again:
+    its "lookup aios-ui" errors stay off the card for a minute after Caddy's own start. After a
+    backup, later on, and any other Caddy error in that minute, they still show."""
+    from datetime import datetime, timezone
+    import app.main as m
+    t = lambda s: datetime.strptime(s, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc).timestamp()
+    miss = '{"level":"error","logger":"http.log.error","msg":"dial tcp: lookup aios-ui on 127.0.0.11:53: no such host","status":502}'
+    svc = [{"container": "caddy", "name": "Caddy", "lines": [
+        f"2026-11-25T10:00:02.1Z {miss} started",
+        '2026-11-25T10:00:03.1Z {"level":"error","msg":"dial tcp 172.19.0.2:3000: connect: connection refused"} kept',
+        f"2026-11-25T11:00:01.1Z {miss} backup",
+        f"2026-11-25T12:00:00.1Z {miss} later"]}]
+    resumes = {"*": [t("2026-11-25T11:00:00")], "caddy": [t("2026-11-25T10:00:01")]}
+    got = m.after_resumes(svc, resumes)
+    assert [ln.split(" ")[-1] for ln in got[0]["lines"]] == ["kept", "backup", "later"]
+
+
 def test_log_warnings_card_clear(client):
     """The card's bin: lines up to then leave the card for good, newer ones still show."""
     from datetime import datetime, timezone
