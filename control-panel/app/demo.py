@@ -430,6 +430,8 @@ class DemoBackend:
         elif starting:
             overall = "starting" if all(s.get("planned") for s in starting) else "degraded"
             headline = f"{starting[0]['name']} starting"
+        elif any(s.get("resuming") for s in services):
+            overall, headline = "starting", "Services resuming"
         else:
             overall, headline = "ok", "All running"
         return {

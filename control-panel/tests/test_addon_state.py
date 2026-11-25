@@ -145,3 +145,14 @@ def test_starting_after_the_panel_started_it_is_grey():
     assert Backend._summarize(True, True, [svc("AIOMetadata", planned=True)]) == ("starting", "AIOMetadata starting")
     assert Backend._summarize(True, True, [svc("AIOMetadata", planned=True), svc("AIOManager")])[0] == "degraded"
     assert Backend._summarize(True, True, [svc("AIOMetadata")])[0] == "degraded"
+
+
+def test_headline_says_services_resuming_without_names():
+    from app.stack import Backend
+    run = lambda name, **k: {"name": name, "state": "running", "addon": True, **k}
+    both = [run("AIOMetadata", resuming=True), run("AIOManager", resuming=True), run("Caddy", addon=False)]
+    assert Backend._summarize(True, True, both) == ("starting", "Services resuming")
+    assert Backend._summarize(True, True, [run("Caddy")]) == ("ok", "All running")
+    # a real problem still wins over a resume
+    down = both + [{"name": "VPN", "state": "stopped", "addon": False}]
+    assert Backend._summarize(True, True, down) == ("down", "VPN down")

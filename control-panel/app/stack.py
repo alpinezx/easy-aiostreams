@@ -1028,6 +1028,9 @@ class Backend:
         if soft:
             # amber unless every one of them is only starting because the panel started it (grey)
             return ("starting" if all(s.get("planned") for s in soft) else "degraded"), f"{soft[0]['name']} starting"
+        if any(s.get("resuming") for s in services):
+            # grey lamp, no names: a backup usually resumes several, and the Services rows name them
+            return "starting", "Services resuming"
         return "ok", "All running"
 
     def _cpu_pct(self) -> float | None:
