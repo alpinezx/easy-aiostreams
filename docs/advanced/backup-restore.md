@@ -209,6 +209,18 @@ current one aside, right next to it (e.g.
 `/opt/aiostreams.pre-restore-YYYYMMDD-HHMMSS`) rather than deleting it
 outright, so you can recover if you picked the wrong tarball.
 
+Nothing is moved until the backup has been checked. The restore first makes
+sure the disk has room for the unpacked backup (and, if not, lists the
+`pre-restore-*` folders earlier restores set aside, which you can delete).
+It then unpacks the backup into a folder of its own next to the install
+(`/opt/aiostreams.restoring-<date>-<time>`) and checks that it unpacked
+whole and has a `SECRET_KEY`. Every question that can stop the restore (the
+DNS check, the add-ons' subdomains, at home the site names and tunnel token,
+and starting without a VPN that was switched off) is asked against that
+copy, before the install is replaced. Abort, No or Ctrl+C at any of them, or a
+backup that fails the checks, leaves the server as it was. A `restoring-*`
+folder left by a restore that was killed midway is removed by the next restore.
+
 Its add-ons go first: AIOMetadata, AIOManager (and its sign-ups timer), MediaFlow,
 the webhook relay, the watchdog timer, the VPN boot hook, MediaFlow's fail2ban jail
 and the control panel are stopped
