@@ -94,9 +94,15 @@ const SVG = "http://www.w3.org/2000/svg";
 
 const STATE_WORD = {
   running: "Running", starting: "Starting", stopped: "Stopped", missing: "Not created",
-  unhealthy: "Unhealthy", restarting: "Restarting", paused: "Stopped manually",
+  unhealthy: "Unhealthy", restarting: "Restarting", paused: "Stopped manually", resuming: "Resuming",
+  planned: "Starting",
 };
-const stateOf = (s) => (s.on_purpose && s.state !== "running" ? "paused" : s.state);
+// Resuming: running, just back from a backup's pause, waiting for its next health check. Grey, not red:
+// counted as running everywhere (buttons, figures, the headline), only its dot and word differ.
+// Planned: still starting after the panel started or restarted it. Grey "Starting"; amber when nothing
+// from the panel explains it (after a crash, say).
+const stateOf = (s) => (s.resuming ? "resuming" : s.planned ? "planned"
+  : s.on_purpose && s.state !== "running" ? "paused" : s.state);
 
 // A container's CPU history is Docker's figure, up to 100% per CPU. Shown, and coloured,
 // by its share of the whole server, like This server's CPU, and only once the last 3 readings were all that
@@ -108,7 +114,7 @@ function cpuTone(h, cpus) {
 }
 
 function uptime(s) {
-  if (s.state !== "running" || !s.started_at) return "";
+  if (s.state !== "running" || s.resuming || !s.started_at) return "";
   return fmtDur((Date.now() - Date.parse(s.started_at)) / 1000);
 }
 
@@ -311,8 +317,10 @@ function hero(st) {
     // from GitHub (it drops below the headline when they don't fit on one line).
     // Opening AIOStreams is the version card's title.
     el.append(h("div", { class: "hero-head" },
-      h("span", { class: "lamp", dataset: { s: st.overall }, "aria-hidden": "true" }),
-      h("h1", { class: "headline", "aria-live": "polite", text: st.headline }),
+      // The lamp and headline as one piece, so a long headline wraps beside its lamp, never under it
+      h("div", { class: "hero-title" },
+        h("span", { class: "lamp", dataset: { s: st.overall }, "aria-hidden": "true" }),
+        h("h1", { class: "headline", "aria-live": "polite", text: st.headline })),
       h("a", { class: "chip warn scripts-pill", id: "scripts-pill", href: "#scripts", hidden: true }),
       // Fold all under the headline. What's new and Edit are on its line: on desktop CSS lifts them to
       // the top right (the panel's name line); on phones they're icons at the line's right end
@@ -591,13 +599,18 @@ function path(st) {
       return;
     }
     // One tree on every screen: who hands on to whom, a light for each service
-    const up = (s, upstreamOk) => upstreamOk && s.state === "running";
+    // A line is "live", "coming" (grey: it or something above it is only starting after the panel
+    // started it) or "broken" (red)
+    const up = (s, above) => (above === "broken" ? "broken"
+      : s.state === "running" ? above : s.planned ? "coming" : "broken");
     const row = (s, ok) => {
       const sx = stateOf(s);
-      return h("li", { class: ok ? "live" : "broken" },
+      return h("li", { class: ok },
         h("div", { class: "t-row", dataset: { s: sx, svc: s.key }, title: `${s.name}: ${STATE_WORD[sx] || sx}` },
           h("span", { class: "t-name", text: s.name }),
-          h("span", { class: "t-state" }, h("span", { class: "word", text: STATE_WORD[sx] || sx }),
+          h("span", { class: "t-state" }, sx === "resuming"
+            ? h("span", { class: "word", text: "Resuming" })
+            : h("span", { class: "word", text: STATE_WORD[sx] || sx }),
             " ", h("span", { class: "dim", dataset: { up: s.key }, text: uptime(s) }))));
     };
     // What each service hands on to: the next in the main line, then its add-ons
@@ -620,7 +633,7 @@ function path(st) {
     if (corner) { corner.classList.add("ph-corner"); head.append(corner); }
     const tree = h("ul", { class: "flow-tree" },
       h("li", { class: "t-root" }, h("div", { class: "t-row t-start", text: "Visitors" }),
-        main.length ? h("ul", {}, after(0, true)) : null));
+        main.length ? h("ul", {}, after(0, "live")) : null));
     el.append(tree);
     // Under the flow at the bottom right, like Reboot server on This server
     const b = restartBtn();
@@ -665,8 +678,13 @@ function svcHead(st) {
     el.append(foldSum([[`${up.length} of ${st.services.length} running`, up.length === st.services.length ? "ok" : ""],
       ...st.services.filter((s) => s.state !== "running").map((s) => {
         const sx = stateOf(s);
-        return [`${s.name}: ${(STATE_WORD[sx] || sx).toLowerCase()}`, sx === "paused" ? "warn" : "bad"];
+        // the same colours as the dots: amber worth a look, grey planned, red broken. Each on its own line on
+        // a phone (svc-st), so none wraps halfway
+        return [`${s.name}: ${(STATE_WORD[sx] || sx).toLowerCase()}`,
+          (sx === "paused" || sx === "starting" ? "warn" : sx === "planned" ? "" : "bad") + " svc-st"];
       }),
+      // Grey, no colour: running, only waiting for its next health check
+      ...st.services.filter((s) => s.resuming).map((s) => [`${s.name}: ${STATE_WORD.resuming.toLowerCase()}`, "svc-st"]),
       [h("span", { class: "svc-pair" }, h("span", { dataset: { cpu: "1" } }), h("span", { dataset: { mem: "1" } })), "svc-load"]]));
   });
   setText(el, "[data-cpu]", up.some((s) => s.cpu != null) ? `CPU ${Math.round(cpu * 10) / 10}%` : "");
@@ -696,7 +714,7 @@ const VPN_START_LEAD = "Starting the VPN turns it on, as Turn VPN on on its card
 function servicesWithVpn(st) {
   const noConfig = vpnInfo && vpnInfo.mode === "off" && vpnInfo.has_config === false;
   if (st.vpn !== "off" || noConfig || st.services.some((s) => s.key === "gluetun")) return st.services;
-  return [...st.services, { key: "gluetun", container: "gluetun", name: "VPN tunnel", role: "gluetun, WireGuard",
+  return [...st.services, { key: "gluetun", container: "gluetun", name: "VPN", role: "gluetun, WireGuard",
     present: false, state: "off", vpnOff: true }];
 }
 const byButtons = (services) => services.map((s, i) => [s, i])

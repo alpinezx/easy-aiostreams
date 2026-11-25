@@ -55,14 +55,14 @@ def test_secrets_never_in_status(tmp_path, monkeypatch):
 def test_down_when_required_service_stopped(tmp_path, monkeypatch):
     b = make_backend(tmp_path, monkeypatch, [container("caddy"), container("aiostreams", running=False)])
     st = b.status()
-    assert st["overall"] == "down" and st["headline"] == "AIOStreams is down"
+    assert st["overall"] == "down" and st["headline"] == "AIOStreams down"
 
 
 def test_stopped_on_purpose_is_not_an_alarm(tmp_path, monkeypatch):
     b = make_backend(tmp_path, monkeypatch, [container("caddy"), container("aiostreams", running=False)],
                      extra_files=["aiostreams-stopped-on-purpose"])
     st = b.status()
-    assert st["overall"] == "paused" and st["headline"] == "AIOStreams is stopped"
+    assert st["overall"] == "paused" and st["headline"] == "AIOStreams stopped"
 
 
 def test_unhealthy_counts_as_down(tmp_path, monkeypatch):
@@ -522,13 +522,20 @@ def test_watchdog_info_reads_events_and_tally_and_masks_the_topic(tmp_path, monk
     assert w["cert_note"] is None and w["cert_sites"] == []          # one site: nothing to unfold
     # the same checks as rows: the site with its address (loaded, certificate), then the checks with no address
     assert w["watch_rows"] == [{"name": "AIOStreams", "host": "streams.example.com", "what": "loads, certificate"}, {"name": "Disk space"}]
+    # Caddy's and cloudflared's release switches: only once the copy the timer runs has those checks
+    assert w["proxy_alerts"] is False and w["tunnel"] is False and w["auto_updates"] is False
+    (d / "watchdog.sh").write_text("check_caddy_updates() {\n")
+    (tmp_path / "aiostreams" / "auto-updates").write_text("# note\nmode=monthly\n")
+    w = b.watchdog_info()
+    assert w["proxy_alerts"] is True and w["auto_updates"] is True
     # through a Cloudflare Tunnel: the tunnel first (the way in), no certificate line, a note saying why
     (tmp_path / "aiostreams" / "tunnel-state").mkdir()
     (tmp_path / "aiostreams" / "tunnel-state" / "token.env").write_text("TOKEN=x\n")
     w = b.watchdog_info()
-    assert w["watches"] == ["Cloudflare Tunnel", "https://streams.example.com", "Disk space"]
+    assert w["watches"] == ["Cloudflare", "https://streams.example.com", "Disk space"]
     assert w["cert_note"] == "Cloudflare handles the certificates" and w["cert_sites"] == []
-    assert w["watch_rows"] == [{"name": "Cloudflare Tunnel"}, {"name": "AIOStreams", "host": "streams.example.com", "what": "loads"}, {"name": "Disk space"}]
+    assert w["tunnel"] is True
+    assert w["watch_rows"] == [{"name": "Cloudflare"}, {"name": "AIOStreams", "host": "streams.example.com", "what": "loads"}, {"name": "Disk space"}]
 
 
 @pytest.mark.skipif(not __import__("shutil").which("sh"), reason="needs sh")

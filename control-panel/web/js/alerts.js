@@ -214,6 +214,13 @@ function tzNote(tz) {
   return `server time (${tz})`;
 }
 
+// Caddy's and cloudflared's release rows: with monthly automatic updates on, the alert says when they'll install it
+function proxyText(w) {
+  return w.auto_updates
+    ? "One alert per release, a day after it's out. Automatic updates install it on the first Wednesday of the month."
+    : "One alert per release, a day after it's out, with how to update.";
+}
+
 // The optional alerts, off until switched on. They take effect from the next check.
 function extras(w) {
   const opt = w.options || {};
@@ -267,6 +274,10 @@ function extras(w) {
     w.aiomanager ? row("manager", "When a new AIOManager release is out", "One alert per release, with how to update.") : null,
     // and MediaFlow's
     w.mediaflow ? row("mediaflow", "When a new MediaFlow release is out", "One alert per release, with how to update.") : null,
+    // Caddy's and cloudflared's, once the server's watchdog script has those checks (older copies would ignore the switch).
+    // A day after the release, when the Maintenance page offers it too.
+    w.proxy_alerts ? row("caddy", "When a new Caddy release is out", proxyText(w)) : null,
+    w.proxy_alerts && w.tunnel ? row("cloudflared", "When a new cloudflared release is out", proxyText(w)) : null,
     row("reboots", "When the server restarts", "With how long it was down, and whether it shut down cleanly."),
     row("scripts", "When a script here differs from GitHub's copy", "Scripts can change several times a week, "
       + "so this can be chatty. At most one alert a day."),

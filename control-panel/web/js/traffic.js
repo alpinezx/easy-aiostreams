@@ -26,7 +26,7 @@ export const trafficStale = (kind = "vpn") => !hist[kind].loading && (!hist[kind
 
 // The Network page's bin: asks first, the view shown (All traffic or VPN tunnel) or, with the
 // VPN set up, both at once; then the record starts again from now. True once it's cleared.
-const VIEW = { host: "All traffic", vpn: "VPN tunnel" };
+const VIEW = { host: "All traffic", vpn: "VPN" };
 export async function clearHistory(kind, withVpn) {
   // "This view" / "Both views": the views' own names on the buttons read alike ("All traffic" vs "Both")
   const pick = await ask({ title: "Clear traffic history?", confirmLabel: withVpn ? "This view" : "Clear history",

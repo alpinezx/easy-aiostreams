@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import secrets
 import threading
 import time
@@ -19,7 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from . import audit, auth, config, panelupdate, releases, scriptsync, serverip
 from .actions import SCRIPTS, BadAction, build_delete_config, build_restore, build_use_file, resolve
 from .proxy import CaddyProxyHeaders
-from .stack import BACKUP_NAME, RESTARTABLE, WITH_MAIN, backup_path
+from .stack import BACKUP_NAME, RESTARTABLE, WITH_MAIN, backup_path, note_planned
 
 if config.DEMO:
     from .demo import DemoBackend
@@ -737,7 +738,7 @@ async def set_restart_schedule(request: Request, user: str = Depends(current_use
 
 @app.get("/api/proxies")
 async def proxies(force: bool = False, user: str = Depends(current_user)):
-    """Maintenance's Caddy and Cloudflare Tunnel card: versions, the newest releases (force asks GitHub again)."""
+    """Maintenance's Caddy and Cloudflare card: versions, the newest releases (force asks GitHub again)."""
     return await asyncio.to_thread(backend.proxies_info, force)
 
 
@@ -795,7 +796,7 @@ async def set_asides(user: str = Depends(current_user)):
 
 
 @app.delete("/api/set-asides/{name}")
-async def delete_set_aside(name: str, user: str = Depends(current_user)):
+async def delete_set_aside(name: str, request: Request, user: str = Depends(current_user)):
     try:
         await asyncio.to_thread(backend.delete_set_aside, name)
     except ValueError:
@@ -804,6 +805,10 @@ async def delete_set_aside(name: str, user: str = Depends(current_user)):
         raise HTTPException(404, "That folder isn't on the server any more.")
     except Exception:
         raise HTTPException(500, "Couldn't delete it.")
+    # The rollback copy can't come back either, so Activity and the panel's own log say so, as for a backup
+    ip = client_ip(request)
+    audit.log(f"set-aside folder {name} deleted by {user} from {ip}")
+    jobs.record("stack.set-aside-delete", "Delete setup from before a restore", [f"==> Deleted {name}", f"From {ip}."])
     return {"ok": True}
 
 
@@ -856,7 +861,7 @@ async def backup_meta(name: str, request: Request, user: str = Depends(current_u
 
 
 @app.delete("/api/backups/{name}")
-async def delete_backup(name: str, user: str = Depends(current_user)):
+async def delete_backup(name: str, request: Request, user: str = Depends(current_user)):
     if load_meta().get(name, {}).get("locked"):
         raise HTTPException(409, "That backup is locked. Unlock it first.")
     try:
@@ -874,6 +879,11 @@ async def delete_backup(name: str, user: str = Depends(current_user)):
                 save_meta(meta)
             except OSError:
                 pass
+    # It can't be undone, so Activity and the panel's own log say which one went, when, and from where
+    ip = client_ip(request)
+    audit.log(f"backup {name} deleted by {user} from {ip}")
+    jobs.record("stack.backup-delete", "Delete backup",
+                [f"==> Deleted {name}", *(f"Removed from {d}" for d in gone), f"From {ip}."])
     return {"ok": True, "deleted_from": gone}
 
 
@@ -1037,16 +1047,41 @@ def outside_jobs(services: list[dict], windows: list[tuple[float, float]]) -> li
             for s in services]
 
 
+# Lines a service writes only because it was just paused (a backup) or started, and so stay off
+# the card for a minute after a backup or that service's own start. Node add-ons (AIOMetadata) see
+# the pause as their event loop stalling for as long as it lasted. The Logs page keeps them, and
+# the same line at any other time still shows: a real stall is worth a look.
+RESUME_QUIET = [re.compile(r"\bEvent loop stalled for \d+ ?ms\b")]
+RESUME_GRACE = 60
+
+
+def after_resumes(services: list[dict], resumes: dict[str, list[float]]) -> list[dict]:
+    """resumes (Backend.resumes): a container's own starts under its name, and backups
+    (every container) under "*"."""
+    def keep(cname, line):
+        if not any(r.search(line) for r in RESUME_QUIET):
+            return True
+        t = _line_time(line)
+        times = [*resumes.get("*", ()), *resumes.get(cname, ())]
+        return t is None or not any(a - 5 <= t <= a + RESUME_GRACE for a in times)
+    return [{**s, "lines": [ln for ln in s["lines"] if keep(s.get("container"), ln)]} for s in services]
+
+
+def _warn_data(loggable) -> tuple[list[dict], dict[str, list[float]]]:
+    return backend.log_warnings(loggable), backend.resumes()
+
+
 @app.get("/api/log-warnings")
 async def log_warnings(user: str = Depends(current_user)):
     """The Overview's Recent log alerts: each running service's lines of the last day
-    that may be warnings or errors, less those logged during the panel's own actions. The
-    browser sorts them with the Logs page's rules."""
+    that may be warnings or errors, less those logged during the panel's own actions or
+    right after a backup's pause. The browser sorts them with the Logs page's rules."""
     hidden = load_warn_hidden()
     if _warn_cache["data"] is None or time.time() - _warn_cache["at"] > 30:
-        _warn_cache["data"] = await asyncio.to_thread(backend.log_warnings, LOGGABLE - set(hidden))
+        _warn_cache["data"] = await asyncio.to_thread(_warn_data, LOGGABLE - set(hidden))
         _warn_cache["at"] = time.time()
-    return {"services": after_clear(outside_jobs(_warn_cache["data"], _job_windows()), _warn_cleared_at()),
+    data, resumes = _warn_cache["data"]
+    return {"services": after_clear(outside_jobs(after_resumes(data, resumes), _job_windows()), _warn_cleared_at()),
             "hidden": hidden}
 
 
@@ -1211,8 +1246,23 @@ class Jobs:
             while len(self.order) > self.KEEP + 5:
                 old = self.order.pop(0)
                 self.items.pop(old, None)
+        note_planned()   # services starting during or just after an action: grey "Starting"
         threading.Thread(target=self._run, args=(job, action, after), daemon=True).start()
         return job
+
+    def record(self, action_id: str, label: str, lines: list[str]) -> None:
+        """A finished entry for something done straight away, without a script (deleting a
+        backup), so Activity still shows it. Never blocks or waits on a running action."""
+        now = time.time()
+        job = {"id": uuid.uuid4().hex[:12], "action": action_id, "label": label, "running": label, "done": label,
+               "started": now, "ended": now, "code": 0, "lines": [{"k": classify(l), "t": l} for l in lines]}
+        with self.lock:
+            self.items[job["id"]] = job
+            self.order.append(job["id"])
+            while len(self.order) > self.KEEP + 5:
+                old = self.order.pop(0)
+                self.items.pop(old, None)
+        self._save()
 
     def _run(self, job, action, after=None):
         def emit(line: str):
@@ -1239,6 +1289,7 @@ class Jobs:
         job["panel_restart"] = restart
         job["code"] = code
         job["ended"] = time.time()
+        note_planned()
         global _status_cache
         _status_cache = None  # next poll reflects what the action changed
         self._save()
@@ -1481,6 +1532,7 @@ async def service_restart(key: str, request: Request, user: str = Depends(curren
         raise HTTPException(404, "That service can't be restarted on its own.")
     if busy := await asyncio.to_thread(host_busy):
         raise HTTPException(409, busy)
+    note_planned(key)   # still starting soon after: grey "Starting", not amber
     try:
         name = await asyncio.to_thread(backend.restart_service, key)
     except RuntimeError as e:

@@ -482,9 +482,15 @@ main { max-width: 1680px; margin: 0 auto; padding: 28px var(--gutter) 96px; }
 /* ---------- hero ---------- */
 .hero { display: grid; gap: 12px; padding: 0 0 26px; }
 .hero-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
+/* The lamp beside the headline's first line (--hl: the headline's font size, its line 1.5 of that),
+   however many lines a long headline takes */
+.hero-title { --hl: 1.875rem; display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.hero-title > .lamp { margin-top: calc(var(--hl) * .75 - 6px); }
+@media (max-width: 720px) { .hero-title { --hl: 1.5rem; } }
 .lamp { flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--faint); position: relative; }
 .lamp[data-s="ok"] { background: var(--ok); box-shadow: 0 0 0 4px var(--ok-soft); }
 .lamp[data-s="degraded"], .lamp[data-s="paused"] { background: var(--warn); box-shadow: 0 0 0 4px var(--warn-soft); }
+.lamp[data-s="starting"] { background: var(--dim); }
 .lamp[data-s="down"] { background: var(--bad); box-shadow: 0 0 0 4px var(--bad-soft); }
 h1.headline {
   margin: 0; font-size: 1.875rem; line-height: 1.5;   /* same size and line height as a page title (.view-head h2); phones: 1.5rem for both */
@@ -569,6 +575,9 @@ button.chip:hover { text-decoration: underline; }
 .path-sum li { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .path-sum i { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
 .path-sum [data-s="running"] i { background: var(--ok); }
+/* Resuming after a backup's pause: fine, only waiting for its next health check. Grey with its word,
+   neither red (broken) nor amber (worth a look) */
+.path-sum [data-s="resuming"] i, .path-sum [data-s="planned"] i { background: var(--dim); }
 .path-sum [data-s="starting"] i, .path-sum [data-s="paused"] i { background: var(--warn); }
 .path-sum [data-s="stopped"] i, .path-sum [data-s="missing"] i, .path-sum [data-s="unhealthy"] i, .path-sum [data-s="restarting"] i { background: var(--bad); }
 .path-sum [data-s="stopped"], .path-sum [data-s="missing"], .path-sum [data-s="unhealthy"], .path-sum [data-s="restarting"] { color: var(--bad); }
@@ -681,6 +690,8 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .state-word[data-s="running"] { color: var(--ok); }
 /* Services: a running service's words in grey, only its dot green (less green in the list) */
 .row .state-word[data-s="running"] { color: var(--dim); }
+.state-word[data-s="resuming"], .state-word[data-s="planned"] { color: var(--dim); }
+.state-word[data-s="resuming"]::before, .state-word[data-s="planned"]::before { background: var(--dim); }
 .state-word[data-s="starting"], .state-word[data-s="paused"] { color: var(--warn); }
 .state-word[data-s="stopped"], .state-word[data-s="missing"], .state-word[data-s="unhealthy"], .state-word[data-s="restarting"] { color: var(--bad); }
 .state-word[data-s="starting"]::before, .state-word[data-s="paused"]::before { background: var(--warn); }
@@ -1192,10 +1203,12 @@ select.input:focus, select.input[aria-expanded="true"] { border-color: var(--lin
 .flow-tree ul > li:last-child::before { bottom: auto; height: 17px; }
 .flow-tree ul > li::after { content: ""; position: absolute; left: 0; top: 16px; width: 14px; height: 2px; background: var(--accent); }
 .flow-tree ul > li.broken::after { background: var(--bad); }
+.flow-tree ul > li.coming::before, .flow-tree ul > li.coming::after { background: var(--dim); }
 .t-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 34px; min-width: 0; }
 .t-name { font-weight: 600; font-size: .95rem; white-space: nowrap; min-width: 0; display: inline-flex; align-items: center; gap: 8px; }
 .t-name::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--faint); flex: none; }
 .t-row[data-s="running"] .t-name::before { background: var(--ok); }
+.t-row[data-s="resuming"] .t-name::before, .t-row[data-s="planned"] .t-name::before { background: var(--dim); }
 .t-row[data-s="starting"] .t-name::before, .t-row[data-s="paused"] .t-name::before { background: var(--warn); }
 .t-row[data-s="stopped"] .t-name::before, .t-row[data-s="missing"] .t-name::before, .t-row[data-s="unhealthy"] .t-name::before, .t-row[data-s="restarting"] .t-name::before { background: var(--bad); }
 .t-state { font-size: .86rem; color: var(--dim); white-space: nowrap; flex: none; }
@@ -2232,7 +2245,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 }
 @media (max-width: 720px) {
   /* Services: folded, the CPU and memory of them all on a line of their own; open, under each name */
-  .fold-sum li.svc-load { flex-basis: 100%; }
+  .fold-sum li.svc-load, .fold-sum li.svc-st { flex-basis: 100%; }
   .row .pstat { display: block; margin-top: 2px; font-variant-numeric: tabular-nums; white-space: pre-line; }
   .row .pstat:empty { display: none; }
   /* the status and uptime on the name's line, CPU and Mem each on a line under the name */
@@ -2609,10 +2622,10 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   #view-backups .item.bk .btns > .btn[data-act="Restore"] { grid-column: 1 / -1; margin-bottom: 8px; }
   #view-backups .item.bk .btns > .btn:not([data-act="Restore"]) { width: auto; justify-self: start; background: none; border-color: transparent;
     box-shadow: none; padding: 6px 0; min-height: 0; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
-  /* the two copies down the left, one long and one short word on each line: Restore command | Lock, scp command | Delete */
-  #view-backups .item.bk .btns:has(> [data-act="Restore"]) > .btn:nth-child(2) { order: 1; }
+  /* the two copies down the left, one long and one short word on each line: scp command | Lock, Restore command | Delete */
+  #view-backups .item.bk .btns:has(> [data-act="Restore"]) > .btn:nth-child(3) { order: 1; }
   #view-backups .item.bk .btns:has(> [data-act="Restore"]) > .btn:nth-child(4) { order: 2; justify-self: end; }
-  #view-backups .item.bk .btns:has(> [data-act="Restore"]) > .btn:nth-child(3) { order: 3; }
+  #view-backups .item.bk .btns:has(> [data-act="Restore"]) > .btn:nth-child(2) { order: 3; }
   #view-backups .item.bk .btns:has(> [data-act="Restore"]) > .btn:nth-child(5) { order: 4; justify-self: end; }
   /* a set-aside folder's lone Delete at the right */
   #view-backups .item.bk .btns:not(:has(> [data-act="Restore"])) > .btn { justify-self: end; }
@@ -2722,7 +2735,9 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 }
 /* Maintenance's Caddy and Cloudflare Tunnel card (maint.js proxies) */
 .prox-card .rs-word .st-i { margin-right: 4px; vertical-align: -1px; }
-.prox-card .prox-ver .mono { font-weight: 600; }
+/* The version as big as All releases beside it (mono is a size smaller elsewhere) */
+.prox-card .prox-ver .mono { font-weight: 600; font-size: 1em; }
+.prox-card .prox-ver > .dim { margin: 0 5px; }
 .prox-card .prox-notes { font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text));
   display: inline; padding: 0; min-height: 0; border: 0; background: none; font-size: inherit; line-height: inherit; }
 #view-maint .prox-card .btn.prox-notes, #view-maint .prox-card .btn.prox-notes:hover:not(:disabled), #view-maint .prox-card .btn.prox-notes:active {
@@ -2730,9 +2745,10 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 .prox-card .prox-notes > svg.bi { display: inline-block; vertical-align: -2px; margin-right: 5px; }
 @media (hover: hover) { .prox-card .prox-notes:hover { text-decoration: underline; } }
 .rs-desk.prox-card .rs-ctl > select { min-width: 16em; }
-/* A short card (Caddy alone, beside a taller one) keeps Automatic updates and the foot at its bottom;
-   the block itself stretches, so its top line stays under Caddy */
-.rs-desk.prox-card .prox-auto-block { flex: 1 0 auto; display: flex; flex-direction: column; justify-content: flex-end; }
+/* A short card (Caddy alone, beside a taller one): Automatic updates stays straight under Caddy and the
+   foot goes to the bottom, so any spare height sits above the foot */
+.rs-desk.prox-card .prox-auto-block { margin-bottom: 10px; }
+.rs-desk.prox-card > .card-foot { margin-top: auto; }
 .rs-desk.prox-card .prox-auto {flex: 1 1 14em; min-width: 0; margin-left: 8px; font-size: 13px; line-height: 1.35; }
 @media (max-width: 720px) {
   /* Phones: the version on the left, All releases on the right, one line (no "serves your sites") */
@@ -2742,9 +2758,10 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   .rs-phone.prox-card .prox-auto { display: block; margin-top: 8px; font-size: 13px; }
 }
 /* Container logs at the foot of Free up space (maint.js logsBlock) */
-.maint-card:has(> .cl-block) > .card-foot { margin-top: 0; padding-bottom: 16px; }
+/* Spare height (beside a taller card) sits above the "can go" line, so it stays on Container logs' line */
+.maint-card:has(> .cl-block) > .card-foot { margin-top: auto; padding-bottom: 16px; }
 .cl-block { margin-top: 16px; border-top: 1px solid var(--line-soft); padding-top: 16px; margin-bottom: 0; }
-.maint-card > .card-foot + .cl-block { margin-top: auto; }
+.maint-card > .card-foot + .cl-block { margin-top: 0; }
 .cl-line { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .cl-word { font-weight: 600; } .cl-word.ok { color: var(--ok); } .cl-word.warn { color: var(--warn); }
 .cl-block .maint-foot { margin-top: 10px; }
@@ -2756,8 +2773,9 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 .up-row .up-go { font-weight: 600; text-decoration: none; }
 @media (hover: hover) { .up-row .up-go:hover { text-decoration: underline; } }
 .up-row .rel-body p { margin: 6px 0 0; }
-.scripts-pill .up-tiny { display: none; }
-@media (max-width: 720px) { .scripts-pill .up-long { display: none; } .scripts-pill .up-tiny { display: inline; } }
-/* Phones: the pill at the right of the headline line, its edge over the Edit pencil
-   (when it wraps under the headline, it stays at the right too) */
-@media (max-width: 720px) { .hero-head > .scripts-pill { margin-left: auto; } }
+/* Phones: the pill always on its own line under the headline, starting under the lamp,
+   so a longer headline never moves it */
+@media (max-width: 720px) {
+  .hero-head > .hero-title { flex: 1 1 100%; }
+  .hero-head > .scripts-pill { margin: -14px 0 0; }
+}

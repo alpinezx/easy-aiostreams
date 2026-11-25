@@ -157,7 +157,7 @@ It appears once the [watchdog](./watchdog.md) is set up over SSH (first-time set
 
 ## Maintenance page
 
-![The Maintenance page](../images/control-panel/maintenance.png)
+![The Maintenance page: system updates, Caddy and Cloudflare Tunnel versions with Update buttons, the scheduled reboot and Free up space](../images/control-panel/maintenance.png)
 
 Read when the page opens and kept for 5 minutes.
 

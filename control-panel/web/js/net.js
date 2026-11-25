@@ -23,7 +23,7 @@ function bin() {
 }
 function sources() {
   return h("div", { class: "tr-ranges", role: "group", "aria-label": "Show" },
-    ...[["host", "All traffic"], ["vpn", "VPN tunnel"]].map(([k, label]) => h("button", { class: "btn small", type: "button", text: label,
+    ...[["host", "All traffic"], ["vpn", "VPN"]].map(([k, label]) => h("button", { class: "btn small", type: "button", text: label,
       "aria-pressed": String(kind() === k), onclick: () => {
         source = k;
         try { localStorage.setItem("aios.netSource", k); } catch (_) {}
@@ -77,7 +77,7 @@ function services(box) {
         const shared = (s.key === "aiostreams" || s.via_vpn) && onVpn;
         return h("div", { class: "ns-row" },
           h("span", { class: "ns-name", text: s.name }),
-          shared ? h("span", { class: "ns-shared dim", text: "Counted under VPN tunnel" })
+          shared ? h("span", { class: "ns-shared dim", text: "Counted under VPN" })
             : s.rx == null ? h("span", { class: "ns-shared dim", text: measured ? "" : "Measuring…" })
             : h("span", { class: "ns-speeds" }, arrowed("↓", fmtRate(s.rx)), arrowed("↑", fmtRate(s.tx))));
       })));

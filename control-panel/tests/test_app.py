@@ -199,9 +199,16 @@ def test_delete_backup_endpoint(client):
     login(client)
     n = len(client.get("/api/backups").json())
     name = client.get("/api/backups").json()[0]["name"]
+    before = len(client.get("/api/jobs").json())
     assert client.delete("/api/backups/" + name).json()["ok"]
     assert len(client.get("/api/backups").json()) == n - 1
+    # It can't be undone, so Activity keeps a finished entry naming the file
+    got = client.get("/api/jobs").json()
+    assert len(got) == before + 1 and got[0]["action"] == "stack.backup-delete" and got[0]["label"] == "Delete backup"
+    assert got[0]["ended"] and got[0]["code"] == 0
+    assert any(name in l["t"] for l in client.get(f"/api/jobs/{got[0]['id']}").json()["lines"])
     assert client.delete("/api/backups/" + name).status_code == 404
+    assert len(client.get("/api/jobs").json()) == before + 1        # a failed delete leaves no entry
     assert client.delete("/api/backups/notabackup").status_code in (400, 404)
     c2 = client.__class__(client.app, base_url="http://testserver")
     assert c2.delete("/api/backups/" + name, headers={"X-UI-Request": "1"}).status_code == 401
@@ -311,9 +318,15 @@ def test_set_aside_endpoints(client):
     assert len(items) == 1
     name = items[0]["name"]
     assert client.delete("/api/set-asides/aiostreams").status_code == 400
+    before = len(client.get("/api/jobs").json())
     assert client.delete("/api/set-asides/" + name).json()["ok"]
     assert client.get("/api/set-asides").json() == []
+    # It can't be undone, so Activity keeps a finished entry naming the folder
+    got = client.get("/api/jobs").json()
+    assert len(got) == before + 1 and got[0]["action"] == "stack.set-aside-delete" and got[0]["code"] == 0
+    assert any(name in l["t"] for l in client.get(f"/api/jobs/{got[0]['id']}").json()["lines"])
     assert client.delete("/api/set-asides/" + name).status_code == 404
+    assert len(client.get("/api/jobs").json()) == before + 1        # a failed delete leaves no entry
 
 
 def test_backup_builds_are_read_in_the_background_and_kept(client):
@@ -607,7 +620,7 @@ def test_phone_alerts_one_event_can_be_removed(client):
 def test_phone_alerts_switches(client):
     assert client.post("/api/watchdog/options", json={"name": "weekly", "on": True}).status_code == 401
     login(client)
-    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": False, "scripts": False, "backups": False, "security": False, "weekly": False, "metadata": False, "manager": False, "mediaflow": False, "weekly_day": 7, "weekly_time": "10:00"}
+    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": False, "scripts": False, "backups": False, "security": False, "weekly": False, "metadata": False, "manager": False, "mediaflow": False, "caddy": False, "cloudflared": False, "weekly_day": 7, "weekly_time": "10:00"}
     for bad in ({"name": "nope", "on": True}, {"name": "weekly", "on": "yes"}, {}, {"name": "weekly_day", "value": 8},
                 {"name": "weekly_time", "value": "24:00"}, {"name": "weekly_time", "value": "9"}, {"name": "weekly_time", "value": 9},
                 {"name": "weekly_day", "value": True}, {"name": "weekly_hour", "value": 9}, {"name": "reboots", "on": "off"}):
@@ -622,7 +635,9 @@ def test_phone_alerts_switches(client):
     assert client.post("/api/watchdog/options", json={"name": "metadata", "on": True}).json() == {"metadata": True}
     assert client.post("/api/watchdog/options", json={"name": "manager", "on": True}).json() == {"manager": True}
     assert client.post("/api/watchdog/options", json={"name": "mediaflow", "on": True}).json() == {"mediaflow": True}
-    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": True, "scripts": True, "backups": True, "security": True, "weekly": True, "metadata": True, "manager": True, "mediaflow": True, "weekly_day": 1, "weekly_time": "07:05"}
+    assert client.post("/api/watchdog/options", json={"name": "caddy", "on": True}).json() == {"caddy": True}
+    assert client.post("/api/watchdog/options", json={"name": "cloudflared", "on": True}).json() == {"cloudflared": True}
+    assert client.get("/api/watchdog").json()["options"] == {"updates": False, "reboots": True, "scripts": True, "backups": True, "security": True, "weekly": True, "metadata": True, "manager": True, "mediaflow": True, "caddy": True, "cloudflared": True, "weekly_day": 1, "weekly_time": "07:05"}
     assert client.post("/api/watchdog/tally/clear").json() == {"cleared": True}
     assert client.get("/api/watchdog").json()["tally"] == []
 
@@ -760,6 +775,26 @@ def test_log_warnings_skip_the_first_minutes_after_boot(monkeypatch):
     got = m.outside_jobs(svc, m._job_windows())
     assert [ln.split(" ")[-1] for ln in got[0]["lines"]] == ["later"]
     # Only Caddy and the tunnel are held back: AIOStreams' start-up problems still show
+    assert got[1]["lines"] == svc[1]["lines"]
+
+
+def test_log_warnings_skip_stalls_right_after_a_backup_pause():
+    """AIOMetadata's event loop "stalls" for as long as a backup paused it: that line stays off the
+    card for a minute after a backup (any container) or the container's own start. The same line
+    later, another container's start, and any other line in that minute still show."""
+    from datetime import datetime, timezone
+    import app.main as m
+    t = lambda s: datetime.strptime(s, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc).timestamp()
+    stall = "[EventLoop]  WARN  Event loop stalled for 3792ms in the second before 2026-11-24T21:15:26.664Z"
+    svc = [{"container": "aiometadata", "name": "AIOMetadata", "lines": [
+        f"2026-11-24T21:15:26.664Z {stall} backup",
+        "2026-11-24T21:15:30.1Z [TMDB] WARN request timed out kept",
+        f"2026-11-24T22:00:03.1Z {stall} started",
+        f"2026-11-24T23:40:00.1Z {stall} later"]},
+        {"container": "aiomanager", "name": "AIOManager", "lines": [f"2026-11-24T22:00:03.1Z {stall} other"]}]
+    resumes = {"*": [t("2026-11-24T21:15:26")], "aiometadata": [t("2026-11-24T22:00:01")]}
+    got = m.after_resumes(svc, resumes)
+    assert [ln.split(" ")[-1] for ln in got[0]["lines"]] == ["kept", "later"]
     assert got[1]["lines"] == svc[1]["lines"]
 
 
@@ -1152,7 +1187,7 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
     js = (Path(__file__).resolve().parents[1] / "web" / "js" / "logs.js").read_text(encoding="utf-8")
     block = re.search(r"const QUIET = \[(.*?)\n\];", js, re.S).group(1)
     quiet = [re.compile(p) for p in re.findall(r"^\s*/(.+)/,", block, re.M)]
-    assert len(quiet) == 11
+    assert len(quiet) == 12
     grey = [
         # gluetun's first health check, before its DNS was up: it restarted the tunnel itself and was fine seconds later
         '2026-11-18T14:52:57Z WARN [vpn] restarting VPN because it failed to pass the healthcheck: startup check: all check tries failed: parallel attempt 1/2 failed: dialing: dial tcp4: lookup cloudflare.com: i/o timeout, parallel attempt 2/2 failed: dialing: dial tcp4: lookup github.com: i/o timeout',
@@ -1182,6 +1217,9 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
         # Cloudflare closing one connection with "no error"; it registers again seconds later
         '2026-11-12T18:10:36Z WRN Serve tunnel error error="datagram manager error: Application error 0x0 (remote)" connIndex=3 event=0 ip=198.41.200.53',
         '2026-11-12T18:10:37Z WRN Connection terminated error="datagram manager error: Application error 0x0 (remote)" connIndex=3',
+        # AIOMetadata's cache statistics during a scheduled warm-up: counts, not failures
+        '2026-11-25T00:14:33.519250172Z [Cache-Health] ℹ Hit Rate: 50.00%, Error Rate: 25.00%, Total: 8',
+        '[Cache-Health] ℹ Hits: 4, Misses: 4, Errors: 2, Cached Errors: 0',
     ]
     red = [
         'ERR  error="Unable to reach the origin service. dial tcp: lookup caddy on 127.0.0.11:53: server misbehaving" connIndex=3 event=1 originService=http://caddy:80',
@@ -1201,6 +1239,9 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
         '2026-11-12T18:10:36Z WRN Serve tunnel error error="datagram manager error: Application error 0x1 (remote)" connIndex=3 event=0 ip=198.41.200.53',
         '2026-11-12T18:10:36Z WRN Serve tunnel error error="datagram manager error: Application error 0x0 (local)" connIndex=3 event=0 ip=198.41.200.53',
         '2026-11-06T21:12:30Z ERROR [vpn] cannot get version information: bad response HTTP status code: 500 500 Internal Server Error',
+        # AIOMetadata's cache module reporting a real problem stays
+        '[Cache-Health]  ERROR  Redis connection lost: connect ECONNREFUSED 172.18.0.5:6379',
+        '[Cache-Health]  WARN  Error rate above threshold',
     ]
     for line in grey:
         assert any(r.search(line) for r in quiet), line
