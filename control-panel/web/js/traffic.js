@@ -317,20 +317,28 @@ function days(d) {
 // The Traffic card's Now: down and up at the same size, side by side (each on its own line
 // where there isn't room), kept up to date with each status check between the minute's redraws
 const nowFigs = {};
-function nowValue(el, n) {
-  el.replaceChildren(...(n ? [h("span", { text: `↓ ${fmtRate(n[0])}` }), h("span", { text: `↑ ${fmtRate(n[1])}` })] : ["Measuring…"]));
+// With the VPN switched off (not removed) the tunnel has no speed to measure: say so, don't wait on one
+let tunnelOff = false;
+export const setTunnelOff = (off) => { tunnelOff = !!off; };
+const OFF_TEXT = "VPN is off";
+const waitText = (kind) => (kind === "vpn" && tunnelOff ? OFF_TEXT : "Measuring…");
+function nowValue(el, n, kind) {
+  el.replaceChildren(...(n ? [h("span", { text: `↓ ${fmtRate(n[0])}` }), h("span", { text: `↑ ${fmtRate(n[1])}` })] : [waitText(kind)]));
 }
-function nowFig(n) {
+function nowFig(n, kind) {
   const f = fig("Now", "", "");
   const v = f.querySelector(".vpn-value");
   v.classList.add("tr-now");
-  nowValue(v, n);
+  nowValue(v, n, kind);
   return f;
 }
 export function updateNow() {
   for (const [kind, f] of Object.entries(nowFigs)) {
-    const n = f.isConnected && nowRate(trafficData(kind), kind);
-    if (n) nowValue(f.querySelector(".vpn-value"), n);
+    if (!f.isConnected) continue;
+    const el = f.querySelector(".vpn-value");
+    const n = nowRate(trafficData(kind), kind);
+    // No speed yet keeps whatever is shown, except the VPN's switch between "off" and "measuring"
+    if (n || (kind === "vpn" && (tunnelOff || el.textContent === OFF_TEXT))) nowValue(el, n, kind);
   }
 }
 
@@ -360,7 +368,7 @@ export async function trafficCard(box, force, kind = "vpn", opts = {}) {
     opts.ranges ? h("div", { class: "tr-rng-card" }, ranges()) : null,
     opts.sub || null,
     h("div", { class: "vpn-grid tr-figs" },
-      nowFigs[kind] = nowFig(n),
+      nowFigs[kind] = nowFig(n, kind),
       fig("Peak", s.peak && s.peak[1] ? `↓ ${fmtRate(s.peak[1])}` : "None", s.peak && s.peak[1] ? (s.peak[2] ? hhmm(s.peak[0]) : when(s.peak[0]).replace("Yesterday", "Yest.")) : ""),
       fig("Down", fmtBytes(s.tot[0]), `Last ${SHORT[range]}`),
       fig("Up", fmtBytes(s.tot[1]), `Last ${SHORT[range]}`)),

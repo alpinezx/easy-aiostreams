@@ -1000,15 +1000,11 @@ select.input:focus, select.input[aria-expanded="true"] { border-color: var(--lin
 /* the day, the time and Set are one height (the button was shorter, the day box a little shorter than the time) */
 .wd-when-row .input, .wd-when-row > .btn { box-sizing: border-box; height: 2.1rem; min-height: 0; }
 .wd-when-row > .btn { display: inline-flex; align-items: center; }
-/* Phones, Phone alerts' weekly check-in: "Send it on" and the day, then "from" and the time with Set under it, the
-   two controls in one column, so no label is left at a line's end with its box on the next; the note under both */
+/* Phones, Phone alerts' weekly check-in: the day, the time and Set on one row, the note under them */
 @media (max-width: 720px) {
   #view-alerts .wd-when-row { display: grid; grid-template-columns: auto auto 1fr; column-gap: 10px; row-gap: 10px; }
   #view-alerts .wd-when-row[hidden] { display: none; }
-  #view-alerts .wd-when-row > :first-child, #view-alerts .wd-when-row > :nth-child(3) { grid-column: 1; white-space: nowrap; }
-  #view-alerts .wd-when-row > select { grid-column: 2 / 4; justify-self: start; }
-  #view-alerts .wd-when-row > .time-pick { grid-column: 2; justify-self: start; }
-  #view-alerts .wd-when-row > .btn { grid-column: 3; justify-self: start; }
+  #view-alerts .wd-when-row > select, #view-alerts .wd-when-row > .time-pick, #view-alerts .wd-when-row > .btn { justify-self: start; }
   #view-alerts .wd-when-row > :last-child { grid-column: 1 / -1; }
 }
 /* A 24-hour time, typed */
@@ -1583,8 +1579,9 @@ html.still *, html.still *::after { animation: none !important; transition: none
 .toasts { position: fixed; z-index: 60; left: 50%; bottom: 20px; transform: translateX(-50%); display: grid; gap: 8px; width: min(420px, calc(100vw - 32px)); pointer-events: none; }
 .toast { background: var(--raised); border: 1px solid var(--line); border-left: 4px solid var(--ok); border-radius: 10px; padding: 11px 14px; box-shadow: 0 14px 40px rgba(0, 0, 0, .35); pointer-events: auto; }
 .toast.bad { border-left-color: var(--bad); }
+/* While Edit's drawer is open the toasts sit above its foot, so Reset to default and Done stay in view */
+body:has(.lay-drawer:not([hidden])) .toasts { bottom: 96px; }
 @media (min-width: 721px) { .toasts { left: calc(50% + var(--rail) / 2); } }
-
 /* ---------- login ---------- */
 /* A card in the middle of the page, like AIOStreams' own sign-in */
 /* No rail on the login page, so nothing to make room for */
@@ -2464,10 +2461,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
     :is(#view-logs, #view-activity) .lg-acts .btn:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
   }
 }
-/* Network: the range or view shown is underlined as well as bolder and in the accent colour, so it
-   never rests on colour alone (phones and computers) */
-#net-ranges .btn[aria-pressed="true"], #net-acts .btn[aria-pressed="true"], #net-root .tr-src .btn[aria-pressed="true"], .tr-rng-card .btn[aria-pressed="true"] {
-  text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 6px; }
+/* Network: the range or view shown is in the accent colour and bolder, no underline (phones and computers) */
 .tr-word { display: none; }
 /* On a computer, the time range, All traffic / VPN tunnel and the Traffic card's bin (now Clear) are plain
    words like the other pages' tools; the bin 3px in from the card's edge */
@@ -2705,7 +2699,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   #view-net .net-ptitle, #view-net .net-pbin, #view-net .net-head > .net-ranges { display: none; }
   #view-net .view-head.net-head { display: flex; flex-wrap: nowrap; align-items: baseline; }
   #view-net .view-head.net-head > h2 { flex: 0 0 auto; }
-  #view-net #net-acts { display: flex; flex: 0 0 auto; margin-left: auto; justify-content: flex-end; margin-right: 1px; }
+  #view-net #net-acts { display: flex; flex: 0 0 auto; margin-left: auto; justify-content: flex-end; margin-right: 3px; }
   #view-net #net-acts .tr-ranges { gap: 22px; }
   #view-net #net-acts .btn { background: none; border-color: transparent; box-shadow: none; padding: 4px 2px; min-height: 0; color: var(--dim); }
   #view-net #net-acts .btn[aria-pressed="true"] { color: var(--accent); font-weight: 650; }

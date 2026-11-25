@@ -278,6 +278,7 @@ $("#lay-reset").addEventListener("click", () => {
   const m = mode;
   m.cards = m.defaults(); list(); save(m);
   if (m === MODES.overview) window.dispatchEvent(new CustomEvent("layout-reset"));
+  toast(m === MODES.overview ? "Overview cards back to default." : "Rail back to default.");
 });
 $("#scrim").addEventListener("click", closeLayout);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && $("#dialog").hidden) closeLayout(); });
