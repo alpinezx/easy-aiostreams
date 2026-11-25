@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 25 November 2026
 
+- Updating the control panel keeps the earlier panel (its image, as `aios-ui:aios-previous`, and its files) until the new one is up, and puts it back by itself if the new one doesn't build or start. The update screen and the Scripts tab say when that happened. A rebuild on its own, after a restore say, keeps the earlier image the same way. (Panel 1.69.0, [#230](https://github.com/alpinezx/easy-aiostreams/pull/230))
 - **Docs:** The watchdog guide lists the Caddy and cloudflared release alerts, and says which page each alert's Open panel button opens. (Panel 1.68.4, [#230](https://github.com/alpinezx/easy-aiostreams/pull/230))
 - **Fixed:** Log alerts: AIOMetadata's "took N ms" notices from its HTTP timing (a download that was slow to answer) are grey, not highlighted, on the Overview and Logs. Its errors and other timing lines stay. (Panel 1.68.4, [#230](https://github.com/alpinezx/easy-aiostreams/pull/230))
 - **Fixed:** Network: a mouse over a time range, All traffic or VPN underlines it in the accent colour it takes once chosen (a finger never does, and the chosen one stays bold with no underline). (Panel 1.68.3, [#230](https://github.com/alpinezx/easy-aiostreams/pull/230))

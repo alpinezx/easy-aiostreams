@@ -58,6 +58,29 @@ def test_last_update_reads_the_log(tmp_path, monkeypatch):
     assert panelupdate.last_update()["ok"] is False
 
 
+def test_last_update_knows_a_rollback(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "STATE_DIR", tmp_path)
+    # The new script's rebuild can say Rebuilt. and the check after it still fail
+    (tmp_path / panelupdate.LOG_NAME).write_text("Downloaded.\nRebuilt. Your login and unlock link are unchanged.\n"
+                                                 "\x1b[1;34m==>\x1b[0m Putting the earlier panel back\n"
+                                                 "Rolled back: the panel is on 1.68.4 again and answering. Nothing else changed.\n")
+    got = panelupdate.last_update()
+    assert got["ok"] is False and got["rolled_back"] is True
+    (tmp_path / panelupdate.LOG_NAME).write_text("Rebuilt. Your login and unlock link are unchanged.\n")
+    assert panelupdate.last_update()["rolled_back"] is False
+
+
+def test_setup_ui_keeps_the_earlier_panel_to_go_back_to():
+    from pathlib import Path
+    sh = (Path(__file__).resolve().parents[1] / "setup-ui.sh").read_text(encoding="utf-8")
+    # The update runs from its copy of the files as they were, never from the folder it replaces
+    assert 'exec bash "$PREVIOUS_DIR/setup-ui.sh" _update-run' in sh
+    assert 'exec bash "$PANEL_DIR/setup-ui.sh" rebuild' not in sh
+    assert 'SPARE_IMAGE="aios-ui:aios-previous"' in sh and 'docker tag "$before" "$SPARE_IMAGE"' in sh
+    # The line last_update() looks for, and rebuild's own rollback stands aside during an update
+    assert 'echo "Rolled back: ' in sh and 'AIOS_UI_UPDATE_RUN=1 bash "$PANEL_DIR/setup-ui.sh" rebuild' in sh
+
+
 def test_start_runs_the_update_outside_the_container(monkeypatch):
     calls = []
     monkeypatch.setattr(panelupdate, "running", lambda: False)
