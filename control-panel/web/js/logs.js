@@ -52,14 +52,17 @@ const QUIET = [
   // The visitor's side gave up before the answer came (a reload, a closed tab, the panel restarting): both halves
   /error="Incoming request ended abruptly: context canceled"/,
   /ERR {2}error="unexpected EOF" .*originService=/,   // a cut connection's first half; its Request failed line says what it was
-  // A restart cut a live page: AIOStreams' dashboard, or this panel's own Logs.
-  /Request failed error="unexpected EOF" .*dest=https?:\/\/[^/ ]+\/api\/(v1\/dashboard\/[^ ]*\/stream|logs\/[^ ]*) /,
+  // A restart cut a live page: any live /api/.../stream (AIOStreams' dashboard, a running job's output) or this panel's own Logs.
+  /Request failed error="unexpected EOF" .*dest=https?:\/\/[^/ ]+\/api\/(logs\/[^ ]*|[^ ?]*\/stream) /,
   // AIOMetadata: its cache statistics, logged at info level (ℹ) during its scheduled warm-ups; "Error Rate" and
   // "Errors: 2" are counts, not failures. Every info line of that module; its WARN and ERROR lines stay.
   /\[Cache-Health\] ℹ /,
   // AIOMetadata: a download or lookup that took a few seconds ("took 2006ms: waiting for a connection ..."), a slow
   // answer from the other end, not a failure. Every "took N ms" notice of that module; its other lines stay.
   /\[HTTP-Timing\]\s+WARN\s.* took \d+ms/,
+  // AIOMetadata: a connection (Redis, whichever store it names) wasn't closed neatly as it stopped (a restart, update or
+  // backup's pause). The whole "Did not close cleanly" kind; a lost or refused connection says something else and stays.
+  /WARN\s+Did not close cleanly: /,
 ];
 const CADDY_STOP = /shutting down apps, then terminating|"msg":"shutdown complete"|exiting; byeee/;
 const RESTART_WINDOW = 10;

@@ -1571,8 +1571,8 @@ html.still *, html.still *::after { animation: none !important; transition: none
 .toasts { position: fixed; z-index: 60; left: 50%; bottom: 20px; transform: translateX(-50%); display: grid; gap: 8px; width: min(420px, calc(100vw - 32px)); pointer-events: none; }
 .toast { background: var(--raised); border: 1px solid var(--line); border-left: 4px solid var(--ok); border-radius: 10px; padding: 11px 14px; box-shadow: 0 14px 40px rgba(0, 0, 0, .35); pointer-events: auto; }
 .toast.bad { border-left-color: var(--bad); }
-/* While Edit's drawer is open the toasts sit above its foot, so Reset to default and Done stay in view */
-body:has(.lay-drawer:not([hidden])) .toasts { bottom: 96px; }
+/* On phones the drawer fills the screen: while Edit's drawer is open the toasts sit above its foot, so Reset to default and Done stay in view. Desktop's drawer is at the side, so they stay put. */
+@media (max-width: 720px) { body:has(.lay-drawer:not([hidden])) .toasts { bottom: 96px; } }
 @media (min-width: 721px) { .toasts { left: calc(50% + var(--rail) / 2); } }
 /* ---------- login ---------- */
 /* A card in the middle of the page, like AIOStreams' own sign-in */
@@ -2496,6 +2496,11 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
     font-size: .86rem; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
   /* Install updates (and Reboot server when needed) at the card's bottom right, List updates before them */
   #view-maint .maint-foot:has(> .maint-list) > .btn:not(.maint-list) { order: 2; }
+  /* With no quiet line (the last install's is above the list), the plain buttons start at the card's left edge and Install updates stays at the right */
+  #view-maint .upd-last-done .maint-foot > .dim:empty { display: none; }
+  #view-maint .upd-last-done .maint-foot > .btn:not(.maint-list) { margin-left: auto; }
+  /* the first plain button's icon on the text edge above it: its padding, border and the icon's own white space pulled out */
+  #view-maint .upd-last-done .maint-foot > .maint-first { margin-left: -9px; }
   @media (hover: hover) {
     #view-maint .btn.maint-list:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
   }
