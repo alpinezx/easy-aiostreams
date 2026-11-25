@@ -880,11 +880,11 @@ check_restored_domain_dns() {
     done
 }
 
-# Puts a saved copy of a script into the install folder when it's missing
-# there or different. The copy being run wins over the backup's, so a
-# restore always finishes with the newest scripts you have.
+# Puts a saved copy of a script into an install folder (the restore's staged
+# one) when it's missing there or different. The copy being run wins over
+# the backup's, so a restore always finishes with the newest scripts you have.
 install_script_copy() {
-    local src="$1" name="$2" dest="$INSTALL_DIR/$2"
+    local src="$1" dest="$3/$2"
     [[ -n "$src" && -f "$src" ]] || return 0
     if [[ ! -f "$dest" ]] || ! cmp -s "$src" "$dest"; then
         cp -- "$src" "$dest" && chmod 755 "$dest"
@@ -1248,6 +1248,42 @@ backup_old_ref() {
         | grep -m1 -oE '/(root|home/[^/[:space:]"]+)/aiostreams([/:"[:space:]]|$)' || true
 }
 
+# The room in MB a restore needs: everything in the archive unpacked (the
+# sizes its listing gives), plus a little to spare. Nothing when it can't be
+# read. The current install is renamed aside, which takes no room.
+restore_need_mb() {
+    local total
+    total=$(tar -tvzf "$1" 2>/dev/null | awk '{ s += $3 } END { printf "%.0f", s }') || return 0
+    [[ "$total" =~ ^[0-9]+$ ]] && echo $(( total / 1048576 + 50 ))
+    return 0
+}
+
+# Free MB on the disk that holds the install folder, or nothing.
+restore_free_mb() {
+    df -Pm "$(dirname "$INSTALL_DIR")" 2>/dev/null | awk 'NR==2 {print $4}' || true
+}
+
+# The folders earlier restores set aside, with their sizes: what to delete
+# when a restore has no room.
+list_set_asides() {
+    find "$(dirname "$INSTALL_DIR")" -mindepth 1 -maxdepth 1 -type d \
+        -name 'aiostreams.pre-restore-*' -exec du -sh {} + 2>/dev/null || true
+}
+
+# A restore unpacks into aiostreams.restoring-<stamp> next to the install
+# and only then swaps it in. One left behind by a restore that was killed
+# half-way holds nothing anyone needs: remove it. Only real folders with
+# exactly that name.
+remove_stale_staging() {
+    local d
+    for d in "$(dirname "$INSTALL_DIR")"/aiostreams.restoring-*; do
+        [[ -d "$d" && ! -L "$d" ]] || continue
+        [[ "$(basename "$d")" =~ ^aiostreams\.restoring-[0-9]{8}-[0-9]{6}$ ]] || continue
+        rm -rf -- "$d" && echo "Removed $d, left behind by a restore that didn't finish."
+    done
+    return 0
+}
+
 # ---------------------------------------------------------------------------
 # Same-server check
 # ---------------------------------------------------------------------------
@@ -1346,12 +1382,11 @@ restore_check() {
     fi
 
     # Room for the unpacked backup next to the current install, which is
-    # moved aside rather than deleted. Unpacked is usually about 4 to 5 times
-    # the archive.
+    # moved aside rather than deleted.
     local need_mb free_mb
-    need_mb=$(( $(stat -c %s "$tarball") * 6 / 1048576 + 50 ))
-    free_mb=$(df -Pm "$(dirname "$INSTALL_DIR")" 2>/dev/null | awk 'NR==2 {print $4}')
-    if [[ -n "$free_mb" ]] && (( free_mb < need_mb )); then
+    need_mb=$(restore_need_mb "$tarball")
+    free_mb=$(restore_free_mb)
+    if [[ -n "$need_mb" && -n "$free_mb" ]] && (( free_mb < need_mb )); then
         check_no "Only ${free_mb} MB is free in $(dirname "$INSTALL_DIR"), and the restore needs about ${need_mb} MB."
     fi
 
@@ -1496,18 +1531,39 @@ do_restore() {
     fi
 
     # A fresh server where only the installer was downloaded (as the Quick
-    # start does) has no install to move aside: drop the scripts, the
-    # restore brings its own. cd /: a shell sitting in the folder loses it.
-    local other
-    if [[ -d "$INSTALL_DIR" ]] \
-        && other=$(find "$INSTALL_DIR" -mindepth 1 -maxdepth 1 ! -name 'setup-*.sh' -print -quit) \
-        && [[ -z "$other" ]]; then
-        cd / && rm -rf -- "$INSTALL_DIR"
+    # start does) has no install to move aside: its scripts are dropped at
+    # the swap below, the restore brings its own.
+    local other has_install=false scripts_only=false
+    if [[ -d "$INSTALL_DIR" ]]; then
+        if other=$(find "$INSTALL_DIR" -mindepth 1 -maxdepth 1 ! -name 'setup-*.sh' -print -quit) \
+            && [[ -z "$other" ]]; then
+            scripts_only=true
+        else
+            has_install=true
+        fi
     fi
 
-    local aside=""
-    if [[ -d "$INSTALL_DIR" ]]; then
-        local addons_now
+    # Room for the unpacked backup, checked before anything changes. The
+    # current install is renamed aside, which takes no room.
+    remove_stale_staging
+    local need_mb free_mb
+    need_mb=$(restore_need_mb "$tarball")
+    free_mb=$(restore_free_mb)
+    if [[ -n "$need_mb" && -n "$free_mb" ]] && (( free_mb < need_mb )); then
+        warn "Only ${free_mb} MB is free in $(dirname "$INSTALL_DIR"), and unpacking this backup needs about ${need_mb} MB."
+        local asides
+        asides=$(list_set_asides)
+        if [[ -n "$asides" ]]; then
+            echo "Folders earlier restores set aside, which you can delete once you're happy"
+            echo "with those restores (the panel's Backup & Restore page lists them too):"
+            local line
+            while IFS= read -r line; do echo "  $line"; done <<< "$asides"
+        fi
+        error "Free some space and run the restore again. Nothing was changed on this server."
+    fi
+
+    local addons_now=""
+    if $has_install; then
         addons_now=$(current_addons)
         warn "An installation already exists at $INSTALL_DIR."
         warn "Restoring will REPLACE it, including its SECRET_KEY. If the existing"
@@ -1518,23 +1574,13 @@ do_restore() {
         fi
         if $UNATTENDED; then
             C=y
-            echo "Moving the current install aside (same-server restore)."
+            echo "Same-server restore: the current install moves aside once the backup is unpacked and checked."
         else
-            read -rp "Move the current install aside and continue? [y/N]: " C
+            read -rp "Move the current install aside (once the backup is unpacked and checked) and continue? [y/N]: " C
         fi
         if [[ ! "$C" =~ ^[Yy]$ ]]; then
             echo "Restore cancelled."
             return 0
-        fi
-        [[ -n "$addons_now" ]] && retire_current_addons "$keep/setup-aiostreams.sh"
-        aside="$(dirname "$INSTALL_DIR")/aiostreams.pre-restore-$(date +%Y%m%d-%H%M%S)"
-        mv "$INSTALL_DIR" "$aside"
-        echo "Current install moved aside to $aside (delete it once you're happy with the restore)."
-        # A tarball sitting inside $INSTALL_DIR moved along with it.
-        if [[ "$tarball" == "$INSTALL_DIR"/* ]]; then
-            tarball="$aside/${tarball#"$INSTALL_DIR"/}"
-            echo "(The backup tarball was inside $INSTALL_DIR, so it moved to $aside too,"
-            echo " using it from its new location: $tarball)"
         fi
     fi
 
@@ -1550,46 +1596,98 @@ do_restore() {
         error "Docker Compose plugin not found even after install. Check 'docker compose version' manually."
     fi
 
+    # Unpacked into a staging folder next to the install first, so a backup
+    # that can't be unpacked whole (a full disk, a read error) or holds no
+    # SECRET_KEY never touches the running install. Same disk, so swapping it
+    # in below is a rename, not a copy. Only the aiostreams/ folder: a tarball
+    # with anything else in it can't drop files elsewhere (e.g. ~/.ssh).
+    # Every backup stores the folder as aiostreams/.
     info "Extracting backup"
-    # Only the aiostreams/ folder: a tarball with anything else in it can't
-    # drop files elsewhere (e.g. ~/.ssh). Every backup stores the folder as
-    # aiostreams/.
+    local stage staged
+    stage="$(dirname "$INSTALL_DIR")/aiostreams.restoring-$(date +%Y%m%d-%H%M%S)"
+    staged="$stage/aiostreams"
     mkdir -p "$(dirname "$INSTALL_DIR")"
-    tar xzf "$tarball" -C "$(dirname "$INSTALL_DIR")" aiostreams
-    chmod 700 "$INSTALL_DIR"   # setup-aiostreams.sh sets the final access below
-    # This server's own setting, never in a backup (see PUBLIC_IP_FILE).
-    if [[ -n "$aside" && -f "$aside/public-ip" ]]; then
-        cp -p -- "$aside/public-ip" "$PUBLIC_IP_FILE"
+    mkdir -m 700 -- "$stage"
+    # shellcheck disable=SC2064  # expand now: both are local
+    trap "rm -rf '$keep' '$stage'" EXIT
+    if ! tar xzf "$tarball" -C "$stage" aiostreams; then
+        rm -rf -- "$stage"
+        error "Couldn't unpack $tarball (see above: the disk may be full, or the file damaged). Nothing was changed on this server."
     fi
-    # The same for the times this server's backups resumed its containers (note_resumed)
-    if [[ -n "$aside" && -f "$aside/backup-resumes" ]]; then
-        cp -p -- "$aside/backup-resumes" "$INSTALL_DIR/backup-resumes"
+    if [[ ! -f "$staged/docker-compose.yml" ]] || ! grep -q 'SECRET_KEY=' "$staged/docker-compose.yml"; then
+        rm -rf -- "$stage"
+        error "The backup's compose file has no SECRET_KEY. The archive may be damaged. Nothing was changed on this server."
     fi
-    # The backups' locks and notes describe the backup files on this server,
-    # so the current list wins over the backup's older copy. Otherwise a lock
-    # added after this backup was made (on this very backup, say) is lost.
-    if [[ -n "$aside" && -f "$aside/ui-state/backup-meta.json" ]]; then
-        if [[ ! -d "$INSTALL_DIR/ui-state" ]]; then mkdir -p "$INSTALL_DIR/ui-state"; chmod 700 "$INSTALL_DIR/ui-state"; fi
-        cp -p -- "$aside/ui-state/backup-meta.json" "$BACKUP_META"
-    fi
-    # The control panel's files are code, not settings. When this server has a
-    # newer panel than the backup, keep its files, or the next rebuild would
-    # quietly go back to the backup's older version (and not offer an update,
-    # since the running one already matches GitHub). Its settings and login, in
-    # ui-state, still come from the backup.
-    if [[ -n "$aside" && -f "$aside/control-panel/VERSION" && -f "$INSTALL_DIR/control-panel/VERSION" ]]; then
-        local panel_here panel_backup
-        panel_here=$(tr -d '[:space:]' < "$aside/control-panel/VERSION")
-        panel_backup=$(tr -d '[:space:]' < "$INSTALL_DIR/control-panel/VERSION")
-        if [[ "$panel_here" != "$panel_backup" && "$(printf '%s\n%s\n' "$panel_here" "$panel_backup" | sort -V | tail -n 1)" == "$panel_here" ]]; then
-            rm -rf -- "$INSTALL_DIR/control-panel"
-            cp -a -- "$aside/control-panel" "$INSTALL_DIR/control-panel"
-            echo "Kept this server's control panel $panel_here (the backup has $panel_backup). Its settings come from the backup."
+    chmod 700 "$staged"   # setup-aiostreams.sh sets the final access below
+    chmod 600 "$staged/docker-compose.yml"
+
+    # What this server keeps of its own goes into the staged copy before the
+    # swap, read from the install as it is now.
+    if $has_install; then
+        # This server's own setting, never in a backup (see PUBLIC_IP_FILE).
+        [[ -f "$INSTALL_DIR/public-ip" ]] && cp -p -- "$INSTALL_DIR/public-ip" "$staged/public-ip"
+        # The same for the times this server's backups resumed its containers (note_resumed)
+        [[ -f "$INSTALL_DIR/backup-resumes" ]] && cp -p -- "$INSTALL_DIR/backup-resumes" "$staged/backup-resumes"
+        # The backups' locks and notes describe the backup files on this server,
+        # so the current list wins over the backup's older copy. Otherwise a lock
+        # added after this backup was made (on this very backup, say) is lost.
+        if [[ -f "$BACKUP_META" ]]; then
+            if [[ ! -d "$staged/ui-state" ]]; then mkdir -p "$staged/ui-state"; chmod 700 "$staged/ui-state"; fi
+            cp -p -- "$BACKUP_META" "$staged/ui-state/backup-meta.json"
+        fi
+        # The control panel's files are code, not settings. When this server has a
+        # newer panel than the backup, keep its files, or the next rebuild would
+        # quietly go back to the backup's older version (and not offer an update,
+        # since the running one already matches GitHub). Its settings and login, in
+        # ui-state, still come from the backup.
+        if [[ -f "$INSTALL_DIR/control-panel/VERSION" && -f "$staged/control-panel/VERSION" ]]; then
+            local panel_here panel_backup
+            panel_here=$(tr -d '[:space:]' < "$INSTALL_DIR/control-panel/VERSION")
+            panel_backup=$(tr -d '[:space:]' < "$staged/control-panel/VERSION")
+            if [[ "$panel_here" != "$panel_backup" && "$(printf '%s\n%s\n' "$panel_here" "$panel_backup" | sort -V | tail -n 1)" == "$panel_here" ]]; then
+                rm -rf -- "$staged/control-panel"
+                cp -a -- "$INSTALL_DIR/control-panel" "$staged/control-panel"
+                echo "Kept this server's control panel $panel_here (the backup has $panel_backup). Its settings come from the backup."
+            fi
         fi
     fi
-    chmod 600 "$COMPOSE_FILE" 2>/dev/null || true
-    grep -q 'SECRET_KEY=' "$COMPOSE_FILE" || \
-        error "Restored compose file has no SECRET_KEY. The archive may be damaged. Nothing has been started."
+
+    # The scripts being run win over the backup's copies.
+    install_script_copy "$keep/setup-backup.sh" setup-backup.sh "$staged"
+    install_script_copy "$keep/setup-aiostreams.sh" setup-aiostreams.sh "$staged"
+
+    # The webhook relay was retired in October 2026, so a backup holding one
+    # comes back without it (the current install's went with its add-ons).
+    local relay_dropped=false
+    if [[ -e "$staged/webhook-relay-state" || -e "$staged/caddy.d/50-webhook-relay.caddy" ]]; then
+        rm -rf "$staged/webhook-relay-state"
+        rm -f "$staged"/caddy.d/50-webhook-relay.caddy{,.rejected} "$staged/setup-webhook.sh"
+        relay_dropped=true
+    fi
+
+    # The swap: the current install's add-ons stop, it moves aside, and the
+    # staged copy takes its place. cd /: a shell sitting in the folder loses it.
+    local aside=""
+    if $has_install; then
+        [[ -n "$addons_now" ]] && retire_current_addons "$keep/setup-aiostreams.sh"
+        aside="$(dirname "$INSTALL_DIR")/aiostreams.pre-restore-$(date +%Y%m%d-%H%M%S)"
+        mv "$INSTALL_DIR" "$aside"
+        echo "Current install moved aside to $aside (delete it once you're happy with the restore)."
+        if [[ "$tarball" == "$INSTALL_DIR"/* ]]; then
+            echo "(The backup tarball was inside $INSTALL_DIR, so it moved to $aside too:"
+            echo " $aside/${tarball#"$INSTALL_DIR"/})"
+        fi
+    elif $scripts_only; then
+        cd / && rm -rf -- "$INSTALL_DIR"
+    fi
+    if [[ -e "$INSTALL_DIR" ]] || ! mv -- "$staged" "$INSTALL_DIR"; then
+        if [[ -n "$aside" && ! -e "$INSTALL_DIR" ]]; then
+            mv -- "$aside" "$INSTALL_DIR"
+            error "Couldn't move the restored install into $INSTALL_DIR, so the current one was put back. Its add-ons were stopped for the restore: start them again from the control panel or their scripts."
+        fi
+        error "Couldn't move the restored install into $INSTALL_DIR. Nothing was started."
+    fi
+    rmdir -- "$stage" 2>/dev/null || true
 
     local conf_stage_dir="$INSTALL_DIR/vpn-state/original-confs"
     local conf_restored_count=0 f
@@ -1620,19 +1718,6 @@ do_restore() {
         if (( conf_restored_count > 0 )); then
             echo "Restored $conf_restored_count original WireGuard .conf file(s) to /root and/or $REAL_HOME."
         fi
-    fi
-
-    # The scripts being run win over the backup's copies.
-    install_script_copy "$keep/setup-backup.sh" setup-backup.sh
-    install_script_copy "$keep/setup-aiostreams.sh" setup-aiostreams.sh
-
-    # The webhook relay was retired in October 2026, so a backup holding one
-    # comes back without it (the current install's went with its add-ons).
-    local relay_dropped=false
-    if [[ -e "$INSTALL_DIR/webhook-relay-state" || -e "$INSTALL_DIR/caddy.d/50-webhook-relay.caddy" ]]; then
-        rm -rf "$INSTALL_DIR/webhook-relay-state"
-        rm -f "$INSTALL_DIR"/caddy.d/50-webhook-relay.caddy{,.rejected} "$INSTALL_DIR/setup-webhook.sh"
-        relay_dropped=true
     fi
 
     # Restoring onto a computer at home: a backup from a VPS has no tunnel yet,
