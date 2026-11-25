@@ -281,8 +281,8 @@ function dayRows(d) {
   });
 }
 
-// The Network page on a phone: Last 7 days as a card of its own that folds, like By service under it
-// (a second copy of the list; CSS shows the one inside the Traffic card on a computer, this one on a phone)
+// The Network page: Last 7 days as a card of its own that folds, like By service under it
+// (the Traffic card keeps no copy of the list there)
 function daysCard(d) {
   const card = h("div", { class: "panel vpn-card ns-card tr-days-card" + (daysOpen ? "" : " folded") });
   const chev = h("span", { class: "path-chev", "aria-hidden": "true" });
@@ -362,7 +362,8 @@ export async function trafficCard(box, force, kind = "vpn", opts = {}) {
       } })));
   if (opts.ranges) { clear(opts.ranges); opts.ranges.append(ranges()); }
   const what = kind === "vpn" ? "VPN traffic" : "All traffic";
-  box.append(h("div", { class: "panel vpn-card tr-card" },
+  const card = h("div", { class: "panel vpn-card tr-card" });
+  card.append(...[
     h("div", { class: "vpn-head" }, h("h3", { class: "tr-title", text: "Traffic" }), opts.ranges ? h("div", { class: "tr-rng-head" }, ranges()) : ranges(), opts.tool || null),
     // Phones: the time range sits in the card under its Traffic line (a second copy; CSS shows one)
     opts.ranges ? h("div", { class: "tr-rng-card" }, ranges()) : null,
@@ -375,8 +376,10 @@ export async function trafficCard(box, force, kind = "vpn", opts = {}) {
     chart(s, range),
     h("div", { class: "tr-legend dim" }, h("span", { class: "tr-key down", text: "Down" }), h("span", { class: "tr-key up", text: "Up" }),
       h("span", { class: "tr-step", text: `${what}, ${range === "7d" ? "hourly averages" : range === "24h" ? "5-minute averages" : "minute by minute"}` })),
-    // The Network page: a phone shows Last 7 days as a card of its own (below), a computer keeps it here
-    opts.ranges ? h("div", { class: "tr-days-in" }, days(d)) : days(d),
-    d.since ? h("div", { class: "card-foot" }, h("span", { class: "dim tr-since", text: `Recorded since ${dayName(d.since)}, ${hhmm(d.since)}` })) : null));
+    // The Network page: Last 7 days is a card of its own (below); the VPN page keeps it here
+    opts.ranges ? null : days(d),
+    d.since ? h("div", { class: "card-foot" }, h("span", { class: "dim tr-since", text: `Recorded since ${dayName(d.since)}, ${hhmm(d.since)}` })) : null,
+  ].filter(Boolean));   // append() would write a missing piece as the word null
+  box.append(card);
   if (opts.ranges) box.append(daysCard(d));
 }

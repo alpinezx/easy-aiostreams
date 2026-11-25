@@ -771,14 +771,8 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
   .tr-days.folded .tr-days-tog { margin-bottom: 0; }
 }
 /* The Network page's phone copy of Last 7 days: a card of its own that folds, like By service (traffic.js) */
-.tr-days-card { display: none; }
-.tr-days-in { display: contents; }
-@media (max-width: 720px) {
-  .tr-days-in { display: none; }
-  .tr-days-card { display: block; }
-  .tr-days-card .tr-days-rows { margin-top: 12px; }
-  .tr-days-card.folded .tr-days-rows { display: none; }
-}
+.tr-days-card .tr-days-rows { margin-top: 12px; }
+.tr-days-card.folded .tr-days-rows { display: none; }
 .tr-day { display: grid; grid-template-columns: 110px minmax(0, 1fr) max-content; align-items: center; gap: 14px; padding: 5px 0; font-size: .9rem; }
 .tr-bar { height: 8px; border-radius: 4px; background: var(--line-soft); overflow: hidden; }
 .tr-bar i { display: block; height: 100%; background: var(--accent); opacity: .7; border-radius: 4px; }
@@ -797,16 +791,14 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .ns-name { font-weight: 600; min-width: 0; }
 .ns-speeds { display: contents; }
 .ns-shared { grid-column: 2 / -1; font-size: .86rem; }
-/* By service: a plain title on a computer; on a phone the title folds the card to one line with the
-   count in place of Right now (see net.js) */
-.ns-tog, .ns-count { display: none; }
-@media (max-width: 720px) {
-  .ns-lbl { display: none; }
-  .ns-tog { display: block; }
-  .ns-card.folded .ns-now, .ns-card.folded .ns-list { display: none; }
-  .ns-card.folded .ns-count { display: inline; }
-  .ns-card.folded .vpn-head { padding-bottom: 0; }
-}
+/* By service and Last 7 days: the title folds the card to one line, with the count in place of Right now
+   (see net.js), on a computer and a phone alike */
+.ns-count { display: none; }
+.ns-lbl { display: none; }
+.ns-tog { display: block; }
+.ns-card.folded .ns-now, .ns-card.folded .ns-list { display: none; }
+.ns-card.folded .ns-count { display: inline; }
+.ns-card.folded .vpn-head { padding-bottom: 0; }
 /* Phones: the name on a line of its own and the speeds under it, as on the Overview (always, so larger
    text or a long name never makes rows collide or differ) */
 @media (max-width: 720px) {
