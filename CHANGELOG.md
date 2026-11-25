@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 25 November 2026
 
+- **Docs:** The watchdog guide lists the Caddy and cloudflared release alerts, and says which page each alert's Open panel button opens. (Panel 1.68.4, [#230](https://github.com/alpinezx/easy-aiostreams/pull/230))
 - **Fixed:** Log alerts: AIOMetadata's "took N ms" notices from its HTTP timing (a download that was slow to answer) are grey, not highlighted, on the Overview and Logs. Its errors and other timing lines stay. (Panel 1.68.4, [#230](https://github.com/alpinezx/easy-aiostreams/pull/230))
 - **Fixed:** Network: a mouse over a time range, All traffic or VPN underlines it in the accent colour it takes once chosen (a finger never does, and the chosen one stays bold with no underline). (Panel 1.68.3, [#230](https://github.com/alpinezx/easy-aiostreams/pull/230))
 - **Fixed:** Network on a computer: Last 7 days is a card of its own, as on a phone, and it and By service fold (closed until opened, remembered per browser); the graph stays open. (Panel 1.68.2, [#230](https://github.com/alpinezx/easy-aiostreams/pull/230))
