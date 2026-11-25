@@ -2453,7 +2453,11 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
     :is(#view-logs, #view-activity) .lg-acts .btn:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
   }
 }
-/* Network: the range or view shown is in the accent colour and bolder, no underline (phones and computers) */
+/* Network: the range or view shown is in the accent colour and bolder (phones and computers); a mouse over a range or view underlines it, a finger never does */
+@media (hover: hover) {
+  #net-ranges .btn:hover:not(:disabled), #net-acts .btn:hover:not(:disabled), #net-root .tr-src .btn:hover:not(:disabled), .tr-rng-card .btn:hover:not(:disabled) {
+    text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 6px; text-decoration-color: var(--accent); }   /* the colour it takes once chosen */
+}
 .tr-word { display: none; }
 /* On a computer, the time range, All traffic / VPN tunnel and the Traffic card's bin (now Clear) are plain
    words like the other pages' tools; the bin 3px in from the card's edge */
