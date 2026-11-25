@@ -1295,7 +1295,8 @@ mark_current_seen() {
     local at=""
     mkdir -p "$STATE_DIR"
     cat /proc/sys/kernel/random/boot_id > "$BOOT_ID_FILE" 2>/dev/null || true
-    IFS='|' read -r at _ < "$INSTALL_DIR/backup-last-run" 2>/dev/null || true
+    # Quiet when there's none yet (2>/dev/null first, or the shell reports the missing file)
+    IFS='|' read -r at _ 2>/dev/null < "$INSTALL_DIR/backup-last-run" || true
     if [[ "$at" =~ ^[0-9]+$ ]]; then echo "$at" > "$STATE_DIR/backup-seen"; fi
     return 0
 }

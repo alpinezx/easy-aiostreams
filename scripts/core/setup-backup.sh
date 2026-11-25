@@ -1628,6 +1628,8 @@ do_restore() {
         [[ -f "$INSTALL_DIR/public-ip" ]] && cp -p -- "$INSTALL_DIR/public-ip" "$staged/public-ip"
         # The same for the times this server's backups resumed its containers (note_resumed)
         [[ -f "$INSTALL_DIR/backup-resumes" ]] && cp -p -- "$INSTALL_DIR/backup-resumes" "$staged/backup-resumes"
+        # And how this server's last scheduled backup went (the panel and the watchdog show it)
+        [[ -f "$LAST_RUN_FILE" ]] && cp -p -- "$LAST_RUN_FILE" "$staged/backup-last-run"
         # The backups' locks and notes describe the backup files on this server,
         # so the current list wins over the backup's older copy. Otherwise a lock
         # added after this backup was made (on this very backup, say) is lost.

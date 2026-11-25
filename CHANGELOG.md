@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 25 November 2026
 
+- **Fixed:** Scripts: a restore keeps the result of this server's last scheduled backup, so the control panel and Phone alerts still show it afterwards, and the restore's log no longer shows a "No such file or directory" line from the watchdog. ([#230](https://github.com/alpinezx/easy-aiostreams/pull/230))
 - **Docs:** Backup and restore guides: a restore checks free space, unpacks and checks the backup first, and asks every question that can stop it before the install is replaced, so Abort leaves the server as it was. ([#230](https://github.com/alpinezx/easy-aiostreams/pull/230))
 - **Fixed:** Scripts: a restore asks all its questions (the DNS check, the add-ons' subdomains, the site names and tunnel token at home, starting without a switched-off VPN) before it replaces the install, so Abort, No or Ctrl+C at any of them leaves the server exactly as it was. ([#230](https://github.com/alpinezx/easy-aiostreams/pull/230))
 - **Fixed:** Scripts: a restore unpacks the backup into a folder of its own next to the install and checks it before anything changes, so a backup that can't be unpacked whole (a full disk, a read error) or has no SECRET_KEY leaves the running install as it was. A restore over SSH also checks there's room first, and says which set-aside folders could go when there isn't. ([#230](https://github.com/alpinezx/easy-aiostreams/pull/230))
