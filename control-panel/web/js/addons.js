@@ -122,7 +122,8 @@ async function setSignups(input) {
 function dockerCard(a) {
   const s = svc(a.id);
   const running = !!s && s.state === "running";
-  const chip = !s ? ["Not running", ""] : running ? ["Running", "ok"] : s.on_purpose ? ["Stopped", ""]
+  // Resuming (just back from a backup's pause, see overview.js): grey, as Starting
+  const chip = !s ? ["Not running", ""] : s.resuming ? ["Resuming", ""] : running ? ["Running", "ok"] : s.on_purpose ? ["Stopped", ""]
     : s.state === "starting" ? ["Starting", ""] : ["Down", "bad"];
   const rows = [];
   if (a.id === "aiometadata") {

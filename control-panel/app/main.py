@@ -20,7 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from . import audit, auth, config, panelupdate, releases, scriptsync, serverip
 from .actions import SCRIPTS, BadAction, build_delete_config, build_restore, build_use_file, resolve
 from .proxy import CaddyProxyHeaders
-from .stack import BACKUP_NAME, RESTARTABLE, WITH_MAIN, backup_path
+from .stack import BACKUP_NAME, RESTARTABLE, WITH_MAIN, backup_path, note_planned
 
 if config.DEMO:
     from .demo import DemoBackend
@@ -738,7 +738,7 @@ async def set_restart_schedule(request: Request, user: str = Depends(current_use
 
 @app.get("/api/proxies")
 async def proxies(force: bool = False, user: str = Depends(current_user)):
-    """Maintenance's Caddy and Cloudflare Tunnel card: versions, the newest releases (force asks GitHub again)."""
+    """Maintenance's Caddy and Cloudflare card: versions, the newest releases (force asks GitHub again)."""
     return await asyncio.to_thread(backend.proxies_info, force)
 
 
@@ -1237,6 +1237,7 @@ class Jobs:
             while len(self.order) > self.KEEP + 5:
                 old = self.order.pop(0)
                 self.items.pop(old, None)
+        note_planned()   # services starting during or just after an action: grey "Starting"
         threading.Thread(target=self._run, args=(job, action, after), daemon=True).start()
         return job
 
@@ -1265,6 +1266,7 @@ class Jobs:
         job["panel_restart"] = restart
         job["code"] = code
         job["ended"] = time.time()
+        note_planned()
         global _status_cache
         _status_cache = None  # next poll reflects what the action changed
         self._save()
@@ -1507,6 +1509,7 @@ async def service_restart(key: str, request: Request, user: str = Depends(curren
         raise HTTPException(404, "That service can't be restarted on its own.")
     if busy := await asyncio.to_thread(host_busy):
         raise HTTPException(409, busy)
+    note_planned(key)   # still starting soon after: grey "Starting", not amber
     try:
         name = await asyncio.to_thread(backend.restart_service, key)
     except RuntimeError as e:

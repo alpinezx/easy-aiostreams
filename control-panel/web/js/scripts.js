@@ -228,21 +228,21 @@ function upItems() {
   const items = [];
   const u = maint && maint.updates;
   if (u && (u.security || u.reboot)) {
-    items.push({ tiny: u.security ? "Security" : "Restart", short: u.security ? `${u.security} security update${u.security === 1 ? "" : "s"}` : "Restart needed",
+    items.push({ short: u.security ? `${u.security} security update${u.security === 1 ? "" : "s"}` : "Restart needed",
       title: "System updates", page: "maint", go: "Maintenance",
       line: [u.security ? `${u.security} for security, of ${u.count} waiting` : "", u.reboot ? "a restart is needed to finish" : ""].filter(Boolean).join("; ") + "." });
   }
   const prox = ((maint && maint.proxies && maint.proxies.items) || []).filter((i) => i.newer);
-  const row = (i) => ({ tiny: i.id, short: `${i.id === "caddy" ? "Caddy" : "cloudflared"} update`, title: i.name, page: "maint", go: "Maintenance",
+  const row = (i) => ({ short: `${i.id === "caddy" ? "Caddy" : "cloudflared"} update`, title: i.name, page: "maint", go: "Maintenance",
     line: `${i.latest} is out; this server runs ${i.running}.` });
   for (const i of prox.filter((x) => x.old)) {
-    items.push({ ...row(i), tiny: "cloudflared", short: "Old cloudflared",
+    items.push({ ...row(i), short: "Old cloudflared",
       line: `${i.running} is over 10 months old, and Cloudflare stops supporting a release after about a year. ${i.latest} is out.` });
   }
   for (const i of prox.filter((x) => !x.old).sort((a, b) => (a.id === "caddy" ? 0 : 1) - (b.id === "caddy" ? 0 : 1))) {
-    items.push({ ...row(i), tiny: i.id === "caddy" ? "Caddy" : "cloudflared" });
+    items.push(row(i));
   }
-  if (n) items.push({ tiny: "Scripts", short: n === 1 ? "Script update" : `${n} script updates`, title: "Scripts", page: "scripts", go: "Scripts",
+  if (n) items.push({ short: n === 1 ? "Script update" : `${n} script updates`, title: "Scripts", page: "scripts", go: "Scripts",
     line: `${n === 1 ? "A script" : `${n} scripts`} here ${n === 1 ? "differs" : "differ"} from GitHub's copy${branch}.` });
   return items;
 }
@@ -277,7 +277,7 @@ export function pill() {
     const ic = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     ic.setAttribute("viewBox", "0 0 24 24"); ic.setAttribute("aria-hidden", "true"); ic.setAttribute("class", "st-i");
     ic.innerHTML = '<path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>';
-    el.append(ic, h("span", { class: "up-long", text: items[0].short }), h("span", { class: "up-tiny", text: items[0].tiny }), items.length > 1 ? h("span", { class: "up-more", text: `+${items.length - 1}` }) : "");
+    el.append(ic, h("span", { text: items[0].short }), items.length > 1 ? h("span", { class: "up-more", text: `+${items.length - 1}` }) : "");
     el.title = items.map((i) => `${i.title}: ${i.line}`).join(" · ");
     el.onclick = (e) => { e.preventDefault(); openStack(items); };
   }

@@ -362,9 +362,8 @@ function proxies(m) {
   const newer = p.items.filter((i) => i.newer);
   const cardEl = h("section", { class: "panel maint-card rs-list prox-card " + (phone ? "rs-phone" : "rs-desk") + (phone && !proxOpen ? " folded" : "") });
   const word = newer.length ? [`${newer.length} update${newer.length === 1 ? "" : "s"}`, "warn"] : ["Up to date", "ok"];
-  // A phone says "tunnel" so the title and its word share one line
   const tunnel = p.items.length > 1;
-  const title = !tunnel ? "Caddy" : phone ? "Caddy and tunnel" : "Caddy and Cloudflare Tunnel";
+  const title = tunnel ? "Caddy and Cloudflare" : "Caddy";
   let head = h("div", { class: "card-head" }, h("h3", { text: title }));
   if (phone) {
     const chev = h("span", { class: "path-chev", "aria-hidden": "true" });

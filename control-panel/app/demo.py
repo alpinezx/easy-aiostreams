@@ -119,6 +119,7 @@ def demo_traffic(now: float, host: bool = False) -> tuple[dict, dict]:
 class DemoBackend:
     def __init__(self, scenario: str = "ok"):
         self.scenario = scenario
+        self.restarted_at: dict[str, float] = {}
         self._gone: set[str] = set()
         self._cleared_logs: set[str] = set()
         self.vpn = os.environ.get("UI_DEMO_VPN", "on")   # on | off | none, to preview the header chip
@@ -311,8 +312,8 @@ class DemoBackend:
         vpn = self.vpn == "on"
         tunnel = bool(os.environ.get("UI_DEMO_TUNNEL"))      # as a Cloudflare Tunnel setup: the tunnel, no certificate line
         tail = "" if tunnel else ", certificate"
-        watches = ((["Cloudflare Tunnel"] if tunnel else []) + ["https://streams.example.com"] + (["AIOStreams through the VPN"] if vpn else [])
-                   + ["AIOMetadata", "AIOManager"] + (["VPN tunnel"] if vpn else []) + ["MediaFlow", "Disk space"]
+        watches = ((["Cloudflare"] if tunnel else []) + ["https://streams.example.com"] + (["AIOStreams through the VPN"] if vpn else [])
+                   + ["AIOMetadata", "AIOManager"] + (["VPN"] if vpn else []) + ["MediaFlow", "Disk space"]
                    + ([] if tunnel else ["HTTPS certificates (5 sites)"]))
         return {"configured": True, "running": self.wd_running, "alert_state": "up", "fails": 0,
                 "warnings": [w for w in os.environ.get("UI_DEMO_WD_WARN", "").split(",") if w],
@@ -320,12 +321,12 @@ class DemoBackend:
                 else time.strftime("%d %b %Y, %H:%M:%S UTC", time.gmtime(time.time() - 40)) + " STOPPED (watchdog disabled, no checks running)",
                 "topic": mask_topic(self.wd_topic), "events": self.wd_events, "tally": self.wd_tally,
                 "watches": watches, "every_min": 2, "threshold": 2,
-                "watch_rows": ([{"name": "Cloudflare Tunnel"}] if tunnel else [])
+                "watch_rows": ([{"name": "Cloudflare"}] if tunnel else [])
                 + [{"name": "AIOStreams", "host": "streams.example.com", "what": "loads" + tail}]
                 + ([{"name": "AIOStreams through the VPN"}] if vpn else [])
                 + [{"name": "AIOMetadata", "host": "meta.example.com", "what": "loads, health check" + tail},
                    {"name": "AIOManager", "host": "manager.example.com", "what": "loads, health check" + tail}]
-                + ([{"name": "VPN tunnel"}] if vpn else [])
+                + ([{"name": "VPN"}] if vpn else [])
                 + [{"name": "MediaFlow", "host": "mediaflow.example.com", "what": "loads, health check" + tail}, {"name": "Disk space"}]
                 + ([] if tunnel else [{"name": "Control panel", "host": "cp.example.com", "what": "certificate"}]),
                 "cert_sites": [] if tunnel else [{"label": "AIOStreams", "host": "streams.example.com"}, {"label": "AIOMetadata", "host": "meta.example.com"},
@@ -380,9 +381,9 @@ class DemoBackend:
 
     def status(self) -> dict:
         defs = [("panel", "aios-ui", "Control panel", "This panel", False, "aios-ui:local"),
-                ("tunnel", "cloudflared", "Cloudflare Tunnel", "The way in, from Cloudflare", False, "cloudflare/cloudflared:latest"),
+                ("tunnel", "cloudflared", "Cloudflare", "The way in, from Cloudflare", False, "cloudflare/cloudflared:latest"),
                 ("caddy", "caddy", "Caddy", "HTTPS front door", False, "caddy:2"),
-                ("gluetun", "gluetun", "VPN tunnel", "gluetun, WireGuard", False, "qmcgaw/gluetun:v3"),
+                ("gluetun", "gluetun", "VPN", "gluetun, WireGuard", False, "qmcgaw/gluetun:v3"),
                 ("aiostreams", "aiostreams", "AIOStreams", "Addon aggregator", False, "viren070/aiostreams:latest"),
                 ("mediaflow", "mediaflow-proxy-light", "MediaFlow", "Faster video proxy", True, f"ghcr.io/mhdzumair/mediaflow-proxy-light:{self.mf_version}"),
                 ("aiometadata", "aiometadata", "AIOMetadata", "Catalogs and metadata", True, "ghcr.io/cedya77/aiometadata:3.6.1"),
@@ -399,6 +400,13 @@ class DemoBackend:
                  "present": True, "state": "running" if run else "stopped", "health": "healthy" if run else None,
                  "restarts": 0, "image": image, "via_vpn": self.vpn == "on" and key in self.routed,
                  "on_purpose": (not run) and key == "aiostreams" and self.stopped_on_purpose}
+            # UI_DEMO_RESUMING=1: a backup has just resumed AIOMetadata and AIOManager, whose next health check is still to come
+            if run and key in ("aiometadata", "aiomanager") and os.environ.get("UI_DEMO_RESUMING"):
+                s.update(health="unhealthy", resuming=True)
+            # Restarted from Services: starting for 20s, grey while the panel's restart explains it
+            if run and time.time() - self.restarted_at.get(key, 0) < 20:
+                from .stack import planned_recently
+                s.update(state="starting", health="starting", planned=planned_recently(key))
             if run:
                 s.update(started_at=self.started[cname].isoformat().replace("+00:00", "Z"),
                          cpu=round(random.uniform(0.2, 9.0) if key == "aiostreams" else random.uniform(0.0, 1.5), 1),
@@ -413,11 +421,15 @@ class DemoBackend:
                 if net:
                     s.update(rx=net[0], tx=net[1])
             services.append(s)
-        down = [s for s in services if s["state"] != "running" and not s["on_purpose"]]
+        down = [s for s in services if s["state"] not in ("running", "starting") and not s["on_purpose"]]
+        starting = [s for s in services if s["state"] == "starting"]
         if down:
-            overall, headline = "down", f"{down[0]['name']} is down"
+            overall, headline = "down", f"{down[0]['name']} down"
         elif self.stopped_on_purpose:
-            overall, headline = "paused", "AIOStreams is stopped"
+            overall, headline = "paused", "AIOStreams stopped"
+        elif starting:
+            overall = "starting" if all(s.get("planned") for s in starting) else "degraded"
+            headline = f"{starting[0]['name']} starting"
         else:
             overall, headline = "ok", "All running"
         return {
@@ -541,7 +553,7 @@ class DemoBackend:
         def at(ago):
             return datetime.fromtimestamp(now - ago, timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
         sample = {
-            "gluetun": ("VPN tunnel", [
+            "gluetun": ("VPN", [
                 (5 * 3600, "2026-11-08T10:00:00Z WARN [dns] exchanging over tls connection for request 1.1.1.1:853: EOF"),
                 (4 * 60, "2026-11-08T10:00:00Z ERROR [vpn] getting public IP address information: all fetchers failed"),
             ]),
@@ -587,6 +599,7 @@ class DemoBackend:
         if key not in RESTARTABLE:
             raise KeyError(key)
         self.restarted_service = key      # demo mode never touches anything
+        self.restarted_at[key] = time.time()
         return next(x[2] for x in SERVICES if x[0] == key)
 
     def reboot_needed(self) -> bool:
@@ -623,7 +636,7 @@ class DemoBackend:
         items = [{"id": "caddy", "name": "Caddy", "what": "serves your sites", "running": self.caddy_ver, "latest": "v2.11.9",
                   "newer": self.caddy_ver != "v2.11.9", "url": "https://github.com/caddyserver/caddy/releases/tag/v2.11.9"}]
         if self.tunnel:
-            items.append({"id": "cloudflared", "name": "Cloudflare Tunnel", "what": "cloudflared", "running": "2026.11.2",
+            items.append({"id": "cloudflared", "name": "Cloudflare", "what": "cloudflared", "running": "2026.11.2",
                           "latest": "2026.11.2", "newer": False, "old": False,
                           "url": "https://github.com/cloudflare/cloudflared/releases/tag/2026.11.2"})
         return {"items": items, "tunnel": self.tunnel, "checked_at": time.time() - (5 if force else 2 * 3600), "error": None,

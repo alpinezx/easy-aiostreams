@@ -118,9 +118,9 @@ REBOOT_CHECK = ('if [ -e /var/run/reboot-required ]; then echo y; exit; fi; '
 # name, container, display name, what it does, path (relative to install dir) that proves it's set up
 SERVICES = [
     # First: through a Cloudflare Tunnel, visitors come in through it (setup-tunnel.sh)
-    ("tunnel", "cloudflared", "Cloudflare Tunnel", "The way in, from Cloudflare", "tunnel-state/token.env"),
+    ("tunnel", "cloudflared", "Cloudflare", "The way in, from Cloudflare", "tunnel-state/token.env"),
     ("caddy", "caddy", "Caddy", "HTTPS front door", None),
-    ("gluetun", "gluetun", "VPN tunnel", "gluetun, WireGuard", "VPN"),
+    ("gluetun", "gluetun", "VPN", "gluetun, WireGuard", "VPN"),
     ("aiostreams", "aiostreams", "AIOStreams", "Addon aggregator", None),
     ("mediaflow", "mediaflow-proxy-light", "MediaFlow", "Faster video proxy", "mediaflow-state/docker-compose.yml"),
     ("webhook", "aios-webhook-relay", "Webhook relay", "Webhooks to phone alerts", "webhook-relay-state/docker-compose.yml"),
@@ -248,6 +248,42 @@ def hide_secrets(line: str) -> str:
 WARN_HINT = re.compile(r'error|fatal|panic|exception|failed|warn|critical|"level":\s*[4-6]\d'
                        r'|shutting down apps|shutdown complete|exiting; byeee', re.I)
 WARN_DAY = 86400          # how far back the card looks
+# The containers setup-backup.sh pauses while it writes a backup, and how long after it resumes them an
+# unhealthy one still counts as resuming: their health checks run every 30s, and a check can take a while.
+BACKUP_PAUSES = {"aiostreams", "aiometadata", "aiomanager"}
+RESUMING_FOR = 90
+
+# When the panel itself last restarted a service (its key) or ran an action ("*"): a container
+# still starting within RESUMING_FOR of that was started on purpose (grey "Starting"); one
+# starting with nothing from the panel, say after a crash, stays amber.
+_PLANNED: dict[str, float] = {}
+
+
+def note_planned(key: str = "*") -> None:
+    _PLANNED[key] = time.time()
+
+
+def planned_recently(key: str, now: float | None = None) -> bool:
+    now = time.time() if now is None else now
+    return any(0 <= now - _PLANNED.get(k, -1e9) <= RESUMING_FOR for k in (key, "*"))
+
+
+def container_state(st: dict, cname: str, just_resumed: bool, planned: bool = False) -> tuple[str, str]:
+    """A container's state for the Overview from Docker's State, plus a grey mark when it is only
+    coming back from something planned: "resuming" (running, a backup resumed it moments ago and
+    its next health check is still to come; counts as running) or "planned" (still starting after
+    the panel started or restarted it). Anything else as Docker says, mark ""."""
+    health = (st.get("Health") or {}).get("Status")
+    running = bool(st.get("Running"))
+    if st.get("Restarting"):
+        return "restarting", ""
+    if running and health in ("unhealthy", "starting") and just_resumed and cname in BACKUP_PAUSES:
+        return "running", "resuming"
+    if running and health == "unhealthy":
+        return "unhealthy", ""
+    if running and health == "starting":
+        return "starting", "planned" if planned else ""
+    return ("running" if running else "stopped"), ""
 WARN_TAIL = 3000          # at most this many of a log's last lines are read
 WARN_KEEP = 300           # and at most this many hints sent per service
 
@@ -769,6 +805,12 @@ class Backend:
         }
 
         routed = self._routed()
+        # A backup pauses AIOStreams and the add-ons for a few seconds; Docker then calls them unhealthy
+        # until their next health check (every 30s for AIOMetadata and AIOManager). Shortly after a
+        # backup resumed them they count as running, marked resuming (grey on the Overview, not red).
+        # Still unhealthy after that is real trouble and shows as usual.
+        now = time.time()
+        just_resumed = any(0 <= now - t <= RESUMING_FOR for t in self.backup_resume_times())
         services = []
         for key, cname, title, role, needs in [PANEL] + SERVICES:
             if needs == "VPN" and not vpn_mode:
@@ -785,16 +827,9 @@ class Backend:
                 st = c.attrs.get("State", {})
                 health = (st.get("Health") or {}).get("Status")
                 running = bool(st.get("Running"))
-                if st.get("Restarting"):
-                    state = "restarting"
-                elif running and health == "unhealthy":
-                    state = "unhealthy"
-                elif running and health == "starting":
-                    state = "starting"
-                elif running:
-                    state = "running"
-                else:
-                    state = "stopped"
+                state, mark = container_state(st, cname, just_resumed, planned_recently(key, now))
+                if mark:
+                    svc[mark] = True
                 started = st.get("StartedAt") if running else None
                 svc.update(
                     state=state, health=health, started_at=started,
@@ -980,16 +1015,19 @@ class Backend:
                 bad.append(s)
         required_bad = [s for s in bad if not s["addon"]]
         if required_bad:
-            names = " and ".join(s["name"] for s in required_bad)
-            verb = "is" if len(required_bad) == 1 else "are"
-            return "down", f"{names} {verb} down"
+            # "Caddy, AIOStreams and VPN": commas, one "and" before the last
+            n = [s["name"] for s in required_bad]
+            names = n[0] if len(n) == 1 else f"{', '.join(n[:-1])} and {n[-1]}"
+            # short, no "is"/"are", so it fits a phone: "Caddy and AIOStreams down"
+            return "down", f"{names} down"
         if bad:
-            return "degraded", f"{bad[0]['name']} is down"
+            return "degraded", f"{bad[0]['name']} down"
         stopped = [s for s in soft if s.get("on_purpose")]
         if stopped:
-            return "paused", f"{stopped[0]['name']} is stopped"
+            return "paused", f"{stopped[0]['name']} stopped"
         if soft:
-            return "degraded", f"{soft[0]['name']} is starting"
+            # amber unless every one of them is only starting because the panel started it (grey)
+            return ("starting" if all(s.get("planned") for s in soft) else "degraded"), f"{soft[0]['name']} starting"
         return "ok", "All running"
 
     def _cpu_pct(self) -> float | None:
@@ -1434,7 +1472,7 @@ class Backend:
         tunnel = _read(self.p("tunnel-state/token.env")).strip() != ""
         rows = [("caddy", "Caddy", "serves your sites", self._caddy_version())]
         if tunnel:
-            rows.append(("cloudflared", "Cloudflare Tunnel", "cloudflared", self._cloudflared_version()))
+            rows.append(("cloudflared", "Cloudflare", "cloudflared", self._cloudflared_version()))
         items, checked, errors = [], [], []
         for key, name, what, running in rows:
             got = releases.get(force, key)
@@ -1716,7 +1754,7 @@ class Backend:
         tunnel = self.p("tunnel-state/token.env").exists()
         # A Cloudflare Tunnel first, as the way in (like the request flow); then the site, the AIO add-ons,
         # the VPN, MediaFlow, disk; the certificates last, since their line unfolds downwards
-        watches = (["Cloudflare Tunnel"] if tunnel else []) + ([f"https://{domain}"] if domain else ["The site"])
+        watches = (["Cloudflare"] if tunnel else []) + ([f"https://{domain}"] if domain else ["The site"])
         img = re.search(r"^\s*image:\s*viren070/aiostreams:(\S+)\s*$", _read(self.p("docker-compose.yml")), re.M)
         vpn = self.vpn_mode() == "on"
         if vpn:
@@ -1726,7 +1764,7 @@ class Backend:
         if (self.p("aiomanager-state") / "config").exists():
             watches.append("AIOManager")
         if vpn:
-            watches.append("VPN tunnel")
+            watches.append("VPN")
         if (self.p("mediaflow-state") / "config").exists():
             watches.append("MediaFlow")
         watches.append("Disk space")
@@ -1740,7 +1778,7 @@ class Backend:
             host_of.setdefault(lbl, host)
         cert = not tunnel
         tail = ", certificate" if cert else ""
-        rows: list[dict] = [{"name": "Cloudflare Tunnel"}] if tunnel else []
+        rows: list[dict] = [{"name": "Cloudflare"}] if tunnel else []
         rows.append({"name": "AIOStreams", "host": domain, "what": "loads" + tail} if domain else {"name": "The site"})
         if vpn:
             rows.append({"name": "AIOStreams through the VPN"})
@@ -1748,7 +1786,7 @@ class Backend:
             if (self.p(state) / "config").exists():
                 rows.append({"name": label, "host": host_of.get(label), "what": "loads, health check" + tail})
         if vpn:
-            rows.append({"name": "VPN tunnel"})
+            rows.append({"name": "VPN"})
         if (self.p("mediaflow-state") / "config").exists():
             rows.append({"name": "MediaFlow", "host": host_of.get("MediaFlow"), "what": "loads, health check" + tail})
         rows.append({"name": "Disk space"})
@@ -2075,6 +2113,23 @@ class Backend:
         with ThreadPoolExecutor(max_workers=8) as pool:
             return [r for r in pool.map(one, want) if r]
 
+    def backup_resume_times(self) -> list[float]:
+        """Each time a backup resumed the containers it paused: setup-backup.sh's backup-resumes
+        (see resumes). Without it, the guess from backup files is kept a minute, as the status
+        asks every few seconds and the files are found by a search of the host."""
+        rec = self.p("backup-resumes")
+        if rec.exists():
+            return [float(x) for x in _read(rec).split() if x.isdigit()]
+        cache = getattr(self, "_resume_guess", None)
+        if cache and time.time() - cache[0] < 60:
+            return cache[1]
+        times = [float(b["mtime"]) for b in self.backups()]
+        last = _read(self.p("backup-last-run")).split("|", 1)[0].strip()
+        if last.isdigit():
+            times.append(float(last))
+        self._resume_guess = (time.time(), times)
+        return times
+
     def resumes(self) -> dict[str, list[float]]:
         """When containers came back in the last day: "*" (every one) each time a backup resumed
         the ones it paused, and each container at its own last start.
@@ -2086,15 +2141,7 @@ class Backend:
         containers resume, and the last scheduled run. Not Docker's events: it keeps only the
         last 256, which its health checks fill within the hour."""
         since = time.time() - WARN_DAY
-        rec = self.p("backup-resumes")
-        if rec.exists():
-            times = [float(x) for x in _read(rec).split() if x.isdigit()]
-        else:
-            times = [b["mtime"] for b in self.backups()]
-            last = _read(self.p("backup-last-run")).split("|", 1)[0].strip()
-            if last.isdigit():
-                times.append(float(last))
-        out: dict[str, list[float]] = {"*": [t for t in times if t >= since]}
+        out: dict[str, list[float]] = {"*": [t for t in self.backup_resume_times() if t >= since]}
         try:
             for c in self.client.containers.list():
                 started = (c.attrs.get("State") or {}).get("StartedAt") or ""

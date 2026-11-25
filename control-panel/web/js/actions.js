@@ -66,7 +66,7 @@ function restartWhat(act) {
   if (act.id !== "stack.restart") return null;
   const parts = ["AIOStreams", "Caddy"];
   if (window.__vpn === "on") parts.push("the VPN");
-  if (window.__tunnel) parts.push("the Cloudflare Tunnel");
+  if (window.__tunnel) parts.push("Cloudflare");
   return `Restart ${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}?`;
 }
 
