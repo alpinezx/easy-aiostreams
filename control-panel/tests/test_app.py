@@ -1205,7 +1205,7 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
     js = (Path(__file__).resolve().parents[1] / "web" / "js" / "logs.js").read_text(encoding="utf-8")
     block = re.search(r"const QUIET = \[(.*?)\n\];", js, re.S).group(1)
     quiet = [re.compile(p) for p in re.findall(r"^\s*/(.+)/,", block, re.M)]
-    assert len(quiet) == 13
+    assert len(quiet) == 14
     grey = [
         # gluetun's first health check, before its DNS was up: it restarted the tunnel itself and was fine seconds later
         '2026-11-18T14:52:57Z WARN [vpn] restarting VPN because it failed to pass the healthcheck: startup check: all check tries failed: parallel attempt 1/2 failed: dialing: dial tcp4: lookup cloudflare.com: i/o timeout, parallel attempt 2/2 failed: dialing: dial tcp4: lookup github.com: i/o timeout',
@@ -1239,6 +1239,11 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
         '2026-11-25T00:14:33.519250172Z [Cache-Health] ℹ Hit Rate: 50.00%, Error Rate: 25.00%, Total: 8',
         '[Cache-Health] ℹ Hits: 4, Misses: 4, Errors: 2, Cached Errors: 0',
         '[HTTP-Timing]  WARN  GET datasets.imdbws.com/title.ratings.tsv.gz took 2006ms: waiting for a connection 25ms, server 11ms, body 1970ms',
+        # a restart cutting a running job's live output in the panel; AIOMetadata's Redis not closed neatly as it stops
+        'ERR Request failed error="unexpected EOF" connIndex=0 dest=https://cp.example.com/api/jobs/a3e924662a55/stream event=0 ip=198.41.192.77 type=http',
+        '2026-11-25T21:02:11Z WARN Did not close cleanly: redis.',
+        '2026-11-25T21:02:11Z WARN Did not close cleanly: sqlite',
+        'ERR Request failed error="unexpected EOF" connIndex=0 dest=https://aio.example.com/api/v1/anything/live/stream event=0 type=http',
     ]
     red = [
         'ERR  error="Unable to reach the origin service. dial tcp: lookup caddy on 127.0.0.11:53: server misbehaving" connIndex=3 event=1 originService=http://caddy:80',
@@ -1263,6 +1268,10 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
         '[Cache-Health]  WARN  Error rate above threshold',
         '[HTTP-Timing]  ERROR  GET datasets.imdbws.com/title.ratings.tsv.gz failed: ECONNRESET',
         '[HTTP-Timing]  WARN  GET datasets.imdbws.com/title.ratings.tsv.gz timed out after 30000ms: no response',
+        # other jobs' lines and other Redis trouble stay
+        'ERR Request failed error="unexpected EOF" connIndex=0 dest=https://cp.example.com/api/jobs/a3e924662a55 event=0 type=http',
+        '2026-11-25T21:02:11Z ERROR Redis connection lost: connect ECONNREFUSED 172.18.0.5:6379',
+        '2026-11-25T21:02:11Z WARN Failed to close cleanly: redis connection refused',
     ]
     for line in grey:
         assert any(r.search(line) for r in quiet), line

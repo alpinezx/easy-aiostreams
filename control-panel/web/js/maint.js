@@ -76,6 +76,9 @@ function updates(m) {
   if (!u.available) return card(["System updates", u.os], [stat("Waiting", "Can't tell", "This server doesn't use apt")], "", null);
   const pk = u.packages || [];
   const j = m.last && m.last.what === "Install updates" ? m.last : null;   // another job's output keeps its card at the page's foot
+  // On a computer with nothing waiting and something installed, the card's quiet line says when and how it ended, and the
+  // button that opens what was installed sits with Show output and List updates (a phone keeps its one line)
+  const lastDone = !PHONE_Q.matches && !pk.some((p) => !p.phased) && u.installed && u.installed.packages.length ? u.installed : null;
   // The lines under Waiting ("2 for security, 3 phasing in") and Checked ("The package lists") are hidden by CSS:
   // the list under the figures shows the same
   const checked = stat("Checked", u.checked_at ? ago(u.checked_at) : "Unknown", "The package lists");
@@ -92,18 +95,24 @@ function updates(m) {
     waiting,
     stat("Restart", u.reboot ? "Needed" : "Not needed", "", u.reboot ? "warn" : ""),
     checked,
-  ], lastLine(j), button("maint.updates", u.count > 0),
+  ], lastDone ? "" : lastLine(j), button("maint.updates", u.count > 0),
   // The last install's output, in the same drawer
   j ? h("button", { class: "btn small maint-list maint-out", type: "button", text: "Show output",
     title: "What the last install printed", onclick: () => openOutput(j) }) : null,
   // What's waiting, by name, in a drawer: nothing is installed from it
   h("button", { class: "btn small maint-list", type: "button", text: "List updates", disabled: !pk.length,
     title: pk.length ? "Which packages are waiting, and their versions" : "Nothing is waiting", onclick: () => openUpdates(u) }),
+  lastDone ? lastOpen(u, lastDone) : null,
   u.reboot ? h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer,
     disabled: !!(status && status.busy) || !!(last && last.last && last.last.running) }) : null);
   c.classList.add("fs-spread");   // desktop: the three figures spread across the card, Checked at its right edge
-  c.insertBefore(updPeek(u, pk), c.querySelector(".card-foot"));
-  if (j && !j.running && j.code !== 0) c.querySelector(".maint-foot > .dim").classList.add("warn");   // a failed install is seen without opening anything
+  if (lastDone) {
+    c.classList.add("upd-last-done");
+    c.querySelector(".maint-foot > .maint-list").classList.add("maint-first");   // its icon starts on the card's text line
+  }
+  c.insertBefore(updPeek(u, pk, j), c.querySelector(".card-foot"));
+  // a failed install is seen without opening anything
+  if (j && !j.running && j.code !== 0) (c.querySelector(".maint-foot > .dim:not(:empty)") || c.querySelector(".upd-peek-head")).classList.add("warn");
   return c;
 }
 
@@ -130,7 +139,14 @@ function peekOpen(label, open) {
   ic.innerHTML = '<svg viewBox="0 0 24 24"><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/></svg>';
   return h("button", { class: "upd-tog", type: "button", onclick: open }, ic, label);
 }
-function updPeek(u, pk) {
+// A computer's button for what the last update installed: beside Show output and List updates, the list icon and the words
+function lastOpen(u, done) {
+  const ic = h("span", {});
+  ic.innerHTML = '<svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/></svg>';
+  return h("button", { class: "btn small maint-list btn-i", type: "button", title: "What the last update installed", onclick: () => openUpdates(u, true) },
+    ic.firstChild, h("span", { text: `Show last update${done.at ? ` ${ago(done.at)}` : ""}` }));
+}
+function updPeek(u, pk, j) {
   const now = pk.filter((p) => !p.phased);
   if (now.length) {
     const hidden = Math.max(0, now.length - PEEK);
@@ -148,8 +164,9 @@ function updPeek(u, pk) {
   const when = `${done.at ? ` ${ago(done.at)}` : ""}${done.auto ? ", by Ubuntu's automatic updates" : ""}`;
   const open = () => openUpdates(u, true);
   if (PHONE_Q.matches) return h("div", { class: "upd-peek upd-peek-row" }, peekOpen("Show last update" + (done.at ? ` ${ago(done.at)}` : ""), open));
+  // The heading says how the last install ended (what the card's foot says on a phone); the button that opens it is in the foot
   return h("div", { class: "upd-peek" },
-    h("p", { class: "upd-peek-head" }, peekOpen(`Show last update${when}`, open), phasing ? h("span", { class: "dim", text: phasing }) : null),
+    h("p", { class: "upd-peek-head" }, j ? lastLine(j) : `Last update${when}`, phasing ? h("span", { class: "dim", text: phasing }) : null),
     peekRows(done.packages),
     more > 0 ? h("button", { class: "linkish upd-more", type: "button", text: `${more} more installed`, onclick: open }) : null);
 }
