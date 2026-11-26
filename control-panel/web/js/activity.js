@@ -250,7 +250,9 @@ export async function showBackups(status) {
   b.onclick = () => runAction(act);
   showSetAsides().catch(() => {});
   showSchedule().catch(() => {});
-  const items = await api("/api/backups");
+  // Back up now starts hidden (index.html) and shows once backupsHead has put it in its place, so a reload
+  // doesn't flash it in the page heading first; if the list can't load it shows in the heading
+  const items = await api("/api/backups").catch((e) => { b.hidden = false; throw e; });
   if (serverIp === undefined) serverIp = await api("/api/server-address").then((r) => r.ip || null, () => null);
   // An IPv6 address needs brackets in scp's user@host:path.
   const host = !serverIp ? "YOUR_SERVER" : serverIp.includes(":") ? `[${serverIp}]` : serverIp;
@@ -454,6 +456,7 @@ function backupsHead(n) {
     head.append(tog, count);
     $("#view-backups .view-head").append(now);
   }
+  now.hidden = false;
 }
 PHONE.addEventListener("change", () => { backupsHead(backupsCount); asideHead(asideCount); });
 
