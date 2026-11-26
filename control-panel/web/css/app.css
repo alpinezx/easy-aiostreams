@@ -2895,3 +2895,10 @@ svg:has(> path[d^="M4 7h16M6 7l1 12"]) { width: 16px !important; height: 16px !i
   .maint-card > .cl-block + .card-foot { margin-top: auto; padding-bottom: 0; }
   .maint-card > .cl-block + .card-foot > .maint-foot, .maint-card > .cl-block:has(+ .card-foot) .maint-foot { align-items: flex-end; }
 }
+/* Phone alerts on a phone: the 14 days' Reset is the bin alone (icons only on phones, 26 November) */
+@media (max-width: 720px) {
+  .wd-reset .wd-reset-word { display: none; }
+  /* the bin's ink ends on the card's text line and its foot sits on the LAST 14 DAYS baseline */
+  .wd-days-row .wd-today-wrap > .btn.wd-reset { margin-right: -3px; }
+  .wd-reset > svg { transform: translateY(1.5px); }
+}
