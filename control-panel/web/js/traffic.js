@@ -84,8 +84,14 @@ function dayName(t) {
 }
 const when = (t) => (dayName(t) === "Today" ? hhmm(t) : `${dayName(t)} ${hhmm(t)}`);
 
-// What's going through now: the live speed, else the latest full minute if it's recent
+// With the VPN switched off (not removed) the tunnel has no speed to measure: say so, don't wait on one
+let tunnelOff = false;
+export const setTunnelOff = (off) => { tunnelOff = !!off; };
+
+// What's going through now: the live speed, else the latest full minute if it's recent. Never
+// for a VPN that's off: its last minute stays "recent" for 3 minutes and would hide "VPN is off".
 export function nowRate(d, kind = "vpn") {
+  if (kind === "vpn" && tunnelOff) return null;
   if (live[kind]) return live[kind];
   const m = d && d.minutes[d.minutes.length - 1];
   return m && m[0] >= d.now - 180 ? [m[1] / 60, m[2] / 60] : null;
@@ -317,9 +323,6 @@ function days(d) {
 // The Traffic card's Now: down and up at the same size, side by side (each on its own line
 // where there isn't room), kept up to date with each status check between the minute's redraws
 const nowFigs = {};
-// With the VPN switched off (not removed) the tunnel has no speed to measure: say so, don't wait on one
-let tunnelOff = false;
-export const setTunnelOff = (off) => { tunnelOff = !!off; };
 const OFF_TEXT = "VPN is off";
 const waitText = (kind) => (kind === "vpn" && tunnelOff ? OFF_TEXT : "Measuring…");
 function nowValue(el, n, kind) {

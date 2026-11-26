@@ -98,7 +98,7 @@
         <p class="lg-sub"><span class="conn" id="log-conn" data-s="">Connecting</span></p>
       </div>
       <div class="lg-acts">
-        <button class="btn small icon-only" id="log-clear" type="button" title="Clear this log or all logs. Docker's own log files are kept." aria-label="Clear logs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg><span class="lg-word">Clear</span></button>
+        <button class="btn small icon-only" id="log-clear" type="button" title="Clear this log or all logs. Docker's own log files are kept." aria-label="Clear logs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg><span class="lg-word">Clear</span></button>
         <button class="btn small" id="log-copy" type="button" title="Copy the lines shown" aria-label="Copy the lines shown"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg><span class="lg-word">Copy</span></button>
         <button class="btn small" id="log-download" type="button" title="Save the lines shown as a .log file" aria-label="Save the lines shown as a .log file"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg><span class="lg-word">Save</span></button>
       </div>
@@ -191,7 +191,7 @@
           <button type="button" data-st="bad" aria-pressed="false" title="Failed actions, alerts sent">ERROR</button>
         </div>
         <div class="lg-acts">
-          <button class="btn small icon-only" id="clear-activity" type="button" title="Clear the finished actions and phone alerts history" aria-label="Clear activity"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg><span class="lg-word">Clear</span></button>
+          <button class="btn small icon-only" id="clear-activity" type="button" title="Clear the finished actions and phone alerts history" aria-label="Clear activity"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg><span class="lg-word">Clear</span></button>
         </div>
       </div>
     </div>
@@ -199,7 +199,7 @@
   </section>
 
   <section class="view" id="view-backups" aria-label="Backup and Restore" hidden>
-    <div class="view-head"><h2>Backup &amp; Restore</h2><button class="btn small" id="backup-now" type="button">Back up now</button></div>
+    <div class="view-head"><h2>Backup &amp; Restore</h2><button class="btn small" id="backup-now" type="button" hidden>Back up now</button></div>
     <div class="note note-blue">
       <p>Restore rolls this server back. <span class="ph-line">Moving to a new server? <a href="https://github.com/alpinezx/easy-aiostreams/blob/main/docs/basic/backup-restore.md#migrating-to-a-new-server" target="_blank" rel="noopener noreferrer" class="guide-link">Guide<span class="ext"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span></a></span></p>
     </div>

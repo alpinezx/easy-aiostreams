@@ -26,7 +26,19 @@ export function setStatus(status) {
   buttons();
 }
 
-// Start/Stop and Send test alert sit in the page heading, like the VPN page's switch
+// Start/Stop and Send test alert sit in the card, as on the VPN page: on a computer at the right of its
+// Watching line, on phones just above the alert topic; with no card, in the heading (computer) or the page
+// (phones). Moved home before the page is cleared, or they'd go with it.
+const PHONE = matchMedia("(max-width: 720px)");
+const homeActs = () => $("#view-alerts .vpn-headrow").append($("#alerts-acts"));
+function placeActs() {
+  const acts = $("#alerts-acts"), card = $("#alerts-root .vpn-card");
+  if (!PHONE.matches) { if (card) card.querySelector(".vpn-head").append(acts); else homeActs(); }
+  else if (card) card.insertBefore(acts, card.querySelector(".wd-topic"));
+  else $("#alerts-root").append(acts);
+}
+PHONE.addEventListener("change", placeActs);
+
 function buttons() {
   const box = $("#alerts-acts");
   if (!box || !st) return;
@@ -50,8 +62,10 @@ export async function show(status) {
   try {
     render(await api("/api/watchdog"));
   } catch (e) {
+    homeActs();
     clear(box);
     box.append(h("p", { class: "empty", text: e.message || "Couldn't read the watchdog's state." }));
+    placeActs();
   } finally {
     loading = false;
   }
@@ -166,9 +180,11 @@ export function todayLine(tally, nowOk = false) {
 
 function render(w) {
   const box = $("#alerts-root");
+  homeActs();
   clear(box);
   if (!w.configured) {
     box.append(h("p", { class: "empty", text: "The watchdog isn't set up on this server." }));
+    placeActs();
     return;
   }
   const chk = parseCheck(w.last_check, w.running);
@@ -193,12 +209,13 @@ function render(w) {
     h("div", { class: "wd-days-row" },
       h("div", {}, h("div", { class: "vpn-label", text: "Last 14 days" }), days(w.tally, w.running && passed)),
       h("div", { class: "wd-today-wrap" }, h("span", { class: "dim wd-today", text: todayLine(w.tally, w.running && passed) }),
-        (w.tally || []).length ? h("button", { class: "btn small quiet", type: "button", text: "Reset", title: "Start the 14 days again", onclick: resetTally }) : null)),
+        (w.tally || []).length ? resetBtn() : null)),
     h("div", { class: "vpn-card-acts wd-topic" },
       h("div", { class: "wd-topic-what" }, h("span", { class: "vpn-label", text: "Alert topic" }),
         h("span", { class: "mono", text: w.topic || "none" })),
       actFor("watchdog.topic") ? h("button", { class: "btn small", type: "button", text: "Change topic", disabled: !!(st && st.busy), onclick: changeTopic }) : null));
   box.append(card, extras(w));
+  placeActs();
 
   // What happened lately lives on the Activity page now, with what the panel has done
   box.append(h("p", { class: "dim wd-activity-link" }, "Failed checks, alerts and recoveries are listed on ",
@@ -311,6 +328,13 @@ function extras(w) {
   return box;
 }
 
+// Reset beside today's line: the bin and the word, like the other pages' clears (the bin red, as every bin is)
+function resetBtn() {
+  const b = h("button", { class: "btn small quiet btn-i wd-reset", type: "button", title: "Start the 14 days again", onclick: resetTally });
+  b.innerHTML = '<svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
+  b.append(h("span", { text: "Reset" }));
+  return b;
+}
 async function resetTally() {
   const ok = await ask({ title: "Reset the 14-day stats?", confirmLabel: "Reset", danger: true,
     body: "The day squares and today's count start again from the next check. The event history stays." });

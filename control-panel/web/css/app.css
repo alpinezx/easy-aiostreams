@@ -1957,6 +1957,13 @@ html:has(> body > .drawer:not([hidden]), > body > #dialog:not([hidden])) { overf
 .bk-card.has-items .backups-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0; padding: 16px; font-size: .98rem; }
 .bk-card.has-items .bk-count { display: inline; font-size: .86rem; font-weight: 400; color: var(--dim); }
 .bk-card.has-items.folded #backups { display: none; }
+/* Back up now on the Backups title row (activity.js moves it there while there are backups), plain, ending on
+   the card's text line with a tall tap target; the count beside the title, before the chevron */
+#view-backups #backups-head #backup-now { background: none; border-color: transparent; box-shadow: none; min-height: 0;
+  padding: 9px 6px; margin: -9px -6px -9px auto; font-size: .9rem; font-weight: 600;
+  color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+#view-backups #backups-head #backup-now:active { color: var(--text); }
+#backups-head .fold-toggle .bk-count { margin-left: 8px; }
 .bk-card.has-items #backups:has(.item) { gap: 0; border-radius: 0; }
 .bk-card.has-items #backups .item.bk { border: 0; border-top: 1px solid var(--line-soft); border-radius: 0; background: none; }
 #set-asides { margin-top: 18px; background: var(--raised); border: 1px solid var(--card-edge); border-radius: var(--radius); overflow: hidden; }
@@ -2401,9 +2408,9 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 @media (min-width: 721px) {
   #view-overview .btn.fold-act.ph-corner { display: inline-flex; }
   #view-overview .path-acts, #view-overview .stat-grid > .grid-btn.host-reboot, #view-overview .btn.ver-upd { display: none !important; }
-  #view-overview .fold-act .fa-word, #view-overview .warn-logs .fa-word, #view-overview .card-cog .fa-word,
+  #view-overview .fold-act .fa-word, #view-overview .warn-logs .fa-word, #view-overview .warn-clear .fa-word, #view-overview .card-cog .fa-word,
   #view-overview .card-detail .fa-word { display: inline; }
-  #view-overview .btn.fold-act, #view-overview .warn-logs, #view-overview .card-cog, #view-overview .card-link.card-detail,
+  #view-overview .btn.fold-act, #view-overview .warn-logs, #view-overview .warn-clear, #view-overview .card-cog, #view-overview .card-link.card-detail,
   #view-overview .ver-btns .btn:not(.primary), #view-overview .card-foot .btn:not(.primary),
   #view-overview #rows .row .acts .btn {
     display: inline-flex; align-items: center; gap: 6px; background: none; border-color: transparent; box-shadow: none;
@@ -2412,7 +2419,8 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   /* Details and Update side by side in the corner: only the first is pushed right */
   #view-overview .card-link.card-detail + .btn.fold-act { margin-left: 10px; }
   #view-overview .warnc .card-acts { gap: 10px; }
-  #view-overview .warnc .card-acts > .card-cog, #view-overview .warnc .card-acts > .warn-logs { padding: 4px 6px; margin: 0; }
+  #view-overview .warnc .card-acts > .card-cog, #view-overview .warnc .card-acts > .warn-logs,
+  #view-overview .warnc .card-acts > .warn-clear { padding: 4px 6px; margin: 0; }
   #view-overview .card-cog svg, #view-overview .fa-icon svg { width: 15px; height: 15px; }
   #view-overview .ver-btns, #view-overview #rows .row .acts { gap: 8px; }
   /* Every action's word ends on the card's right-hand line (the plain buttons' padding pulled out),
@@ -2425,7 +2433,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   /* a newer release: Update filled, with its arrow, wherever it is */
   #view-overview .btn.fold-act.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); padding: 4px 10px; border-radius: 8px; }
   @media (hover: hover) {
-    #view-overview .btn.fold-act:not(.primary):hover:not(:disabled), #view-overview .warn-logs:hover, #view-overview .card-cog:hover,
+    #view-overview .btn.fold-act:not(.primary):hover:not(:disabled), #view-overview .warn-logs:hover, #view-overview .warn-clear:hover, #view-overview .card-cog:hover,
     #view-overview .card-link.card-detail:hover, #view-overview .ver-btns .btn:not(.primary):hover:not(:disabled),
     #view-overview .card-foot .btn:not(.primary):hover:not(:disabled), #view-overview #rows .row .acts .btn:hover:not(:disabled) {
       background: none; text-decoration: underline; text-underline-offset: 3px; color: var(--text); }
@@ -2455,23 +2463,36 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 }
 /* Network: the range or view shown is in the accent colour and bolder (phones and computers); a mouse over a range or view underlines it, a finger never does */
 @media (hover: hover) {
-  #net-ranges .btn:hover:not(:disabled), #net-acts .btn:hover:not(:disabled), #net-root .tr-src .btn:hover:not(:disabled), .tr-rng-card .btn:hover:not(:disabled) {
+  #net-ranges .btn:hover:not(:disabled), #net-acts .btn:hover:not(:disabled), #net-root .tr-src .btn:hover:not(:disabled), .tr-rng-card .btn:hover:not(:disabled),
+  .tr-rng-head .btn:hover:not(:disabled), .tr-src-head .btn:hover:not(:disabled) {
     text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 6px; text-decoration-color: var(--accent); }   /* the colour it takes once chosen */
 }
-.tr-word { display: none; }
+.tr-word, .tr-src-head { display: none; }
 /* On a computer, the time range, All traffic / VPN tunnel and the Traffic card's bin (now Clear) are plain
-   words like the other pages' tools; the bin 3px in from the card's edge */
+   words like the other pages' tools, all on the card's title line: the range in the middle, All traffic / VPN
+   then Clear at the right, the bin 3px in from the card's edge (26 November; they were in the page heading) */
 @media (min-width: 721px) {
-  #net-ranges .btn, #net-acts .btn, #net-root .tr-bin { display: inline-flex; align-items: center; gap: 6px; width: auto; background: none;
+  #view-net .net-head > .net-ranges, #view-net #net-acts { display: none; }
+  /* every word on the title's baseline */
+  #net-root .tr-card > .vpn-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: baseline; }
+  /* a rule under the title line, from edge to edge of the card, in the card's edge colour */
+  #net-root .tr-card > .vpn-head { margin: 0 -20px 24px; padding: 0 20px 12px; border-bottom: 1px solid var(--card-edge); }
+  #net-root .tr-card > .vpn-head > .tr-rng-head { display: flex; grid-column: 2; }
+  #net-root .tr-tools { grid-column: 3; justify-self: end; display: flex; align-items: baseline; gap: 43px; }
+  #net-root .tr-src-head, #net-root .vpn-head .tr-ranges { display: flex; align-items: baseline; }
+  #net-root .vpn-head .tr-bin { align-items: baseline; }
+  #net-root .vpn-head .tr-bin svg { align-self: center; }
+  #net-root .tr-rng-head .btn, #net-root .tr-src-head .btn, #net-root .tr-bin { display: inline-flex; align-items: center; gap: 6px; width: auto; background: none;
     border-color: transparent; box-shadow: none; padding: 4px 6px; min-height: 0; font-size: .86rem; font-weight: 600;
     color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
-  #net-ranges .tr-ranges, #net-acts .tr-ranges { gap: 10px; }
-  #net-ranges .btn[aria-pressed="true"], #net-acts .btn[aria-pressed="true"] { color: var(--accent); font-weight: 700; }
-  #net-acts .tr-ranges .btn:last-child { margin-right: -3px; }
+  #net-root .tr-rng-head .tr-ranges, #net-root .tr-src-head .tr-ranges { gap: 10px; }
+  #net-root .tr-rng-head .btn[aria-pressed="true"], #net-root .tr-src-head .btn[aria-pressed="true"] { color: var(--accent); font-weight: 700; }
   #net-root .tr-bin { margin-right: -3px; }
-  #net-root .tr-word { display: inline; position: relative; top: 1.5px; }   /* the word's baseline on the foot of the bin, as on Logs */
+  /* Clear on the same baseline as All traffic and VPN beside it, the bin's foot on that line too */
+  #net-root .tr-word { display: inline; }
+  #net-root .vpn-head .tr-bin svg { position: relative; top: -1px; }
   @media (hover: hover) {
-    #net-ranges .btn:hover:not(:disabled):not([aria-pressed="true"]), #net-acts .btn:hover:not(:disabled):not([aria-pressed="true"]),
+    #net-root .tr-rng-head .btn:hover:not(:disabled):not([aria-pressed="true"]), #net-root .tr-src-head .btn:hover:not(:disabled):not([aria-pressed="true"]),
     #net-root .tr-bin:hover:not(:disabled) { background: none; color: var(--text); }
     #net-root .tr-bin:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 3px; }
   }
@@ -2496,11 +2517,15 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
     font-size: .86rem; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
   /* Install updates (and Reboot server when needed) at the card's bottom right, List updates before them */
   #view-maint .maint-foot:has(> .maint-list) > .btn:not(.maint-list) { order: 2; }
-  /* With no quiet line (the last install's is above the list), the plain buttons start at the card's left edge and Install updates stays at the right */
-  #view-maint .upd-last-done .maint-foot > .dim:empty { display: none; }
-  #view-maint .upd-last-done .maint-foot > .btn:not(.maint-list) { margin-left: auto; }
+  /* System updates: the last install's line is up beside the list, so the plain buttons start at the card's left edge and
+     Reboot server (when needed) and Install updates sit together at the right */
+  #view-maint .upd-split .maint-foot > .dim:empty { display: none; }
+  #view-maint .upd-split .maint-foot > .btn:not(.maint-list) { order: 0; }
+  #view-maint .upd-split .maint-foot > .maint-list + .btn:not(.maint-list) { margin-left: auto; }
   /* the first plain button's icon on the text edge above it: its padding, border and the icon's own white space pulled out */
-  #view-maint .upd-last-done .maint-foot > .maint-first { margin-left: -9px; }
+  #view-maint .upd-split .maint-foot > .maint-first { margin-left: -9px; }
+  #view-maint .upd-peek .upd-peek-label.upd-label-half { grid-column: 1; }
+  #view-maint .upd-peek .upd-peek-last { justify-self: end; align-self: end; font-size: .86rem; white-space: nowrap; }
   @media (hover: hover) {
     #view-maint .btn.maint-list:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
   }
@@ -2508,7 +2533,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 /* Scripts on a computer: Check now in the heading only asks GitHub again, so plain icon and word like the
    other pages' tools, 3px in from the card's edge; the rows' Copy and Update stay buttons */
 @media (min-width: 721px) {
-  #view-scripts #scripts-acts .btn { background: none; border-color: transparent; box-shadow: none; padding: 4px 6px; min-height: 0;
+  #view-scripts #scripts-acts-row .btn { background: none; border-color: transparent; box-shadow: none; padding: 4px 6px; min-height: 0;
     margin-right: -3px; font-size: .86rem; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
   /* Each row's Copy plain too (it only copies a command, like Backup & Restore's), Update staying a button */
   #view-scripts .cmd-btns .btn[data-act="Copy"] { background: none; border-color: transparent; box-shadow: none;
@@ -2520,10 +2545,14 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   @media (hover: hover) {
     #view-scripts .cmd-btns .btn[data-act="Copy"]:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
   }
-  /* on the Scripts title's baseline */
-  #view-scripts #scripts-acts { position: relative; top: 6px; }
+  /* Check now in the Checked against GitHub line's row, on that line's baseline at the right */
+  #view-scripts .scripts-status { display: flex; align-items: baseline; gap: 16px; }
+  #view-scripts .scripts-status-text { flex: 1; }
+  /* the button's baseline from its words, not its icon (which stays centred) */
+  #view-scripts #scripts-acts-row .btn { align-items: baseline; }
+  #view-scripts #scripts-acts-row .btn > svg { align-self: center; }
   @media (hover: hover) {
-    #view-scripts #scripts-acts .btn:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+    #view-scripts #scripts-acts-row .btn:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
   }
 }
 /* Add-ons, VPN and Phone alerts on a computer, by the same rule as the other pages: the page's work stays
@@ -2539,6 +2568,12 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   /* heading tools: on the title's baseline, 3px in from the card's edge */
   #view-vpn .vpn-acts, #view-alerts .vpn-acts { position: relative; top: 6px; gap: 10px; }
   #view-vpn .vpn-acts .btn:last-child, #view-alerts .vpn-acts .btn:last-child { margin-right: -3px; }
+  /* Backup & Restore's Back up now plain too, on the title's baseline (the heading lines up baselines, the button's
+     from its words, its icon centred on them) and 3px in from the card's edge */
+  #view-backups #backup-now { background: none; border-color: transparent; box-shadow: none; padding: 4px 6px; min-height: 0;
+    margin-right: -3px; font-size: .86rem; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); align-items: baseline; }
+  #view-backups #backup-now > svg { align-self: center; }
+  #view-backups .view-head { align-items: baseline; }
   /* a card's last plain action ends on its right-hand line */
   #view-addons .btn[data-act="Uninstall"], #view-vpn .conf-acts .btn[data-act="Delete"]:last-child { margin-right: -6px; }
   /* and the link to the add-on's own page, plain too, on its left-hand text line */
@@ -2547,7 +2582,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
     #view-addons .ao-page:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
     #view-addons .btn[data-act="Uninstall"]:hover:not(:disabled), #view-vpn .vpn-acts .btn:hover:not(:disabled),
     #view-vpn .conf-acts .btn[data-act="Delete"]:hover:not(:disabled), #view-alerts .vpn-acts .btn:hover:not(:disabled),
-    #view-alerts .btn.quiet:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+    #view-alerts .btn.quiet:hover:not(:disabled), #view-backups #backup-now:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
     #view-addons .ao-ic:hover:not(:disabled) { background: none; color: var(--text); }
   }
 }
@@ -2605,8 +2640,20 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   :is(#view-logs, #view-activity) .lg-row2 { flex-wrap: nowrap; align-items: center; gap: 5px; }
   :is(#view-logs, #view-activity) .lg-row2 .lg-levels { flex-wrap: nowrap; flex: none; }
   :is(#view-logs, #view-activity) .lg-row2 > .lg-acts { margin: -9px -10px -9px auto; gap: 6px; flex: none; align-items: center; align-self: center; }
-  /* the icons sit on the chips' bottom line rather than centred on them */
-  :is(#view-logs, #view-activity) .lg-row2 > .lg-acts .btn { position: relative; top: 5px; }
+  /* Clear on the page title's line (26 November; it was a bare bin beside the chips, small next to them and close
+     under ⋮): the bin and its word, on the title's baseline, ending 3px in from the cards' edge */
+  :is(#view-logs, #view-activity) .view-head { flex-direction: row; flex-wrap: nowrap; align-items: baseline; }
+  :is(#view-logs, #view-activity) .view-head > h2 { flex: 1 1 auto; }
+  :is(#view-logs, #view-activity) .view-head > .lg-acts { align-self: baseline; margin: 0 3px 0 auto; }
+  :is(#view-logs, #view-activity) .view-head > .lg-acts .btn { align-items: baseline; }
+  :is(#view-logs, #view-activity) .view-head > .lg-acts .btn > svg { align-self: center; }
+  :is(#view-logs, #view-activity) .view-head > .lg-acts .lg-word { display: inline; position: relative; top: 1.5px; }   /* on the foot of the bin */
+  /* Logs: on the line under the title (streaming, reconnecting) rather than the title's */
+  #view-logs .view-head { align-items: last baseline; }
+  #view-logs .view-head > .lg-acts { align-self: last baseline; }
+  /* the icons' bottom sits level with the inside of the chips' bottom border (lined up with the outside it read
+     low); only the drawing moves, the tap target stays put */
+  :is(#view-logs, #view-activity) .lg-row2 > .lg-acts .btn > svg { transform: translateY(3px); }
   :is(#view-logs, #view-activity) .lg-row2 .lg-acts .btn { width: 36px; height: 36px; padding: 0; justify-content: center; gap: 0; }
   :is(#view-logs, #view-activity) .lg-acts .btn:active { color: var(--text); }
 }
@@ -2773,4 +2820,69 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 @media (max-width: 720px) {
   .hero-head > .hero-title { flex: 1 1 100%; }
   .hero-head > .scripts-pill { margin: -14px 0 0; }
+}
+/* Bins (delete, clear, remove, reset) are found by their own drawing (the plain bin, nothing inside), so any
+   new bin gets these rules. One size and line for every bin, so the page-wide Clear ones look as crisp as the
+   row bins. At rest a bin takes its button's colour like any icon (red looked out of place in some themes);
+   Activity's row bins get the plain-action grey of the Clear above them, not the brighter text colour. */
+svg:has(> path[d^="M4 7h16M6 7l1 12"]) { width: 16px !important; height: 16px !important; stroke-width: 1.8 !important; }
+/* The one exception: a phone's Network bin beside the small 1h 24h 7d, sized to them (26 November); the line kept as thick */
+@media (max-width: 720px) {
+  #net-root .tr-card > .vpn-head .tr-bin svg { width: 13px !important; height: 13px !important; stroke-width: 2.2 !important;
+    position: relative; top: -1px; }
+}
+#jobs .job-x > svg { color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+@media (hover: hover) {
+  /* on hover a bin and the word beside it turn red. !important: each page's plain buttons set their own hover
+     colour with an id, and this one rule covers them all */
+  :is(button, a):has(svg > path[d^="M4 7h16M6 7l1 12"]):hover:not(:disabled),
+  :is(button, a):hover:not(:disabled) svg:has(> path[d^="M4 7h16M6 7l1 12"]) { color: var(--bad) !important; }
+}
+/* Activity's row bins: a bare icon on a computer too, no button behind it (phones already were) */
+#jobs .item.job > .btn.job-x, #jobs .item.job > .btn.job-x:hover:not(:disabled) { background: none; border-color: transparent; }
+/* VPN and Phone alerts on phones: the page's two side tools (Check now and Turn VPN off; Stop watchdog and Send
+   test alert) in the card, under a line, just above its last row (Change config; the alert topic), the first on
+   the left text line and the second ending on the right; the heading keeps only the title */
+@media (max-width: 720px) {
+  #view-vpn .vpn-headrow > .vpn-acts, #view-alerts .vpn-headrow > .vpn-acts { display: none; }
+  :is(#view-vpn, #view-alerts) .vpn-card > .vpn-acts { display: flex; justify-content: space-between; margin: 18px 0 0;
+    padding-top: 10px; border-top: 1px solid var(--line-soft); }
+  #view-vpn .vpn-card > .vpn-acts #vpn-check, #view-vpn #vpn-root > .vpn-acts #vpn-check { order: -1; }
+  :is(#view-vpn, #view-alerts) .vpn-card > .vpn-acts .btn:last-child { margin-right: 0; }
+  :is(#view-vpn, #view-alerts) .vpn-card > .vpn-acts + .vpn-card-acts { margin-top: 10px; padding-top: 0; border-top: 0; }
+  #view-vpn #vpn-root > .vpn-acts, #view-alerts #alerts-root > .vpn-acts { display: flex; justify-content: space-between; margin-top: 12px; }
+}
+/* VPN and Phone alerts on a computer: the two side tools at the right of the card's state line (Connected,
+   Watching), its Checked time beside the state, the last tool ending on the card's right-hand text line */
+@media (min-width: 721px) {
+  :is(#view-vpn, #view-alerts) .vpn-head:has(> .vpn-acts) { justify-content: flex-start; align-items: baseline; }
+  :is(#view-vpn, #view-alerts) .vpn-head > .vpn-acts { top: 0; align-items: baseline; }
+  :is(#view-vpn, #view-alerts) .vpn-head > .vpn-acts .btn { align-items: baseline; }
+  :is(#view-vpn, #view-alerts) .vpn-head > .vpn-acts .btn > svg { align-self: center; }
+  :is(#view-vpn, #view-alerts) .vpn-head > .vpn-acts .btn:last-child { margin-right: -6px; }
+}
+/* Maintenance on a computer: Caddy's version row on the same line as System updates' values (8 updates), so the
+   line under it lines up with the one beside it (1px lower by eye in Firefox); Update raised so its bottom is
+   level with the bottom of the version and All releases
+   (Caddy alone: with cloudflared too, the card is taller and keeps its spacing) */
+.rs-desk.prox-card:not(:has(> .rs-block:not(.prox-auto-block) ~ .rs-block:not(.prox-auto-block))) > .rs-block:not(.prox-auto-block) { padding-bottom: 0; }
+.rs-desk.prox-card:not(:has(> .rs-block:not(.prox-auto-block) ~ .rs-block:not(.prox-auto-block))) > .rs-block:not(.prox-auto-block) .rs-ctl { margin-top: 0; }
+.rs-desk.prox-card:not(:has(> .rs-block:not(.prox-auto-block) ~ .rs-block:not(.prox-auto-block))) > .rs-block:not(.prox-auto-block) .rs-ctl > .btn:not(.prox-notes) { position: relative; top: -6px; }
+.rs-desk.prox-card:not(:has(> .rs-block:not(.prox-auto-block) ~ .rs-block:not(.prox-auto-block))) > .prox-auto-block { margin-top: 3px; }
+/* ... and the state word (v2.11.9 available, Up to date) on the title's line, maint.js puts a copy there; 3px in
+   from the button's right edge below, or its rounded corner makes the word look past it (optical alignment) */
+.rs-desk.prox-card:not(:has(> .rs-block:not(.prox-auto-block) ~ .rs-block:not(.prox-auto-block))) > .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-top: 2px; }   /* 2px: where centring put the title, level with System updates' */
+.rs-desk.prox-card:not(:has(> .rs-block:not(.prox-auto-block) ~ .rs-block:not(.prox-auto-block))) > .card-head > .rs-word { margin-right: 3px; }
+.rs-desk.prox-card:not(:has(> .rs-block:not(.prox-auto-block) ~ .rs-block:not(.prox-auto-block))) > .rs-block:not(.prox-auto-block) .rs-line > .rs-word { visibility: hidden; }
+/* ... its CADDY label dropped (the card's title says it; kept in place so nothing moves), and the Automatic
+   updates note sits at the bottom of the select beside it */
+.rs-desk.prox-card:not(:has(> .rs-block:not(.prox-auto-block) ~ .rs-block:not(.prox-auto-block))) > .rs-block:not(.prox-auto-block) .rs-line > .ver-label { visibility: hidden; }
+.rs-desk.prox-card .prox-auto-block .rs-ctl { align-items: flex-end; }
+/* Free up space on a computer: Container logs straight under the figures between two lines (level with Scheduled
+   server reboot's two), the spare room under it, then About ... can go and Free up space ending the card like the
+   reboot card's note; each row's words on its button's bottom edge */
+@media (min-width: 721px) {
+  .maint-card > .cl-block:has(+ .card-foot) { margin-top: 8px; padding-bottom: 17px; border-bottom: 1px solid var(--line-soft); }
+  .maint-card > .cl-block + .card-foot { margin-top: auto; padding-bottom: 0; }
+  .maint-card > .cl-block + .card-foot > .maint-foot, .maint-card > .cl-block:has(+ .card-foot) .maint-foot { align-items: flex-end; }
 }

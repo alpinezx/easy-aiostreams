@@ -14,7 +14,7 @@ const kind = () => (source === "vpn" && hasVpn() ? "vpn" : "host");
 // The page heading: the time range (from traffic.js), then All traffic / VPN tunnel once the VPN
 // is set up; the bin (as on Logs) at the Traffic card's top right. On a phone All traffic / VPN
 // tunnel sit in the Traffic card under its title instead (a second copy; CSS shows one).
-const BIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
+const BIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
 function bin() {
   const b = h("button", { class: "btn small icon-only tr-bin", type: "button", title: "Clear traffic history",
     "aria-label": "Clear traffic history", onclick: async () => { if (await clearHistory(kind(), hasVpn())) show(st); } });
@@ -36,7 +36,9 @@ function sources() {
       } })));
 }
 const drawTraffic = (tbox) => trafficCard(tbox, false, kind(),
-  { ranges: $("#net-ranges"), tool: bin(), sub: hasVpn() ? h("div", { class: "tr-src" }, sources()) : null });
+  { ranges: $("#net-ranges"), sub: hasVpn() ? h("div", { class: "tr-src" }, sources()) : null,
+    // A computer: All traffic / VPN at the card head's right, before Clear (a third copy; CSS shows one)
+    tool: h("div", { class: "tr-tools" }, hasVpn() ? h("div", { class: "tr-src-head" }, sources()) : null, bin()) });
 function sourceSwitch() {
   const acts = $("#net-acts");
   clear(acts);

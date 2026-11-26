@@ -54,7 +54,7 @@ export function versionChip(current) {
 }
 
 // The note at the top of the page: when GitHub was last asked and the panel's last update. Check now
-// goes in the page heading, on the right as Back up now does (on a phone, on a line under the title).
+// goes in the page heading, on the right (on a phone, on a line under the title).
 // One Check now covers the panel and the scripts.
 function statusLine() {
   const v = ver || {};
@@ -76,14 +76,20 @@ function statusLine() {
     h("div", { class: "scripts-status-text" }, checked ? h("p", { class: "dim", text: checked }) : null,
       lastLine));
 }
-function checkNow() {
+// A computer shows Check now at the right of the Checked against GitHub line (in the same row, so the browser lines up
+// the baselines); a phone keeps it in the page heading, on a line under the title
+const PHONE_Q = window.matchMedia("(max-width: 720px)");
+function checkNow(status) {
   const busy = verLoading || cmpLoading;
   const acts = $("#scripts-acts");
   if (!acts) return;
   clear(acts);
-  acts.append(h("button", { class: "btn small", type: "button", text: busy ? "Checking…" : "Check now", disabled: busy,
-    title: "Check the panel's version and compare the scripts here with GitHub's copies now", onclick: checkAll }));
+  const btn = h("button", { class: "btn small", type: "button", text: busy ? "Checking…" : "Check now", disabled: busy,
+    title: "Check the panel's version and compare the scripts here with GitHub's copies now", onclick: checkAll });
+  if (PHONE_Q.matches) { acts.append(btn); return; }
+  status.append(h("span", { class: "scripts-acts scripts-acts-row", id: "scripts-acts-row" }, btn));
 }
+PHONE_Q.addEventListener("change", () => { const box = $("#scripts-root"); if (box && box.firstChild) render(); });
 
 async function checkAll() {
   await Promise.all([loadPanelVersion(true), loadCompare(true)]);
@@ -410,8 +416,9 @@ function render() {
   // so the list doesn't read as a checklist to complete.
   const core = scripts.filter((x) => x.id === "aiostreams"), addons = scripts.filter((x) => x.id !== "aiostreams");
 
-  checkNow();
-  box.append(statusLine());
+  const statusRow = statusLine();
+  checkNow(statusRow);
+  box.append(statusRow);
   box.append(h("section", { class: "panel scripts-panel scripts-core" },
     h("ul", { class: "cmds" }, panelRow(`sudo bash ${dir}/control-panel/setup-ui.sh`), ...core.map(rowOf))));
   if (addons.length) {

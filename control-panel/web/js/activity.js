@@ -10,6 +10,17 @@ let buildTimer = null, buildTries = 0;
 // This server's public IP for the scp command, looked up once per page load. null: not found.
 let serverIp;
 
+// Activity's Clear: on the level buttons' row on a computer, on the page title's line on a phone (as on Logs)
+{
+  const phone = window.matchMedia("(max-width: 720px)");
+  const place = () => {
+    const acts = $("#view-activity .lg-acts");
+    if (acts) (phone.matches ? $("#view-activity .view-head") : $("#view-activity .lg-row2")).append(acts);
+  };
+  phone.addEventListener("change", place);
+  place();
+}
+
 // What the phone-alerts watchdog noticed on its own, shown in the same list when it's set up.
 // Pill words and colours for each kind of event.
 const ALERT_KIND = {
@@ -23,7 +34,7 @@ const SERVER_KIND = {
   "backup-skipped": ["Backup skipped", "warn"], "restart-skipped": ["Reboot skipped", ""],
   "auto-update": ["Updated", "ok"], "auto-update-failed": ["Update failed", "bad"], "auto-update-skipped": ["Update skipped", "warn"],
 };
-const BIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
+const BIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
 
 // All, Actions (what you started) or Alerts (what the watchdog noticed). Only shown with phone alerts set up.
 let filter = "all";
@@ -39,6 +50,33 @@ const binButton = (title, label, disabled, onclick) => {
   return x;
 };
 
+// The watchdog notes a failed check at once, with its fix, but only alerts when the next check fails
+// too. So a failure the next check cleared fixed itself: one grey row says so, without the fix (it
+// was never needed), and its "Passing again before an alert was due" row folds into it. The newest
+// failure, still waiting for its next check, says that rather than sending anyone to the terminal.
+// A failure that led to an alert keeps its fix.
+const HEALED = /^Passing again before an alert was due/;
+const PENDING_FOR = 300;
+const noFix = (t) => t.replace(/\s*\b(?:Fix|Check):[\s\S]*$/, "").replace(/([^.!?])$/, "$1.");
+export function settleFails(events, now = Date.now() / 1000) {
+  const asc = [...events].sort((a, b) => a.at - b.at);
+  const gone = new Set();
+  const out = new Map();
+  asc.forEach((e, i) => {
+    if (e.kind !== "fail") return;
+    const next = asc.slice(i + 1).find((n) => n.kind === "recovered" || n.kind === "alert" || n.kind === "fail");
+    if (next && next.kind === "recovered" && HEALED.test(next.text)) {
+      gone.add(next);
+      out.set(e, { ...e, also: next, word: "Fixed itself", tone: "",
+        shown: `${noFix(e.text)} Passed again on the next check, so no alert was sent. Nothing to do.` });
+    } else if (!next && now - e.at < PENDING_FOR) {
+      out.set(e, { ...e, word: "Checking", tone: "warn",
+        shown: `${noFix(e.text)} Checking again before sending an alert.` });
+    }
+  });
+  return events.filter((e) => !gone.has(e)).map((e) => out.get(e) || e);
+}
+
 let lastStatus = null;
 export async function showActivity(status) {
   lastStatus = status;
@@ -47,7 +85,7 @@ export async function showActivity(status) {
   if (!alertsOn) filter = "all";
   const [jobs, events, serverEvents] = await Promise.all([
     api("/api/jobs"),
-    alertsOn ? api("/api/watchdog").then((w) => w.events || [], () => []) : [],
+    alertsOn ? api("/api/watchdog").then((w) => settleFails(w.events || []), () => []) : [],
     api("/api/server-events").catch(() => []),
   ]);
   clear(box);   // only now, so typing in the filter doesn't blink the list
@@ -109,11 +147,12 @@ export async function showActivity(status) {
   if (showEvents) for (const e of events) rows.push({ at: e.at, event: e });
   if (showServer) for (const e of serverEvents) rows.push({ at: e.at, sev: e });
   rows.sort((a, b) => b.at - a.at);
-  const tone = (r) => r.event ? (ALERT_KIND[r.event.kind] || ["", ""])[1] : r.sev ? (SERVER_KIND[r.sev.kind] || ["", ""])[1]
+  const kindOf = (e) => e.word ? [e.word, e.tone] : ALERT_KIND[e.kind] || [e.kind, ""];
+  const tone = (r) => r.event ? kindOf(r.event)[1] : r.sev ? (SERVER_KIND[r.sev.kind] || ["", ""])[1]
     : !r.job.ended ? "run" : r.job.code === 0 ? "ok" : "bad";
   // OK holds everything that went fine or is just a note (Started, Test alert, Running), like INFO in Logs
   const group = (r) => { const t = tone(r); return t === "warn" || t === "bad" ? t : "ok"; };
-  const words = (r) => r.event ? `${r.event.text} phone alerts ${(ALERT_KIND[r.event.kind] || [r.event.kind])[0]}`
+  const words = (r) => r.event ? `${r.event.shown || r.event.text} phone alerts ${kindOf(r.event)[0]}`
     : r.sev ? `${r.sev.text} server ${(SERVER_KIND[r.sev.kind] || [r.sev.kind])[0]}`
     : `${r.job.label} ${actionGroup(r.job.action)} ${tone(r) === "ok" ? "done" : tone(r) === "bad" ? "failed" : "running"}`;
   const total = rows.length;
@@ -158,13 +197,17 @@ export async function showActivity(status) {
     }
     if (e) {
       // An alert: nothing to open, so the row isn't a button
-      const [name, cls] = ALERT_KIND[e.kind] || [e.kind, ""];
+      const [name, cls] = kindOf(e);
       const row = line(e.at, cls, name,
-        h("span", { class: "job-open" }, h("span", { class: "what" }, longWords(e.text))),
+        h("span", { class: "job-open" }, h("span", { class: "what" }, longWords(e.shown || e.text))),
         "Phone alerts" + (cls === "ok" ? "" : ` · ${name}`), " evt");
-      row.append(binButton("Remove from Activity", `Remove "${e.text}" from Activity`, false, async () => {
-        try { await api("/api/watchdog/events/remove", { method: "POST", body: JSON.stringify({ at: e.at, kind: e.kind, text: e.text }) }); }
-        catch (err) { toast(err.message || "Couldn't remove it.", true); }
+      row.append(binButton("Remove from Activity", `Remove "${e.shown || e.text}" from Activity`, false, async () => {
+        try {
+          // a failure that fixed itself takes its folded "Passing again" row with it
+          for (const x of [e, e.also].filter(Boolean)) {
+            await api("/api/watchdog/events/remove", { method: "POST", body: JSON.stringify({ at: x.at, kind: x.kind, text: x.text }) });
+          }
+        } catch (err) { toast(err.message || "Couldn't remove it.", true); }
         showActivity(status).catch(() => {});
       }));
       box.append(row);
@@ -218,7 +261,9 @@ export async function showBackups(status) {
   b.onclick = () => runAction(act);
   showSetAsides().catch(() => {});
   showSchedule().catch(() => {});
-  const items = await api("/api/backups");
+  // Back up now starts hidden (index.html) and shows once backupsHead has put it in its place, so a reload
+  // doesn't flash it in the page heading first; if the list can't load it shows in the heading
+  const items = await api("/api/backups").catch((e) => { b.hidden = false; throw e; });
   if (serverIp === undefined) serverIp = await api("/api/server-address").then((r) => r.ip || null, () => null);
   // An IPv6 address needs brackets in scp's user@host:path.
   const host = !serverIp ? "YOUR_SERVER" : serverIp.includes(":") ? `[${serverIp}]` : serverIp;
@@ -404,6 +449,7 @@ function backupsHead(n) {
   head.hidden = !n;
   card.classList.toggle("has-items", n > 0);
   card.classList.toggle("folded", !backupsOpen);
+  const now = $("#backup-now");   // picked up before clear(): on a phone it sits in this row
   clear(head);
   const tog = h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(backupsOpen), onclick: () => {
     backupsOpen = !backupsOpen;
@@ -411,7 +457,17 @@ function backupsHead(n) {
     card.classList.toggle("folded", !backupsOpen);
     tog.setAttribute("aria-expanded", String(backupsOpen));
   } }, "Backups", chev());
-  head.append(tog, h("span", { class: "bk-count", text: String(n) }));
+  const count = h("span", { class: "bk-count", text: String(n) });
+  // Back up now moves from the page heading onto the Backups title row (saves a phone the heading's extra
+  // line) and the count sits beside the title; with no backups yet (no title row) it stays in the heading.
+  if (n > 0) {
+    tog.insertBefore(count, tog.lastChild);
+    head.append(tog, now);
+  } else {
+    head.append(tog, count);
+    $("#view-backups .view-head").append(now);
+  }
+  now.hidden = false;
 }
 PHONE.addEventListener("change", () => { backupsHead(backupsCount); asideHead(asideCount); });
 

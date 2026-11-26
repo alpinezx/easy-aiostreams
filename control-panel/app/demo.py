@@ -547,7 +547,7 @@ class DemoBackend:
         return {"ok": True, "reasons": [], "notes": ["It holds AIOStreams v2.35.9.",
                 "streams.example.com points at this server.", "Control panel: panel.example.com points at this server."]}
 
-    def log_warnings(self, loggable) -> list[dict]:
+    def log_warnings(self, loggable, windows=()) -> list[dict]:
         """Recent log alerts: a few real-looking lines, noise among them (the card leaves it out).
         Only with UI_DEMO_ISSUES; otherwise none, as a healthy install shows."""
         if not self.issues:

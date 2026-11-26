@@ -253,6 +253,26 @@ def test_clear_activity_keeps_running_and_clears_finished(client):
     assert client.get("/api/jobs").json() == []
 
 
+def test_clearing_activity_keeps_the_log_alerts_quiet_windows(client):
+    """Caddy's and the tunnel's lines from while an action ran stay off Recent log alerts
+    after Activity is cleared, and after a panel restart."""
+    from datetime import datetime, timezone
+    from app import main
+    login(client)
+    job = main.jobs.start(actions.resolve("stack.restart", None), None)
+    deadline = time.time() + 20
+    while main.jobs.current_id() and time.time() < deadline:
+        time.sleep(0.2)
+    mid = (job["started"] + job["ended"]) / 2
+    line = datetime.fromtimestamp(mid, timezone.utc).strftime("%Y-%m-%dT%H:%M:%S") + ".0Z ERR Unable to reach the origin service"
+    svc = [{"container": "cloudflared", "lines": [line]}]
+    client.delete("/api/jobs")
+    assert main.jobs.items == {}
+    assert main.outside_jobs(svc, main._job_windows())[0]["lines"] == []
+    assert main.outside_jobs(svc, [w for w in main._job_windows() if w[0] > mid])[0]["lines"] == [line]
+    assert any(a <= job["started"] and job["ended"] <= b for a, b in main.Jobs().spans)   # read back from the file
+
+
 def test_remove_one_activity_entry(client):
     from app import main
     login(client)
@@ -731,6 +751,43 @@ def test_log_warnings(client):
     got = warn_hints(raw)
     assert len(got) == 4 and "Sorted" not in " ".join(got)       # info lines never sent
     assert "hunter2" not in got[2] and "api_password=[hidden]" in got[2]
+    # gluetun: a drop that found its public address again within 5 minutes stays off the card,
+    # one that never came back (or came back later) stays on it
+    vpn = "\n".join([
+        "2026-11-26T04:36:45.1Z 2026-11-26T04:36:45Z WARN [vpn] restarting VPN because it failed to pass the healthcheck: full periodic check: all check tries failed:",
+        "2026-11-26T04:36:46.1Z 2026-11-26T04:36:46Z ERROR [vpn] getting public IP address information: fetching information: all fetchers failed: %!w(<nil>)",
+        "2026-11-26T04:37:10.1Z 2026-11-26T04:37:10Z INFO [ip getter] Public IP address is 192.0.2.7 (Netherlands)",
+        "2026-11-26T06:00:00.1Z 2026-11-26T06:00:00Z WARN [vpn] restarting VPN because it failed to pass the healthcheck: full periodic check:",
+        "2026-11-26T06:10:00.1Z 2026-11-26T06:10:00Z INFO [ip getter] Public IP address is 192.0.2.7 (Netherlands)",
+        "2026-11-26T07:00:00.1Z 2026-11-26T07:00:00Z WARN [vpn] restarting VPN because it failed to pass the healthcheck: full periodic check:",
+        "2026-11-26T07:00:01.1Z 2026-11-26T07:00:01Z WARN [dns] renewing tls connection: EOF"]).encode()
+    healed = warn_hints(vpn, vpn=True)
+    assert [ln[:19] for ln in healed] == ["2026-11-26T06:00:00", "2026-11-26T07:00:00", "2026-11-26T07:00:01"]
+    assert len(warn_hints(vpn)) == 5                          # other services' logs untouched
+    # a third healed drop in the day: all of them show again
+    third = vpn + b"\n" + "\n".join([
+        "2026-11-26T08:00:00.1Z 2026-11-26T08:00:00Z WARN [vpn] restarting VPN because it failed to pass the healthcheck: full periodic check:",
+        "2026-11-26T08:00:02.1Z 2026-11-26T08:00:02Z INFO [ip getter] Public IP address is 192.0.2.7 (Netherlands)",
+        "2026-11-26T08:30:00.1Z 2026-11-26T08:30:00Z WARN [vpn] restarting VPN because it failed to pass the healthcheck: full periodic check:",
+        "2026-11-26T08:30:02.1Z 2026-11-26T08:30:02Z INFO [ip getter] Public IP address is 192.0.2.7 (Netherlands)"]).encode()
+    assert len(warn_hints(third, vpn=True)) == len(warn_hints(third)) == 7
+    # gluetun's startup check restart while the panel switches the VPN on (twice, trying configs) isn't
+    # counted: with one real healed drop they all stay off. The same restarts outside an action count.
+    from datetime import datetime, timezone
+    t = lambda s: datetime.strptime(s, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc).timestamp()
+    switches = "\n".join([
+        "2026-11-26T09:00:05.1Z 2026-11-26T09:00:05Z WARN [vpn] restarting VPN because it failed to pass the healthcheck: startup check: all check tries failed:",
+        "2026-11-26T09:00:09.1Z 2026-11-26T09:00:09Z INFO [ip getter] Public IP address is 192.0.2.8 (Germany)",
+        "2026-11-26T09:20:05.1Z 2026-11-26T09:20:05Z WARN [vpn] restarting VPN because it failed to pass the healthcheck: startup check: all check tries failed:",
+        "2026-11-26T09:20:09.1Z 2026-11-26T09:20:09Z INFO [ip getter] Public IP address is 192.0.2.9 (Sweden)",
+        "2026-11-26T10:00:00.1Z 2026-11-26T10:00:00Z WARN [vpn] restarting VPN because it failed to pass the healthcheck: full periodic check:",
+        "2026-11-26T10:00:02.1Z 2026-11-26T10:00:02Z INFO [ip getter] Public IP address is 192.0.2.9 (Sweden)"]).encode()
+    actions = [(t("2026-11-26T09:00:00") - 5, t("2026-11-26T09:00:03") + 60), (t("2026-11-26T09:20:00") - 5, t("2026-11-26T09:20:03") + 60)]
+    assert warn_hints(switches, vpn=True, windows=actions) == []
+    assert len(warn_hints(switches, vpn=True)) == len(warn_hints(switches)) == 3
+    # a periodic check failing during an action still counts: only the startup check is planned
+    periodic = switches.replace(b"startup check: all check tries failed:", b"full periodic check:")
+    assert len(warn_hints(periodic, vpn=True, windows=actions)) == 3
     import app.main as m
     m.backend.issues = True                     # the demo's sample lines (off by default, for clean screenshots)
     r = client.get("/api/log-warnings").json()["services"]
@@ -839,7 +896,7 @@ def test_log_warnings_hidden(client):
     m._warn_cache["data"] = None
     seen = []
     real = m.backend.log_warnings
-    m.backend.log_warnings = lambda loggable: seen.append(set(loggable)) or []
+    m.backend.log_warnings = lambda loggable, windows=(): seen.append(set(loggable)) or []
     addons = sorted(m.WARN_OFF_BY_DEFAULT)
     m._warn_hidden_path().unlink(missing_ok=True)
     try:
@@ -1279,6 +1336,55 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
         assert not any(r.search(line) for r in quiet), line
 
 
+def test_noise_rules_table():
+    """Every rule for nuisance log lines, in app/noise.py's one table: which ones there are, whose
+    lines, when and where. Adding, dropping or moving a rule is meant to show up here."""
+    from app import noise as n
+    got = [(r.name, r.services, r.pattern is not None, r.when, r.where) for r in n.RULES]
+    C, A = ("caddy",), (n.ALWAYS,)
+    noise = ["logs-page-closed", "live-page-left", "viewer-hung-up", "dashboard-cut", "dashboard-reconnect",
+             "caddy-stop-byeee", "caddy-stop-apps", "caddy-stop-grace", "caddyfile-format", "http3-needs-tls",
+             "panel-restarting", "panel-gone"]
+    quiet = [("vpn-dns-retry", "gluetun"), ("vpn-stopping", "gluetun"), ("vpn-startup-check", "gluetun"),
+             ("vpn-version-403", "gluetun"), ("tunnel-stopping", "cloudflared"),
+             ("tunnel-already-connected", "cloudflared"), ("tunnel-closed-no-error", "cloudflared"),
+             ("tunnel-visitor-closed", "cloudflared"), ("tunnel-visitor-gave-up", "cloudflared"),
+             ("tunnel-cut-first-half", "cloudflared"), ("tunnel-live-page-cut", "cloudflared"),
+             ("aiometadata-cache-stats", "aiometadata"), ("aiometadata-slow-answer", "aiometadata"),
+             ("aiometadata-unclean-close", "aiometadata")]
+    assert got == [
+        *[(name, C, True, A, "NOISE") for name in noise],
+        ("aiostreams-cut-by-restart", C, True, (n.BEFORE_CADDY_STOP,), "CUT_BY_AIOS"),
+        *[(name, (svc,), True, A, "QUIET") for name, svc in quiet],
+        ("vpn-drop-healed", ("gluetun",), True, (n.HEALED,), "card"),
+        ("away-during-action", ("caddy", "cloudflared"), False, (n.ACTION,), "card"),
+        ("away-after-boot", ("caddy", "cloudflared"), False, (n.BOOT,), "card"),
+        ("event-loop-stall", ("*",), True, (n.BACKUP, n.OWN_START), "card"),
+        ("caddy-missing-panel", C, True, (n.OWN_START,), "card"),
+    ]
+    assert all(r.why for r in n.RULES)
+    assert len({r.name for r in n.RULES}) == len(n.RULES)
+    assert (n.RESTART_WINDOW, n.JOB_GRACE, n.BOOT_GRACE, n.RESUME_GRACE, n.VPN_HEAL_WITHIN, n.VPN_HEAL_MAX) == (10, 60, 180, 60, 300, 2)
+    assert n.QUIET_WINDOW_SERVICES == {"caddy", "cloudflared"}
+
+
+def test_noise_rules_match_logs_js():
+    """The browser's lists in logs.js are a copy of the table's NOISE, QUIET and CUT_BY_AIOS rows:
+    same patterns in the same order, each tagged with its row's name, and each valid in Python too."""
+    import re
+    from pathlib import Path
+    from app.noise import RULES
+    js = (Path(__file__).resolve().parents[1] / "web" / "js" / "logs.js").read_text(encoding="utf-8")
+    for name in ("NOISE", "QUIET"):
+        block = re.search(r"const %s = \[(.*?)\n\];" % name, js, re.S).group(1)
+        lines = re.findall(r"^\s*/(.+)/,\s*// (\S+)\s*$", block, re.M)
+        assert len(lines) == len(block.strip().splitlines()), name   # every line a pattern and its name
+        assert lines == [(r.pattern, r.name) for r in RULES if r.where == name], name
+    cut = re.search(r"// (\S+)\s*\nconst CUT_BY_AIOS = /(.+)/;", js)
+    assert [(cut.group(2), cut.group(1))] == [(r.pattern, r.name) for r in RULES if r.where == "CUT_BY_AIOS"]
+    assert re.search(r"const RESTART_WINDOW = (\d+);", js).group(1) == "10"
+
+
 def test_control_panel_row_is_first_loggable_and_not_in_the_flow(client):
     """Services starts with the panel's own container: its logs open, it isn't one of the stack's
     services (Restart stack, the request flow), and it has no Stop (nothing could start it again)."""
@@ -1291,6 +1397,16 @@ def test_control_panel_row_is_first_loggable_and_not_in_the_flow(client):
     assert svcs[0]["key"] == "panel" and svcs[0]["panel"] and not svcs[0]["addon"]
     js = (Path(__file__).resolve().parents[1] / "web" / "js" / "overview.js").read_text(encoding="utf-8")
     assert "st.services.filter((s) => !s.panel)" in js     # the request flow leaves it out
+
+
+def test_a_vpn_switched_off_shows_no_speed_now():
+    """The VPN tab's Now falls back to the last recorded minute, which stays "recent" for 3 minutes
+    after the VPN is switched off. Off must win over that, or "VPN is off" shows minutes late."""
+    import re
+    from pathlib import Path
+    js = (Path(__file__).resolve().parents[1] / "web" / "js" / "traffic.js").read_text(encoding="utf-8")
+    body = re.search(r"export function nowRate\(d, kind = \"vpn\"\) \{\s*(.*?)\n\}", js, re.S).group(1)
+    assert body.splitlines()[0].strip() == 'if (kind === "vpn" && tunnelOff) return null;'
 
 
 def test_light_colours_match_whether_followed_or_picked():

@@ -24,6 +24,7 @@ import docker
 
 from . import config
 from .actions import ADDON_STATE, ROUTABLE, SCRIPTS, Action
+from .noise import VPN_HEAL_MAX, VPN_HEAL_WITHIN, drop_self_healed  # noqa: F401  (rule vpn-drop-healed)
 from .traffic import dev_counters, host_net
 from .wgconf import check_wireguard_conf
 
@@ -311,10 +312,12 @@ WARN_TAIL = 3000          # at most this many of a log's last lines are read
 WARN_KEEP = 300           # and at most this many hints sent per service
 
 
-def warn_hints(raw: bytes) -> list[str]:
-    """A log's lines (with Docker's timestamps) that may be warnings, newest last, secrets hidden."""
+def warn_hints(raw: bytes, vpn: bool = False, windows: list[tuple[float, float]] = ()) -> list[str]:
+    """A log's lines (with Docker's timestamps) that may be warnings, newest last, secrets hidden.
+    vpn: gluetun's log, less its drops that fixed themselves (drop_self_healed, given windows)."""
     out = []
-    for line in raw.decode("utf-8", "replace").splitlines():
+    lines = raw.decode("utf-8", "replace").splitlines()
+    for line in drop_self_healed(lines, windows) if vpn else lines:
         if WARN_HINT.search(line):
             out.append(hide_secrets(line.rstrip("\r")))
     return out[-WARN_KEEP:]
@@ -2170,7 +2173,7 @@ class Backend:
         except Exception:
             return {}
 
-    def log_warnings(self, loggable) -> list[dict]:
+    def log_warnings(self, loggable, windows: list[tuple[float, float]] = ()) -> list[dict]:
         """For each running service the Logs page can show: its name and the lines of the last
         day (since a Clear, if later) that may be warnings or errors. Read in parallel, once."""
         cleared = self._cleared()
@@ -2184,7 +2187,7 @@ class Backend:
                 if c.status != "running":
                     return None
                 raw = c.logs(stream=False, timestamps=True, tail=WARN_TAIL, since=max(since, int(cleared.get(cname) or 0)))
-                return {"container": cname, "name": title, "lines": warn_hints(raw)}
+                return {"container": cname, "name": title, "lines": warn_hints(raw, vpn=cname == "gluetun", windows=windows)}
             except Exception:
                 return None
 
