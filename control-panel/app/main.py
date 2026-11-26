@@ -1021,7 +1021,7 @@ def _job_windows() -> list[tuple[float, float]]:
 
 
 def _warn_data(loggable) -> tuple[list[dict], dict[str, list[float]]]:
-    return backend.log_warnings(loggable), backend.resumes()
+    return backend.log_warnings(loggable, _job_windows()), backend.resumes()
 
 
 @app.get("/api/log-warnings")

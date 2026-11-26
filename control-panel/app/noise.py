@@ -133,7 +133,9 @@ RULES: tuple[Rule, ...] = (
          (HEALED,), "card",
          "gluetun restarts its own tunnel when a health check fails, and its public address look-up can fail while "
          "it does. When '[ip getter] Public IP address is' follows within VPN_HEAL_WITHIN, the drop fixed itself. "
-         "Only while rare: from VPN_HEAL_MAX + 1 healed restarts in the day every one shows."),
+         "Only while rare: from VPN_HEAL_MAX + 1 healed restarts in the day every one shows. gluetun's startup check "
+         "restart during a panel action or after boot (switching the VPN on, trying a config, a reboot) isn't counted: "
+         "someone did that on purpose. The same restart at any other time (gluetun restarting by itself) is."),
     Rule("away-during-action", ("caddy", "cloudflared"), None, (ACTION,), "card",
          "While a panel action runs (Restart stack, Update, a VPN switch, a backup) and JOB_GRACE after, the tunnel "
          "can't reach Caddy and Caddy can't reach AIOStreams. Only these two: AIOStreams' start-up checks and the "
@@ -154,6 +156,7 @@ QUIET_WINDOW_SERVICES = {s for r in _CARD if r.pattern is None for s in r.servic
 _AFTER_EVENT = [r for r in _CARD if r.regex and {BACKUP, OWN_START} & set(r.when)]
 _VPN_DROP = next(r.regex for r in _CARD if HEALED in r.when)
 _VPN_RESTART = re.compile(r"restarting VPN because it failed to pass the healthcheck")
+_VPN_STARTUP = re.compile(r"restarting VPN because it failed to pass the healthcheck: startup check: ")
 _VPN_BACK = re.compile(r"\[ip getter\] Public IP address is ")
 
 
@@ -165,9 +168,10 @@ def line_time(line: str) -> float | None:
         return None
 
 
-def drop_self_healed(lines: list[str]) -> list[str]:
+def drop_self_healed(lines: list[str], windows: list[tuple[float, float]] = ()) -> list[str]:
     """gluetun's log less its drops that fixed themselves (rule vpn-drop-healed). Runs on the whole
-    log, before warn_hints keeps warning-like lines: the line it looks for is an INFO one."""
+    log, before warn_hints keeps warning-like lines: the line it looks for is an INFO one.
+    windows (main._job_windows): panel actions and boot, whose startup check restarts don't count."""
     backs = [t for t in (line_time(ln) for ln in lines if _VPN_BACK.search(ln)) if t is not None]
 
     def healed(ln):
@@ -176,7 +180,10 @@ def drop_self_healed(lines: list[str]) -> list[str]:
         t = line_time(ln)
         return t is not None and any(t <= b <= t + VPN_HEAL_WITHIN for b in backs)
     gone = [ln for ln in lines if healed(ln)]
-    if sum(1 for ln in gone if _VPN_RESTART.search(ln)) > VPN_HEAL_MAX:
+    def planned(ln):
+        t = line_time(ln)
+        return bool(_VPN_STARTUP.search(ln)) and t is not None and any(a <= t <= b for a, b in windows)
+    if sum(1 for ln in gone if _VPN_RESTART.search(ln) and not planned(ln)) > VPN_HEAL_MAX:
         return lines
     return [ln for ln in lines if ln not in gone]
 

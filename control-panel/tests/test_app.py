@@ -771,6 +771,23 @@ def test_log_warnings(client):
         "2026-11-26T08:30:00.1Z 2026-11-26T08:30:00Z WARN [vpn] restarting VPN because it failed to pass the healthcheck: full periodic check:",
         "2026-11-26T08:30:02.1Z 2026-11-26T08:30:02Z INFO [ip getter] Public IP address is 192.0.2.7 (Netherlands)"]).encode()
     assert len(warn_hints(third, vpn=True)) == len(warn_hints(third)) == 7
+    # gluetun's startup check restart while the panel switches the VPN on (twice, trying configs) isn't
+    # counted: with one real healed drop they all stay off. The same restarts outside an action count.
+    from datetime import datetime, timezone
+    t = lambda s: datetime.strptime(s, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc).timestamp()
+    switches = "\n".join([
+        "2026-11-26T09:00:05.1Z 2026-11-26T09:00:05Z WARN [vpn] restarting VPN because it failed to pass the healthcheck: startup check: all check tries failed:",
+        "2026-11-26T09:00:09.1Z 2026-11-26T09:00:09Z INFO [ip getter] Public IP address is 192.0.2.8 (Germany)",
+        "2026-11-26T09:20:05.1Z 2026-11-26T09:20:05Z WARN [vpn] restarting VPN because it failed to pass the healthcheck: startup check: all check tries failed:",
+        "2026-11-26T09:20:09.1Z 2026-11-26T09:20:09Z INFO [ip getter] Public IP address is 192.0.2.9 (Sweden)",
+        "2026-11-26T10:00:00.1Z 2026-11-26T10:00:00Z WARN [vpn] restarting VPN because it failed to pass the healthcheck: full periodic check:",
+        "2026-11-26T10:00:02.1Z 2026-11-26T10:00:02Z INFO [ip getter] Public IP address is 192.0.2.9 (Sweden)"]).encode()
+    actions = [(t("2026-11-26T09:00:00") - 5, t("2026-11-26T09:00:03") + 60), (t("2026-11-26T09:20:00") - 5, t("2026-11-26T09:20:03") + 60)]
+    assert warn_hints(switches, vpn=True, windows=actions) == []
+    assert len(warn_hints(switches, vpn=True)) == len(warn_hints(switches)) == 3
+    # a periodic check failing during an action still counts: only the startup check is planned
+    periodic = switches.replace(b"startup check: all check tries failed:", b"full periodic check:")
+    assert len(warn_hints(periodic, vpn=True, windows=actions)) == 3
     import app.main as m
     m.backend.issues = True                     # the demo's sample lines (off by default, for clean screenshots)
     r = client.get("/api/log-warnings").json()["services"]
@@ -879,7 +896,7 @@ def test_log_warnings_hidden(client):
     m._warn_cache["data"] = None
     seen = []
     real = m.backend.log_warnings
-    m.backend.log_warnings = lambda loggable: seen.append(set(loggable)) or []
+    m.backend.log_warnings = lambda loggable, windows=(): seen.append(set(loggable)) or []
     addons = sorted(m.WARN_OFF_BY_DEFAULT)
     m._warn_hidden_path().unlink(missing_ok=True)
     try:
