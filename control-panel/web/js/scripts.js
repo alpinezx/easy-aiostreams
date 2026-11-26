@@ -54,7 +54,7 @@ export function versionChip(current) {
 }
 
 // The note at the top of the page: when GitHub was last asked and the panel's last update. Check now
-// goes in the page heading, on the right as Back up now does (on a phone, on a line under the title).
+// goes in the page heading, on the right (on a phone, on a line under the title).
 // One Check now covers the panel and the scripts.
 function statusLine() {
   const v = ver || {};

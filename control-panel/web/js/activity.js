@@ -23,7 +23,7 @@ const SERVER_KIND = {
   "backup-skipped": ["Backup skipped", "warn"], "restart-skipped": ["Reboot skipped", ""],
   "auto-update": ["Updated", "ok"], "auto-update-failed": ["Update failed", "bad"], "auto-update-skipped": ["Update skipped", "warn"],
 };
-const BIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
+const BIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
 
 // All, Actions (what you started) or Alerts (what the watchdog noticed). Only shown with phone alerts set up.
 let filter = "all";
@@ -436,6 +436,7 @@ function backupsHead(n) {
   head.hidden = !n;
   card.classList.toggle("has-items", n > 0);
   card.classList.toggle("folded", !backupsOpen);
+  const now = $("#backup-now");   // picked up before clear(): on a phone it sits in this row
   clear(head);
   const tog = h("button", { class: "path-toggle fold-toggle", type: "button", "aria-expanded": String(backupsOpen), onclick: () => {
     backupsOpen = !backupsOpen;
@@ -443,7 +444,16 @@ function backupsHead(n) {
     card.classList.toggle("folded", !backupsOpen);
     tog.setAttribute("aria-expanded", String(backupsOpen));
   } }, "Backups", chev());
-  head.append(tog, h("span", { class: "bk-count", text: String(n) }));
+  const count = h("span", { class: "bk-count", text: String(n) });
+  // Back up now moves from the page heading onto the Backups title row (saves a phone the heading's extra
+  // line) and the count sits beside the title; with no backups yet (no title row) it stays in the heading.
+  if (n > 0) {
+    tog.insertBefore(count, tog.lastChild);
+    head.append(tog, now);
+  } else {
+    head.append(tog, count);
+    $("#view-backups .view-head").append(now);
+  }
 }
 PHONE.addEventListener("change", () => { backupsHead(backupsCount); asideHead(asideCount); });
 

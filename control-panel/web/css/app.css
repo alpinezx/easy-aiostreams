@@ -1957,6 +1957,13 @@ html:has(> body > .drawer:not([hidden]), > body > #dialog:not([hidden])) { overf
 .bk-card.has-items .backups-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0; padding: 16px; font-size: .98rem; }
 .bk-card.has-items .bk-count { display: inline; font-size: .86rem; font-weight: 400; color: var(--dim); }
 .bk-card.has-items.folded #backups { display: none; }
+/* Back up now on the Backups title row (activity.js moves it there while there are backups), plain, ending on
+   the card's text line with a tall tap target; the count beside the title, before the chevron */
+#view-backups #backups-head #backup-now { background: none; border-color: transparent; box-shadow: none; min-height: 0;
+  padding: 9px 6px; margin: -9px -6px -9px auto; font-size: .9rem; font-weight: 600;
+  color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+#view-backups #backups-head #backup-now:active { color: var(--text); }
+#backups-head .fold-toggle .bk-count { margin-left: 8px; }
 .bk-card.has-items #backups:has(.item) { gap: 0; border-radius: 0; }
 .bk-card.has-items #backups .item.bk { border: 0; border-top: 1px solid var(--line-soft); border-radius: 0; background: none; }
 #set-asides { margin-top: 18px; background: var(--raised); border: 1px solid var(--card-edge); border-radius: var(--radius); overflow: hidden; }
@@ -2401,9 +2408,9 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 @media (min-width: 721px) {
   #view-overview .btn.fold-act.ph-corner { display: inline-flex; }
   #view-overview .path-acts, #view-overview .stat-grid > .grid-btn.host-reboot, #view-overview .btn.ver-upd { display: none !important; }
-  #view-overview .fold-act .fa-word, #view-overview .warn-logs .fa-word, #view-overview .card-cog .fa-word,
+  #view-overview .fold-act .fa-word, #view-overview .warn-logs .fa-word, #view-overview .warn-clear .fa-word, #view-overview .card-cog .fa-word,
   #view-overview .card-detail .fa-word { display: inline; }
-  #view-overview .btn.fold-act, #view-overview .warn-logs, #view-overview .card-cog, #view-overview .card-link.card-detail,
+  #view-overview .btn.fold-act, #view-overview .warn-logs, #view-overview .warn-clear, #view-overview .card-cog, #view-overview .card-link.card-detail,
   #view-overview .ver-btns .btn:not(.primary), #view-overview .card-foot .btn:not(.primary),
   #view-overview #rows .row .acts .btn {
     display: inline-flex; align-items: center; gap: 6px; background: none; border-color: transparent; box-shadow: none;
@@ -2412,7 +2419,8 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   /* Details and Update side by side in the corner: only the first is pushed right */
   #view-overview .card-link.card-detail + .btn.fold-act { margin-left: 10px; }
   #view-overview .warnc .card-acts { gap: 10px; }
-  #view-overview .warnc .card-acts > .card-cog, #view-overview .warnc .card-acts > .warn-logs { padding: 4px 6px; margin: 0; }
+  #view-overview .warnc .card-acts > .card-cog, #view-overview .warnc .card-acts > .warn-logs,
+  #view-overview .warnc .card-acts > .warn-clear { padding: 4px 6px; margin: 0; }
   #view-overview .card-cog svg, #view-overview .fa-icon svg { width: 15px; height: 15px; }
   #view-overview .ver-btns, #view-overview #rows .row .acts { gap: 8px; }
   /* Every action's word ends on the card's right-hand line (the plain buttons' padding pulled out),
@@ -2425,7 +2433,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   /* a newer release: Update filled, with its arrow, wherever it is */
   #view-overview .btn.fold-act.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); padding: 4px 10px; border-radius: 8px; }
   @media (hover: hover) {
-    #view-overview .btn.fold-act:not(.primary):hover:not(:disabled), #view-overview .warn-logs:hover, #view-overview .card-cog:hover,
+    #view-overview .btn.fold-act:not(.primary):hover:not(:disabled), #view-overview .warn-logs:hover, #view-overview .warn-clear:hover, #view-overview .card-cog:hover,
     #view-overview .card-link.card-detail:hover, #view-overview .ver-btns .btn:not(.primary):hover:not(:disabled),
     #view-overview .card-foot .btn:not(.primary):hover:not(:disabled), #view-overview #rows .row .acts .btn:hover:not(:disabled) {
       background: none; text-decoration: underline; text-underline-offset: 3px; color: var(--text); }
@@ -2615,8 +2623,12 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   :is(#view-logs, #view-activity) .lg-row2 { flex-wrap: nowrap; align-items: center; gap: 5px; }
   :is(#view-logs, #view-activity) .lg-row2 .lg-levels { flex-wrap: nowrap; flex: none; }
   :is(#view-logs, #view-activity) .lg-row2 > .lg-acts { margin: -9px -10px -9px auto; gap: 6px; flex: none; align-items: center; align-self: center; }
-  /* the icons sit on the chips' bottom line rather than centred on them */
-  :is(#view-logs, #view-activity) .lg-row2 > .lg-acts .btn { position: relative; top: 5px; }
+  /* the chips' row sits 5px lower, so the bin's tap target keeps its room under the ⋮ / filter row above
+     while the icons stay centred on the chips */
+  :is(#view-logs, #view-activity) .lg-row2 { margin-top: 5px; }
+  /* the icons' bottom sits level with the inside of the chips' bottom border (lined up with the outside it read
+     low); only the drawing moves, the tap target stays put */
+  :is(#view-logs, #view-activity) .lg-row2 > .lg-acts .btn > svg { transform: translateY(3px); }
   :is(#view-logs, #view-activity) .lg-row2 .lg-acts .btn { width: 36px; height: 36px; padding: 0; justify-content: center; gap: 0; }
   :is(#view-logs, #view-activity) .lg-acts .btn:active { color: var(--text); }
 }
@@ -2784,3 +2796,17 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   .hero-head > .hero-title { flex: 1 1 100%; }
   .hero-head > .scripts-pill { margin: -14px 0 0; }
 }
+/* Bins (delete, clear, remove, reset) are found by their own drawing (the plain bin, nothing inside), so any
+   new bin gets these rules. One size and line for every bin, so the page-wide Clear ones look as crisp as the
+   row bins. At rest a bin takes its button's colour like any icon (red looked out of place in some themes);
+   Activity's row bins get the plain-action grey of the Clear above them, not the brighter text colour. */
+svg:has(> path[d^="M4 7h16M6 7l1 12"]) { width: 16px !important; height: 16px !important; stroke-width: 1.8 !important; }
+#jobs .job-x > svg { color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+@media (hover: hover) {
+  /* on hover a bin and the word beside it turn red. !important: each page's plain buttons set their own hover
+     colour with an id, and this one rule covers them all */
+  :is(button, a):has(svg > path[d^="M4 7h16M6 7l1 12"]):hover:not(:disabled),
+  :is(button, a):hover:not(:disabled) svg:has(> path[d^="M4 7h16M6 7l1 12"]) { color: var(--bad) !important; }
+}
+/* Activity's row bins: a bare icon on a computer too, no button behind it (phones already were) */
+#jobs .item.job > .btn.job-x, #jobs .item.job > .btn.job-x:hover:not(:disabled) { background: none; border-color: transparent; }

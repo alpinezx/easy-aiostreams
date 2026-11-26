@@ -193,7 +193,7 @@ function render(w) {
     h("div", { class: "wd-days-row" },
       h("div", {}, h("div", { class: "vpn-label", text: "Last 14 days" }), days(w.tally, w.running && passed)),
       h("div", { class: "wd-today-wrap" }, h("span", { class: "dim wd-today", text: todayLine(w.tally, w.running && passed) }),
-        (w.tally || []).length ? h("button", { class: "btn small quiet", type: "button", text: "Reset", title: "Start the 14 days again", onclick: resetTally }) : null)),
+        (w.tally || []).length ? resetBtn() : null)),
     h("div", { class: "vpn-card-acts wd-topic" },
       h("div", { class: "wd-topic-what" }, h("span", { class: "vpn-label", text: "Alert topic" }),
         h("span", { class: "mono", text: w.topic || "none" })),
@@ -311,6 +311,13 @@ function extras(w) {
   return box;
 }
 
+// Reset beside today's line: the bin and the word, like the other pages' clears (the bin red, as every bin is)
+function resetBtn() {
+  const b = h("button", { class: "btn small quiet btn-i wd-reset", type: "button", title: "Start the 14 days again", onclick: resetTally });
+  b.innerHTML = '<svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
+  b.append(h("span", { text: "Reset" }));
+  return b;
+}
 async function resetTally() {
   const ok = await ask({ title: "Reset the 14-day stats?", confirmLabel: "Reset", danger: true,
     body: "The day squares and today's count start again from the next check. The event history stays." });
