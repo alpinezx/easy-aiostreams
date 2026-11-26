@@ -1018,7 +1018,9 @@ def _job_windows() -> list[tuple[float, float]]:
     a minute after it, and the first minutes after the server boots, when services start in turn."""
     now = time.time()
     with jobs.lock:
-        out = [(j["started"] - 5, (j["ended"] or now) + JOB_GRACE) for j in jobs.items.values() if j.get("started")]
+        runs = [(j["started"], j["ended"] or now) for j in jobs.items.values() if j.get("started")]
+        runs += [(a, b) for a, b in jobs.spans]
+    out = [(a - 5, b + JOB_GRACE) for a, b in runs]
     boot = _boot_time()
     if boot:
         out.append((boot, boot + BOOT_GRACE))
@@ -1201,10 +1203,36 @@ class Jobs:
         self.lock = threading.Lock()
         self.items: dict[str, dict] = {}
         self.order: list[str] = []
+        # When each action ran, [started, ended], kept apart from Activity's list: Recent log
+        # alerts hides Caddy's and the tunnel's lines from those times, and clearing Activity
+        # (or its 40-entry limit) mustn't bring them back
+        self.spans: list[list[float]] = []
         self._load()
 
     def _path(self) -> Path:
         return config.STATE_DIR / "history.json"
+
+    def _spans_path(self) -> Path:
+        return config.STATE_DIR / "job-spans.json"
+
+    SPANS_KEEP = 2 * 86400   # the card shows a day of lines
+
+    def _add_span(self, started: float, ended: float) -> None:
+        with self.lock:
+            cut = time.time() - self.SPANS_KEEP
+            self.spans = [s for s in self.spans if s[1] >= cut] + [[started, ended]]
+        self._save_spans()
+
+    def _save_spans(self, path: Path | None = None) -> None:
+        try:
+            with self.lock:
+                data = json.dumps(self.spans)
+            target = path or self._spans_path()
+            tmp = target.with_name(target.name + ".tmp")
+            tmp.write_text(data)
+            os.replace(tmp, target)
+        except Exception:
+            pass
 
     def _load(self):
         try:
@@ -1212,6 +1240,10 @@ class Jobs:
                 j["lines"] = j.get("lines", [])
                 self.items[j["id"]] = j
                 self.order.append(j["id"])
+        except Exception:
+            pass
+        try:
+            self.spans = [[float(a), float(b)] for a, b in json.loads(self._spans_path().read_text())]
         except Exception:
             pass
 
@@ -1273,6 +1305,7 @@ class Jobs:
             while len(self.order) > self.KEEP + 5:
                 old = self.order.pop(0)
                 self.items.pop(old, None)
+        self._add_span(now, now)
         self._save()
 
     def _run(self, job, action, after=None):
@@ -1300,6 +1333,7 @@ class Jobs:
         job["panel_restart"] = restart
         job["code"] = code
         job["ended"] = time.time()
+        self._add_span(job["started"], job["ended"])
         note_planned()
         global _status_cache
         _status_cache = None  # next poll reflects what the action changed
@@ -1311,6 +1345,7 @@ class Jobs:
         # The history so far, this restore included, goes into the restored folder too:
         # the copy above went to the folder that was moved aside.
         self._save(_restored_state() / "history.json")
+        self._save_spans(_restored_state() / "job-spans.json")
         # And this boot's markers, or the backup's old boot_id would read as a restart
         serverlog.save(_restored_state() / "server-events.json")
         time.sleep(5)          # let the page get the last lines first

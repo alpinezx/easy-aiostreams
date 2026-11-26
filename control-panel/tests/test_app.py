@@ -253,6 +253,26 @@ def test_clear_activity_keeps_running_and_clears_finished(client):
     assert client.get("/api/jobs").json() == []
 
 
+def test_clearing_activity_keeps_the_log_alerts_quiet_windows(client):
+    """Caddy's and the tunnel's lines from while an action ran stay off Recent log alerts
+    after Activity is cleared, and after a panel restart."""
+    from datetime import datetime, timezone
+    from app import main
+    login(client)
+    job = main.jobs.start(actions.resolve("stack.restart", None), None)
+    deadline = time.time() + 20
+    while main.jobs.current_id() and time.time() < deadline:
+        time.sleep(0.2)
+    mid = (job["started"] + job["ended"]) / 2
+    line = datetime.fromtimestamp(mid, timezone.utc).strftime("%Y-%m-%dT%H:%M:%S") + ".0Z ERR Unable to reach the origin service"
+    svc = [{"container": "cloudflared", "lines": [line]}]
+    client.delete("/api/jobs")
+    assert main.jobs.items == {}
+    assert main.outside_jobs(svc, main._job_windows())[0]["lines"] == []
+    assert main.outside_jobs(svc, [w for w in main._job_windows() if w[0] > mid])[0]["lines"] == [line]
+    assert any(a <= job["started"] and job["ended"] <= b for a, b in main.Jobs().spans)   # read back from the file
+
+
 def test_remove_one_activity_entry(client):
     from app import main
     login(client)
