@@ -1278,6 +1278,10 @@ a.md-link, .ln.job-before a, .rel-gh a, .drawer-foot a { text-decoration: none; 
 /* ---------- logs, laid out like AIOStreams' own log viewer ---------- */
 .view-head.lg-head { align-items: flex-start; }
 .lg-sub { margin: 4px 0 0; font-size: .86rem; color: var(--faint); }
+/* streaming beside the Logs title, on its baseline, saving a line (26 November; on a phone the bin at the right
+   of that line) */
+#view-logs .lg-head > div { display: flex; align-items: baseline; gap: 14px; }
+#view-logs .lg-head .lg-sub { margin: 0; }
 .lg-acts { margin-left: auto; display: flex; gap: 8px; }
 .lg-acts .btn { margin-left: 0; }
 /* download, copy, then clear last (the destructive one), on a computer and a phone */
@@ -1963,7 +1967,8 @@ html:has(> body > .drawer:not([hidden]), > body > #dialog:not([hidden])) { overf
   padding: 9px 6px; margin: -9px -6px -9px auto; font-size: .9rem; font-weight: 600;
   color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
 #view-backups #backups-head #backup-now:active { color: var(--text); }
-#backups-head .fold-toggle .bk-count { margin-left: 8px; }
+/* the count in the title's size and weight (dim), on its baseline; the toggle's own 6px gap, as before the chevron */
+#backups-head .fold-toggle .bk-count { margin-left: 0; font-size: inherit; font-weight: inherit; }
 .bk-card.has-items #backups:has(.item) { gap: 0; border-radius: 0; }
 .bk-card.has-items #backups .item.bk { border: 0; border-top: 1px solid var(--line-soft); border-radius: 0; background: none; }
 #set-asides { margin-top: 18px; background: var(--raised); border: 1px solid var(--card-edge); border-radius: var(--radius); overflow: hidden; }
@@ -2647,7 +2652,11 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   :is(#view-logs, #view-activity) .view-head > .lg-acts { align-self: baseline; margin: 0 3px 0 auto; }
   :is(#view-logs, #view-activity) .view-head > .lg-acts .btn { align-items: baseline; }
   :is(#view-logs, #view-activity) .view-head > .lg-acts .btn > svg { align-self: center; }
-  :is(#view-logs, #view-activity) .view-head > .lg-acts .lg-word { display: inline; position: relative; top: 1.5px; }   /* on the foot of the bin */
+  /* the bin alone (26 November): the word stays in the flow, unseen and without width, only to give the button
+     the title's baseline; the bin's ink ends 3px in from the cards' edge (button border and drawing's own air) */
+  :is(#view-logs, #view-activity) .view-head > .lg-acts { margin-right: 0; }
+  :is(#view-logs, #view-activity) .view-head > .lg-acts .btn { gap: 0; }
+  :is(#view-logs, #view-activity) .view-head > .lg-acts .lg-word { display: inline-block; width: 0; visibility: hidden; }
   /* Logs: on the line under the title (streaming, reconnecting) rather than the title's */
   #view-logs .view-head { align-items: last baseline; }
   #view-logs .view-head > .lg-acts { align-self: last baseline; }
@@ -2885,4 +2894,11 @@ svg:has(> path[d^="M4 7h16M6 7l1 12"]) { width: 16px !important; height: 16px !i
   .maint-card > .cl-block:has(+ .card-foot) { margin-top: 8px; padding-bottom: 17px; border-bottom: 1px solid var(--line-soft); }
   .maint-card > .cl-block + .card-foot { margin-top: auto; padding-bottom: 0; }
   .maint-card > .cl-block + .card-foot > .maint-foot, .maint-card > .cl-block:has(+ .card-foot) .maint-foot { align-items: flex-end; }
+}
+/* Phone alerts on a phone: the 14 days' Reset is the bin alone (icons only on phones, 26 November) */
+@media (max-width: 720px) {
+  .wd-reset .wd-reset-word { display: none; }
+  /* the bin's ink ends on the card's text line and its foot sits on the LAST 14 DAYS baseline */
+  .wd-days-row .wd-today-wrap > .btn.wd-reset { margin-right: -3px; }
+  .wd-reset > svg { transform: translateY(1.5px); }
 }

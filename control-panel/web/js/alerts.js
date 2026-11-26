@@ -330,9 +330,11 @@ function extras(w) {
 
 // Reset beside today's line: the bin and the word, like the other pages' clears (the bin red, as every bin is)
 function resetBtn() {
-  const b = h("button", { class: "btn small quiet btn-i wd-reset", type: "button", title: "Start the 14 days again", onclick: resetTally });
+  // (on a phone the bin alone: the word is hidden by app.css)
+  const b = h("button", { class: "btn small quiet btn-i wd-reset", type: "button", title: "Start the 14 days again",
+    "aria-label": "Reset the 14-day stats", onclick: resetTally });
   b.innerHTML = '<svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
-  b.append(h("span", { text: "Reset" }));
+  b.append(h("span", { class: "wd-reset-word", text: "Reset" }));
   return b;
 }
 async function resetTally() {

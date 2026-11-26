@@ -4,6 +4,9 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 26 November 2026
 
+- Logs and Activity on a phone: Clear is now the bin alone, ending just inside the cards' edge. On Logs, on a phone and a computer, the streaming line moves up beside the page title, saving a line. (Panel 1.70.4, [#233](https://github.com/alpinezx/easy-aiostreams/pull/233))
+- Phone alerts on a phone: the 14 days' Reset is the bin alone, on the LAST 14 DAYS line. (Panel 1.70.4, [#233](https://github.com/alpinezx/easy-aiostreams/pull/233))
+- Backup & Restore: the Backups count sits close beside its title, in the title's size and weight, on the same line. (Panel 1.70.4, [#233](https://github.com/alpinezx/easy-aiostreams/pull/233))
 - Logs and Activity on a phone: Clear (the bin and its word) moves from beside the level buttons to the page heading, on Logs level with the streaming line under the title, so it no longer looks small next to them or sits close under the menu button. (Panel 1.70.3, [#232](https://github.com/alpinezx/easy-aiostreams/pull/232))
 - Network layout: on a computer, the time range, All traffic and VPN move from the page heading onto the Traffic card's title line (the range in the middle, All traffic, VPN and Clear at the right), with a line under it. On a phone, the Traffic card's bin is sized to the 1h, 24h and 7d beside it. (Panel 1.70.3, [#232](https://github.com/alpinezx/easy-aiostreams/pull/232))
 - System updates layout: on a computer, What's waiting moves from above the list of updates into the card's foot after List updates, the last install's line sits at the right of the list's first row, and Reboot server, when needed, sits beside Install updates at the card's bottom right. (Panel 1.70.3, [#232](https://github.com/alpinezx/easy-aiostreams/pull/232))
