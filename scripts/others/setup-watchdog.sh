@@ -92,6 +92,18 @@ check_gluetun_tunnel() {
     docker exec gluetun wget -qO- --timeout=5 http://127.0.0.1:9999 >/dev/null 2>&1
 }
 
+# gluetun started under 2 minutes ago by someone (VPN switched on, a restart,
+# a new config), not by Docker after a crash: its tunnel takes up to a minute
+# to come up. A crash restart counts in RestartCount, so one that keeps
+# crashing is still checked.
+gluetun_just_started() {
+    local info started
+    info=$(docker inspect -f '{{.RestartCount}} {{.State.StartedAt}}' gluetun 2>/dev/null) || return 1
+    [[ "${info%% *}" == "0" ]] || return 1
+    started=$(date -d "${info#* }" +%s 2>/dev/null) || return 1
+    (( $(date +%s) - started < 120 ))
+}
+
 # Asks from INSIDE gluetun, not from aiostreams itself. That catches two
 # things a plain "is the container running" check misses:
 #   - aiostreams crashed (in VPN mode it's restart: "no", so nothing
@@ -1039,6 +1051,8 @@ do_run_check() {
     # only log a failure that isn't one. The next check, 2 minutes on, counts.
     (( $(cut -d. -f1 /proc/uptime) >= 120 )) || return 0
     date +%s > "$ALIVE_FILE"
+    # Same just after gluetun starts: its tunnel is still connecting
+    if vpn_mode_on && gluetun_just_started; then return 0; fi
 
     local fails alert_state
     fails=$(cat "$FAILCOUNT_FILE" 2>/dev/null || echo 0)
