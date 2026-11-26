@@ -2810,3 +2810,49 @@ svg:has(> path[d^="M4 7h16M6 7l1 12"]) { width: 16px !important; height: 16px !i
 }
 /* Activity's row bins: a bare icon on a computer too, no button behind it (phones already were) */
 #jobs .item.job > .btn.job-x, #jobs .item.job > .btn.job-x:hover:not(:disabled) { background: none; border-color: transparent; }
+/* VPN and Phone alerts on phones: the page's two side tools (Check now and Turn VPN off; Stop watchdog and Send
+   test alert) in the card, under a line, just above its last row (Change config; the alert topic), the first on
+   the left text line and the second ending on the right; the heading keeps only the title */
+@media (max-width: 720px) {
+  #view-vpn .vpn-headrow > .vpn-acts, #view-alerts .vpn-headrow > .vpn-acts { display: none; }
+  :is(#view-vpn, #view-alerts) .vpn-card > .vpn-acts { display: flex; justify-content: space-between; margin: 18px 0 0;
+    padding-top: 10px; border-top: 1px solid var(--line-soft); }
+  #view-vpn .vpn-card > .vpn-acts #vpn-check, #view-vpn #vpn-root > .vpn-acts #vpn-check { order: -1; }
+  :is(#view-vpn, #view-alerts) .vpn-card > .vpn-acts .btn:last-child { margin-right: 0; }
+  :is(#view-vpn, #view-alerts) .vpn-card > .vpn-acts + .vpn-card-acts { margin-top: 10px; padding-top: 0; border-top: 0; }
+  #view-vpn #vpn-root > .vpn-acts, #view-alerts #alerts-root > .vpn-acts { display: flex; justify-content: space-between; margin-top: 12px; }
+}
+/* VPN and Phone alerts on a computer: the two side tools at the right of the card's state line (Connected,
+   Watching), its Checked time beside the state, the last tool ending on the card's right-hand text line */
+@media (min-width: 721px) {
+  :is(#view-vpn, #view-alerts) .vpn-head:has(> .vpn-acts) { justify-content: flex-start; align-items: baseline; }
+  :is(#view-vpn, #view-alerts) .vpn-head > .vpn-acts { top: 0; align-items: baseline; }
+  :is(#view-vpn, #view-alerts) .vpn-head > .vpn-acts .btn { align-items: baseline; }
+  :is(#view-vpn, #view-alerts) .vpn-head > .vpn-acts .btn > svg { align-self: center; }
+  :is(#view-vpn, #view-alerts) .vpn-head > .vpn-acts .btn:last-child { margin-right: -6px; }
+}
+/* Maintenance on a computer: Caddy's version row on the same line as System updates' values (8 updates), so the
+   line under it lines up with the one beside it (1px lower by eye in Firefox); Update raised so its bottom is
+   level with the bottom of the version and All releases
+   (Caddy alone: with cloudflared too, the card is taller and keeps its spacing) */
+.rs-desk.prox-card:not(:has(> .rs-block:not(.prox-auto-block) ~ .rs-block:not(.prox-auto-block))) > .rs-block:not(.prox-auto-block) { padding-bottom: 0; }
+.rs-desk.prox-card:not(:has(> .rs-block:not(.prox-auto-block) ~ .rs-block:not(.prox-auto-block))) > .rs-block:not(.prox-auto-block) .rs-ctl { margin-top: 0; }
+.rs-desk.prox-card:not(:has(> .rs-block:not(.prox-auto-block) ~ .rs-block:not(.prox-auto-block))) > .rs-block:not(.prox-auto-block) .rs-ctl > .btn:not(.prox-notes) { position: relative; top: -6px; }
+.rs-desk.prox-card:not(:has(> .rs-block:not(.prox-auto-block) ~ .rs-block:not(.prox-auto-block))) > .prox-auto-block { margin-top: 3px; }
+/* ... and the state word (v2.11.9 available, Up to date) on the title's line, maint.js puts a copy there; 3px in
+   from the button's right edge below, or its rounded corner makes the word look past it (optical alignment) */
+.rs-desk.prox-card:not(:has(> .rs-block:not(.prox-auto-block) ~ .rs-block:not(.prox-auto-block))) > .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-top: 2px; }   /* 2px: where centring put the title, level with System updates' */
+.rs-desk.prox-card:not(:has(> .rs-block:not(.prox-auto-block) ~ .rs-block:not(.prox-auto-block))) > .card-head > .rs-word { margin-right: 3px; }
+.rs-desk.prox-card:not(:has(> .rs-block:not(.prox-auto-block) ~ .rs-block:not(.prox-auto-block))) > .rs-block:not(.prox-auto-block) .rs-line > .rs-word { visibility: hidden; }
+/* ... its CADDY label dropped (the card's title says it; kept in place so nothing moves), and the Automatic
+   updates note sits at the bottom of the select beside it */
+.rs-desk.prox-card:not(:has(> .rs-block:not(.prox-auto-block) ~ .rs-block:not(.prox-auto-block))) > .rs-block:not(.prox-auto-block) .rs-line > .ver-label { visibility: hidden; }
+.rs-desk.prox-card .prox-auto-block .rs-ctl { align-items: flex-end; }
+/* Free up space on a computer: Container logs straight under the figures between two lines (level with Scheduled
+   server reboot's two), the spare room under it, then About ... can go and Free up space ending the card like the
+   reboot card's note; each row's words on its button's bottom edge */
+@media (min-width: 721px) {
+  .maint-card > .cl-block:has(+ .card-foot) { margin-top: 8px; padding-bottom: 17px; border-bottom: 1px solid var(--line-soft); }
+  .maint-card > .cl-block + .card-foot { margin-top: auto; padding-bottom: 0; }
+  .maint-card > .cl-block + .card-foot > .maint-foot, .maint-card > .cl-block:has(+ .card-foot) .maint-foot { align-items: flex-end; }
+}

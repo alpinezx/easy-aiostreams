@@ -67,7 +67,9 @@ function space(m) {
   ], worth ? [`About ${fmtBytes(total)} can go.`, "Settings, backups and what's in use stay."] : "Nothing worth freeing right now.",
   button("maint.space", worth));
   el.classList.add("fs-spread");   // desktop: three figures spread across the card, the last at its right edge
-  el.append(logsBlock(m));
+  // Phones: Container logs under the card's foot; a computer: above it, so Free up space ends the card
+  // like Scheduled server reboot's note beside it
+  if (PHONE_Q.matches) el.append(logsBlock(m)); else el.insertBefore(logsBlock(m), el.querySelector(".card-foot"));
   return phoneFold(el, "space", "Free up space", worth ? [fmtBytes(total), ""] : ["Nothing to clear", "dim"]);
 }
 
@@ -415,6 +417,8 @@ function proxies(m) {
       h("div", { class: "rs-ctl" }, h("span", { class: "prox-ver" }, h("span", { class: "mono", text: i.running || "Unknown" }),
         h("span", { class: "dim", text: " · " }), notes), btn));
     if (fresh) blk.classList.add("rs-keep");   // a folded phone card still shows what's waiting
+    // A computer, Caddy alone: the state word on the title's line (its own spot kept empty, so nothing moves)
+    if (!phone && !tunnel) head.append(state.cloneNode(true));
     cardEl.append(blk);
   }
   const auto = h("select", { class: "input", "aria-label": "Automatic updates", disabled: !p.can_auto,

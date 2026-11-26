@@ -26,7 +26,19 @@ export function setStatus(status) {
   buttons();
 }
 
-// Start/Stop and Send test alert sit in the page heading, like the VPN page's switch
+// Start/Stop and Send test alert sit in the card, as on the VPN page: on a computer at the right of its
+// Watching line, on phones just above the alert topic; with no card, in the heading (computer) or the page
+// (phones). Moved home before the page is cleared, or they'd go with it.
+const PHONE = matchMedia("(max-width: 720px)");
+const homeActs = () => $("#view-alerts .vpn-headrow").append($("#alerts-acts"));
+function placeActs() {
+  const acts = $("#alerts-acts"), card = $("#alerts-root .vpn-card");
+  if (!PHONE.matches) { if (card) card.querySelector(".vpn-head").append(acts); else homeActs(); }
+  else if (card) card.insertBefore(acts, card.querySelector(".wd-topic"));
+  else $("#alerts-root").append(acts);
+}
+PHONE.addEventListener("change", placeActs);
+
 function buttons() {
   const box = $("#alerts-acts");
   if (!box || !st) return;
@@ -50,8 +62,10 @@ export async function show(status) {
   try {
     render(await api("/api/watchdog"));
   } catch (e) {
+    homeActs();
     clear(box);
     box.append(h("p", { class: "empty", text: e.message || "Couldn't read the watchdog's state." }));
+    placeActs();
   } finally {
     loading = false;
   }
@@ -166,9 +180,11 @@ export function todayLine(tally, nowOk = false) {
 
 function render(w) {
   const box = $("#alerts-root");
+  homeActs();
   clear(box);
   if (!w.configured) {
     box.append(h("p", { class: "empty", text: "The watchdog isn't set up on this server." }));
+    placeActs();
     return;
   }
   const chk = parseCheck(w.last_check, w.running);
@@ -199,6 +215,7 @@ function render(w) {
         h("span", { class: "mono", text: w.topic || "none" })),
       actFor("watchdog.topic") ? h("button", { class: "btn small", type: "button", text: "Change topic", disabled: !!(st && st.busy), onclick: changeTopic }) : null));
   box.append(card, extras(w));
+  placeActs();
 
   // What happened lately lives on the Activity page now, with what the panel has done
   box.append(h("p", { class: "dim wd-activity-link" }, "Failed checks, alerts and recoveries are listed on ",

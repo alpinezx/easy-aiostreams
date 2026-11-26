@@ -48,6 +48,20 @@ function toggle() {
   b.onclick = noConfig ? () => changeConfig(true) : () => runAction(act);
 }
 
+// Turn VPN off and Check now sit in the card: on a computer at the right of its Connected line, on phones
+// just above its buttons; under an error, in the page (phones) or the heading (computer). Moved home before
+// the page is cleared, or they'd go with it.
+const PHONE = matchMedia("(max-width: 720px)");
+const acts = () => $("#vpn-check").parentElement;
+const homeActs = () => $("#view-vpn .vpn-headrow").append(acts());
+function placeActs() {
+  const card = $("#vpn-root .vpn-card");
+  if (!PHONE.matches) { if (card) card.querySelector(".vpn-head").append(acts()); else homeActs(); }
+  else if (card) card.insertBefore(acts(), card.querySelector(".vpn-card-acts"));
+  else $("#vpn-root").append(acts());
+}
+PHONE.addEventListener("change", placeActs);
+
 // A "working on it" line with the spinner, so a few seconds' wait doesn't look like a hang
 const waiting = (text) => h("p", { class: "dim addr-wait", role: "status" }, h("span", { class: "spin", "aria-hidden": "true" }), h("span", { text }));
 
@@ -282,8 +296,10 @@ export async function show(fresh = false, status) {
   try {
     render(await api(`/api/vpn${fresh ? "?fresh=1" : ""}`));
   } catch (e) {
+    homeActs();
     clear(box);
     box.append(h("p", { class: "empty", text: e.message || "Couldn't check the VPN." }));
+    placeActs();
   } finally {
     checking = false;
   }
@@ -339,6 +355,7 @@ function render(v) {
   const box = $("#vpn-root"), btn = $("#vpn-check");
   last = v;
   toggle();
+  homeActs();
   clear(box);
   btn.disabled = v.mode !== "on";
   const [lamp, word] = v.mode !== "on" ? ["", v.has_config === false ? "Off, no config saved" : "Off, using a direct connection"]
@@ -375,6 +392,7 @@ function render(v) {
   }
   const confBox = h("div");
   box.append(card);
+  placeActs();
   const routes = routesBox(v);
   if (routes) box.append(routes);
   box.append(confBox);
