@@ -39,6 +39,33 @@ const binButton = (title, label, disabled, onclick) => {
   return x;
 };
 
+// The watchdog notes a failed check at once, with its fix, but only alerts when the next check fails
+// too. So a failure the next check cleared fixed itself: one grey row says so, without the fix (it
+// was never needed), and its "Passing again before an alert was due" row folds into it. The newest
+// failure, still waiting for its next check, says that rather than sending anyone to the terminal.
+// A failure that led to an alert keeps its fix.
+const HEALED = /^Passing again before an alert was due/;
+const PENDING_FOR = 300;
+const noFix = (t) => t.replace(/\s*\b(?:Fix|Check):[\s\S]*$/, "").replace(/([^.!?])$/, "$1.");
+export function settleFails(events, now = Date.now() / 1000) {
+  const asc = [...events].sort((a, b) => a.at - b.at);
+  const gone = new Set();
+  const out = new Map();
+  asc.forEach((e, i) => {
+    if (e.kind !== "fail") return;
+    const next = asc.slice(i + 1).find((n) => n.kind === "recovered" || n.kind === "alert" || n.kind === "fail");
+    if (next && next.kind === "recovered" && HEALED.test(next.text)) {
+      gone.add(next);
+      out.set(e, { ...e, also: next, word: "Fixed itself", tone: "",
+        shown: `${noFix(e.text)} Passed again on the next check, so no alert was sent. Nothing to do.` });
+    } else if (!next && now - e.at < PENDING_FOR) {
+      out.set(e, { ...e, word: "Checking", tone: "warn",
+        shown: `${noFix(e.text)} Checking again before sending an alert.` });
+    }
+  });
+  return events.filter((e) => !gone.has(e)).map((e) => out.get(e) || e);
+}
+
 let lastStatus = null;
 export async function showActivity(status) {
   lastStatus = status;
@@ -47,7 +74,7 @@ export async function showActivity(status) {
   if (!alertsOn) filter = "all";
   const [jobs, events, serverEvents] = await Promise.all([
     api("/api/jobs"),
-    alertsOn ? api("/api/watchdog").then((w) => w.events || [], () => []) : [],
+    alertsOn ? api("/api/watchdog").then((w) => settleFails(w.events || []), () => []) : [],
     api("/api/server-events").catch(() => []),
   ]);
   clear(box);   // only now, so typing in the filter doesn't blink the list
@@ -109,11 +136,12 @@ export async function showActivity(status) {
   if (showEvents) for (const e of events) rows.push({ at: e.at, event: e });
   if (showServer) for (const e of serverEvents) rows.push({ at: e.at, sev: e });
   rows.sort((a, b) => b.at - a.at);
-  const tone = (r) => r.event ? (ALERT_KIND[r.event.kind] || ["", ""])[1] : r.sev ? (SERVER_KIND[r.sev.kind] || ["", ""])[1]
+  const kindOf = (e) => e.word ? [e.word, e.tone] : ALERT_KIND[e.kind] || [e.kind, ""];
+  const tone = (r) => r.event ? kindOf(r.event)[1] : r.sev ? (SERVER_KIND[r.sev.kind] || ["", ""])[1]
     : !r.job.ended ? "run" : r.job.code === 0 ? "ok" : "bad";
   // OK holds everything that went fine or is just a note (Started, Test alert, Running), like INFO in Logs
   const group = (r) => { const t = tone(r); return t === "warn" || t === "bad" ? t : "ok"; };
-  const words = (r) => r.event ? `${r.event.text} phone alerts ${(ALERT_KIND[r.event.kind] || [r.event.kind])[0]}`
+  const words = (r) => r.event ? `${r.event.shown || r.event.text} phone alerts ${kindOf(r.event)[0]}`
     : r.sev ? `${r.sev.text} server ${(SERVER_KIND[r.sev.kind] || [r.sev.kind])[0]}`
     : `${r.job.label} ${actionGroup(r.job.action)} ${tone(r) === "ok" ? "done" : tone(r) === "bad" ? "failed" : "running"}`;
   const total = rows.length;
@@ -158,13 +186,17 @@ export async function showActivity(status) {
     }
     if (e) {
       // An alert: nothing to open, so the row isn't a button
-      const [name, cls] = ALERT_KIND[e.kind] || [e.kind, ""];
+      const [name, cls] = kindOf(e);
       const row = line(e.at, cls, name,
-        h("span", { class: "job-open" }, h("span", { class: "what" }, longWords(e.text))),
+        h("span", { class: "job-open" }, h("span", { class: "what" }, longWords(e.shown || e.text))),
         "Phone alerts" + (cls === "ok" ? "" : ` · ${name}`), " evt");
-      row.append(binButton("Remove from Activity", `Remove "${e.text}" from Activity`, false, async () => {
-        try { await api("/api/watchdog/events/remove", { method: "POST", body: JSON.stringify({ at: e.at, kind: e.kind, text: e.text }) }); }
-        catch (err) { toast(err.message || "Couldn't remove it.", true); }
+      row.append(binButton("Remove from Activity", `Remove "${e.shown || e.text}" from Activity`, false, async () => {
+        try {
+          // a failure that fixed itself takes its folded "Passing again" row with it
+          for (const x of [e, e.also].filter(Boolean)) {
+            await api("/api/watchdog/events/remove", { method: "POST", body: JSON.stringify({ at: x.at, kind: x.kind, text: x.text }) });
+          }
+        } catch (err) { toast(err.message || "Couldn't remove it.", true); }
         showActivity(status).catch(() => {});
       }));
       box.append(row);
