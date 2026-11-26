@@ -36,7 +36,9 @@ function sources() {
       } })));
 }
 const drawTraffic = (tbox) => trafficCard(tbox, false, kind(),
-  { ranges: $("#net-ranges"), tool: bin(), sub: hasVpn() ? h("div", { class: "tr-src" }, sources()) : null });
+  { ranges: $("#net-ranges"), sub: hasVpn() ? h("div", { class: "tr-src" }, sources()) : null,
+    // A computer: All traffic / VPN at the card head's right, before Clear (a third copy; CSS shows one)
+    tool: h("div", { class: "tr-tools" }, hasVpn() ? h("div", { class: "tr-src-head" }, sources()) : null, bin()) });
 function sourceSwitch() {
   const acts = $("#net-acts");
   clear(acts);

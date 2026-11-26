@@ -2463,23 +2463,34 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 }
 /* Network: the range or view shown is in the accent colour and bolder (phones and computers); a mouse over a range or view underlines it, a finger never does */
 @media (hover: hover) {
-  #net-ranges .btn:hover:not(:disabled), #net-acts .btn:hover:not(:disabled), #net-root .tr-src .btn:hover:not(:disabled), .tr-rng-card .btn:hover:not(:disabled) {
+  #net-ranges .btn:hover:not(:disabled), #net-acts .btn:hover:not(:disabled), #net-root .tr-src .btn:hover:not(:disabled), .tr-rng-card .btn:hover:not(:disabled),
+  .tr-rng-head .btn:hover:not(:disabled), .tr-src-head .btn:hover:not(:disabled) {
     text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 6px; text-decoration-color: var(--accent); }   /* the colour it takes once chosen */
 }
-.tr-word { display: none; }
+.tr-word, .tr-src-head { display: none; }
 /* On a computer, the time range, All traffic / VPN tunnel and the Traffic card's bin (now Clear) are plain
-   words like the other pages' tools; the bin 3px in from the card's edge */
+   words like the other pages' tools, all on the card's title line: the range in the middle, All traffic / VPN
+   then Clear at the right, the bin 3px in from the card's edge (26 November; they were in the page heading) */
 @media (min-width: 721px) {
-  #net-ranges .btn, #net-acts .btn, #net-root .tr-bin { display: inline-flex; align-items: center; gap: 6px; width: auto; background: none;
+  #view-net .net-head > .net-ranges, #view-net #net-acts { display: none; }
+  /* every word on the title's baseline */
+  #net-root .tr-card > .vpn-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: baseline; }
+  /* a rule under the title line, from edge to edge of the card, in the card's edge colour */
+  #net-root .tr-card > .vpn-head { margin: 0 -20px 24px; padding: 0 20px 12px; border-bottom: 1px solid var(--card-edge); }
+  #net-root .tr-card > .vpn-head > .tr-rng-head { display: flex; grid-column: 2; }
+  #net-root .tr-tools { grid-column: 3; justify-self: end; display: flex; align-items: baseline; gap: 43px; }
+  #net-root .tr-src-head, #net-root .vpn-head .tr-ranges { display: flex; align-items: baseline; }
+  #net-root .vpn-head .tr-bin { align-items: baseline; }
+  #net-root .vpn-head .tr-bin svg { align-self: center; }
+  #net-root .tr-rng-head .btn, #net-root .tr-src-head .btn, #net-root .tr-bin { display: inline-flex; align-items: center; gap: 6px; width: auto; background: none;
     border-color: transparent; box-shadow: none; padding: 4px 6px; min-height: 0; font-size: .86rem; font-weight: 600;
     color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
-  #net-ranges .tr-ranges, #net-acts .tr-ranges { gap: 10px; }
-  #net-ranges .btn[aria-pressed="true"], #net-acts .btn[aria-pressed="true"] { color: var(--accent); font-weight: 700; }
-  #net-acts .tr-ranges .btn:last-child { margin-right: -3px; }
+  #net-root .tr-rng-head .tr-ranges, #net-root .tr-src-head .tr-ranges { gap: 10px; }
+  #net-root .tr-rng-head .btn[aria-pressed="true"], #net-root .tr-src-head .btn[aria-pressed="true"] { color: var(--accent); font-weight: 700; }
   #net-root .tr-bin { margin-right: -3px; }
   #net-root .tr-word { display: inline; position: relative; top: 1.5px; }   /* the word's baseline on the foot of the bin, as on Logs */
   @media (hover: hover) {
-    #net-ranges .btn:hover:not(:disabled):not([aria-pressed="true"]), #net-acts .btn:hover:not(:disabled):not([aria-pressed="true"]),
+    #net-root .tr-rng-head .btn:hover:not(:disabled):not([aria-pressed="true"]), #net-root .tr-src-head .btn:hover:not(:disabled):not([aria-pressed="true"]),
     #net-root .tr-bin:hover:not(:disabled) { background: none; color: var(--text); }
     #net-root .tr-bin:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 3px; }
   }
@@ -2805,6 +2816,11 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
    row bins. At rest a bin takes its button's colour like any icon (red looked out of place in some themes);
    Activity's row bins get the plain-action grey of the Clear above them, not the brighter text colour. */
 svg:has(> path[d^="M4 7h16M6 7l1 12"]) { width: 16px !important; height: 16px !important; stroke-width: 1.8 !important; }
+/* The one exception: a phone's Network bin beside the small 1h 24h 7d, sized to them (26 November); the line kept as thick */
+@media (max-width: 720px) {
+  #net-root .tr-card > .vpn-head .tr-bin svg { width: 13px !important; height: 13px !important; stroke-width: 2.2 !important;
+    position: relative; top: -1px; }
+}
 #jobs .job-x > svg { color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
 @media (hover: hover) {
   /* on hover a bin and the word beside it turn red. !important: each page's plain buttons set their own hover
