@@ -2,6 +2,10 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 26 November 2026
+
+- **Fixed:** Recent log alerts: when the VPN drops and gluetun reconnects by itself within a few minutes, its "restarting VPN" and "getting public IP address" lines stay off the Overview. A drop that doesn't come back still shows, and the Logs page keeps every line. (Panel 1.70.3, [#232](https://github.com/alpinezx/easy-aiostreams/pull/232))
+
 ## 25 November 2026
 
 - **Fixed:** Overview and the other pages on a computer: a toast no longer jumps up while Edit's drawer is open (it sat higher only so a phone's full-screen drawer doesn't cover Reset to default and Done), so Reset to default's message stays put. (Panel 1.70.2, [#231](https://github.com/alpinezx/easy-aiostreams/pull/231))

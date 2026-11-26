@@ -311,10 +311,40 @@ WARN_TAIL = 3000          # at most this many of a log's last lines are read
 WARN_KEEP = 300           # and at most this many hints sent per service
 
 
-def warn_hints(raw: bytes) -> list[str]:
-    """A log's lines (with Docker's timestamps) that may be warnings, newest last, secrets hidden."""
+# gluetun restarts its own tunnel when a health check fails, and its look-up of the public address
+# can fail while it does. When it finds that address again soon after, the drop fixed itself:
+# those lines stay off the Overview's card (the Logs page keeps them). One that doesn't come back
+# keeps them, as does the same line at any other time.
+VPN_HEAL_WITHIN = 300
+_VPN_DROP = re.compile(r"restarting VPN because it failed to pass the healthcheck|getting public IP address information")
+_VPN_BACK = re.compile(r"\[ip getter\] Public IP address is ")
+
+
+def _docker_time(line: str) -> float | None:
+    """Docker's timestamp at the start of a line, as epoch seconds."""
+    try:
+        return datetime.strptime(line[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc).timestamp()
+    except ValueError:
+        return None
+
+
+def drop_self_healed(lines: list[str]) -> list[str]:
+    backs = [t for t in (_docker_time(ln) for ln in lines if _VPN_BACK.search(ln)) if t is not None]
+
+    def healed(ln):
+        if not _VPN_DROP.search(ln):
+            return False
+        t = _docker_time(ln)
+        return t is not None and any(t <= b <= t + VPN_HEAL_WITHIN for b in backs)
+    return [ln for ln in lines if not healed(ln)]
+
+
+def warn_hints(raw: bytes, vpn: bool = False) -> list[str]:
+    """A log's lines (with Docker's timestamps) that may be warnings, newest last, secrets hidden.
+    vpn: gluetun's log, less its drops that fixed themselves (drop_self_healed)."""
     out = []
-    for line in raw.decode("utf-8", "replace").splitlines():
+    lines = raw.decode("utf-8", "replace").splitlines()
+    for line in drop_self_healed(lines) if vpn else lines:
         if WARN_HINT.search(line):
             out.append(hide_secrets(line.rstrip("\r")))
     return out[-WARN_KEEP:]
@@ -2184,7 +2214,7 @@ class Backend:
                 if c.status != "running":
                     return None
                 raw = c.logs(stream=False, timestamps=True, tail=WARN_TAIL, since=max(since, int(cleared.get(cname) or 0)))
-                return {"container": cname, "name": title, "lines": warn_hints(raw)}
+                return {"container": cname, "name": title, "lines": warn_hints(raw, vpn=cname == "gluetun")}
             except Exception:
                 return None
 

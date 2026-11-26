@@ -731,6 +731,19 @@ def test_log_warnings(client):
     got = warn_hints(raw)
     assert len(got) == 4 and "Sorted" not in " ".join(got)       # info lines never sent
     assert "hunter2" not in got[2] and "api_password=[hidden]" in got[2]
+    # gluetun: a drop that found its public address again within 5 minutes stays off the card,
+    # one that never came back (or came back later) stays on it
+    vpn = "\n".join([
+        "2026-11-26T04:36:45.1Z 2026-11-26T04:36:45Z WARN [vpn] restarting VPN because it failed to pass the healthcheck: full periodic check: all check tries failed:",
+        "2026-11-26T04:36:46.1Z 2026-11-26T04:36:46Z ERROR [vpn] getting public IP address information: fetching information: all fetchers failed: %!w(<nil>)",
+        "2026-11-26T04:37:10.1Z 2026-11-26T04:37:10Z INFO [ip getter] Public IP address is 192.0.2.7 (Netherlands)",
+        "2026-11-26T06:00:00.1Z 2026-11-26T06:00:00Z WARN [vpn] restarting VPN because it failed to pass the healthcheck: full periodic check:",
+        "2026-11-26T06:10:00.1Z 2026-11-26T06:10:00Z INFO [ip getter] Public IP address is 192.0.2.7 (Netherlands)",
+        "2026-11-26T07:00:00.1Z 2026-11-26T07:00:00Z WARN [vpn] restarting VPN because it failed to pass the healthcheck: full periodic check:",
+        "2026-11-26T07:00:01.1Z 2026-11-26T07:00:01Z WARN [dns] renewing tls connection: EOF"]).encode()
+    healed = warn_hints(vpn, vpn=True)
+    assert [ln[:19] for ln in healed] == ["2026-11-26T06:00:00", "2026-11-26T07:00:00", "2026-11-26T07:00:01"]
+    assert len(warn_hints(vpn)) == 5                          # other services' logs untouched
     import app.main as m
     m.backend.issues = True                     # the demo's sample lines (off by default, for clean screenshots)
     r = client.get("/api/log-warnings").json()["services"]
