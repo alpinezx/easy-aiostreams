@@ -24,6 +24,7 @@ import docker
 
 from . import config
 from .actions import ADDON_STATE, ROUTABLE, SCRIPTS, Action
+from .noise import VPN_HEAL_MAX, VPN_HEAL_WITHIN, drop_self_healed  # noqa: F401  (rule vpn-drop-healed)
 from .traffic import dev_counters, host_net
 from .wgconf import check_wireguard_conf
 
@@ -309,40 +310,6 @@ def container_state(st: dict, cname: str, just_resumed: bool, planned: bool = Fa
     return ("running" if running else "stopped"), ""
 WARN_TAIL = 3000          # at most this many of a log's last lines are read
 WARN_KEEP = 300           # and at most this many hints sent per service
-
-
-# gluetun restarts its own tunnel when a health check fails, and its look-up of the public address
-# can fail while it does. When it finds that address again soon after, the drop fixed itself:
-# those lines stay off the Overview's card (the Logs page keeps them). One that doesn't come back
-# keeps them, as does the same line at any other time. Only while they're rare: from VPN_HEAL_MAX + 1
-# healed restarts in the day the card reads, every one shows, as the tunnel is worth a look.
-VPN_HEAL_WITHIN = 300
-VPN_HEAL_MAX = 2
-_VPN_RESTART = re.compile(r"restarting VPN because it failed to pass the healthcheck")
-_VPN_DROP = re.compile(r"restarting VPN because it failed to pass the healthcheck|getting public IP address information")
-_VPN_BACK = re.compile(r"\[ip getter\] Public IP address is ")
-
-
-def _docker_time(line: str) -> float | None:
-    """Docker's timestamp at the start of a line, as epoch seconds."""
-    try:
-        return datetime.strptime(line[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc).timestamp()
-    except ValueError:
-        return None
-
-
-def drop_self_healed(lines: list[str]) -> list[str]:
-    backs = [t for t in (_docker_time(ln) for ln in lines if _VPN_BACK.search(ln)) if t is not None]
-
-    def healed(ln):
-        if not _VPN_DROP.search(ln):
-            return False
-        t = _docker_time(ln)
-        return t is not None and any(t <= b <= t + VPN_HEAL_WITHIN for b in backs)
-    gone = [ln for ln in lines if healed(ln)]
-    if sum(1 for ln in gone if _VPN_RESTART.search(ln)) > VPN_HEAL_MAX:
-        return lines
-    return [ln for ln in lines if ln not in gone]
 
 
 def warn_hints(raw: bytes, vpn: bool = False) -> list[str]:

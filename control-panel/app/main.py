@@ -19,6 +19,8 @@ from fastapi.staticfiles import StaticFiles
 
 from . import audit, auth, config, panelupdate, releases, scriptsync, serverip
 from .actions import SCRIPTS, BadAction, build_delete_config, build_restore, build_use_file, resolve
+from .noise import BOOT_GRACE, JOB_GRACE, QUIET_WINDOW_SERVICES, RESUME_GRACE, after_resumes, card_lines, outside_jobs  # noqa: F401
+from .noise import line_time as _line_time
 from .proxy import CaddyProxyHeaders
 from .stack import BACKUP_NAME, RESTARTABLE, WITH_MAIN, backup_path, note_planned
 
@@ -992,16 +994,6 @@ def load_warn_hidden() -> list[str]:
     return sorted(c for c in LOGGABLE if not choices.get(c, c not in WARN_OFF_BY_DEFAULT))
 
 
-# While the panel's own action runs (Restart stack, Update, a VPN switch, a backup...) and for a
-# minute after, services complain about each other being away: the tunnel can't reach Caddy, Caddy
-# can't reach AIOStreams. Expected then, so the card leaves those lines out. The Logs page keeps them,
-# and the same lines at any other time (nothing of the panel's running) still show.
-JOB_GRACE = 60
-
-
-BOOT_GRACE = 180   # after the server boots, while Caddy is up before AIOStreams and the VPN
-
-
 def _boot_time() -> float | None:
     """When the server booted (the kernel's btime, the host's own even inside the container)."""
     try:
@@ -1015,7 +1007,8 @@ def _boot_time() -> float | None:
 
 def _job_windows() -> list[tuple[float, float]]:
     """Times when Caddy's and the tunnel's lines stay off Recent warnings: each panel action and
-    a minute after it, and the first minutes after the server boots, when services start in turn."""
+    a minute after it, and the first minutes after the server boots, when services start in turn
+    (rules away-during-action and away-after-boot in app/noise.py, with every other such rule)."""
     now = time.time()
     with jobs.lock:
         runs = [(j["started"], j["ended"] or now) for j in jobs.items.values() if j.get("started")]
@@ -1025,59 +1018,6 @@ def _job_windows() -> list[tuple[float, float]]:
     if boot:
         out.append((boot, boot + BOOT_GRACE))
     return out
-
-
-def _line_time(line: str) -> float | None:
-    """Docker's timestamp at the start of a line ("2026-11-12T18:10:36.123456789Z ..."), as epoch seconds."""
-    try:
-        return datetime.strptime(line[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc).timestamp()
-    except ValueError:
-        return None
-
-
-# Only these complain while what sits behind them restarts, so only their lines are held back
-# in those windows. Every other service (AIOStreams' debrid and scraper checks at start-up,
-# the VPN failing to connect) always reaches the card.
-QUIET_WINDOW_SERVICES = {"caddy", "cloudflared"}
-
-
-def outside_jobs(services: list[dict], windows: list[tuple[float, float]]) -> list[dict]:
-    def keep(line):
-        t = _line_time(line)
-        return t is None or not any(a <= t <= b for a, b in windows)
-    return [{**s, "lines": [ln for ln in s["lines"] if keep(ln)]} if s.get("container") in QUIET_WINDOW_SERVICES else s
-            for s in services]
-
-
-# Lines a service writes only because it was just paused (a backup) or started, and so stay off
-# the card for a minute after a backup or that service's own start. Node add-ons (AIOMetadata) see
-# the pause as their event loop stalling for as long as it lasted. The Logs page keeps them, and
-# the same line at any other time still shows: a real stall is worth a look.
-RESUME_QUIET = [re.compile(r"\bEvent loop stalled for \d+ ?ms\b")]
-RESUME_GRACE = 60
-# The same for a container's own start only, not a backup. Caddy recreated by any script comes
-# back without the panel's network, and can't find the panel until the panel connects it again
-# (Backend.keep_caddy_connected, a second or so later). Any other time the line still shows.
-START_QUIET = {"caddy": [re.compile(r"\blookup aios-ui\b")]}
-
-
-def after_resumes(services: list[dict], resumes: dict[str, list[float]]) -> list[dict]:
-    """resumes (Backend.resumes): a container's own starts under its name, and backups
-    (every container) under "*"."""
-    def near(t, times):
-        return any(a - 5 <= t <= a + RESUME_GRACE for a in times)
-
-    def keep(cname, line):
-        own = any(r.search(line) for r in START_QUIET.get(cname, ()))
-        if not own and not any(r.search(line) for r in RESUME_QUIET):
-            return True
-        t = _line_time(line)
-        if t is None:
-            return True
-        if own:
-            return not near(t, resumes.get(cname, ()))
-        return not near(t, [*resumes.get("*", ()), *resumes.get(cname, ())])
-    return [{**s, "lines": [ln for ln in s["lines"] if keep(s.get("container"), ln)]} for s in services]
 
 
 def _warn_data(loggable) -> tuple[list[dict], dict[str, list[float]]]:
@@ -1094,7 +1034,7 @@ async def log_warnings(user: str = Depends(current_user)):
         _warn_cache["data"] = await asyncio.to_thread(_warn_data, LOGGABLE - set(hidden))
         _warn_cache["at"] = time.time()
     data, resumes = _warn_cache["data"]
-    return {"services": after_clear(outside_jobs(after_resumes(data, resumes), _job_windows()), _warn_cleared_at()),
+    return {"services": after_clear(card_lines(data, resumes, _job_windows()), _warn_cleared_at()),
             "hidden": hidden}
 
 

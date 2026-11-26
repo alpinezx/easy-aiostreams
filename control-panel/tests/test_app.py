@@ -1319,6 +1319,55 @@ def test_tunnel_noise_is_grey_and_real_failures_stay_red():
         assert not any(r.search(line) for r in quiet), line
 
 
+def test_noise_rules_table():
+    """Every rule for nuisance log lines, in app/noise.py's one table: which ones there are, whose
+    lines, when and where. Adding, dropping or moving a rule is meant to show up here."""
+    from app import noise as n
+    got = [(r.name, r.services, r.pattern is not None, r.when, r.where) for r in n.RULES]
+    C, A = ("caddy",), (n.ALWAYS,)
+    noise = ["logs-page-closed", "live-page-left", "viewer-hung-up", "dashboard-cut", "dashboard-reconnect",
+             "caddy-stop-byeee", "caddy-stop-apps", "caddy-stop-grace", "caddyfile-format", "http3-needs-tls",
+             "panel-restarting", "panel-gone"]
+    quiet = [("vpn-dns-retry", "gluetun"), ("vpn-stopping", "gluetun"), ("vpn-startup-check", "gluetun"),
+             ("vpn-version-403", "gluetun"), ("tunnel-stopping", "cloudflared"),
+             ("tunnel-already-connected", "cloudflared"), ("tunnel-closed-no-error", "cloudflared"),
+             ("tunnel-visitor-closed", "cloudflared"), ("tunnel-visitor-gave-up", "cloudflared"),
+             ("tunnel-cut-first-half", "cloudflared"), ("tunnel-live-page-cut", "cloudflared"),
+             ("aiometadata-cache-stats", "aiometadata"), ("aiometadata-slow-answer", "aiometadata"),
+             ("aiometadata-unclean-close", "aiometadata")]
+    assert got == [
+        *[(name, C, True, A, "NOISE") for name in noise],
+        ("aiostreams-cut-by-restart", C, True, (n.BEFORE_CADDY_STOP,), "CUT_BY_AIOS"),
+        *[(name, (svc,), True, A, "QUIET") for name, svc in quiet],
+        ("vpn-drop-healed", ("gluetun",), True, (n.HEALED,), "card"),
+        ("away-during-action", ("caddy", "cloudflared"), False, (n.ACTION,), "card"),
+        ("away-after-boot", ("caddy", "cloudflared"), False, (n.BOOT,), "card"),
+        ("event-loop-stall", ("*",), True, (n.BACKUP, n.OWN_START), "card"),
+        ("caddy-missing-panel", C, True, (n.OWN_START,), "card"),
+    ]
+    assert all(r.why for r in n.RULES)
+    assert len({r.name for r in n.RULES}) == len(n.RULES)
+    assert (n.RESTART_WINDOW, n.JOB_GRACE, n.BOOT_GRACE, n.RESUME_GRACE, n.VPN_HEAL_WITHIN, n.VPN_HEAL_MAX) == (10, 60, 180, 60, 300, 2)
+    assert n.QUIET_WINDOW_SERVICES == {"caddy", "cloudflared"}
+
+
+def test_noise_rules_match_logs_js():
+    """The browser's lists in logs.js are a copy of the table's NOISE, QUIET and CUT_BY_AIOS rows:
+    same patterns in the same order, each tagged with its row's name, and each valid in Python too."""
+    import re
+    from pathlib import Path
+    from app.noise import RULES
+    js = (Path(__file__).resolve().parents[1] / "web" / "js" / "logs.js").read_text(encoding="utf-8")
+    for name in ("NOISE", "QUIET"):
+        block = re.search(r"const %s = \[(.*?)\n\];" % name, js, re.S).group(1)
+        lines = re.findall(r"^\s*/(.+)/,\s*// (\S+)\s*$", block, re.M)
+        assert len(lines) == len(block.strip().splitlines()), name   # every line a pattern and its name
+        assert lines == [(r.pattern, r.name) for r in RULES if r.where == name], name
+    cut = re.search(r"// (\S+)\s*\nconst CUT_BY_AIOS = /(.+)/;", js)
+    assert [(cut.group(2), cut.group(1))] == [(r.pattern, r.name) for r in RULES if r.where == "CUT_BY_AIOS"]
+    assert re.search(r"const RESTART_WINDOW = (\d+);", js).group(1) == "10"
+
+
 def test_control_panel_row_is_first_loggable_and_not_in_the_flow(client):
     """Services starts with the panel's own container: its logs open, it isn't one of the stack's
     services (Restart stack, the request flow), and it has no Stop (nothing could start it again)."""

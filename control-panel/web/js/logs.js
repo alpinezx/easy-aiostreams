@@ -8,61 +8,43 @@ let wrap = false;
 // Levels picked with the INFO / WARN / ERROR buttons; none picked shows every line.
 let levels = new Set();
 
-// Caddy lines that look alarming but are expected. Matched against the raw line.
+// Lines that look alarming but are expected. A copy of app/noise.py's RULES (where NOISE, QUIET,
+// CUT_BY_AIOS), same patterns in the same order, each named after its row: why each is there, and
+// the card's own server-side rules, are in that table. test_noise_rules_match_logs_js checks the copy.
+// Matched against the raw line of every log.
+// Hidden by Hide noise (Caddy's)
 const NOISE = [
-  /aborting with incomplete response.*\/api\/logs\//,        // this page's own live log connection closing
-  /aborting with incomplete response.*"error":"[^"]*context canceled"/,   // a browser left a live page (event stream)
-  /aborting with incomplete response.*"error":"writing: /,   // the viewer's player or browser hung up mid-transfer (skip, seek, stop)
-  /aborting with incomplete response.*"uri":"\/api\/v1\/dashboard\/[^"]*\/stream".*"error":"reading: unexpected EOF"/,   // AIOStreams restarted under an open dashboard page
-  /dial tcp [0-9.]+:3000: connect: connection refused.*"uri":"\/api\/v1\/dashboard\/[^"]*\/stream"/,   // an open dashboard page reconnecting while AIOStreams starts
-  /exiting; byeee/,                                          // Caddy stopping for a restart
-  /shutting down apps, then terminating/,
-  /servers shutting down with eternal grace period/,
-  /Caddyfile input is not formatted/,                         // whitespace only
-  /HTTP\/[23] skipped because it requires TLS/,               // port 80 is plain HTTP by design
-  /dial tcp [0-9.]+:8080: connect: connection refused/,      // the panel itself restarting
-  /lookup aios-ui on [^ ]+: (server misbehaving|no such host)/,   // the panel container stopped or being rebuilt
+  /aborting with incomplete response.*\/api\/logs\//,   // logs-page-closed
+  /aborting with incomplete response.*"error":"[^"]*context canceled"/,   // live-page-left
+  /aborting with incomplete response.*"error":"writing: /,   // viewer-hung-up
+  /aborting with incomplete response.*"uri":"\/api\/v1\/dashboard\/[^"]*\/stream".*"error":"reading: unexpected EOF"/,   // dashboard-cut
+  /dial tcp [0-9.]+:3000: connect: connection refused.*"uri":"\/api\/v1\/dashboard\/[^"]*\/stream"/,   // dashboard-reconnect
+  /exiting; byeee/,   // caddy-stop-byeee
+  /shutting down apps, then terminating/,   // caddy-stop-apps
+  /servers shutting down with eternal grace period/,   // caddy-stop-grace
+  /Caddyfile input is not formatted/,   // caddyfile-format
+  /HTTP\/[23] skipped because it requires TLS/,   // http3-needs-tls
+  /dial tcp [0-9.]+:8080: connect: connection refused/,   // panel-restarting
+  /lookup aios-ui on [^ ]+: (server misbehaving|no such host)/,   // panel-gone
 ];
-// AIOStreams cutting a response is only noise next to a stack restart; on its own it means a viewer's stream broke.
+// Noise only within RESTART_WINDOW before a Caddy stop line   // aiostreams-cut-by-restart
 const CUT_BY_AIOS = /aborting with incomplete response.*"error":"reading: [^"]*(:3000: read: connection reset by peer|unexpected EOF)"/;
-// Tunnel and VPN lines shown in grey, not as errors. cloudflared logs each failure twice: a first half without
-// the address, then "Request failed ... dest=<url>".
+// Shown grey, not as errors (the tunnels' and AIOMetadata's)
 const QUIET = [
-  // gluetun: one DNS query's encrypted connection closed or slow (EOF, a timeout), so it asked again, over
-  // another connection or its other provider. Every wording and ending, not one at a time: real DNS trouble
-  // shows elsewhere (its health check restarting the VPN, AIOStreams' searches failing), and ERROR lines stay.
-  /WARN \[dns\] (exchanging over|renewing|getting) tls connection /,
-  /WARN Caught OS signal terminated, shutting down$/,   // gluetun: asked to stop, as a restart or reboot does
-  // gluetun: its first health check, a few seconds after it starts (a boot, an update, VPN on), ran before its own
-  // DNS was ready, so it restarted the tunnel itself and the next try passed. Only the "startup check" wording:
-  // a tunnel that goes unhealthy later says something else ("program has been unhealthy") and stays.
-  /WARN \[vpn\] restarting VPN because it failed to pass the healthcheck: startup check: /,
-  // gluetun: its start-up release check hit GitHub's hourly limit, common on a shared exit address; the VPN is fine
-  /ERROR \[vpn\] cannot get version information: bad response HTTP status code: 403 403 Forbidden$/,
-  // cloudflared: told to stop (a restart, update or reboot), it closes its connections to Cloudflare; only said
-  // while shutting down. A tunnel that can't reach Cloudflare says something else and stays.
-  /Serve tunnel error error="control stream error: Error shutting down control stream: /,
-  // cloudflared: back up after a restart or reboot, one connection reached a Cloudflare server that still held
-  // its old one, so it moved to another server (both lines of the pair). Other connection failures stay.
-  /error="control stream error: already connected to this server, trying another address"/,
-  // cloudflared: Cloudflare's side closed one connection with code 0 ("no error"), as its servers restart or
-  // rebalance; it's registered again within seconds and the other connections carry on. Other codes stay.
-  /error="datagram manager error: Application error 0x0 \(remote\)"/,
-  /canceled by remote with error code 0\b/,   // a visitor closed a connection still open (left a live page, stopped a video)
-  // The visitor's side gave up before the answer came (a reload, a closed tab, the panel restarting): both halves
-  /error="Incoming request ended abruptly: context canceled"/,
-  /ERR {2}error="unexpected EOF" .*originService=/,   // a cut connection's first half; its Request failed line says what it was
-  // A restart cut a live page: any live /api/.../stream (AIOStreams' dashboard, a running job's output) or this panel's own Logs.
-  /Request failed error="unexpected EOF" .*dest=https?:\/\/[^/ ]+\/api\/(logs\/[^ ]*|[^ ?]*\/stream) /,
-  // AIOMetadata: its cache statistics, logged at info level (ℹ) during its scheduled warm-ups; "Error Rate" and
-  // "Errors: 2" are counts, not failures. Every info line of that module; its WARN and ERROR lines stay.
-  /\[Cache-Health\] ℹ /,
-  // AIOMetadata: a download or lookup that took a few seconds ("took 2006ms: waiting for a connection ..."), a slow
-  // answer from the other end, not a failure. Every "took N ms" notice of that module; its other lines stay.
-  /\[HTTP-Timing\]\s+WARN\s.* took \d+ms/,
-  // AIOMetadata: a connection (Redis, whichever store it names) wasn't closed neatly as it stopped (a restart, update or
-  // backup's pause). The whole "Did not close cleanly" kind; a lost or refused connection says something else and stays.
-  /WARN\s+Did not close cleanly: /,
+  /WARN \[dns\] (exchanging over|renewing|getting) tls connection /,   // vpn-dns-retry
+  /WARN Caught OS signal terminated, shutting down$/,   // vpn-stopping
+  /WARN \[vpn\] restarting VPN because it failed to pass the healthcheck: startup check: /,   // vpn-startup-check
+  /ERROR \[vpn\] cannot get version information: bad response HTTP status code: 403 403 Forbidden$/,   // vpn-version-403
+  /Serve tunnel error error="control stream error: Error shutting down control stream: /,   // tunnel-stopping
+  /error="control stream error: already connected to this server, trying another address"/,   // tunnel-already-connected
+  /error="datagram manager error: Application error 0x0 \(remote\)"/,   // tunnel-closed-no-error
+  /canceled by remote with error code 0\b/,   // tunnel-visitor-closed
+  /error="Incoming request ended abruptly: context canceled"/,   // tunnel-visitor-gave-up
+  /ERR {2}error="unexpected EOF" .*originService=/,   // tunnel-cut-first-half
+  /Request failed error="unexpected EOF" .*dest=https?:\/\/[^/ ]+\/api\/(logs\/[^ ]*|[^ ?]*\/stream) /,   // tunnel-live-page-cut
+  /\[Cache-Health\] ℹ /,   // aiometadata-cache-stats
+  /\[HTTP-Timing\]\s+WARN\s.* took \d+ms/,   // aiometadata-slow-answer
+  /WARN\s+Did not close cleanly: /,   // aiometadata-unclean-close
 ];
 const CADDY_STOP = /shutting down apps, then terminating|"msg":"shutdown complete"|exiting; byeee/;
 const RESTART_WINDOW = 10;

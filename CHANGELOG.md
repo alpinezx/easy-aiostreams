@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 26 November 2026
 
+- **Tidied:** Recent log alerts and the Logs page: every rule that keeps expected lines (restarts, backups, boot, the VPN reconnecting) off the Overview or greys them in Logs now sits in one table in the panel, so a new one goes in one place. Nothing looks different. (Panel 1.70.3, [#232](https://github.com/alpinezx/easy-aiostreams/pull/232))
 - **Fixed:** Recent log alerts: clearing Activity no longer brings back the Caddy and Cloudflare Tunnel lines logged while the panel's own actions ran (switching the VPN, restarts, updates). The panel keeps when its actions ran apart from the Activity list. (Panel 1.70.3, [#232](https://github.com/alpinezx/easy-aiostreams/pull/232))
 - **Fixed:** Phone alerts: the watchdog waits 2 minutes after gluetun is started (the VPN switched on, a restart, a new config) while its tunnel connects, so switching the VPN on no longer leaves a failed check in Activity and the 14-day bar. A gluetun that keeps crashing is still checked. ([#232](https://github.com/alpinezx/easy-aiostreams/pull/232))
 - **Fixed:** Network, VPN tab: after the VPN is switched off, Now says "VPN is off" at the next refresh instead of showing the last minute's speed for up to 3 minutes. (Panel 1.70.3, [#232](https://github.com/alpinezx/easy-aiostreams/pull/232))
