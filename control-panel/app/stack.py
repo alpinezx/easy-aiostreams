@@ -314,8 +314,11 @@ WARN_KEEP = 300           # and at most this many hints sent per service
 # gluetun restarts its own tunnel when a health check fails, and its look-up of the public address
 # can fail while it does. When it finds that address again soon after, the drop fixed itself:
 # those lines stay off the Overview's card (the Logs page keeps them). One that doesn't come back
-# keeps them, as does the same line at any other time.
+# keeps them, as does the same line at any other time. Only while they're rare: from VPN_HEAL_MAX + 1
+# healed restarts in the day the card reads, every one shows, as the tunnel is worth a look.
 VPN_HEAL_WITHIN = 300
+VPN_HEAL_MAX = 2
+_VPN_RESTART = re.compile(r"restarting VPN because it failed to pass the healthcheck")
 _VPN_DROP = re.compile(r"restarting VPN because it failed to pass the healthcheck|getting public IP address information")
 _VPN_BACK = re.compile(r"\[ip getter\] Public IP address is ")
 
@@ -336,7 +339,10 @@ def drop_self_healed(lines: list[str]) -> list[str]:
             return False
         t = _docker_time(ln)
         return t is not None and any(t <= b <= t + VPN_HEAL_WITHIN for b in backs)
-    return [ln for ln in lines if not healed(ln)]
+    gone = [ln for ln in lines if healed(ln)]
+    if sum(1 for ln in gone if _VPN_RESTART.search(ln)) > VPN_HEAL_MAX:
+        return lines
+    return [ln for ln in lines if ln not in gone]
 
 
 def warn_hints(raw: bytes, vpn: bool = False) -> list[str]:

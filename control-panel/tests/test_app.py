@@ -744,6 +744,13 @@ def test_log_warnings(client):
     healed = warn_hints(vpn, vpn=True)
     assert [ln[:19] for ln in healed] == ["2026-11-26T06:00:00", "2026-11-26T07:00:00", "2026-11-26T07:00:01"]
     assert len(warn_hints(vpn)) == 5                          # other services' logs untouched
+    # a third healed drop in the day: all of them show again
+    third = vpn + b"\n" + "\n".join([
+        "2026-11-26T08:00:00.1Z 2026-11-26T08:00:00Z WARN [vpn] restarting VPN because it failed to pass the healthcheck: full periodic check:",
+        "2026-11-26T08:00:02.1Z 2026-11-26T08:00:02Z INFO [ip getter] Public IP address is 192.0.2.7 (Netherlands)",
+        "2026-11-26T08:30:00.1Z 2026-11-26T08:30:00Z WARN [vpn] restarting VPN because it failed to pass the healthcheck: full periodic check:",
+        "2026-11-26T08:30:02.1Z 2026-11-26T08:30:02Z INFO [ip getter] Public IP address is 192.0.2.7 (Netherlands)"]).encode()
+    assert len(warn_hints(third, vpn=True)) == len(warn_hints(third)) == 7
     import app.main as m
     m.backend.issues = True                     # the demo's sample lines (off by default, for clean screenshots)
     r = client.get("/api/log-warnings").json()["services"]

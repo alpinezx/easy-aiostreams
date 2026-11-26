@@ -4,7 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 26 November 2026
 
-- **Fixed:** Recent log alerts: when the VPN drops and gluetun reconnects by itself within a few minutes, its "restarting VPN" and "getting public IP address" lines stay off the Overview. A drop that doesn't come back still shows, and the Logs page keeps every line. (Panel 1.70.3, [#232](https://github.com/alpinezx/easy-aiostreams/pull/232))
+- **Fixed:** Recent log alerts: when the VPN drops and gluetun reconnects by itself within a few minutes, its "restarting VPN" and "getting public IP address" lines stay off the Overview, while it's no more than twice a day. A drop that doesn't come back, or a third in a day, still shows, and the Logs page keeps every line. (Panel 1.70.3, [#232](https://github.com/alpinezx/easy-aiostreams/pull/232))
 
 ## 25 November 2026
 
