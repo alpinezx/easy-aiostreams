@@ -10,6 +10,17 @@ let buildTimer = null, buildTries = 0;
 // This server's public IP for the scp command, looked up once per page load. null: not found.
 let serverIp;
 
+// Activity's Clear: on the level buttons' row on a computer, on the page title's line on a phone (as on Logs)
+{
+  const phone = window.matchMedia("(max-width: 720px)");
+  const place = () => {
+    const acts = $("#view-activity .lg-acts");
+    if (acts) (phone.matches ? $("#view-activity .view-head") : $("#view-activity .lg-row2")).append(acts);
+  };
+  phone.addEventListener("change", place);
+  place();
+}
+
 // What the phone-alerts watchdog noticed on its own, shown in the same list when it's set up.
 // Pill words and colours for each kind of event.
 const ALERT_KIND = {

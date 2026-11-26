@@ -397,15 +397,16 @@ export function init() {
   $("#log-jump").addEventListener("click", () => { const t = $("#log-term"); setFollow(true); t.scrollTop = t.scrollHeight; });
   window.addEventListener("resize", fitBox);
   if (window.visualViewport) window.visualViewport.addEventListener("resize", fitBox);
-  // Clear, Copy and .log sit on the level buttons' row of the filter card, which they act on: icons only on a phone,
-  // beside the switches (after the rule that tells them apart) on a computer
+  // Clear, Copy and .log sit on the level buttons' row of the filter card on a computer, beside the switches (after the
+  // rule that tells them apart); on a phone Clear is in the page heading and the other two in the ⋮ menu
   const acts = $("#view-logs .lg-acts");
   // On a phone only the bin stays in the row: .log and Copy go into the ⋮ menu (a big text size leaves room for one icon),
   // and the regex switch is dropped (it is switched off if it was on)
   const copyB = $("#log-copy"), dlB = $("#log-download"), dlWord = dlB.querySelector(".lg-word");
   const placeActs = () => {
     if (PHONE.matches) {
-      $(".lg-row2").append(acts); $("#log-toggles").append(dlB, copyB); dlWord.textContent = "Save as .log";
+      // the bin (with its word) on the page title's line, clear of the filter card's ⋮
+      $("#view-logs .lg-head").append(acts); $("#log-toggles").append(dlB, copyB); dlWord.textContent = "Save as .log";
       if (regex) $("#log-regex").click();
     } else {
       $("#log-toggles").after(acts); acts.prepend(dlB, copyB); dlWord.textContent = "Save";

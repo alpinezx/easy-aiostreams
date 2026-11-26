@@ -2638,9 +2638,17 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   :is(#view-logs, #view-activity) .lg-row2 { flex-wrap: nowrap; align-items: center; gap: 5px; }
   :is(#view-logs, #view-activity) .lg-row2 .lg-levels { flex-wrap: nowrap; flex: none; }
   :is(#view-logs, #view-activity) .lg-row2 > .lg-acts { margin: -9px -10px -9px auto; gap: 6px; flex: none; align-items: center; align-self: center; }
-  /* the chips' row sits 5px lower, so the bin's tap target keeps its room under the ⋮ / filter row above
-     while the icons stay centred on the chips */
-  :is(#view-logs, #view-activity) .lg-row2 { margin-top: 5px; }
+  /* Clear on the page title's line (26 November; it was a bare bin beside the chips, small next to them and close
+     under ⋮): the bin and its word, on the title's baseline, ending 3px in from the cards' edge */
+  :is(#view-logs, #view-activity) .view-head { flex-direction: row; flex-wrap: nowrap; align-items: baseline; }
+  :is(#view-logs, #view-activity) .view-head > h2 { flex: 1 1 auto; }
+  :is(#view-logs, #view-activity) .view-head > .lg-acts { align-self: baseline; margin: 0 3px 0 auto; }
+  :is(#view-logs, #view-activity) .view-head > .lg-acts .btn { align-items: baseline; }
+  :is(#view-logs, #view-activity) .view-head > .lg-acts .btn > svg { align-self: center; }
+  :is(#view-logs, #view-activity) .view-head > .lg-acts .lg-word { display: inline; position: relative; top: 1.5px; }   /* on the foot of the bin */
+  /* Logs: on the line under the title (streaming, reconnecting) rather than the title's */
+  #view-logs .view-head { align-items: last baseline; }
+  #view-logs .view-head > .lg-acts { align-self: last baseline; }
   /* the icons' bottom sits level with the inside of the chips' bottom border (lined up with the outside it read
      low); only the drawing moves, the tap target stays put */
   :is(#view-logs, #view-activity) .lg-row2 > .lg-acts .btn > svg { transform: translateY(3px); }
