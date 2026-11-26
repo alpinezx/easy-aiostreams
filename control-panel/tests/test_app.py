@@ -1313,6 +1313,16 @@ def test_control_panel_row_is_first_loggable_and_not_in_the_flow(client):
     assert "st.services.filter((s) => !s.panel)" in js     # the request flow leaves it out
 
 
+def test_a_vpn_switched_off_shows_no_speed_now():
+    """The VPN tab's Now falls back to the last recorded minute, which stays "recent" for 3 minutes
+    after the VPN is switched off. Off must win over that, or "VPN is off" shows minutes late."""
+    import re
+    from pathlib import Path
+    js = (Path(__file__).resolve().parents[1] / "web" / "js" / "traffic.js").read_text(encoding="utf-8")
+    body = re.search(r"export function nowRate\(d, kind = \"vpn\"\) \{\s*(.*?)\n\}", js, re.S).group(1)
+    assert body.splitlines()[0].strip() == 'if (kind === "vpn" && tunnelOff) return null;'
+
+
 def test_light_colours_match_whether_followed_or_picked():
     """Light is written twice in app.css: once for a device set to light, once for Light picked
     on the Edit menu. The two must give the same colours."""
