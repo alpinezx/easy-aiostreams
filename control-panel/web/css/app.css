@@ -2508,7 +2508,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 /* Scripts on a computer: Check now in the heading only asks GitHub again, so plain icon and word like the
    other pages' tools, 3px in from the card's edge; the rows' Copy and Update stay buttons */
 @media (min-width: 721px) {
-  #view-scripts #scripts-acts .btn { background: none; border-color: transparent; box-shadow: none; padding: 4px 6px; min-height: 0;
+  #view-scripts #scripts-acts-row .btn { background: none; border-color: transparent; box-shadow: none; padding: 4px 6px; min-height: 0;
     margin-right: -3px; font-size: .86rem; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
   /* Each row's Copy plain too (it only copies a command, like Backup & Restore's), Update staying a button */
   #view-scripts .cmd-btns .btn[data-act="Copy"] { background: none; border-color: transparent; box-shadow: none;
@@ -2520,10 +2520,14 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   @media (hover: hover) {
     #view-scripts .cmd-btns .btn[data-act="Copy"]:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
   }
-  /* on the Scripts title's baseline */
-  #view-scripts #scripts-acts { position: relative; top: 6px; }
+  /* Check now in the Checked against GitHub line's row, on that line's baseline at the right */
+  #view-scripts .scripts-status { display: flex; align-items: baseline; gap: 16px; }
+  #view-scripts .scripts-status-text { flex: 1; }
+  /* the button's baseline from its words, not its icon (which stays centred) */
+  #view-scripts #scripts-acts-row .btn { align-items: baseline; }
+  #view-scripts #scripts-acts-row .btn > svg { align-self: center; }
   @media (hover: hover) {
-    #view-scripts #scripts-acts .btn:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+    #view-scripts #scripts-acts-row .btn:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
   }
 }
 /* Add-ons, VPN and Phone alerts on a computer, by the same rule as the other pages: the page's work stays
@@ -2539,6 +2543,12 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   /* heading tools: on the title's baseline, 3px in from the card's edge */
   #view-vpn .vpn-acts, #view-alerts .vpn-acts { position: relative; top: 6px; gap: 10px; }
   #view-vpn .vpn-acts .btn:last-child, #view-alerts .vpn-acts .btn:last-child { margin-right: -3px; }
+  /* Backup & Restore's Back up now plain too, on the title's baseline (the heading lines up baselines, the button's
+     from its words, its icon centred on them) and 3px in from the card's edge */
+  #view-backups #backup-now { background: none; border-color: transparent; box-shadow: none; padding: 4px 6px; min-height: 0;
+    margin-right: -3px; font-size: .86rem; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); align-items: baseline; }
+  #view-backups #backup-now > svg { align-self: center; }
+  #view-backups .view-head { align-items: baseline; }
   /* a card's last plain action ends on its right-hand line */
   #view-addons .btn[data-act="Uninstall"], #view-vpn .conf-acts .btn[data-act="Delete"]:last-child { margin-right: -6px; }
   /* and the link to the add-on's own page, plain too, on its left-hand text line */
@@ -2547,7 +2557,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
     #view-addons .ao-page:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
     #view-addons .btn[data-act="Uninstall"]:hover:not(:disabled), #view-vpn .vpn-acts .btn:hover:not(:disabled),
     #view-vpn .conf-acts .btn[data-act="Delete"]:hover:not(:disabled), #view-alerts .vpn-acts .btn:hover:not(:disabled),
-    #view-alerts .btn.quiet:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+    #view-alerts .btn.quiet:hover:not(:disabled), #view-backups #backup-now:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
     #view-addons .ao-ic:hover:not(:disabled) { background: none; color: var(--text); }
   }
 }

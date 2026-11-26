@@ -100,10 +100,10 @@ function updates(m) {
   // The last install's output, in the same drawer
   j ? h("button", { class: "btn small maint-list maint-out", type: "button", text: "Show output",
     title: "What the last install printed", onclick: () => openOutput(j) }) : null,
+  lastDone ? lastOpen(u) : null,   // before List updates: what was installed sits beside its output
   // What's waiting, by name, in a drawer: nothing is installed from it
   h("button", { class: "btn small maint-list", type: "button", text: "List updates", disabled: !pk.length,
     title: pk.length ? "Which packages are waiting, and their versions" : "Nothing is waiting", onclick: () => openUpdates(u) }),
-  lastDone ? lastOpen(u) : null,
   u.reboot ? h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer,
     disabled: !!(status && status.busy) || !!(last && last.last && last.last.running) }) : null);
   c.classList.add("fs-spread");   // desktop: the three figures spread across the card, Checked at its right edge
