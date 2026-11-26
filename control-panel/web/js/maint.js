@@ -94,28 +94,40 @@ function updates(m) {
   waiting.classList.add("upd-waiting");
   // Its explanation sits on the figure too, for a desktop card without the line under it
   if (u.phased) waiting.querySelector(".stat-value").title = waiting.querySelector(".ver-sub").title;
+  const desk = !PHONE_Q.matches;
+  const waitingNow = pk.some((p) => !p.phased);
+  const install = button("maint.updates", u.count > 0);
+  const reboot = u.reboot ? h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer,
+    disabled: !!(status && status.busy) || !!(last && last.last && last.last.running) }) : null;
+  const plain = [
+    // The last install's output, in the same drawer
+    j ? h("button", { class: "btn small maint-list maint-out", type: "button", text: "Show output",
+      title: "What the last install printed", onclick: () => openOutput(j) }) : null,
+    lastDone ? lastOpen(u) : null,   // before List updates: what was installed sits beside its output
+    // What's waiting, by name, in a drawer: nothing is installed from it
+    h("button", { class: "btn small maint-list", type: "button", text: "List updates", disabled: !pk.length,
+      title: pk.length ? "Which packages are waiting, and their versions" : "Nothing is waiting", onclick: () => openUpdates(u) }),
+    // A computer's What's waiting: after List updates in the foot, rather than heading the preview rows
+    desk && waitingNow ? listOpen("What's waiting", "The waiting updates, in full", () => openUpdates(u)) : null,
+  ];
+  // A computer: the plain buttons from the card's left edge, Reboot server (when needed) then Install updates at the right.
+  // The last install's line moves up beside the first row of the preview. A phone keeps its foot as it was.
+  const note = hasLast || desk ? "" : lastLine(j);
   const c = card(["System updates", u.os], [
     waiting,
     stat("Restart", u.reboot ? "Needed" : "Not needed", "", u.reboot ? "warn" : ""),
     checked,
-  ], hasLast ? "" : lastLine(j), button("maint.updates", u.count > 0),
-  // The last install's output, in the same drawer
-  j ? h("button", { class: "btn small maint-list maint-out", type: "button", text: "Show output",
-    title: "What the last install printed", onclick: () => openOutput(j) }) : null,
-  lastDone ? lastOpen(u) : null,   // before List updates: what was installed sits beside its output
-  // What's waiting, by name, in a drawer: nothing is installed from it
-  h("button", { class: "btn small maint-list", type: "button", text: "List updates", disabled: !pk.length,
-    title: pk.length ? "Which packages are waiting, and their versions" : "Nothing is waiting", onclick: () => openUpdates(u) }),
-  u.reboot ? h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer,
-    disabled: !!(status && status.busy) || !!(last && last.last && last.last.running) }) : null);
+  ], note, ...(desk ? [...plain, reboot, install] : [install, ...plain, reboot]));
   c.classList.add("fs-spread");   // desktop: the three figures spread across the card, Checked at its right edge
-  if (lastDone) {
-    c.classList.add("upd-last-done");
+  if (desk) {
+    c.classList.add("upd-split");
     c.querySelector(".maint-foot > .maint-list").classList.add("maint-first");   // its icon starts on the card's text line
   }
   c.insertBefore(updPeek(u, pk, j), c.querySelector(".card-foot"));
   // a failed install is seen without opening anything
-  if (j && !j.running && j.code !== 0) (c.querySelector(".maint-foot > .dim:not(:empty)") || c.querySelector(".upd-peek-head")).classList.add("warn");
+  const failLine = j && !j.running && j.code !== 0
+    ? c.querySelector(".maint-foot > .dim:not(:empty)") || c.querySelector(".upd-peek-last") || c.querySelector(".upd-peek-head") : null;
+  if (failLine) failLine.classList.add("warn");
   return c;
 }
 
@@ -144,10 +156,12 @@ function peekOpen(label, open) {
 }
 // A computer's button for what the last update installed: beside Show output and List updates, the list icon and the words
 function lastOpen(u) {
+  return listOpen("Show last update", "What the last update installed", () => openUpdates(u, true));   // no time: the heading above already says when
+}
+function listOpen(label, title, onclick) {
   const ic = h("span", {});
   ic.innerHTML = '<svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/></svg>';
-  return h("button", { class: "btn small maint-list btn-i", type: "button", title: "What the last update installed", onclick: () => openUpdates(u, true) },
-    ic.firstChild, h("span", { text: "Show last update" }));   // no time: the heading above already says when
+  return h("button", { class: "btn small maint-list btn-i", type: "button", title, onclick }, ic.firstChild, h("span", { text: label }));
 }
 function updPeek(u, pk, j) {
   const now = pk.filter((p) => !p.phased);
@@ -156,8 +170,15 @@ function updPeek(u, pk, j) {
     const bits = [hidden ? `${hidden} more waiting` : "", u.phased ? `${u.phased} phasing in` : ""].filter(Boolean).join(", ");
     const open = () => openUpdates(u);
     if (PHONE_Q.matches) return h("div", { class: "upd-peek upd-peek-row" }, peekOpen("What's waiting", open));
-    return h("div", { class: "upd-peek" },
-      h("p", { class: "upd-peek-head" }, peekOpen("What's waiting", open)), peekRows(now),
+    // What's waiting itself is in the card's foot; the last install's line sits at the right of the first row
+    const grid = peekRows(now);
+    if (j) {
+      const line = h("span", { class: "dim upd-peek-last", text: lastLine(j) });
+      const first = grid.firstChild;
+      if (first && first.classList.contains("upd-peek-label")) { first.classList.add("upd-label-half"); first.after(line); }
+      else grid.prepend(h("span", {}), line);   // no labels: a row of its own
+    }
+    return h("div", { class: "upd-peek" }, grid,
       bits ? h("button", { class: "linkish upd-more", type: "button", text: bits, onclick: open }) : null);
   }
   const done = u.installed;
