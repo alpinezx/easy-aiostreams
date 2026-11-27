@@ -4,6 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 27 November 2026
 
+- Phone and computer tidy-ups: the Caddy card on a phone follows the computer's order; Caddy's and the VPN page's Check now are gone (the VPN card checks the tunnel again every minute while the page is open), and Turn VPN off joins the VPN card's buttons; AIOMetadata, AIOManager and MediaFlow show Uninstall on their Auto-renews line; Phone alerts' 14 days and alert topic fit a phone better; greyed buttons say why when tapped; Scripts reads "Checked" with Check now beside it; "cloudflared" now reads "Cloudflare". (Panel 1.71.0, [#235](https://github.com/alpinezx/easy-aiostreams/pull/235))
 - Overview: Recent log alerts now starts folded on a computer too, and Edit's Reset to default folds it again. (Panel 1.70.5, [#234](https://github.com/alpinezx/easy-aiostreams/pull/234))
 - Backups: the Backups title no longer shows a count. (Panel 1.70.5, [#234](https://github.com/alpinezx/easy-aiostreams/pull/234))
 - Maintenance: Free up space reads shorter, so each line fits beside its button on a phone: "No size limit", "Capped at 10 MB per container.", "836 MB can go." or "Nothing to clear.". On a phone Container logs now comes before System logs. (Panel 1.70.5, [#234](https://github.com/alpinezx/easy-aiostreams/pull/234))

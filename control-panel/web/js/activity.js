@@ -1,4 +1,4 @@
-import { $, h, clear, api, ago, fmtBytes, toast, timePicker } from "./util.js";
+import { $, h, clear, api, ago, fmtBytes, toast, timePicker, greyed } from "./util.js";
 import { openJob, runAction, ask } from "./actions.js";
 
 // A backup's file name with a break allowed after each hyphen. The browser won't break a hyphen that's followed
@@ -357,15 +357,16 @@ function backupRow(it, cmd, restore, status) {
   };
   showNote();
 
-  const del = h("button", { class: "btn small danger", type: "button", text: "Delete", disabled: it.locked,
-    title: it.locked ? "Locked. Unlock it to delete." : "", onclick: async () => {
+  // A locked backup's Delete is greyed, and a tap says why
+  const delOff = (b) => (it.locked ? greyed(b, "This backup is locked, so it can't be deleted. Unlock it first.") : b);
+  const del = delOff(h("button", { class: "btn small danger", type: "button", text: "Delete", onclick: async () => {
       const ok = await ask({ title: "Delete this backup?", confirmLabel: "Delete", danger: true,
         body: `${it.name} will be removed from ${it.dirs.join(" and ")}. This can't be undone.` });
       if (!ok) return;
       try { await api(`/api/backups/${encodeURIComponent(it.name)}`, { method: "DELETE" }); toast("Backup deleted."); }
       catch (e) { toast(e.message || "Couldn't delete it.", true); }
       refresh();
-    } });
+    } }));
 
   // On a phone each backup folds to its name, tags, size, age and note; the chevron (or the name)
   // opens it for where it's saved and its buttons. A computer always shows it all.

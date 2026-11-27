@@ -136,7 +136,7 @@ _STATIC: dict[str, Action] = {a.id: a for a in [
            args=("update-caddy",), timeout=600, needs=(AIO,), script_has="update-caddy)",
            confirm="Downloads the newest Caddy and restarts it: your sites pause for a few seconds. "
                    "If the new one doesn't answer within a minute, the earlier one comes back."),
-    Action("maint.cloudflared", "Update cloudflared", "Updating cloudflared", "cloudflared update finished", "setup-tunnel.sh",
+    Action("maint.cloudflared", "Update Cloudflare", "Updating Cloudflare", "Cloudflare update finished", "setup-tunnel.sh",
            args=("update",), timeout=600, needs=("setup-tunnel.sh", "tunnel-state/token.env"),
            confirm="Downloads the newest cloudflared and reconnects the tunnel: visitors wait a few seconds. "
                    "If the new one doesn't connect, the earlier one comes back."),

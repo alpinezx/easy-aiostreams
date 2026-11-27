@@ -468,15 +468,18 @@ main { max-width: 1680px; margin: 0 auto; padding: 28px var(--gutter) 96px; }
   padding: 8px 14px; border-radius: 9px; font-weight: 500; line-height: 1.2;
   transition: background .12s, border-color .12s, transform .06s;
 }
-.btn:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
-.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:hover:not(:disabled, [aria-disabled="true"]) { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+.btn:active:not(:disabled, [aria-disabled="true"]) { transform: translateY(1px); }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
+/* Greyed out but still answers a tap with why (util.js greyed()): looks like a disabled one; every hover and
+   press rule skips it through :not(:disabled, [aria-disabled="true"]) */
+.btn[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
 .btn.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); font-weight: 600; }
-.btn.primary:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
+.btn.primary:hover:not(:disabled, [aria-disabled="true"]) { background: var(--primary-hover); border-color: var(--primary-hover); }
 /* Stop, Remove, Reboot... (.btn.danger) look like every other button: they ask first, and the
    dialog's filled red button is the warning (.btn.primary.danger, further down) */
 .btn.quiet { background: none; color: var(--dim); }
-.btn.quiet:hover:not(:disabled) { color: var(--text); background: var(--hover); }
+.btn.quiet:hover:not(:disabled, [aria-disabled="true"]) { color: var(--text); background: var(--hover); }
 .btn.small { padding: 5px 10px; font-size: .88rem; border-radius: 8px; }
 
 /* ---------- hero ---------- */
@@ -611,7 +614,7 @@ button.chip:hover { text-decoration: underline; }
 .warn-pick-row:last-child { border-bottom: 1px solid var(--line-soft); }
 /* No buttons on folded cards: Update and Restart stack are quiet links in the top right, like Details */
 .folded .btn.fold-act { background: none; border: 0; padding: 0; min-height: 0; font-size: .86rem; font-weight: 400; color: var(--dim); box-shadow: none; }
-.folded .btn.fold-act:hover:not(:disabled) { color: var(--text); text-decoration: underline; background: none; }
+.folded .btn.fold-act:hover:not(:disabled, [aria-disabled="true"]) { color: var(--text); text-decoration: underline; background: none; }
 .ver-card.folded .ver-head > .btn.fold-act { margin-left: auto; }
 .panel.folded .card-head > .btn.fold-act { margin-left: auto; }
 /* Icons in the cards' corners instead of words, the same on phones and wider screens (the word stays as the label) */
@@ -832,6 +835,9 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 @media (max-width: 720px) {
   .vpn-card-acts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .vpn-card-acts .btn { width: 100%; }
+  /* VPN's 2x2: a size smaller, so Change server and Change config have room inside their halves (all four alike) */
+  #view-vpn .vpn-card-acts .btn { font-size: .77rem; }
+  #view-vpn .vpn-card-acts .btn > svg { width: 11px; height: 11px; }
   .vpn-card-acts .btn:last-child:nth-child(odd) { grid-column: 1 / -1; }
 }
 /* Phone alerts page */
@@ -1006,7 +1012,14 @@ select.input:focus, select.input[aria-expanded="true"] { border-color: var(--lin
 .wd-topic-what { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .wd-topic-what .vpn-label { margin: 0; }
 /* Phones: the label and the topic stack, so the button sits level with the topic's line, not between the two */
-@media (max-width: 720px) { .wd-topic { align-items: end; } .wd-topic .btn { margin-bottom: 4px; } }   /* 1px lower than level: a round-cornered box reads higher than flat text */
+/* Phones: Alert topic on the left and the topic on the right on one line, Change topic boxed under it, the full
+   width of the separator above, like the other phone pages' main buttons */
+@media (max-width: 720px) {
+  #view-alerts .vpn-card-acts.wd-topic { grid-template-columns: minmax(0, 1fr); row-gap: 10px; }
+  #view-alerts .wd-topic-what { justify-content: space-between; flex-wrap: nowrap; min-width: 0; }
+  #view-alerts .wd-topic-what .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #view-alerts .wd-topic .btn { width: 100%; grid-column: 1 / -1; }
+}
 .wd-opts { margin-top: 18px; padding: 16px 20px 6px; }
 /* Backup & Restore: the schedule above the list */
 .sched-card { padding: 16px 20px 14px; margin-bottom: 18px; }
@@ -1135,8 +1148,10 @@ select.input:focus, select.input[aria-expanded="true"] { border-color: var(--lin
   .wd-days-row .wd-today-wrap > .btn { grid-row: 1; grid-column: 2; align-self: baseline; margin: -4px -2px -4px 0; }
   .wd-days-row .wd-days { grid-row: 2; grid-column: 1 / -1; margin-top: 8px; }
   .wd-days-row .wd-today { grid-row: 3; grid-column: 1 / -1; margin-top: 12px; }
-  .wd-days { gap: 3px; }
-  .wd-day { width: calc((100vw - 32px - 40px - 39px) / 14); max-width: 18px; }
+  /* 14 even columns across the card, so the last day always ends under the bin at any zoom (a width worked out
+     from 100vw guessed the card's padding and stopped short at some zooms) */
+  .wd-days { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 3px; }
+  .wd-day { width: auto; }
 }
 /* Change server's address list */
 .addr-list { display: grid; gap: 6px; margin: 4px 0 18px; max-height: 52vh; overflow: auto; }
@@ -1425,7 +1440,7 @@ button.item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent
 .job-open { border: 0; background: none; padding: 0; text-align: left; min-width: 0; }
 .job-x { padding: 5px; color: var(--faint); }
 .job-x svg { width: 16px; height: 16px; display: block; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.job-x:hover:not(:disabled) { color: var(--bad); background: var(--bad-soft); }
+.job-x:hover:not(:disabled, [aria-disabled="true"]) { color: var(--bad); background: var(--bad-soft); }
 .job-x:disabled { visibility: hidden; }
 .item .what { font-weight: 600; }
 .item:has(> button + button) { grid-template-columns: minmax(0, 1fr) repeat(3, auto); }
@@ -1627,12 +1642,12 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
   #jobs .item.job > .btn.job-x { justify-self: end; width: 33px; height: 33px; padding: 0; display: inline-flex;
     align-items: center; justify-content: center; background: none; border-color: transparent; color: var(--faint);
     margin-right: -8.5px; }   /* the icon, not its tap square, lines up with the time's end */
-  #jobs .item.job > .btn.job-x:active:not(:disabled) { color: var(--bad); }
+  #jobs .item.job > .btn.job-x:active:not(:disabled, [aria-disabled="true"]) { color: var(--bad); }
 }
 
 .form-err { color: var(--bad); min-height: 1.2em; font-size: .9rem; }
 .btn.primary.danger { background: var(--bad); border-color: var(--bad); color: #fff; }
-.btn.primary.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--bad) 88%, white); }
+.btn.primary.danger:hover:not(:disabled, [aria-disabled="true"]) { background: color-mix(in srgb, var(--bad) 88%, white); }
 
 /* ---- backup rows: lock + note ---- */
 .item.bk { grid-template-columns: minmax(0, 1fr) auto; }
@@ -1825,7 +1840,7 @@ html:has(> body.bare) { scrollbar-gutter: auto; }
 /* Plain words like the cards' own Logs and Details: no border or fill until hovered */
 .hero-btns .btn, .btn.hero-edit { border-color: transparent; background: none; color: var(--dim); }
 /* on hover their words and icons just brighten, with no highlight or border (Scripts' What's new too) */
-.hero-btns .btn:hover:not(:disabled), .btn.hero-edit:hover:not(:disabled) { color: var(--text); background: none; border-color: transparent; }
+.hero-btns .btn:hover:not(:disabled, [aria-disabled="true"]), .btn.hero-edit:hover:not(:disabled, [aria-disabled="true"]) { color: var(--text); background: none; border-color: transparent; }
 .hero-btns .fold-all { gap: 6px; }
 .fold-all[aria-expanded="true"] .path-chev svg { transform: rotate(180deg); }
 @media (max-width: 720px) { .hero-head { row-gap: 22px; } }
@@ -1993,14 +2008,14 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 @media (max-width: 720px) {
   .btn.fold-act.ph-corner { display: inline-flex; background: none; border: 0; padding: 8px; margin: -8px -8px -8px auto; min-height: 0;
     font-size: .86rem; font-weight: 400; color: var(--dim); box-shadow: none; }
-  .btn.fold-act.ph-corner:hover:not(:disabled) { color: var(--text); background: none; }
+  .btn.fold-act.ph-corner:hover:not(:disabled, [aria-disabled="true"]) { color: var(--text); background: none; }
   .path-acts, .stat-grid > .grid-btn.host-reboot { display: none; }
   /* With Reboot gone from the bottom, the last value's own 10px under it counts toward the card's edge */
   #view-overview .panel.host:not(.folded) { padding-bottom: 6px; }
   /* The version cards and the VPN the same: Update stays the corner icon (filled when a newer
      release is out), so the open card has no Update button of its own */
   .btn.fold-act.ph-corner.primary { background: var(--primary); color: var(--primary-ink); padding: 5px; border-radius: 8px; }
-  .btn.fold-act.ph-corner.primary:hover:not(:disabled) { background: var(--primary-hover); color: var(--primary-ink); }
+  .btn.fold-act.ph-corner.primary:hover:not(:disabled, [aria-disabled="true"]) { background: var(--primary-hover); color: var(--primary-ink); }
   .btn.ver-upd, .ph-hide { display: none !important; }
   .ver-card:not(.folded) { position: relative; }
   .ver-card:not(.folded) .ver-head:has(> .ph-corner) .fold-title { padding-right: 76px; box-sizing: border-box; }
@@ -2058,7 +2073,31 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 .ao-head-r { display: flex; align-items: center; gap: 12px; }
 .ao-head-r .dim { font-size: .86rem; }
 .ao-btn-cell { grid-column: -2 / -1; justify-self: end; align-self: end; }
+/* A computer: Uninstall in the values' bottom right corner, on the last row's note line (Auto-renews) at any width,
+   never a row of its own. The cell a flexbox (an inline button sat on a text line Firefox spaced 2px differently);
+   the note's line height and nothing under the words, so both end at the grid's bottom; the bin's drawn bottom
+   on the word's baseline */
+@media (min-width: 721px) {
+  #view-addons .ao-rows { position: relative; }
+  #view-addons .ao-rows > .ao-btn-cell { position: absolute; right: 0; bottom: 0; display: flex; align-items: flex-end; }
+  #view-addons .ao-rows > .ao-btn-cell > .btn.btn { padding-bottom: 0; border-bottom-width: 0; line-height: calc(.84rem * 1.5); align-items: baseline; }
+  #view-addons .ao-rows > .ao-btn-cell > .btn.btn > svg { align-self: baseline; position: relative; top: 1px; }   /* 1px: the blank under the drawing */
+}
 @media (max-width: 720px) { .ao-note:empty { display: none; } }
+/* AIOMetadata on a phone (addons.js phoneInline): Uninstall on the last row's note line (Auto-renews), on its
+   baseline, its word ending on the card's right-hand text line; a computer keeps it in its own cell among the values */
+.ao-btn-inline { display: none !important; }
+@media (max-width: 720px) {
+  .ao-inline .ao-btn-cell { display: none !important; }
+  .ao-inline .ao-row-btn { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; }
+  .ao-inline .ao-row-btn > :not(.ao-btn-inline) { grid-column: 1 / -1; }
+  .ao-inline .ao-row-btn > .ao-note { grid-column: 1; grid-row: 3; align-self: baseline; }
+  .ao-inline .ao-row-btn > .ao-btn-inline { display: inline-flex !important; grid-column: 2; grid-row: 3; align-self: baseline; align-items: baseline;
+    width: auto; height: auto; min-height: 0; padding: 0; margin: 0; background: none; border-color: transparent; box-shadow: none;
+    font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+  .ao-inline .ao-row-btn > .ao-btn-inline > svg { align-self: baseline; position: relative; top: 1px; }   /* the bin's drawn bottom on the word's, as on a computer */
+  .ao-inline.folded .ao-btn-inline { display: none !important; }
+}
 /* Each add-on folds to its title and status chip (see addons.js), on computers and phones; a value in amber or red stays.
    The memory figure stays on a computer, a phone has no room for it. */
 .ao-fold.folded .ao-foot, .ao-fold.folded .ao-btn-cell { display: none !important; }   /* !important: beats the phone button grid's */
@@ -2262,7 +2301,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
    Every button is a soft fill with no outline; a dialog's main (primary) one keeps its colour, and
    quiet ones stay plain. Known actions get a small icon (.btn-i). */
 .btn:not(.primary):not(.quiet):not(.fold-act):not([aria-pressed="true"]) { border-color: transparent; background: color-mix(in srgb, var(--text) 8%, transparent); }
-.btn:not(.primary):not(.quiet):not(.fold-act):not([aria-pressed="true"]):hover:not(:disabled) { border-color: transparent; background: color-mix(in srgb, var(--text) 13%, transparent); }
+.btn:not(.primary):not(.quiet):not(.fold-act):not([aria-pressed="true"]):hover:not(:disabled, [aria-disabled="true"]) { border-color: transparent; background: color-mix(in srgb, var(--text) 13%, transparent); }
 .btn.small { font-size: .82rem; }
 .btn.btn-i { gap: 5px; }
 .btn.btn-i > svg.bi { width: 13px; height: 13px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -2274,10 +2313,10 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 /* Quiet buttons with words (a drawer's Done and Back, Reset, Clear history): the same soft fill, no outline.
    The Overview's header links (Fold all cards, What's new, Edit) stay plain. */
 .btn.quiet:not(.fold-act):not(.hero-btns .btn):not(.hero-edit) { border-color: transparent; background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); }
-.btn.quiet:not(.fold-act):not(.hero-btns .btn):not(.hero-edit):hover:not(:disabled) { background: color-mix(in srgb, var(--text) 13%, transparent); }
+.btn.quiet:not(.fold-act):not(.hero-btns .btn):not(.hero-edit):hover:not(:disabled, [aria-disabled="true"]) { background: color-mix(in srgb, var(--text) 13%, transparent); }
 /* Scripts' Copy and Update (quiet buttons): a soft fill, no outline; an Update with something to fetch stays filled */
 .cmd-btns .btn.btn-i:not(.primary) { border-color: transparent; background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); }
-.cmd-btns .btn.btn-i:not(.primary):hover:not(:disabled) { background: color-mix(in srgb, var(--text) 13%, transparent); }
+.cmd-btns .btn.btn-i:not(.primary):hover:not(:disabled, [aria-disabled="true"]) { background: color-mix(in srgb, var(--text) 13%, transparent); }
 /* Fold all cards: the list-folding icon in front replaces the arrow after the words */
 .fold-all.btn-i .path-chev { display: none; }
 /* its lines fill only the middle of the icon's box, so it's drawn larger to stand as tall as the F */
@@ -2297,7 +2336,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   #rows .row .acts { grid-column: 2; align-self: end; gap: 4px; margin: 0 -8px -8px 0; }
   #rows .row .acts .btn.btn-i { width: auto; height: auto; min-height: 0; padding: 8px; gap: 0; font-size: 0;
     background: none; border: 0; box-shadow: none; color: var(--dim); }
-  #rows .row .acts .btn.btn-i:hover:not(:disabled) { background: none; color: var(--text); }
+  #rows .row .acts .btn.btn-i:hover:not(:disabled, [aria-disabled="true"]) { background: none; color: var(--text); }
   #rows .row .acts .btn.btn-i > svg.bi, #rows .row .acts .btn.btn-i > svg.bi.round { width: 16px; height: 16px; }
 }
 @media (max-width: 720px) {
@@ -2360,12 +2399,12 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   .tr-src + .vpn-grid { margin-top: 14px; }
   #net-ranges .tr-ranges, .tr-src .tr-ranges { gap: 8px; }
   #net-ranges .btn, #net-root .tr-src .btn, #net-root .tr-bin { background: none; border-color: transparent; color: var(--dim); }
-  #net-ranges .btn:hover:not(:disabled), #net-root .tr-src .btn:hover:not(:disabled), #net-root .tr-bin:hover:not(:disabled) { background: none; border-color: transparent; }
+  #net-ranges .btn:hover:not(:disabled, [aria-disabled="true"]), #net-root .tr-src .btn:hover:not(:disabled, [aria-disabled="true"]), #net-root .tr-bin:hover:not(:disabled, [aria-disabled="true"]) { background: none; border-color: transparent; }
   /* The bare bin as large as the other cards' corner icons (Recent log alerts' cog) */
   #net-root .tr-bin svg { width: 17px; height: 17px; stroke-width: 2; }
   @media (hover: hover) {
-    #net-ranges .btn:hover:not(:disabled):not([aria-pressed="true"]), #net-root .tr-src .btn:hover:not(:disabled):not([aria-pressed="true"]),
-    #net-root .tr-bin:hover:not(:disabled) { color: var(--text); }
+    #net-ranges .btn:hover:not(:disabled, [aria-disabled="true"]):not([aria-pressed="true"]), #net-root .tr-src .btn:hover:not(:disabled, [aria-disabled="true"]):not([aria-pressed="true"]),
+    #net-root .tr-bin:hover:not(:disabled, [aria-disabled="true"]) { color: var(--text); }
   }
   #net-ranges .btn[aria-pressed="true"], #net-root .tr-src .btn[aria-pressed="true"] { color: var(--accent); font-weight: 650; }
 }
@@ -2385,7 +2424,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 .st-i { width: .95em; height: .95em; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round;
   vertical-align: -.12em; margin-right: .3em; flex: none; }
 .folded .btn.fold-act.primary { background: var(--primary); color: var(--primary-ink); padding: 5px; border-radius: 8px; }
-.folded .btn.fold-act.primary:hover:not(:disabled) { background: var(--primary-hover); }
+.folded .btn.fold-act.primary:hover:not(:disabled, [aria-disabled="true"]) { background: var(--primary-hover); }
 /* the folded VPN card's gluetun version and its status, spaced like the version cards' */
 .gl-sum { display: inline-flex; align-items: center; gap: 12px; }
 .gl-name { color: var(--text); }   /* the name in white, its version grey */
@@ -2436,11 +2475,11 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   /* a newer release: Update filled, with its arrow, wherever it is */
   #view-overview .btn.fold-act.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); padding: 4px 10px; border-radius: 8px; }
   @media (hover: hover) {
-    #view-overview .btn.fold-act:not(.primary):hover:not(:disabled), #view-overview .warn-logs:hover, #view-overview .warn-clear:hover, #view-overview .card-cog:hover,
-    #view-overview .card-link.card-detail:hover, #view-overview .ver-btns .btn:not(.primary):hover:not(:disabled),
-    #view-overview .card-foot .btn:not(.primary):hover:not(:disabled), #view-overview #rows .row .acts .btn:hover:not(:disabled) {
+    #view-overview .btn.fold-act:not(.primary):hover:not(:disabled, [aria-disabled="true"]), #view-overview .warn-logs:hover, #view-overview .warn-clear:hover, #view-overview .card-cog:hover,
+    #view-overview .card-link.card-detail:hover, #view-overview .ver-btns .btn:not(.primary):hover:not(:disabled, [aria-disabled="true"]),
+    #view-overview .card-foot .btn:not(.primary):hover:not(:disabled, [aria-disabled="true"]), #view-overview #rows .row .acts .btn:hover:not(:disabled, [aria-disabled="true"]) {
       background: none; text-decoration: underline; text-underline-offset: 3px; color: var(--text); }
-    #view-overview .btn.fold-act.primary:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
+    #view-overview .btn.fold-act.primary:hover:not(:disabled, [aria-disabled="true"]) { background: var(--primary-hover); border-color: var(--primary-hover); }
   }
 }
 
@@ -2461,13 +2500,13 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   #view-logs .lg-row2 > .lg-acts::before { content: ""; position: absolute; left: 0; top: calc(50% - 17px); height: 25px; width: 1px; background: var(--line); }
   .lg-acts .lg-word { display: inline; position: relative; top: 1.5px; }   /* the word's baseline on the foot of the icon's drawing */
   @media (hover: hover) {
-    :is(#view-logs, #view-activity) .lg-acts .btn:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+    :is(#view-logs, #view-activity) .lg-acts .btn:hover:not(:disabled, [aria-disabled="true"]) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
   }
 }
 /* Network: the range or view shown is in the accent colour and bolder (phones and computers); a mouse over a range or view underlines it, a finger never does */
 @media (hover: hover) {
-  #net-ranges .btn:hover:not(:disabled), #net-acts .btn:hover:not(:disabled), #net-root .tr-src .btn:hover:not(:disabled), .tr-rng-card .btn:hover:not(:disabled),
-  .tr-rng-head .btn:hover:not(:disabled), .tr-src-head .btn:hover:not(:disabled) {
+  #net-ranges .btn:hover:not(:disabled, [aria-disabled="true"]), #net-acts .btn:hover:not(:disabled, [aria-disabled="true"]), #net-root .tr-src .btn:hover:not(:disabled, [aria-disabled="true"]), .tr-rng-card .btn:hover:not(:disabled, [aria-disabled="true"]),
+  .tr-rng-head .btn:hover:not(:disabled, [aria-disabled="true"]), .tr-src-head .btn:hover:not(:disabled, [aria-disabled="true"]) {
     text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 6px; text-decoration-color: var(--accent); }   /* the colour it takes once chosen */
 }
 .tr-word, .tr-src-head { display: none; }
@@ -2495,9 +2534,9 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   #net-root .tr-word { display: inline; }
   #net-root .vpn-head .tr-bin svg { position: relative; top: -1px; }
   @media (hover: hover) {
-    #net-root .tr-rng-head .btn:hover:not(:disabled):not([aria-pressed="true"]), #net-root .tr-src-head .btn:hover:not(:disabled):not([aria-pressed="true"]),
-    #net-root .tr-bin:hover:not(:disabled) { background: none; color: var(--text); }
-    #net-root .tr-bin:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 3px; }
+    #net-root .tr-rng-head .btn:hover:not(:disabled, [aria-disabled="true"]):not([aria-pressed="true"]), #net-root .tr-src-head .btn:hover:not(:disabled, [aria-disabled="true"]):not([aria-pressed="true"]),
+    #net-root .tr-bin:hover:not(:disabled, [aria-disabled="true"]) { background: none; color: var(--text); }
+    #net-root .tr-bin:hover:not(:disabled, [aria-disabled="true"]) { text-decoration: underline; text-underline-offset: 3px; }
   }
 }
 /* Backup & Restore on a computer: each backup's Restore stays a button (the page's job); Copy restore
@@ -2509,7 +2548,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
     min-height: 0; font-size: .86rem; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
   #view-backups .item.bk .btns > .btn:last-child { margin-right: -6px; }
   @media (hover: hover) {
-    #view-backups .item.bk .btns > .btn:not([data-act="Restore"]):hover:not(:disabled) { background: none; color: var(--text);
+    #view-backups .item.bk .btns > .btn:not([data-act="Restore"]):hover:not(:disabled, [aria-disabled="true"]) { background: none; color: var(--text);
       text-decoration: underline; text-underline-offset: 3px; }
   }
 }
@@ -2530,7 +2569,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   #view-maint .upd-peek .upd-peek-label.upd-label-half { grid-column: 1; }
   #view-maint .upd-peek .upd-peek-last { justify-self: end; align-self: end; font-size: .86rem; white-space: nowrap; }
   @media (hover: hover) {
-    #view-maint .btn.maint-list:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+    #view-maint .btn.maint-list:hover:not(:disabled, [aria-disabled="true"]) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
   }
 }
 /* Scripts on a computer: Check now in the heading only asks GitHub again, so plain icon and word like the
@@ -2546,7 +2585,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   .addons-card li.absent .btn-spacer { display: none; }
   .addons-card li.absent .cmd-btns .btn[data-act="Copy"] { margin-right: -10px; }
   @media (hover: hover) {
-    #view-scripts .cmd-btns .btn[data-act="Copy"]:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+    #view-scripts .cmd-btns .btn[data-act="Copy"]:hover:not(:disabled, [aria-disabled="true"]) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
   }
   /* Check now in the Checked against GitHub line's row, on that line's baseline at the right */
   #view-scripts .scripts-status { display: flex; align-items: baseline; gap: 16px; }
@@ -2555,7 +2594,7 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   #view-scripts #scripts-acts-row .btn { align-items: baseline; }
   #view-scripts #scripts-acts-row .btn > svg { align-self: center; }
   @media (hover: hover) {
-    #view-scripts #scripts-acts-row .btn:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+    #view-scripts #scripts-acts-row .btn:hover:not(:disabled, [aria-disabled="true"]) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
   }
 }
 /* Add-ons, VPN and Phone alerts on a computer, by the same rule as the other pages: the page's work stays
@@ -2582,16 +2621,16 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   /* and the link to the add-on's own page, plain too, on its left-hand text line */
   #view-addons .ao-foot .ao-page { margin-left: -6px; margin-right: auto; text-decoration: none; }
   @media (hover: hover) {
-    #view-addons .ao-page:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
-    #view-addons .btn[data-act="Uninstall"]:hover:not(:disabled), #view-vpn .vpn-acts .btn:hover:not(:disabled),
-    #view-vpn .conf-acts .btn[data-act="Delete"]:hover:not(:disabled), #view-alerts .vpn-acts .btn:hover:not(:disabled),
-    #view-alerts .btn.quiet:hover:not(:disabled), #view-backups #backup-now:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
-    #view-addons .ao-ic:hover:not(:disabled) { background: none; color: var(--text); }
+    #view-addons .ao-page:hover:not(:disabled, [aria-disabled="true"]) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+    #view-addons .btn[data-act="Uninstall"]:hover:not(:disabled, [aria-disabled="true"]), #view-vpn .vpn-acts .btn:hover:not(:disabled, [aria-disabled="true"]),
+    #view-vpn .conf-acts .btn[data-act="Delete"]:hover:not(:disabled, [aria-disabled="true"]), #view-alerts .vpn-acts .btn:hover:not(:disabled, [aria-disabled="true"]),
+    #view-alerts .btn.quiet:hover:not(:disabled, [aria-disabled="true"]), #view-backups #backup-now:hover:not(:disabled, [aria-disabled="true"]) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+    #view-addons .ao-ic:hover:not(:disabled, [aria-disabled="true"]) { background: none; color: var(--text); }
   }
 }
 /* Add-ons: an icon that opens another site is in the link colour, like the Overview's Dashboard and
    Configure; copy and show stay grey (they act on this page). Phones and computers alike. */
-#view-addons a.ao-ic, #view-addons a.ao-ic:hover:not(:disabled) { color: var(--accent); }   /* hovered too, like the Overview's links */
+#view-addons a.ao-ic, #view-addons a.ao-ic:hover:not(:disabled, [aria-disabled="true"]) { color: var(--accent); }   /* hovered too, like the Overview's links */
 /* Overview on phones: the cards' remaining buttons (Check now, All releases, Turn VPN off, Phone alerts'
    Stop and Send test alert) plain words in their columns, like a computer's, at the same brightness;
    a filled Update stays filled */
@@ -2742,6 +2781,15 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
      (it used to be a boxed button as wide as the cards' right-hand column) */
   #view-scripts #scripts-acts { width: auto; }
   #view-scripts #scripts-acts .btn { width: auto; }
+  /* Check now at the right of the Checked line, just above the card, as on a computer: on that line's
+     baseline (its words; the icon stays centred), its word ending 3px in from the card's edge */
+  #view-scripts .scripts-status { display: flex; align-items: baseline; gap: 16px; }
+  #view-scripts .scripts-status-text { flex: 1; }
+  #view-scripts #scripts-acts-row { width: auto; margin: 0 2px 0 0; }   /* + the button's 1px clear border = the word 3px in */
+  #view-scripts #scripts-acts-row .btn { width: auto; height: auto; min-height: 0; padding: 6px 0; background: none; border-color: transparent;
+    box-shadow: none; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); align-items: baseline; }
+  #view-scripts #scripts-acts-row .btn > svg { align-self: center; }
+  #view-scripts #scripts-acts-row .btn:active { color: var(--text); }
 }
 .toast { white-space: pre-line; text-wrap: balance; }   /* toast() puts each sentence on a line of its own; a line too long for the width wraps evenly */
 /* The Network page on phones: Traffic, the time range (1h 24h 7d) and the bin on one line above the
@@ -2789,8 +2837,11 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 .prox-card .prox-ver > .dim { margin: 0 5px; }
 .prox-card .prox-notes { font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text));
   display: inline; padding: 0; min-height: 0; border: 0; background: none; font-size: inherit; line-height: inherit; }
-#view-maint .prox-card .btn.prox-notes, #view-maint .prox-card .btn.prox-notes:hover:not(:disabled), #view-maint .prox-card .btn.prox-notes:active {
+#view-maint .prox-card .btn.prox-notes, #view-maint .prox-card .btn.prox-notes:hover:not(:disabled, [aria-disabled="true"]), #view-maint .prox-card .btn.prox-notes:active {
   background: none; border-color: transparent; box-shadow: none; }
+/* the plain-action grey like Check now's (the quiet button's text colour made it brighter) */
+#view-maint .prox-card .btn.prox-notes { color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
+@media (hover: hover) { #view-maint .prox-card .btn.prox-notes:hover { color: var(--text); } }
 .prox-card .prox-notes > svg.bi { display: inline-block; vertical-align: -2px; margin-right: 5px; }
 @media (hover: hover) { .prox-card .prox-notes:hover { text-decoration: underline; } }
 .rs-desk.prox-card .rs-ctl > select { min-width: 16em; }
@@ -2805,6 +2856,18 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   .rs-phone.prox-card .prox-ver > .dim { display: none; }
   .rs-phone.prox-card .rs-ctl > select { display: block; width: 100%; margin-top: 12px; }
   .rs-phone.prox-card .prox-auto { display: block; margin-top: 8px; font-size: 13px; }
+  /* Same order as a computer (maint.js prox-psolo / prox-pduo): the Checked line (and Caddy alone's All releases)
+     under the title, Automatic updates, then the version and a full-width Update */
+  .rs-phone.prox-card.folded > .prox-top { display: none; }
+  .rs-phone.prox-card > .prox-top { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px 0 16px; }
+  .rs-phone.prox-card > .prox-top > .dim { font-size: .84rem; line-height: 1.45; }
+  .rs-phone.prox-card > .prox-top + .rs-block { margin-top: 0; }
+  .prox-psolo > .prox-pfoot { display: block; border-top: 1px solid var(--line-soft); padding-top: 16px; }
+  .prox-psolo .prox-pver .mono { font-weight: 600; font-size: 1em; }
+  .prox-psolo .prox-pver { display: flex; align-items: baseline; flex-wrap: wrap; }
+  .prox-psolo .prox-pver > .prox-dot { color: var(--dim); margin: 0 5px; }
+  .prox-psolo .prox-pfoot > .btn { display: flex; width: 100%; justify-content: center; margin-top: 12px; }
+  .maint-card.rs-phone.prox-psolo.folded > .prox-pfoot { border-top: 0; }
 }
 /* Container logs at the foot of Free up space (maint.js logsBlock) */
 /* Spare height (beside a taller card) sits above the "can go" line, so it stays on Container logs' line */
@@ -2847,31 +2910,34 @@ svg:has(> path[d^="M4 7h16M6 7l1 12"]) { width: 16px !important; height: 16px !i
 @media (hover: hover) {
   /* on hover a bin and the word beside it turn red. !important: each page's plain buttons set their own hover
      colour with an id, and this one rule covers them all */
-  :is(button, a):has(svg > path[d^="M4 7h16M6 7l1 12"]):hover:not(:disabled),
-  :is(button, a):hover:not(:disabled) svg:has(> path[d^="M4 7h16M6 7l1 12"]) { color: var(--bad) !important; }
+  :is(button, a):has(svg > path[d^="M4 7h16M6 7l1 12"]):hover:not(:disabled, [aria-disabled="true"]),
+  :is(button, a):hover:not(:disabled, [aria-disabled="true"]) svg:has(> path[d^="M4 7h16M6 7l1 12"]) { color: var(--bad) !important; }
 }
 /* Activity's row bins: a bare icon on a computer too, no button behind it (phones already were) */
-#jobs .item.job > .btn.job-x, #jobs .item.job > .btn.job-x:hover:not(:disabled) { background: none; border-color: transparent; }
-/* VPN and Phone alerts on phones: the page's two side tools (Check now and Turn VPN off; Stop watchdog and Send
-   test alert) in the card, under a line, just above its last row (Change config; the alert topic), the first on
-   the left text line and the second ending on the right; the heading keeps only the title */
+#jobs .item.job > .btn.job-x, #jobs .item.job > .btn.job-x:hover:not(:disabled, [aria-disabled="true"]) { background: none; border-color: transparent; }
+/* Phone alerts on phones: the page's two side tools (Stop watchdog and Send test alert) in the card, under a
+   line, just above its alert topic, the first on the left text line and the second ending on the right; the
+   heading keeps only the title. The VPN page's heading keeps only its title too (Turn VPN off/on is in the
+   card, or under an error in the page) */
 @media (max-width: 720px) {
   #view-vpn .vpn-headrow > .vpn-acts, #view-alerts .vpn-headrow > .vpn-acts { display: none; }
-  :is(#view-vpn, #view-alerts) .vpn-card > .vpn-acts { display: flex; justify-content: space-between; margin: 18px 0 0;
+  #view-alerts .vpn-card > .vpn-acts { display: flex; justify-content: space-between; margin: 18px 0 0;
     padding-top: 10px; border-top: 1px solid var(--line-soft); }
-  #view-vpn .vpn-card > .vpn-acts #vpn-check, #view-vpn #vpn-root > .vpn-acts #vpn-check { order: -1; }
-  :is(#view-vpn, #view-alerts) .vpn-card > .vpn-acts .btn:last-child { margin-right: 0; }
-  :is(#view-vpn, #view-alerts) .vpn-card > .vpn-acts + .vpn-card-acts { margin-top: 10px; padding-top: 0; border-top: 0; }
+  #view-alerts .vpn-card > .vpn-acts .btn:last-child { margin-right: 0; }
+  #view-alerts .vpn-card > .vpn-acts + .vpn-card-acts { margin-top: 10px; padding-top: 0; border-top: 0; }
   #view-vpn #vpn-root > .vpn-acts, #view-alerts #alerts-root > .vpn-acts { display: flex; justify-content: space-between; margin-top: 12px; }
 }
-/* VPN and Phone alerts on a computer: the two side tools at the right of the card's state line (Connected,
-   Watching), its Checked time beside the state, the last tool ending on the card's right-hand text line */
+/* VPN: Turn VPN off/on boxed, last in the card's buttons (bottom right; on phones the 2x2 grid's last cell, see
+   btnicons.js ORDER); a row with nothing in it goes */
+.vpn-card-acts:not(:has(> .btn:not([hidden]))) { display: none; }
+/* Phone alerts on a computer: the two side tools at the right of the card's state line (Watching), its Checked
+   time beside the state, the last tool ending on the card's right-hand text line */
 @media (min-width: 721px) {
-  :is(#view-vpn, #view-alerts) .vpn-head:has(> .vpn-acts) { justify-content: flex-start; align-items: baseline; }
-  :is(#view-vpn, #view-alerts) .vpn-head > .vpn-acts { top: 0; align-items: baseline; }
-  :is(#view-vpn, #view-alerts) .vpn-head > .vpn-acts .btn { align-items: baseline; }
-  :is(#view-vpn, #view-alerts) .vpn-head > .vpn-acts .btn > svg { align-self: center; }
-  :is(#view-vpn, #view-alerts) .vpn-head > .vpn-acts .btn:last-child { margin-right: -6px; }
+  #view-alerts .vpn-head:has(> .vpn-acts) { justify-content: flex-start; align-items: baseline; }
+  #view-alerts .vpn-head > .vpn-acts { top: 0; align-items: baseline; }
+  #view-alerts .vpn-head > .vpn-acts .btn { align-items: baseline; }
+  #view-alerts .vpn-head > .vpn-acts .btn > svg { align-self: center; }
+  #view-alerts .vpn-head > .vpn-acts .btn:last-child { margin-right: -6px; }
 }
 /* Maintenance on a computer: Caddy's version row on the same line as System updates' values (8 updates), so the
    line under it lines up with the one beside it (1px lower by eye in Firefox); Update raised so its bottom is
@@ -2890,6 +2956,34 @@ svg:has(> path[d^="M4 7h16M6 7l1 12"]) { width: 16px !important; height: 16px !i
    updates note sits at the bottom of the select beside it */
 .rs-desk.prox-card:not(:has(> .rs-block:not(.prox-auto-block) ~ .rs-block:not(.prox-auto-block))) > .rs-block:not(.prox-auto-block) .rs-line > .ver-label { visibility: hidden; }
 .rs-desk.prox-card .prox-auto-block .rs-ctl { align-items: flex-end; }
+/* A computer, Caddy alone (maint.js solo): the Checked line with All releases under the title, Automatic
+   updates, then the version and what's newer beside Update at the foot */
+.prox-duo > .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-top: 2px; }
+/* With cloudflared too: the Checked line alone, on the same line as System updates' values, the Caddy row's
+   line under it continuing that card's line */
+.prox-duo > .prox-top { display: flex; align-items: baseline; padding: 38px 0 6px; }
+.prox-duo > .prox-top > .dim { font-size: .84rem; }
+.prox-duo > .prox-top + .rs-block { margin-top: 0; }
+/* The Checked line on the baseline of System updates' values beside it (8 updates, Needed, 3 hours ago), and
+   the line under it continuing that card's line */
+.prox-solo > .prox-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 37px 0 3px; }
+.prox-solo > .prox-top > .dim { font-size: .84rem; }
+/* All releases the size of Check now above it, word and icon */
+#view-maint .prox-solo > .prox-top > .prox-notes { font-size: .86rem; }
+#view-maint .prox-solo > .prox-top > .prox-notes > svg { width: 12px; height: 12px; }
+.prox-solo > .prox-auto-block { margin-top: 0; }
+/* the words on the same line as System updates' foot beside them (Show output, Install updates) in every browser:
+   the same size and line height as Show output's words, centred against Update as its words are in their button
+   (a fixed nudge measured in Chrome came out 5px high in Firefox) */
+:is(.prox-solo, .prox-duo) .maint-foot { align-items: center; }
+:is(.prox-solo, .prox-duo) .maint-foot > .prox-ver { font-size: .86rem; line-height: 1.2; }
+:is(.prox-solo, .prox-duo) .maint-foot > .prox-ver { margin-right: auto; }
+:is(.prox-solo, .prox-duo) .prox-ver > .prox-dot { color: var(--dim); margin: 0 5px; }
+:is(.prox-solo, .prox-duo) .maint-foot > .btn { min-width: 9.5em; }
+/* With cloudflared: its row under Caddy's, each named, the two Updates level with Reboot server and Install
+   updates beside them */
+.prox-duo .prox-row + .prox-row { margin-top: 6px; }
+.prox-duo .prox-name { font-weight: 600; margin-right: 10px; }
 /* Free up space on a computer: Container logs straight under the figures between two lines (level with Scheduled
    server reboot's two), the spare room under it, then About ... can go and Free up space ending the card like the
    reboot card's note; each row's words on its button's bottom edge */

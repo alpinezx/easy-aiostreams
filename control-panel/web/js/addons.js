@@ -161,8 +161,9 @@ function dockerCard(a) {
   const cert = certTile(a.domain);
   if (cert) rows.push(cert);
   return card({ id: a.id, name: NAMES[a.id], chip, mem: running && s.mem ? fmtBytes(s.mem) : null, rows,
-    foot: a.id === "aiometadata" ? "API keys go in the Dashboard's Built-in rows only."
-      : a.id === "webhook" ? "Retired. Uptime trackers can send to ntfy directly." : null });
+    // Uninstall among the values; on a phone on the last row's note line (a card with a foot note keeps it there)
+    phoneInline: true,
+    foot: a.id === "webhook" ? "Retired. Uptime trackers can send to ntfy directly." : null });
 }
 
 function country(code) {
@@ -215,12 +216,20 @@ function card(a) {
     } }, a.name, chev);
     title = h("h3", {}, tog);
   }
+  const tiles = a.rows.map(tile);
+  if (a.phoneInline && !foot && tiles.length) {
+    // Phones: a copy of Uninstall on the last row's note line in place of its own cell (CSS shows one of the two)
+    el.classList.add("ao-inline");
+    tiles[tiles.length - 1].classList.add("ao-row-btn");
+    tiles[tiles.length - 1].append(h("button", { class: "btn small danger ao-btn-inline", type: "button", text: "Uninstall",
+      disabled: !!(st && st.busy), onclick: () => uninstall(a.id) }));
+  }
   el.append(
     h("div", { class: "card-head" },
       title,
       h("span", { class: "ao-head-r" }, a.mem ? h("span", { class: "dim ao-mem", text: a.mem, title: "Memory in use" }) : null,
         h("span", { class: "chip small-chip " + a.chip[1], text: a.chip[0] }))),
-    h("div", { class: "ao-rows" }, ...a.rows.map(tile), foot ? null : h("div", { class: "ao-btn-cell" }, btn)),
+    h("div", { class: "ao-rows" }, ...tiles, foot ? null : h("div", { class: "ao-btn-cell" }, btn)),
     // native append writes a null out as the word "null", so the foot only when there is one
     ...(foot ? [h("div", { class: "card-foot ao-foot" }, foot, btn)] : []));
   return el;

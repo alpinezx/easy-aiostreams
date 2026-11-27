@@ -115,7 +115,17 @@ export async function api(path, opts = {}) {
   return res.json();
 }
 
-export function toast(text, bad = false) {
+// A greyed-out button that still answers a tap: it says why in a toast (a phone has no hover for the
+// tooltip). The same words on every device, toast and tooltip alike; it stays 7 s, as it's often two
+// sentences. A capture listener, so the button's own onclick never runs while it's greyed.
+export function greyed(btn, why) {
+  btn.setAttribute("aria-disabled", "true");
+  btn.title = why;
+  btn.addEventListener("click", (e) => { e.preventDefault(); e.stopImmediatePropagation(); toast(why, false, 7000); }, true);
+  return btn;
+}
+
+export function toast(text, bad = false, ms = 0) {
   if (text === OUT_OF_REACH) {
     bad = false;   // expected during a restart, so never shown as an error
     const now = Date.now();
@@ -143,5 +153,5 @@ export function toast(text, bad = false) {
     t.style.whiteSpace = "";
     t.textContent = lines.map(l => l.replace(/(\d\d:\d\d) or (\d\d:\d\d)/, "$1\u00a0or\u00a0$2").replace(/\s+(\S+)$/, "\u00a0$1")).join("\n");
   } else t.style.whiteSpace = "";
-  setTimeout(() => t.remove(), bad ? 7000 : 4000);
+  setTimeout(() => t.remove(), ms || (bad ? 7000 : 4000));
 }

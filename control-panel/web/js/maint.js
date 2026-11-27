@@ -1,4 +1,4 @@
-import { $, h, clear, api, ago, toast, fmtBytes, timePicker } from "./util.js";
+import { $, h, clear, api, ago, toast, fmtBytes, timePicker, greyed } from "./util.js";
 import { runAction, rebootServer } from "./actions.js";
 import { openUpdates, openOutput, openReleases } from "./releases.js";
 import { setMaint } from "./scripts.js";
@@ -49,11 +49,14 @@ function phoneFold(el, id, title, word) {
   return el;
 }
 
-function button(id, enabled) {
+// Not enabled: greyed, and with a reason a tap says why; while a job runs it's plainly disabled
+function button(id, enabled, why) {
   const a = ((status && status.actions) || []).find((x) => x.id === id);
   if (!a || !a.available) return null;
-  return h("button", { class: "btn small", type: "button", text: a.label,
-    disabled: !enabled || !!(status && status.busy) || !!(last && last.last && last.last.running), onclick: () => runAction(a) });
+  const busy = !!(status && status.busy) || !!(last && last.last && last.last.running);
+  const b = h("button", { class: "btn small", type: "button", text: a.label,
+    disabled: busy || (!enabled && !why), onclick: () => runAction(a) });
+  return !enabled && !busy && why ? greyed(b, why) : b;
 }
 
 function space(m) {
@@ -66,7 +69,7 @@ function space(m) {
     stat("System logs", fmtBytes(s.journal), "Over the 100 MB kept"),
   // Short, so it fits beside the button on one line on a phone too
   ], worth ? `${fmtBytes(total)} can go.` : "Nothing to clear.",
-  button("maint.space", worth));
+  button("maint.space", worth, "There's under 20 MB to free, so nothing to clear yet."));
   el.classList.add("fs-spread");   // desktop: three figures spread across the card, the last at its right edge
   // Phones: Container logs between Build leftovers and System logs (System logs moves into a grid of
   // its own under it); a computer: above the foot, so Free up space ends the card like Scheduled
@@ -102,7 +105,7 @@ function updates(m) {
   if (u.phased) waiting.querySelector(".stat-value").title = waiting.querySelector(".ver-sub").title;
   const desk = !PHONE_Q.matches;
   const waitingNow = pk.some((p) => !p.phased);
-  const install = button("maint.updates", u.count > 0);
+  const install = button("maint.updates", u.count > 0, "No updates are waiting. They show here when there are some.");
   const reboot = u.reboot ? h("button", { class: "btn small danger", type: "button", text: "Reboot server", onclick: rebootServer,
     disabled: !!(status && status.busy) || !!(last && last.last && last.last.running) }) : null;
   const plain = [
@@ -111,8 +114,9 @@ function updates(m) {
       title: "What the last install printed", onclick: () => openOutput(j) }) : null,
     lastDone ? lastOpen(u) : null,   // before List updates: what was installed sits beside its output
     // What's waiting, by name, in a drawer: nothing is installed from it
-    h("button", { class: "btn small maint-list", type: "button", text: "List updates", disabled: !pk.length,
-      title: pk.length ? "Which packages are waiting, and their versions" : "Nothing is waiting", onclick: () => openUpdates(u) }),
+    ((b) => (pk.length ? b : greyed(b, "No updates are waiting, so there's nothing to list.")))(
+      h("button", { class: "btn small maint-list", type: "button", text: "List updates",
+        title: "Which packages are waiting, and their versions", onclick: () => openUpdates(u) })),
     // A computer's What's waiting: after List updates in the foot, rather than heading the preview rows
     desk && waitingNow ? listOpen("What's waiting", "The waiting updates, in full", () => openUpdates(u)) : null,
   ];
@@ -360,9 +364,17 @@ function tzEditor(r, phone) {
       pick = -1; draw(); ready();
     });
     box.addEventListener("blur", close);
-    // Set changes the zone; picking a suggestion only fills the box, and Set stays greyed until it has something
-    const go = h("button", { class: "btn small" + (phone ? " rs-wide" : ""), type: "button", text: phone ? "Set time zone" : "Set", disabled: true });
-    const ready = () => { go.disabled = !box.value.trim(); };
+    // Set changes the zone; picking a suggestion only fills the box, and Set stays greyed until it has something.
+    // Greyed as greyed() does (looks disabled, still takes a tap), but on and off as the box fills: a tap on an
+    // empty box says what to do
+    const emptyWhy = "Type a new time zone in the box first. Then press Set to change it.";
+    const go = h("button", { class: "btn small" + (phone ? " rs-wide" : ""), type: "button", text: phone ? "Set time zone" : "Set" });
+    const ready = () => {
+      const off = !box.value.trim();
+      if (off) go.setAttribute("aria-disabled", "true"); else go.removeAttribute("aria-disabled");
+      go.title = off ? emptyWhy : "";
+    };
+    ready();
     const fill = (z) => { box.value = z; close(); ready(); };
     const done = async () => {
       const tz = box.value.trim();
@@ -387,7 +399,7 @@ function tzEditor(r, phone) {
         if (shown.length) close(); else { box.value = ""; render(true); }
       }
     });
-    go.addEventListener("click", done);
+    go.addEventListener("click", () => (box.value.trim() ? done() : toast(emptyWhy, false, 7000)));
     return [h("span", { class: "tz-wrap" }, box, list), go, box];
   }
 }
@@ -425,27 +437,68 @@ function proxies(m) {
     head = h("div", { class: "card-head sched-head" }, h("h3", {}, tog), h("span", { class: "rs-word sched-fold-word " + word[1], text: word[0] }));
   }
   cardEl.append(head);
+  // A computer, Caddy alone: the Checked line and All releases under the title, and the version, what's newer
+  // and Update at the foot
+  const solo = !phone && !tunnel;
+  if (solo) cardEl.classList.add("prox-solo");
+  const checked = p.error ? `Couldn't check for new releases: ${p.error}`
+    : `Checked ${ago(p.checked_at)}. If an update fails, the earlier version comes back.`;
+  let soloFoot = null;
+  // A computer with cloudflared too: laid out like Caddy alone, with a row each at the foot (name, version,
+  // what's newer, its All releases, its Update)
+  const duoRows = [], phoneRows = [];
+  // A phone: the Checked line under the title, as on a computer
+  if (phone) {
+    cardEl.classList.add(tunnel ? "prox-pduo" : "prox-psolo");
+    if (tunnel) cardEl.append(h("div", { class: "prox-top" }, h("span", { class: "dim", text: checked })));
+  }
+  if (!phone && tunnel) {
+    cardEl.classList.add("prox-duo");
+    cardEl.append(h("div", { class: "prox-top" }, h("span", { class: "dim", text: checked })));
+  }
   const busy = !!(status && status.busy) || !!(last && last.last && last.last.running);
   for (const i of p.items) {
     const fresh = i.newer;
     const state = fresh ? h("span", { class: "rs-word warn" }, upIcon(), `${i.latest} available`)
       : i.running ? h("span", { class: "rs-word ok", text: "Up to date" }) : h("span", { class: "rs-word dim", text: "Not running" });
     const a = ((status && status.actions) || []).find((x) => x.id === `maint.${i.id}`);
-    const btn = h("button", { class: "btn small" + (fresh ? " primary" : "") + (phone ? " rs-wide" : ""), type: "button", text: "Update",
-      disabled: busy || !a || !a.available,
-      title: !a || !a.available ? "This server's scripts are from before this button. Update them on the Scripts tab."
-        : fresh ? `Update ${i.name} to ${i.latest}. The one it replaces comes back if the new one doesn't work.` : null,
+    const old = !a || !a.available;   // the server's scripts are from before this button: greyed, a tap says so
+    const btn0 = h("button", { class: "btn small" + (fresh ? " primary" : "") + (phone ? " rs-wide" : ""), type: "button", text: "Update",
+      disabled: busy,
+      title: fresh && !old ? `Update ${i.name} to ${i.latest}. The one it replaces comes back if the new one doesn't work.` : null,
       // Like the Overview and VPN: up to date (and the check worked) just says so, as elsewhere in the panel
       onclick: () => (!fresh && i.running && i.latest ? toast(`${i.name} is up to date (${i.running}). Nothing to do.`) : runAction(a)) });
+    const btn = old && !busy ? greyed(btn0, "This server's scripts are older than this button. Update them on the Scripts tab first.") : btn0;
     const notes = h("button", { class: "btn small quiet prox-notes", type: "button", text: "All releases",
       onclick: () => releaseNotes(i) });
     const blk = h("div", { class: "rs-block" },
       h("div", { class: "rs-line" }, h("span", { class: "ver-label", text: i.name }), state),
       h("div", { class: "rs-ctl" }, h("span", { class: "prox-ver" }, h("span", { class: "mono", text: i.running || "Unknown" }),
         h("span", { class: "dim", text: " · " }), notes), btn));
+    if (solo) {
+      soloFoot = h("div", { class: "card-foot" }, h("div", { class: "maint-foot" },
+        h("span", { class: "prox-ver" }, h("span", { class: "mono", text: i.running || "Unknown" }), h("span", { class: "prox-dot", text: " · " }), state),
+        btn));
+      cardEl.append(h("div", { class: "prox-top" }, h("span", { class: "dim", text: checked }), notes));
+      continue;
+    }
+    if (!phone && tunnel) {
+      duoRows.push(h("div", { class: "maint-foot prox-row" },
+        h("span", { class: "prox-ver" }, h("span", { class: "prox-name", text: i.name }), h("span", { class: "mono", text: i.running || "Unknown" }),
+          h("span", { class: "prox-dot", text: " · " }), state, h("span", { class: "prox-dot", text: " · " }), notes),
+        btn));
+      continue;
+    }
+    if (phone && !tunnel) {
+      // A phone, Caddy alone: the desktop's order, stacked (version and what's newer, then a full-width Update)
+      soloFoot = h("div", { class: "card-foot prox-pfoot" },
+        h("div", { class: "prox-pver" }, h("span", { class: "mono", text: i.running || "Unknown" }), h("span", { class: "prox-dot", text: " · " }), state),
+        btn);
+      cardEl.append(h("div", { class: "prox-top" }, h("span", { class: "dim", text: checked }), notes));
+      continue;
+    }
     if (fresh) blk.classList.add("rs-keep");   // a folded phone card still shows what's waiting
-    // A computer, Caddy alone: the state word on the title's line (its own spot kept empty, so nothing moves)
-    if (!phone && !tunnel) head.append(state.cloneNode(true));
+    if (phone) { phoneRows.push(blk); continue; }   // with Cloudflare: a block each, under Automatic updates
     cardEl.append(blk);
   }
   const auto = h("select", { class: "input", "aria-label": "Automatic updates", disabled: !p.can_auto,
@@ -470,15 +523,9 @@ function proxies(m) {
   cardEl.append(h("div", { class: "rs-block prox-auto-block" + (autoWord[1] === "warn" ? " rs-keep" : "") },
     h("div", { class: "rs-line" }, h("span", { class: "ver-label", text: "Automatic updates" }), h("span", { class: "rs-word " + autoWord[1], text: autoWord[0] })),
     h("div", { class: "rs-ctl" }, auto, h("span", { class: "dim prox-auto", text: autoNote }))));
-  const check = h("button", { class: "btn small", type: "button", text: "Check now", onclick: async () => {
-    check.disabled = true;
-    try { last.proxies = await api("/api/proxies?force=1"); setMaint(last); } catch (e) { toast(e.message || "Couldn't check."); }
-    render(true);
-  } });
-  cardEl.append(h("div", { class: "card-foot" }, h("div", { class: "maint-foot" },
-    h("span", { class: "dim", text: p.error ? `Couldn't check for new releases: ${p.error}`
-      : `Checked ${ago(p.checked_at)}. If an update fails, the earlier version comes back.` }),
-    check)));
+  if (soloFoot) cardEl.append(soloFoot);
+  else if (duoRows.length) cardEl.append(h("div", { class: "card-foot" }, ...duoRows));
+  else if (phoneRows.length) cardEl.append(...phoneRows);
   return cardEl;
 }
 
@@ -486,7 +533,7 @@ function proxies(m) {
 async function releaseNotes(i) {
   try {
     const rel = await api(`/api/${i.id}-releases`);
-    openReleases({ ...rel, name: i.id === "caddy" ? "Caddy" : "cloudflared",
+    openReleases({ ...rel, name: i.id === "caddy" ? "Caddy" : "Cloudflare",
       page: i.id === "caddy" ? "https://github.com/caddyserver/caddy/releases" : "https://github.com/cloudflare/cloudflared/releases" }, i.running || "");
   } catch (e) { toast(e.message || "Couldn't load the release notes."); }
 }

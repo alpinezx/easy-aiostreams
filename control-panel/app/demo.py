@@ -635,14 +635,14 @@ class DemoBackend:
     caddy_ver = "v2.11.8"
     auto_updates = "off"
 
-    def proxies_info(self, force: bool = False) -> dict:
+    def proxies_info(self) -> dict:
         items = [{"id": "caddy", "name": "Caddy", "what": "serves your sites", "running": self.caddy_ver, "latest": "v2.11.9",
                   "newer": self.caddy_ver != "v2.11.9", "url": "https://github.com/caddyserver/caddy/releases/tag/v2.11.9"}]
         if self.tunnel:
             items.append({"id": "cloudflared", "name": "Cloudflare", "what": "cloudflared", "running": "2026.11.2",
                           "latest": "2026.11.2", "newer": False, "old": False,
                           "url": "https://github.com/cloudflare/cloudflared/releases/tag/2026.11.2"})
-        return {"items": items, "tunnel": self.tunnel, "checked_at": time.time() - (5 if force else 2 * 3600), "error": None,
+        return {"items": items, "tunnel": self.tunnel, "checked_at": time.time() - 2 * 3600, "error": None,
                 "auto": self.auto_updates, "timer": self.auto_updates == "monthly", "can_auto": True,
                 "last": {"at": int(time.time() - 20 * 86400), "status": "nothing", "text": "Already the newest."}}
 

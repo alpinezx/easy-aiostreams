@@ -1112,7 +1112,7 @@ def test_caddy_and_cloudflared_versions_and_their_newest_releases(tmp_path, monk
     lists = {"caddy": [{"tag": "v2.11.9", "published": iso(3), "url": "https://github.com/caddyserver/caddy/releases/tag/v2.11.9"},
                        {"tag": "v2.11.8", "published": iso(500), "url": "https://github.com/caddyserver/caddy/releases/tag/v2.11.8"}],
              "cloudflared": [{"tag": "2026.11.2", "published": iso(48), "url": None}]}
-    monkeypatch.setattr(releases, "get", lambda force, ch: {"checked_at": now - 60, "releases": lists[ch], "error": None})
+    monkeypatch.setattr(releases, "get", lambda channel: {"checked_at": now - 60, "releases": lists[channel], "error": None})
     (tmp_path / "setup-aiostreams.sh").write_text("    auto-updates|scheduled-auto-update)\n")
     (tmp_path / "setup-maintenance.sh").write_text("auto_apply() {\n")
     (tmp_path / "auto-update-last-run").write_text("1790000000|updated|Caddy v2.11.7 to v2.11.8.\n")

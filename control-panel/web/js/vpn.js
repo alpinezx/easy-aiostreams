@@ -48,16 +48,16 @@ function toggle() {
   b.onclick = noConfig ? () => changeConfig(true) : () => runAction(act);
 }
 
-// Turn VPN off and Check now sit in the card: on a computer at the right of its Connected line, on phones
-// just above its buttons; under an error, in the page (phones) or the heading (computer). Moved home before
-// the page is cleared, or they'd go with it.
+// Turn VPN off/on is the last of the card's boxed buttons (the most disruptive, bottom right). Under an error
+// it waits in the page (phones) or the heading (computer). Moved home before the page is cleared, or it'd go
+// with it.
 const PHONE = matchMedia("(max-width: 720px)");
-const acts = () => $("#vpn-check").parentElement;
-const homeActs = () => $("#view-vpn .vpn-headrow").append(acts());
+const acts = () => $("#vpn-acts");
+const homeActs = () => { const a = acts(); a.append($("#vpn-toggle")); $("#view-vpn .vpn-headrow").append(a); };
 function placeActs() {
   const card = $("#vpn-root .vpn-card");
-  if (!PHONE.matches) { if (card) card.querySelector(".vpn-head").append(acts()); else homeActs(); }
-  else if (card) card.insertBefore(acts(), card.querySelector(".vpn-card-acts"));
+  if (card) card.querySelector(".vpn-card-acts").append($("#vpn-toggle"));
+  else if (!PHONE.matches) homeActs();
   else $("#vpn-root").append(acts());
 }
 PHONE.addEventListener("change", placeActs);
@@ -288,10 +288,9 @@ async function changeServer() {
 
 export async function show(fresh = false, status) {
   if (status) st = status;
-  const box = $("#vpn-root"), btn = $("#vpn-check");
+  const box = $("#vpn-root");
   if (checking) return;
   checking = true;
-  btn.disabled = true;
   if (!box.firstChild) box.append(h("p", { class: "empty", text: "Checking the VPN…" }));
   try {
     render(await api(`/api/vpn${fresh ? "?fresh=1" : ""}`));
@@ -351,13 +350,42 @@ function routesBox(v) {
   return h("div", {}, h("h3", { class: "conf-title", text: "Through the VPN" }), list);
 }
 
+// While the page is open and the VPN on, the card checks the tunnel again every minute. Only the card is
+// swapped, so the lists under it don't jump; a switch on or off since is a whole new page.
+const EVERY = 60000;
+setInterval(async () => {
+  if ($("#view-vpn").hidden || document.hidden || checking || !last || last.mode !== "on") return;
+  checking = true;
+  try {
+    const v = await api("/api/vpn?fresh=1");
+    const old = $("#vpn-root .vpn-card");
+    if (v.mode !== last.mode || !old) { render(v); return; }
+    last = v;
+    homeActs();   // Turn VPN off/on out of the old card first, or it'd go with it
+    old.replaceWith(vpnCard(v));
+    placeActs();
+    toggle();
+  } catch (_) {   // a missed minute: the next one tries again
+  } finally { checking = false; }
+}, EVERY);
+
 function render(v) {
-  const box = $("#vpn-root"), btn = $("#vpn-check");
+  const box = $("#vpn-root");
   last = v;
   toggle();
   homeActs();
   clear(box);
-  btn.disabled = v.mode !== "on";
+  const confBox = h("div");
+  box.append(vpnCard(v));
+  placeActs();
+  const routes = routesBox(v);
+  if (routes) box.append(routes);
+  box.append(confBox);
+  showConfigs(confBox);
+}
+
+// The state line, where traffic leaves, the server address and the boxed buttons
+function vpnCard(v) {
   const [lamp, word] = v.mode !== "on" ? ["", v.has_config === false ? "Off, no config saved" : "Off, using a direct connection"]
     : v.connected ? ["ok", "Connected"] : ["down", "Disconnected"];
   const card = h("div", { class: "panel vpn-card" },
@@ -381,7 +409,7 @@ function render(v) {
       : "AIOStreams is using a direct connection, so its traffic leaves from this server's own IP. Turn VPN on switches it back." }));
   }
   const use = actFor("vpn.use"), upd = actFor("vpn.update"), conf = actFor("vpn.config");
-  if (use || upd || conf) {
+  {   // always there: Turn VPN off/on joins it (placeActs)
     card.append(h("div", { class: "vpn-card-acts" },
       use ? h("button", { class: "btn small", type: "button", text: "Change server", disabled: !!(st && st.busy),
         title: "Pick another address for the same server name, timed from this server", onclick: changeServer }) : null,
@@ -390,11 +418,5 @@ function render(v) {
       upd ? h("button", { class: "btn small", type: "button", text: "Update VPN", disabled: !!(st && st.busy),
         title: "Pull the newest gluetun v3 release", onclick: () => updateOrSay(upd, v) }) : null));
   }
-  const confBox = h("div");
-  box.append(card);
-  placeActs();
-  const routes = routesBox(v);
-  if (routes) box.append(routes);
-  box.append(confBox);
-  showConfigs(confBox);
+  return card;
 }

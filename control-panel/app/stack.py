@@ -1542,7 +1542,7 @@ class Backend:
     def _ver_key(v: str) -> tuple:
         return tuple(int(x) for x in re.findall(r"\d+", v or ""))
 
-    def proxies_info(self, force: bool = False) -> dict:
+    def proxies_info(self) -> dict:
         from . import releases
         now = time.time()
         tunnel = _read(self.p("tunnel-state/token.env")).strip() != ""
@@ -1551,7 +1551,7 @@ class Backend:
             rows.append(("cloudflared", "Cloudflare", "cloudflared", self._cloudflared_version()))
         items, checked, errors = [], [], []
         for key, name, what, running in rows:
-            got = releases.get(force, key)
+            got = releases.get(channel=key)
             checked.append(got["checked_at"])
             if got["error"]:
                 errors.append(got["error"])

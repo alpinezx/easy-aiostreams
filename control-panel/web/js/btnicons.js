@@ -61,7 +61,8 @@ const ORDER = {
   "Update": 0, "All releases": 1, "Check now": 2,
   "List updates": 0, "Install updates": 1,
   "Send test alert": 0, "Stop": 1, "Start": 1,
-  "Change config": 0, "Change server": 1, "Update VPN": 2,
+  // VPN: Change server | Change config, Update VPN | Turn VPN off (the most disruptive bottom right)
+  "Change server": 0, "Change config": 1, "Update VPN": 2, "Turn VPN off": 3, "Turn VPN on": 3,
 };
 const OUTPUT_ORDER = { "Install updates": 0, "Reboot server": 1, "Show output": 2, "List updates": 3 };
 // Scripts' rows: Copy, Update, Remove

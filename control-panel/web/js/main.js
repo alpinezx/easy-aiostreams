@@ -189,7 +189,6 @@ async function boot() {
   scripts.versionChip(me.version);
   scripts.loadPanelVersion(false);      // the header chip turns amber when there's an update
   $("#demo").hidden = !me.demo;
-  $("#vpn-check").addEventListener("click", () => vpn.show(true, status));
   logs.init();
   initNav();
   // Asked first: it sits at the rail's foot, easy to hit by mistake

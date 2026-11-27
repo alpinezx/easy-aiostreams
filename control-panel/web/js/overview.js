@@ -1,4 +1,4 @@
-import { $, h, clear, setText, fmtDur, fmtBytes, api, toast, ago, extIcon } from "./util.js";
+import { $, h, clear, setText, fmtDur, fmtBytes, api, toast, ago, extIcon, greyed } from "./util.js";
 import { runAction, openJob, rebootServer, restartService, restartPanel, ask } from "./actions.js";
 import { openReleases, remember, behind } from "./releases.js";
 import { days, todayLine, parseCheck } from "./alerts.js";
@@ -210,7 +210,8 @@ const ICONS = {
   "Reboot server": '<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/>',
   "Details": '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
   "Clear": '<path d="M4 7h16M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/>',
-  "Logs": '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>',
+  // The Logs icon from the side rail
+  "Logs": '<path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01"/>',
 };
 function iconize(b) {
   const word = b.textContent.trim();
@@ -734,14 +735,18 @@ function rows(st, goLogs) {
       // table. No Logs here: the Logs page, the Recent warnings card and the rail all reach them.
       const slot = [h("span", { class: "slot" }), h("span", { class: "slot" })];
       const acts = h("div", { class: "acts" }, ...slot);
+      // A stopped service's Restart is greyed but a tap says why (Start is what gets it going); while a job
+      // runs it's plainly disabled, as everything else is
+      const hasStart = !!(s.addon || s.key === "aiostreams");
+      const stoppedWhy = `${s.name} isn't running, so there's nothing to restart.${hasStart ? " Use Start instead." : ""}`;
+      const offIfStopped = (b) => (!st.busy && s.state !== "running" ? greyed(b, stoppedWhy) : b);
       if ((RESTARTABLE.has(s.key) || s.panel) && s.present) {
-        slot[1].append(h("button", { class: "btn small", type: "button", text: "Restart",
-          disabled: !!st.busy || s.state !== "running",
-          title: s.state === "running" ? `Restart only ${s.name}` : "Only available while it's running",
-          onclick: () => (s.panel ? confirmPanelRestart() : restartService(s)) }));
+        slot[1].append(offIfStopped(h("button", { class: "btn small", type: "button", text: "Restart",
+          disabled: !!st.busy, title: `Restart only ${s.name}`,
+          onclick: () => (s.panel ? confirmPanelRestart() : restartService(s)) })));
       } else if (s.key === "gluetun" && s.present && avail["stack.restart"] && avail["stack.restart"].available) {
-        slot[1].append(h("button", { class: "btn small", type: "button", text: "Restart", disabled: !!st.busy || s.state !== "running",
-          onclick: () => runAction({ ...avail["stack.restart"], label: "Restart stack" }, null, VPN_RESTART_LEAD) }));
+        slot[1].append(offIfStopped(h("button", { class: "btn small", type: "button", text: "Restart", disabled: !!st.busy,
+          onclick: () => runAction({ ...avail["stack.restart"], label: "Restart stack" }, null, VPN_RESTART_LEAD) })));
       }
       // AIOStreams' Start / Stop are the stack's (Stop leaves Caddy up); the add-ons have their own
       if (s.addon || s.key === "aiostreams") {
@@ -757,7 +762,8 @@ function rows(st, goLogs) {
         if (a && a.available) slot[0].append(h("button", { class: "btn small", type: "button", text: "Start", disabled: !!st.busy,
           onclick: () => runAction(a, null, VPN_START_LEAD) }));
         // Greyed like a stopped service's Restart, so the row matches the others
-        slot[1].append(h("button", { class: "btn small", type: "button", text: "Restart", disabled: true }));
+        slot[1].append(greyed(h("button", { class: "btn small", type: "button", text: "Restart" }),
+          "The VPN is off, so there's nothing to restart. Use Start instead."));
       }
       el.append(h("div", { class: "row", dataset: { svc: s.key } },
         // What the service does is on hover, keeping each row to the name
@@ -1079,7 +1085,8 @@ async function warnClear() {
 function cogBtn() {
   const b = h("button", { class: "card-cog", type: "button", title: "Choose which services' warnings show here",
     "aria-label": "Choose services", onclick: warnPick });
-  b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg><span class="fa-word">Settings</span>';
+  // The same sliders as the Settings buttons on the Phone alerts and Add-ons pages
+  b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg><span class="fa-word">Settings</span>';
   return b;
 }
 // Five rows, and up to five more behind Show more (opened in place: no scrolling box inside

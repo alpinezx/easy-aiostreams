@@ -218,7 +218,7 @@ function render(w) {
   placeActs();
 
   // What happened lately lives on the Activity page now, with what the panel has done
-  box.append(h("p", { class: "dim wd-activity-link" }, "Failed checks, alerts and recoveries are listed on ",
+  box.append(h("p", { class: "dim wd-activity-link" }, "Failed checks are listed on ",
     h("a", { class: "linkish", href: "#activity", text: "Activity" }), "."));
 }
 
@@ -294,7 +294,7 @@ function extras(w) {
     // Caddy's and cloudflared's, once the server's watchdog script has those checks (older copies would ignore the switch).
     // A day after the release, when the Maintenance page offers it too.
     w.proxy_alerts ? row("caddy", "When a new Caddy release is out", proxyText(w)) : null,
-    w.proxy_alerts && w.tunnel ? row("cloudflared", "When a new cloudflared release is out", proxyText(w)) : null,
+    w.proxy_alerts && w.tunnel ? row("cloudflared", "When a new Cloudflare release is out", proxyText(w)) : null,
     row("reboots", "When the server restarts", "With how long it was down, and whether it shut down cleanly."),
     row("scripts", "When a script here differs from GitHub's copy", "Scripts can change several times a week, "
       + "so this can be chatty. At most one alert a day."),

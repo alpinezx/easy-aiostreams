@@ -1,6 +1,6 @@
 // The Scripts tab: the stack's setup scripts, whether each is on this server and matches
 // GitHub's main, and the commands to run or update them over SSH.
-import { $, h, api, clear, toast, ago, extIcon } from "./util.js";
+import { $, h, api, clear, toast, ago, extIcon, greyed } from "./util.js";
 import { ask } from "./actions.js";
 import { openChangelog, closeReleases } from "./releases.js";
 
@@ -63,7 +63,7 @@ function statusLine() {
   const times = [v.checked_at, cmp && !cmp.error ? cmp.checked_at : null].filter(Boolean);
   const checked = busy ? "Checking GitHub…"
     : cmp && cmp.error ? `Couldn't compare the scripts with GitHub: ${cmp.error}`
-    : times.length ? `Checked against GitHub${branch} ${ago(Math.min(...times))}.` : "";
+    : times.length ? `Checked ${ago(Math.min(...times))}${branch}.` : "";
   // Only a panel update that didn't finish: the panel restarted since, so this is the one place its output is left.
   // One that finished needs no line.
   const lastLine = v.last && !v.last.ok && !v.running
@@ -76,9 +76,8 @@ function statusLine() {
     h("div", { class: "scripts-status-text" }, checked ? h("p", { class: "dim", text: checked }) : null,
       lastLine));
 }
-// A computer shows Check now at the right of the Checked against GitHub line (in the same row, so the browser lines up
-// the baselines); a phone keeps it in the page heading, on a line under the title
-const PHONE_Q = window.matchMedia("(max-width: 720px)");
+// Check now sits at the right of the Checked line, computer and phone (in the same row, so the browser
+// lines up the baselines); the heading's own box stays empty and hidden
 function checkNow(status) {
   const busy = verLoading || cmpLoading;
   const acts = $("#scripts-acts");
@@ -86,10 +85,8 @@ function checkNow(status) {
   clear(acts);
   const btn = h("button", { class: "btn small", type: "button", text: busy ? "Checking…" : "Check now", disabled: busy,
     title: "Check the panel's version and compare the scripts here with GitHub's copies now", onclick: checkAll });
-  if (PHONE_Q.matches) { acts.append(btn); return; }
   status.append(h("span", { class: "scripts-acts scripts-acts-row", id: "scripts-acts-row" }, btn));
 }
-PHONE_Q.addEventListener("change", () => { const box = $("#scripts-root"); if (box && box.firstChild) render(); });
 
 async function checkAll() {
   await Promise.all([loadPanelVersion(true), loadCompare(true)]);
@@ -122,7 +119,7 @@ function panelRow(cmd) {
           title: `Update the control panel to ${v.latest}`, onclick: () => updatePanel(v) })
         : h("button", { class: "btn small", type: "button", text: "Update", disabled: !!v.running,
           title: "Update the control panel when a newer version is out", onclick: () => panelUpToDate(v) }),
-      removeOff("The control panel's script stays.")));
+      removeOff("The control panel needs this script. To remove the panel, uninstall it over SSH.")));
 }
 
 // What's new: the project's changelog, entries since this panel's version marked (the Overview's button)
@@ -245,10 +242,10 @@ function upItems() {
       line: [u.security ? `${u.security} for security, of ${u.count} waiting` : "", u.reboot ? "a restart is needed to finish" : ""].filter(Boolean).join("; ") + "." });
   }
   const prox = ((maint && maint.proxies && maint.proxies.items) || []).filter((i) => i.newer);
-  const row = (i) => ({ short: `${i.id === "caddy" ? "Caddy" : "cloudflared"} update`, title: i.name, page: "maint", go: "Maintenance",
+  const row = (i) => ({ short: `${i.id === "caddy" ? "Caddy" : "Cloudflare"} update`, title: i.name, page: "maint", go: "Maintenance",
     line: `${i.latest} is out; this server runs ${i.running}.` });
   for (const i of prox.filter((x) => x.old)) {
-    items.push({ ...row(i), short: "Old cloudflared",
+    items.push({ ...row(i), short: "Old Cloudflare",
       line: `${i.running} is over 10 months old, and Cloudflare stops supporting a release after about a year. ${i.latest} is out.` });
   }
   for (const i of prox.filter((x) => !x.old).sort((a, b) => (a.id === "caddy" ? 0 : 1) - (b.id === "caddy" ? 0 : 1))) {
@@ -352,11 +349,14 @@ function row(x, cmd, updateCmd) {
         : spacer("Update"),
       ...(removable ? [h("button", { class: "btn small quiet danger", type: "button", text: "Remove",
         title: `Deletes ${x.file} from this server. ${x.label} isn't set up, so nothing else changes.`, onclick: () => removeScript(x) })]
-        : x.present ? [removeOff(`${x.label} is set up, so its script stays.`)] : [spacer("Remove")])));
+        : x.present ? [removeOff(x.id === "aiostreams" ? "AIOStreams needs this script. To remove AIOStreams, uninstall it over SSH."
+          : `Uninstall ${x.label} on the Add-ons page first. Then Remove deletes its script here.`)] : [spacer("Remove")])));
 }
 
-// Every row with its script here shows Update and Remove: where nothing can be removed, Remove is greyed out
-const removeOff = (why) => h("button", { class: "btn small quiet rm-off", type: "button", text: "Remove", disabled: true, title: why });
+// Every row with its script here shows Update and Remove: where nothing can be removed, Remove is greyed out,
+// and a tap says why in a toast, the same words on every device: someone here may think Remove takes the
+// add-on itself away, so it says where that's done (Add-ons, or SSH for the panel and AIOStreams)
+const removeOff = (why) => greyed(h("button", { class: "btn small quiet rm-off", type: "button", text: "Remove" }), why);
 
 // Update replaces the script here with GitHub's main copy, checked before anything changes.
 // The command is still offered, for anyone who'd rather run it over SSH.

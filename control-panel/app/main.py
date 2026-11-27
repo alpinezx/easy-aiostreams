@@ -738,12 +738,6 @@ async def set_restart_schedule(request: Request, user: str = Depends(current_use
         raise HTTPException(400, str(e))
 
 
-@app.get("/api/proxies")
-async def proxies(force: bool = False, user: str = Depends(current_user)):
-    """Maintenance's Caddy and Cloudflare card: versions, the newest releases (force asks GitHub again)."""
-    return await asyncio.to_thread(backend.proxies_info, force)
-
-
 @app.put("/api/auto-updates")
 async def set_auto_updates(request: Request, user: str = Depends(current_user)):
     """{"mode": "off" | "monthly"}: whether Caddy and cloudflared update by themselves."""
