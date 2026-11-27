@@ -654,6 +654,9 @@ button.chip:hover { text-decoration: underline; }
   .warnc .card-acts { gap: 2px; margin: -4.5px -8px -8px auto; }
   .warnc .card-acts > .card-cog, .warnc .card-acts > .warn-logs, .warnc .card-acts > .warn-clear { padding: 8px; margin: 0; }
   .warnc .card-acts > .card-cog svg { width: 16px; height: 16px; }
+  /* the three icons' ink ends level with the sliders': the bin draws low, the Logs lines short */
+  .warnc .card-acts > .warn-clear svg { transform: translateY(-1px); }
+  .warnc .card-acts > .warn-logs svg { transform: translateY(1px); }
   /* Empty, its line sits where the folded summary does (12px gap + 2px, the summary's line height),
      so the card is the same height open and folded */
   .warnc .warn-foot > .warn-none { margin-top: 14px; line-height: calc(.82rem * 1.5); }
@@ -2478,6 +2481,10 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   #view-overview .warnc .card-acts > .card-cog, #view-overview .warnc .card-acts > .warn-logs,
   #view-overview .warnc .card-acts > .warn-clear { padding: 4px 6px; margin: 0; }
   #view-overview .card-cog svg, #view-overview .fa-icon svg { width: 15px; height: 15px; }
+  /* Recent log alerts: the three icons' ink ends on the words' baseline like Settings' sliders (measured ink plus
+     Firefox by eye): the bin draws low and the Logs lines are short, so the bin goes 2px up, Logs 1px down */
+  #view-overview .warnc .card-acts > .warn-clear svg { transform: translateY(-2px); }
+  #view-overview .warnc .card-acts > .warn-logs svg { transform: translateY(1px); }
   #view-overview .ver-btns, #view-overview #rows .row .acts { gap: 8px; }
   /* Every action's word ends on the card's right-hand line (the plain buttons' padding pulled out),
      and Turn VPN off starts on its left-hand line */
