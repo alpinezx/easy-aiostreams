@@ -65,15 +65,14 @@ def test_gluetun_list_keeps_only_the_v3_line(monkeypatch):
     assert urls == [releases.GLUETUN_URL]
 
 
-def test_answer_is_cached_and_force_is_throttled(monkeypatch):
+def test_answer_is_cached(monkeypatch):
     calls = []
     monkeypatch.setattr(releases.requests, "get", fake_get([[rel("v2.35.9")]], calls))
     releases.get()
     releases.get()
-    releases.get(force=True)
     assert calls == [1]
-    releases._cache["stable"]["at"] -= releases.FORCE_GAP + 1
-    releases.get(force=True)
+    releases._cache["stable"]["at"] -= releases.FRESH + 1
+    releases.get()
     assert calls == [1, 1]
 
 

@@ -22,26 +22,19 @@ function runningTag(st) {
   return t.startsWith("v") ? t : `v${st.version}`;
 }
 
-async function loadReleases(force) {
+// Kept 3 hours on the server, so the card has no Check now: it would only repeat what it shows
+async function loadReleases() {
   const chan = relFor;
   relLoading = true;
   if (lastSt) hero(lastSt);
   let got;
-  try { got = await api(`/api/aiostreams-releases?channel=${chan}${force ? "&force=1" : ""}`); }
+  try { got = await api(`/api/aiostreams-releases?channel=${chan}`); }
   catch (e) { got = { channel: chan, releases: [], error: e.message }; }
   if (chan !== relFor) return;      // the build channel changed while this was out
   rel = got;
   relLoading = false;
-  const running = lastSt && runningTag(lastSt);
-  remember(rel, running);
+  remember(rel, lastSt && runningTag(lastSt));
   if (lastSt) hero(lastSt);
-  if (force && running) {
-    const { newer } = behind(rel, running);
-    const nightly = chan === "nightly";
-    if (!rel.releases.length) toast(`Couldn't check for updates. ${rel.error || ""}`.trim(), true);
-    else if (newer.length) toast(nightly ? "A newer nightly is out." : `${newer[0].tag} is available.`);
-    else toast(nightly ? "You're on the newest nightly." : `${running} is the latest release.`);
-  }
 }
 
 // The version card's Latest column: [value, line under it, buttons, whether a newer release is out]
@@ -72,8 +65,7 @@ function updateBits(st) {
         onclick: () => openReleases(rel, running) }, stIcon("up"), nightly ? "Newer nightly out" : `${top.tag} available`);
     }
   }
-  const btns = [h("button", { class: "btn small", type: "button", text: relLoading ? "Checking…" : "Check now",
-    disabled: relLoading, title: `Ask GitHub for the latest AIOStreams ${nightly ? "nightly" : "release"} now`, onclick: () => loadReleases(true) })];
+  const btns = [];
   if (rel && rel.releases.length) {
     btns.push(h("button", { class: "btn small", type: "button", text: "All releases",
       title: `What changed in each AIOStreams ${nightly ? "nightly build" : "release"}`, onclick: () => openReleases(rel, running) }));
@@ -269,7 +261,7 @@ export function render(st, goLogs) {
   window.__addons = (st.services || []).some((s) => s.addon);   // Restart stack leaves them alone, and says so
   lastSt = st;
   lastGoLogs = goLogs;
-  if (st.version && relFor !== relChannel(st)) { relFor = relChannel(st); rel = null; loadReleases(false); }
+  if (st.version && relFor !== relChannel(st)) { relFor = relChannel(st); rel = null; loadReleases(); }
   remember(rel, runningTag(st));
   hero(st); path(st); rows(st, goLogs); side(st);
   applyLayout(st);
@@ -371,7 +363,7 @@ function hero(st) {
 
 // Edit: which cards the Overview shows, and their order, in a drawer
 function editBtn() {
-  const b = h("button", { class: "btn small quiet hero-edit", type: "button", "aria-label": "Edit Overview", title: "Edit Overview: show, hide or reorder its cards", onclick: openLayout });
+  const b = h("button", { class: "btn small quiet hero-edit", type: "button", "aria-label": "Edit Overview", title: "Edit Overview: show, hide or reorder its cards", onclick: () => openLayout() });
   b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg><span class="fa-word">Edit</span>';
   b.setAttribute("aria-label", "Edit Overview");
   return b;
@@ -387,24 +379,18 @@ function cardPages(domain, pages) {
     title: `Opens https://${domain}${path} in a new tab` }, label, extIcon())));
 }
 
-// AIOMetadata's releases, from GitHub, kept 3 hours like AIOStreams'. Check now asks again.
+// AIOMetadata's releases, from GitHub, kept 3 hours like AIOStreams'
 let metaRel = null, metaRelLoading = false;
-async function loadMetaReleases(force) {
+async function loadMetaReleases() {
   if (metaRelLoading) return;
   metaRelLoading = true;
   if (lastSt) { keys["#hero"] = null; hero(lastSt); }
-  try { metaRel = await api(`/api/aiometadata-releases${force ? "?force=1" : ""}`); }
+  try { metaRel = await api("/api/aiometadata-releases"); }
   catch (e) { metaRel = { channel: "aiometadata", releases: [], error: e.message }; }
   metaRel.name = "AIOMetadata";
   metaRel.page = "https://github.com/cedya77/aiometadata/releases";
   metaRelLoading = false;
   if (lastSt) { keys["#hero"] = null; hero(lastSt); }
-  if (force && lastSt && lastSt.aiometadata) {
-    const running = `v${lastSt.aiometadata.version}`;
-    const top = metaRel.releases.length ? behind(metaRel, running).newer[0] : null;
-    if (!metaRel.releases.length) toast(`Couldn't check for updates. ${metaRel.error || ""}`.trim(), true);
-    else toast(top ? `AIOMetadata ${top.tag} is available.` : `AIOMetadata ${running} is the latest release.`);
-  }
 }
 
 // AIOMetadata's card, laid out like AIOStreams'. Its releases come up to twice a day, so a
@@ -412,7 +398,7 @@ async function loadMetaReleases(force) {
 function metaCard(st, avail) {
   const m = st.aiometadata;
   const running = `v${m.version}`;
-  if (!metaRel) loadMetaReleases(false);
+  if (!metaRel) loadMetaReleases();
   const list = metaRel && metaRel.releases.length ? metaRel : null;
   const top = list ? behind(list, running).newer[0] : null;
   const mine = list && list.releases.find((r) => r.tag === running);
@@ -438,31 +424,24 @@ function metaCard(st, avail) {
       h("div", { class: "ver-right" },
         col(latest, top && top.published ? `Released ${ago(Date.parse(top.published) / 1000)}` : list ? `Checked ${ago(metaRel.checked_at)}` : ""),
         h("div", { class: "ver-btns" }, updBtn,
-          h("button", { class: "btn small", type: "button", text: metaRelLoading ? "Checking…" : "Check now", disabled: metaRelLoading,
-            title: "Ask GitHub for the latest AIOMetadata release now", onclick: () => loadMetaReleases(true) }),
           list ? h("button", { class: "btn small", type: "button", text: "All releases",
             title: "What changed in each AIOMetadata release", onclick: () => openReleases(list, running) }) : null))));
 }
 
-// An add-on's releases from GitHub, kept 3 hours like AIOStreams'; Check now asks again.
-// AIOManager's and MediaFlow's cards each keep one. key is its entry in the status.
+// An add-on's releases from GitHub, kept 3 hours like AIOStreams'.
+// AIOManager's, MediaFlow's and gluetun's cards each keep one. key is its entry in the status.
 function addonReleases(key, name, page) {
   const r = { key, name, page, list: null, loading: false };
-  r.load = async (force) => {
+  r.load = async () => {
     if (r.loading) return;
     r.loading = true;
     if (lastSt) { keys["#hero"] = null; hero(lastSt); }
-    try { r.list = await api(`/api/${key}-releases${force ? "?force=1" : ""}`); }
+    try { r.list = await api(`/api/${key}-releases`); }
     catch (e) { r.list = { channel: key, releases: [], error: e.message }; }
     r.list.name = name;
     r.list.page = page;
     r.loading = false;
     if (lastSt) { keys["#hero"] = null; hero(lastSt); }
-    const m = force && lastSt && lastSt[key];
-    if (!m) return;
-    if (!r.list.releases.length) { toast(`Couldn't check for updates. ${r.list.error || ""}`.trim(), true); return; }
-    const top = m.version ? behind(r.list, `v${m.version}`).newer[0] : r.list.releases[0];
-    toast(top ? `${name} ${top.tag} is available.` : `${name} v${m.version} is the latest release.`);
   };
   return r;
 }
@@ -471,18 +450,18 @@ const mfRel = addonReleases("mediaflow", "MediaFlow", "https://github.com/mhdzum
 const glRel = addonReleases("gluetun", "gluetun", "https://github.com/qdm12/gluetun/releases");
 // Its version sits on the VPN card, among the side cards, so those draw again too
 const glLoad = glRel.load;
-glRel.load = async (force) => {
+glRel.load = async () => {
   if (glRel.loading) return;   // a redraw while it's checking mustn't start another check
-  await glLoad(force);
+  await glLoad();
   if (lastSt) side(lastSt);
 };
 
 // An add-on's version card, laid out like AIOMetadata's: its version, the newest
-// release, Update, Check now and All releases. A newer release is a plain line, not a
+// release, Update and All releases. A newer release is a plain line, not a
 // to-do. o: { id, name, rel, version (null while unpinned), pages, corner, foldCorner }
 function addonVerCard(st, avail, o) {
   const running = o.version ? `v${o.version}` : null;
-  if (!o.rel.list) o.rel.load(false);
+  if (!o.rel.list) o.rel.load();
   const rel = o.rel.list;
   const list = rel && rel.releases.length ? rel : null;
   // Unpinned (a MediaFlow set up before pinning): its newest is what Update would pin it to
@@ -513,8 +492,6 @@ function addonVerCard(st, avail, o) {
       h("div", { class: "ver-right" },
         col(latest, top && top.published ? `Released ${ago(Date.parse(top.published) / 1000)}` : list ? `Checked ${ago(rel.checked_at)}` : ""),
         h("div", { class: "ver-btns" }, updBtn,
-          h("button", { class: "btn small", type: "button", text: o.rel.loading ? "Checking…" : "Check now", disabled: o.rel.loading,
-            title: `Ask GitHub for the latest ${o.name} release now`, onclick: () => o.rel.load(true) }),
           list ? h("button", { class: "btn small", type: "button", text: "All releases",
             title: `What changed in each ${o.name} release`, onclick: () => openReleases(list, running) }) : null))));
 }
@@ -551,7 +528,7 @@ function versionCard(st, avail) {
   const col = (value, sub) => h("div", {},
     h("div", { class: "ver-value" }, ...[value].flat()), h("div", { class: "ver-sub", text: sub || "" }));
   const upd = st.installed && avail["stack.update"];
-  // Update sits with Check now, plain like every card's: the amber "available" already says a newer one is out
+  // Update sits with All releases, plain like every card's: the amber "available" already says a newer one is out
   const mkUpd = () => hot(h("button", { class: "btn small", type: "button", text: "Update",
     disabled: !!st.busy, title: "Update AIOStreams, or switch between stable and nightly", onclick: () => runAction(upd) }), fresh);
   if (upd && upd.available) btns.unshift(mkUpd());
@@ -769,7 +746,7 @@ function rows(st, goLogs) {
         // What the service does is on hover, keeping each row to the name
         // On a phone, where the CPU and Memory columns don't fit, both sit under the name
         h("div", {}, h("div", { class: "name", text: s.name, title: s.role || null }), h("div", { class: "sub pstat", dataset: { pstat: "1" } })),
-        h("div", {}, h("div", { class: "state-word", dataset: { s: sx } }, h("span", { dataset: { w: "1" }, text: s.vpnOff ? "Off, using a direct connection" : "" })),
+        h("div", {}, h("div", { class: "state-word", dataset: { s: sx } }, h("span", { dataset: { w: "1" }, text: s.vpnOff ? "VPN off" : "" })),
           h("div", { class: "img", dataset: { img: "1" }, title: s.image || "" })),
         h("div", { class: "num", dataset: { cpu: "1" } }),
         h("div", { class: "num", dataset: { mem: "1" } }),
@@ -816,18 +793,15 @@ async function loadWdDays() {
 
 // The VPN card's details come from the VPN page's own data (the server asks from inside
 // gluetun at most once a minute), fetched again within a minute, or at once when it's switched.
-// vpnChecking: a press of Check now, the only time its button says Checking… (the card's own
-// refresh each minute runs quietly)
-let vpnInfo = null, vpnAt = 0, vpnFor = null, vpnLoading = false, vpnChecking = false;
-async function loadVpn(mode, fresh) {
-  if (vpnLoading || (!fresh && mode === vpnFor && Date.now() - vpnAt < 60000)) return;
-  vpnLoading = true; vpnChecking = !!fresh;
-  if (fresh && lastSt) side(lastSt);
-  try { vpnInfo = await api(`/api/vpn${fresh ? "?fresh=1" : ""}`); }
+// It refreshes itself, so the card has no Check now.
+let vpnInfo = null, vpnAt = 0, vpnFor = null, vpnLoading = false;
+async function loadVpn(mode) {
+  if (vpnLoading || (mode === vpnFor && Date.now() - vpnAt < 60000)) return;
+  vpnLoading = true;
+  try { vpnInfo = await api("/api/vpn"); }
   catch (_) { vpnInfo = null; }
-  vpnAt = Date.now(); vpnFor = mode; vpnLoading = false; vpnChecking = false;
+  vpnAt = Date.now(); vpnFor = mode; vpnLoading = false;
   if (lastSt) side(lastSt);
-  if (fresh && vpnInfo) toast(vpnInfo.connected ? "The VPN is connected." : vpnInfo.error || "The VPN isn't connected.", !vpnInfo.connected);
 }
 
 // ---------------- side panels ----------------
@@ -1135,12 +1109,12 @@ function warnCard(el) {
 }
 
 // The VPN, once it's set up (on or off), like Phone alerts: whether it's connected, where
-// traffic leaves and the server, with Turn VPN off/on and Check now. The rest is on its page.
+// traffic leaves and the server, with Turn VPN off/on. The rest is on its page.
 const cls = (el, c) => { el.classList.add(c); return el; };
 function vpnCard(el, st, avail) {
   const mode = st.vpn;
   if (mode !== "on" && mode !== "off") return;
-  loadVpn(mode, false);
+  loadVpn(mode);
   const v = vpnInfo && vpnInfo.mode === mode ? vpnInfo : null;
   const up = mode === "on" && v && v.connected;
   const country = up ? countryName(v.country) : "";
@@ -1152,7 +1126,7 @@ function vpnCard(el, st, avail) {
     : ["Disconnected", (v.error || "").slice(0, 70), "bad"];
   // gluetun's release, and the newest on GitHub, as on the add-ons' cards: a newer one is a plain line
   const running = v && v.version ? `v${v.version}` : null;
-  if (running && !glRel.list) glRel.load(false);
+  if (running && !glRel.list) glRel.load();
   const rel = glRel.list, list = rel && rel.releases.length ? rel : null;
   const top = running && list ? behind(list, running).newer[0] : null;
   const latest = !running ? null : !rel ? ["Checking…", ""] : !list ? ["Couldn't check", "warn"]
@@ -1229,17 +1203,10 @@ function vpnCard(el, st, avail) {
   const btns = h("div", { class: "card-foot vpnc-foot" });
   const a = avail[mode === "on" ? "vpn.off" : "vpn.on"];
   if (a && a.available && !(mode === "off" && v && v.has_config === false)) {
-    const sw = (c) => h("button", { class: c, type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) });
-    btns.append(sw("btn small vpnc-switch" + (ver ? " vs-moved" : "")));
-    // Phones: beside gluetun's version instead, on the line under its label, so the card is a line shorter
-    if (ver) ver.append(sw("btn small vs-switch"));
+    // A computer: on the foot's left. A phone: ending on the right under gluetun's version, All releases on the left
+    btns.append(h("button", { class: "btn small vpnc-switch", type: "button", text: a.label, disabled: !!st.busy, onclick: () => runAction(a) }));
   }
   if (updBtn) btns.append(updBtn);
-  if (mode === "on") {
-    btns.append(h("button", { class: "btn small", type: "button", text: vpnChecking ? "Checking…" : "Check now", disabled: vpnChecking,
-      title: "Ask from inside the VPN where traffic leaves now, and GitHub for gluetun's newest release",
-      onclick: () => { loadVpn(mode, true); if (running) glRel.load(true); } }));
-  }
   // As on the version cards
   if (running && list) btns.append(h("button", { class: "btn small vs-all", type: "button", text: "All releases",
     title: "What changed in each gluetun release", onclick: () => openReleases(list, running) }));

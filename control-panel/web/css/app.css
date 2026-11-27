@@ -555,6 +555,9 @@ button.chip:hover { text-decoration: underline; }
   .ver-card { padding: 16px 16px 18px; }
   .ver-btns { justify-content: flex-start; gap: 6px; }
   .ver-btns .btn { padding-left: 8px; padding-right: 8px; }
+  /* The first shown button (All releases; Update sits in the corner) starts on the text's left line,
+     its padding pulled out: its icon where the VPN card's All releases has it */
+  .ver-btns > .btn:not(.ver-upd):first-child, .ver-btns > .ver-upd + .btn { margin-left: -8px; }
 }
 
 /* ---------- signal path ---------- */
@@ -922,10 +925,9 @@ select.input:focus, select.input[aria-expanded="true"] { border-color: var(--lin
    location, the others on the right under AIOStreams' own; on a phone on a row of its own above them */
 @media (min-width: 721px) { .vpnc-foot .vpnc-switch { margin-right: auto; } }
 @media (max-width: 720px) {
-  .vpnc-foot { display: grid; grid-template-columns: repeat(3, auto); justify-content: space-between; gap: 10px 8px; }
+  /* the buttons under it stay together on the left */
+  .vpnc-foot { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: 10px 8px; }
   .vpnc-foot .vpnc-switch { grid-column: 1 / -1; justify-self: start; }
-  /* two buttons under it (the VPN off: no Check now) stay together on the left */
-  .vpnc-foot:not(:has(> :nth-child(4))) { justify-content: start; }
 }
 @media (min-width: 721px) {
   .vpnc .stat-grid:has(> .vs-ver) { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; }
@@ -2364,18 +2366,16 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   /* long words shortened in a half-width button (the full words stay its name) */
   .btn-grid .bw[data-short] { font-size: 0; }
   .btn-grid .bw[data-short]::after { content: attr(data-short); font-size: .82rem; }
-  /* The VPN card's four: Turn VPN off and Update on top, All releases and Check now below, as on the other cards */
+  /* The VPN card's foot: All releases on the left as on the cards above, Turn VPN off ending on the right
+     under gluetun's version, one line (Update is in the corner; if it ever shows here, it goes below) */
   /* the Traffic card's 1 hour / 24 hours / 7 days on a line of their own under the title, centred */
   .vpn-head:has(> .tr-title + .tr-ranges) { grid-template-columns: minmax(0, 1fr); row-gap: 12px; }
   .vpn-head:has(> .tr-title + .tr-ranges) > .tr-ranges { grid-column: 1; }
   /* Scripts: two columns like the cards; the spacers aren't needed */
   .scripts-panel .cmd-btns.btn-grid .btn-spacer { display: none !important; }
-  .vpnc-foot.btn-grid > .btn.vpnc-switch { grid-area: 1 / 1 !important; }
-  .vpnc-foot.btn-grid > .btn[data-act="Update"] { grid-area: 1 / 2 !important; }
-  .vpnc-foot.btn-grid > .btn[data-act="All releases"] { grid-area: 2 / 1 !important; }
-  .vpnc-foot.btn-grid > .btn[data-act="Check now"] { grid-area: 2 / 2 !important; }
-  /* without Update: Turn VPN off/on across the top, All releases and Check now below */
-  .vpnc-foot.btn-grid:not(:has(> .btn[data-act="Update"]:not(.ver-upd))) > .btn.vpnc-switch { grid-area: 1 / 1 / 2 / 3 !important; }
+  .vpnc-foot.btn-grid > .btn[data-act="All releases"] { grid-area: 1 / 1 !important; justify-self: start !important; }
+  .vpnc-foot.btn-grid > .btn.vpnc-switch { grid-area: 1 / 2 !important; justify-self: end !important; }
+  .vpnc-foot.btn-grid > .btn[data-act="Update"] { grid-area: 2 / 1 !important; }
 }
 /* Phones: a page's buttons always on a line of their own under its title, on the right,
    so Activity and VPN match the pages whose buttons don't fit beside it */
@@ -2645,21 +2645,6 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   /* the right-hand column (the second shown: Check now, Stop); a button on a row of its own stays left */
   #view-overview .btn-grid > .btn:not(.primary):not(.btn-alone):not(.vpnc-switch)[data-ord="1"] { justify-self: end; }
   #view-overview .btn-grid > .btn.btn-alone:not(.primary) { width: auto !important; justify-self: start !important; }
-}
-/* The VPN card's Turn VPN off / on: phones show it beside gluetun's version (under its label, level with
-   the line under the version) instead of on a row of its own at the bottom */
-.vs-switch { display: none; }
-@media (max-width: 720px) {
-  #view-overview .stat.vs-ver > .vs-switch { display: inline-flex; align-items: center; gap: 6px; grid-column: 1; grid-row: 2; justify-self: start;
-    align-self: last baseline; height: auto; line-height: inherit;   /* its words' baseline, not the icon's */ background: none; border-color: transparent; box-shadow: none; padding: 0;
-    min-height: 0; font-weight: 600; color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
-  #view-overview .vpnc-foot > .vpnc-switch.vs-moved { display: none !important; }
-  /* the line under gluetun's version, and Turn VPN off beside it, a little further from the line above */
-  #view-overview .stat.vs-ver:has(> .vs-switch) > .ver-sub, #view-overview .stat.vs-ver > .vs-switch { margin-top: 8px; }
-  /* the shield's own white space moved it in from GLUETUN's left edge (optical alignment) */
-  #view-overview .stat.vs-ver > .vs-switch { margin-left: -2px; }
-  /* with the switch gone from it, the footer sits closer under the rows */
-  #view-overview .vpnc-foot:has(> .vs-moved) { padding-top: 6px; row-gap: 0; }
 }
 /* Logs on a narrower computer or tablet (721 to 1100px): the one-row layout would wrap and strand the rule, so the
    level buttons and the tools share a row and the switches sit on a line below, with no rule */

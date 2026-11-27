@@ -56,9 +56,9 @@ const SKIP = ".fold-act, .icon-only, .hero-edit, .tr-ranges .btn, .lg-row .btn, 
 // Phones: these rows laid out as two columns, in this order (lower first). With an odd number,
 // the first sits on its own above the pairs; the rest go in pairs, the action on the right.
 const GRIDS = ".ver-btns, .vpnc-foot, .card-foot, .vpn-card-acts, .maint-foot, .scripts-panel .cmd-btns";
-// Version cards: Update across the top, All releases and Check now under it
+// Version cards: Update, then All releases
 const ORDER = {
-  "Update": 0, "All releases": 1, "Check now": 2,
+  "Update": 0, "All releases": 1,
   "List updates": 0, "Install updates": 1,
   "Send test alert": 0, "Stop": 1, "Start": 1,
   // VPN: Change server | Change config, Update VPN | Turn VPN off (the most disruptive bottom right)

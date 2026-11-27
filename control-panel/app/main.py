@@ -260,54 +260,54 @@ async def scripts_compare(force: bool = False, user: str = Depends(current_user)
 
 
 @app.get("/api/aiometadata-releases")
-async def aiometadata_releases(force: bool = False, user: str = Depends(current_user)):
+async def aiometadata_releases(user: str = Depends(current_user)):
     if config.DEMO:
         return releases.demo("aiometadata")
-    return await asyncio.to_thread(releases.get, force, "aiometadata")
+    return await asyncio.to_thread(releases.get, "aiometadata")
 
 
 @app.get("/api/aiomanager-releases")
-async def aiomanager_releases(force: bool = False, user: str = Depends(current_user)):
+async def aiomanager_releases(user: str = Depends(current_user)):
     if config.DEMO:
         return releases.demo("aiomanager")
-    return await asyncio.to_thread(releases.get, force, "aiomanager")
+    return await asyncio.to_thread(releases.get, "aiomanager")
 
 
 @app.get("/api/mediaflow-releases")
-async def mediaflow_releases(force: bool = False, user: str = Depends(current_user)):
+async def mediaflow_releases(user: str = Depends(current_user)):
     if config.DEMO:
         return releases.demo("mediaflow")
-    return await asyncio.to_thread(releases.get, force, "mediaflow")
+    return await asyncio.to_thread(releases.get, "mediaflow")
 
 
 @app.get("/api/gluetun-releases")
-async def gluetun_releases(force: bool = False, user: str = Depends(current_user)):
+async def gluetun_releases(user: str = Depends(current_user)):
     if config.DEMO:
         return releases.demo("gluetun")
-    return await asyncio.to_thread(releases.get, force, "gluetun")
+    return await asyncio.to_thread(releases.get, "gluetun")
 
 
 @app.get("/api/caddy-releases")
-async def caddy_releases(force: bool = False, user: str = Depends(current_user)):
+async def caddy_releases(user: str = Depends(current_user)):
     if config.DEMO:
         return releases.demo("caddy")
-    return await asyncio.to_thread(releases.get, force, "caddy")
+    return await asyncio.to_thread(releases.get, "caddy")
 
 
 @app.get("/api/cloudflared-releases")
-async def cloudflared_releases(force: bool = False, user: str = Depends(current_user)):
+async def cloudflared_releases(user: str = Depends(current_user)):
     if config.DEMO:
         return releases.demo("cloudflared")
-    return await asyncio.to_thread(releases.get, force, "cloudflared")
+    return await asyncio.to_thread(releases.get, "cloudflared")
 
 
 @app.get("/api/aiostreams-releases")
-async def aiostreams_releases(force: bool = False, channel: str = "stable", user: str = Depends(current_user)):
+async def aiostreams_releases(channel: str = "stable", user: str = Depends(current_user)):
     if channel not in releases.CHANNELS:
         raise HTTPException(400, "channel must be stable or nightly")
     if config.DEMO:
         return releases.demo(channel)
-    return await asyncio.to_thread(releases.get, force, channel)
+    return await asyncio.to_thread(releases.get, channel)
 
 
 # Lock + note per backup, kept in the panel's own state (so it rides along in backups).

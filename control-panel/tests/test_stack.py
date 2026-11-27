@@ -408,7 +408,7 @@ def test_vpn_info_on_asks_gluetun_where_traffic_leaves(tmp_path, monkeypatch):
     assert v["endpoint_host"] is None and "PRIVkey" not in repr(v)
     b.vpn_info()                       # within a minute: from the cache, gluetun isn't asked again
     assert len(asked) == 1
-    b.vpn_info(fresh=True)             # Check now asks again
+    b.vpn_info(fresh=True)             # the VPN page's refresh asks again
     assert len(asked) == 2
 
 

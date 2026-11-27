@@ -249,7 +249,8 @@ async function showConfigs(box) {
     list.append(h("div", { class: "conf-item" },
       h("div", { class: "conf-what" },
         h("div", { class: "conf-name" }, h("span", { text: name }),
-          c.in_use ? h("span", { class: off ? "chip" : "chip ok", text: off ? "Used when the VPN is on" : "In use" }) : null),
+          // With the VPN off, no pill: the name says which config it is
+          c.in_use && !off ? h("span", { class: "chip ok", text: "In use" }) : null),
         h("div", { class: "conf-path mono", text: c.path })),
       h("div", { class: "conf-ep mono", text: c.endpoint || "" }),
       h("div", { class: "conf-acts" },
@@ -277,6 +278,17 @@ async function changeServer() {
   ok.disabled = true;
   try {
     const r = await api("/api/vpn/addresses");
+    // One address, already in use (Cloudflare WARP's name has just the one): say so in place of the
+    // intro (which talks of switching), with only Close
+    if (r.addresses.length && r.addresses.every((a) => a.in_use)) {
+      clear(list);
+      const intro = document.querySelector("#dialog p");   // ask()'s body, the first paragraph
+      if (intro) intro.textContent = `${last.endpoint_host} has only one address, and it's the one in use, so there's no other server to change to.`;
+      else list.append(h("p", { class: "vpn-note", text: `${last.endpoint_host} has only one address, and it's the one in use.` }));
+      ok.hidden = true;
+      const cancel = [...document.querySelectorAll("#dialog .btn")].find((b) => b !== ok && b.textContent === "Cancel");
+      if (cancel) cancel.textContent = "Close";
+    } else
     fillAddresses(list, r, (a) => { chosen = a.ip; ok.disabled = a.in_use; });
   } catch (e) {
     clear(list);
@@ -386,7 +398,8 @@ function render(v) {
 
 // The state line, where traffic leaves, the server address and the boxed buttons
 function vpnCard(v) {
-  const [lamp, word] = v.mode !== "on" ? ["", v.has_config === false ? "Off, no config saved" : "Off, using a direct connection"]
+  // Short, so it fits one line on a phone: the note under it says it's a direct connection (and when no config is saved)
+  const [lamp, word] = v.mode !== "on" ? ["", "VPN off"]
     : v.connected ? ["ok", "Connected"] : ["down", "Disconnected"];
   const card = h("div", { class: "panel vpn-card" },
     h("div", { class: "vpn-head" },
@@ -414,7 +427,8 @@ function vpnCard(v) {
       use ? h("button", { class: "btn small", type: "button", text: "Change server", disabled: !!(st && st.busy),
         title: "Pick another address for the same server name, timed from this server", onclick: changeServer }) : null,
       conf ? h("button", { class: "btn small", type: "button", text: "Change config", disabled: !!(st && st.busy),
-        title: "Use a different WireGuard config, pasted or from a file", onclick: changeConfig }) : null,
+        // Not onclick: changeConfig, which would pass the click as turnOn and word it as Turn VPN on
+        title: "Use a different WireGuard config, pasted or from a file", onclick: () => changeConfig() }) : null,
       upd ? h("button", { class: "btn small", type: "button", text: "Update VPN", disabled: !!(st && st.busy),
         title: "Pull the newest gluetun v3 release", onclick: () => updateOrSay(upd, v) }) : null));
   }

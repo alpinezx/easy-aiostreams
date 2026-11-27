@@ -22,7 +22,6 @@ CADDY_URL = "https://api.github.com/repos/caddyserver/caddy/releases"
 CLOUDFLARED_URL = "https://api.github.com/repos/cloudflare/cloudflared/releases"
 FRESH = 3 * 3600
 RETRY = 10 * 60
-FORCE_GAP = 60
 MAX_PAGES = 5
 KEEP = 20
 BODY_MAX = 20000
@@ -113,7 +112,7 @@ def _fetch(channel: str) -> list[dict]:
     return found[:KEEP]
 
 
-def get(force: bool = False, channel: str = "stable") -> dict:
+def get(channel: str = "stable") -> dict:
     if channel not in SOURCES:
         raise ValueError(channel)
     with _lock:
@@ -124,7 +123,7 @@ def get(force: bool = False, channel: str = "stable") -> dict:
         age = now - c["at"]
         never = c["releases"] is None and c["error"] is None
         due = age > (RETRY if c["error"] else FRESH)
-        if never or due or (force and age > FORCE_GAP):
+        if never or due:
             try:
                 c["releases"] = _fetch(channel)
                 c["error"] = None
