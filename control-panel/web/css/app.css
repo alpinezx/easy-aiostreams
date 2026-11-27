@@ -654,8 +654,8 @@ button.chip:hover { text-decoration: underline; }
   .warnc .card-acts { gap: 2px; margin: -4.5px -8px -8px auto; }
   .warnc .card-acts > .card-cog, .warnc .card-acts > .warn-logs, .warnc .card-acts > .warn-clear { padding: 8px; margin: 0; }
   .warnc .card-acts > .card-cog svg { width: 16px; height: 16px; }
-  /* the three icons' ink ends level with the sliders': the bin draws low, the Logs lines short */
-  .warnc .card-acts > .warn-clear svg { transform: translateY(-1px); }
+  /* the three icons' ink ends level with the sliders': the Logs lines draw short, so 1px down (the bin needs no
+     nudge on a phone: 1px up looked level in Chrome but high in Firefox on Android) */
   .warnc .card-acts > .warn-logs svg { transform: translateY(1px); }
   /* Empty, its line sits where the folded summary does (12px gap + 2px, the summary's line height),
      so the card is the same height open and folded */

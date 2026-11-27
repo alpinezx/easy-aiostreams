@@ -4,7 +4,7 @@ Notable changes to easy-aiostreams, newest first. Control panel versions are in 
 
 ## 27 November 2026
 
-- Overview: Recent log alerts' bin and Logs icons end level with Settings' on a phone and a computer. (Panel 1.71.4, [#235](https://github.com/alpinezx/easy-aiostreams/pull/235))
+- Overview: Recent log alerts' bin and Logs icons end level with Settings' on a phone and a computer. (Panel 1.71.5, [#235](https://github.com/alpinezx/easy-aiostreams/pull/235))
 - Overview: with the VPN off, "VPN off" in Services and the VPN card's Off and This server read grey like the uptimes. On a phone Recent log alerts' corner icons sit level with the title, and Phone alerts' 14 days span the card as on the Phone alerts page. (Panel 1.71.3, [#235](https://github.com/alpinezx/easy-aiostreams/pull/235))
 - Services: each row's status dot now sits before the service's name, on a phone and a computer, with the uptime words alone on the right; on a phone CPU and Mem start under the dot. Recent log alerts on a phone starts each message under the dot too, and both cards leave the same gap between dot and name. (Panel 1.71.2, [#235](https://github.com/alpinezx/easy-aiostreams/pull/235))
 - Overview: the AIOStreams, AIOMetadata, AIOManager, MediaFlow and VPN cards lose their Check now, which only repeated what the card shows (releases are checked every 3 hours, the VPN card every minute). On a phone the VPN card's All releases and Turn VPN off share a line. With the VPN off, the VPN page reads "VPN off" with no pill on its config, and Change server says so plainly when the server name has only one address. (Panel 1.71.1, [#235](https://github.com/alpinezx/easy-aiostreams/pull/235))
