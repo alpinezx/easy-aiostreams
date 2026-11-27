@@ -745,7 +745,8 @@ function rows(st, goLogs) {
       el.append(h("div", { class: "row", dataset: { svc: s.key } },
         // What the service does is on hover, keeping each row to the name
         // On a phone, where the CPU and Memory columns don't fit, both sit under the name
-        h("div", {}, h("div", { class: "name", text: s.name, title: s.role || null }), h("div", { class: "sub pstat", dataset: { pstat: "1" } })),
+        // On a phone the status dot sits before the name (data-s colours it), like the headline's
+        h("div", {}, h("div", { class: "name", text: s.name, title: s.role || null, dataset: { s: sx } }), h("div", { class: "sub pstat", dataset: { pstat: "1" } })),
         h("div", {}, h("div", { class: "state-word", dataset: { s: sx } }, h("span", { dataset: { w: "1" }, text: s.vpnOff ? "VPN off" : "" })),
           h("div", { class: "img", dataset: { img: "1" }, title: s.image || "" })),
         h("div", { class: "num", dataset: { cpu: "1" } }),

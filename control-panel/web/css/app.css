@@ -692,16 +692,20 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .spark path.line { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
 .state-word { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
 .state-word::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
-.state-word[data-s="running"]::before { background: var(--ok); }
+.row .name[data-s]::before { background: var(--faint); }   /* the phone's dot before a service's name (shown below) */
+.state-word[data-s="running"]::before, .row .name[data-s="running"]::before { background: var(--ok); }
 .state-word[data-s="running"] { color: var(--ok); }
 /* Services: a running service's words in grey, only its dot green (less green in the list) */
 .row .state-word[data-s="running"] { color: var(--dim); }
 .state-word[data-s="resuming"], .state-word[data-s="planned"] { color: var(--dim); }
-.state-word[data-s="resuming"]::before, .state-word[data-s="planned"]::before { background: var(--dim); }
+.state-word[data-s="resuming"]::before, .state-word[data-s="planned"]::before,
+.row .name[data-s="resuming"]::before, .row .name[data-s="planned"]::before { background: var(--dim); }
 .state-word[data-s="starting"], .state-word[data-s="paused"] { color: var(--warn); }
 .state-word[data-s="stopped"], .state-word[data-s="missing"], .state-word[data-s="unhealthy"], .state-word[data-s="restarting"] { color: var(--bad); }
-.state-word[data-s="starting"]::before, .state-word[data-s="paused"]::before { background: var(--warn); }
-.state-word[data-s="stopped"]::before, .state-word[data-s="missing"]::before, .state-word[data-s="unhealthy"]::before, .state-word[data-s="restarting"]::before { background: var(--bad); }
+.state-word[data-s="starting"]::before, .state-word[data-s="paused"]::before,
+.row .name[data-s="starting"]::before, .row .name[data-s="paused"]::before { background: var(--warn); }
+.state-word[data-s="stopped"]::before, .state-word[data-s="missing"]::before, .state-word[data-s="unhealthy"]::before, .state-word[data-s="restarting"]::before,
+.row .name[data-s="stopped"]::before, .row .name[data-s="missing"]::before, .row .name[data-s="unhealthy"]::before, .row .name[data-s="restarting"]::before { background: var(--bad); }
 
 .side { display: grid; gap: 18px; }
 .panel { background: var(--raised); border: 1px solid var(--card-edge); border-radius: var(--radius); padding: 16px; }
@@ -2116,7 +2120,8 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 .warn-row { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; align-items: center; padding: 9px 0; color: var(--text); text-decoration: none; border-top: 1px solid var(--line-soft); }
 .warn-row:first-child { border-top: 0; }
 .warn-row:hover .warn-msg { text-decoration: underline; }
-.warn-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); }
+/* 7px from the dot to the name like Services' rows (the grid's gap is 14px, so the dot gives back 7) */
+.warn-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); margin-right: -7px; }
 .warn-row.error .warn-dot { background: var(--bad); }
 .warn-svc { font-weight: 600; white-space: nowrap; }
 .warn-msg { font-family: var(--mono, ui-monospace, monospace); font-size: .82rem; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2127,7 +2132,8 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 @media (max-width: 720px) {
   .warn-list { grid-template-columns: auto minmax(0, 1fr) auto; }
   .warn-row { grid-template-columns: subgrid; row-gap: 4px; }
-  .warn-msg { grid-column: 2 / -1; grid-row: 2; min-width: 0; }   /* one line, cut off: the card only points at the log */
+  /* one line, cut off: the card only points at the log. It starts under the dot, on the card's text line */
+  .warn-msg { grid-column: 1 / -1; grid-row: 2; min-width: 0; }
   .warn-ago { grid-column: 3; grid-row: 1; }
 }
 
@@ -2290,8 +2296,12 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
   .row .pstat:empty { display: none; }
   /* the status and uptime on the name's line, CPU and Mem each on a line under the name */
   .row:not(.row-head) > :nth-child(-n+2) { align-self: first baseline; }
-  .row .state-word { position: relative; top: -1.5px; }   /* its dot box sits the words 1.5px low */
 }
+/* Services, every screen: the status dot before the name (like the headline's), the uptime words alone. What sits
+   under the name (CPU and Mem on a phone) starts under the dot, on the card's text line, not under the name's words. */
+.row .state-word::before { display: none; }
+.row .name[data-s]::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  margin-right: 7px; vertical-align: calc(.39em - 4px); }   /* centred on the text's box, like the flex-centred dots elsewhere */
 @media (max-width: 720px) {
   /* The reboot and update notices: a smaller box with room around it */
   .veil-box { max-width: 300px; padding: 22px 20px; }
