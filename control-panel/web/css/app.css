@@ -1967,8 +1967,6 @@ html:has(> body > .drawer:not([hidden]), > body > #dialog:not([hidden])) { overf
   padding: 9px 6px; margin: -9px -6px -9px auto; font-size: .9rem; font-weight: 600;
   color: color-mix(in srgb, var(--dim) 50%, var(--text)); }
 #view-backups #backups-head #backup-now:active { color: var(--text); }
-/* the count in the title's size and weight (dim), on its baseline; the toggle's own 6px gap, as before the chevron */
-#backups-head .fold-toggle .bk-count { margin-left: 0; font-size: inherit; font-weight: inherit; }
 .bk-card.has-items #backups:has(.item) { gap: 0; border-radius: 0; }
 .bk-card.has-items #backups .item.bk { border: 0; border-top: 1px solid var(--line-soft); border-radius: 0; background: none; }
 #set-asides { margin-top: 18px; background: var(--raised); border: 1px solid var(--card-edge); border-radius: var(--radius); overflow: hidden; }
@@ -2816,7 +2814,12 @@ a.btn .ext { margin-left: 0; vertical-align: 0; }
 .cl-line { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .cl-word { font-weight: 600; } .cl-word.ok { color: var(--ok); } .cl-word.warn { color: var(--warn); }
 .cl-block .maint-foot { margin-top: 10px; }
-@media (max-width: 720px) { .maint-card.mfold.folded > .cl-block:not(.cl-keep) { display: none; } .maint-card.mfold.folded > .cl-block { border-top: 0; padding-top: 12px; } }
+@media (max-width: 720px) {
+  /* Phones: Container logs between Build leftovers and System logs, spaced and divided like the figures */
+  .maint-card > .stat-grid + .cl-block { margin-top: 0; padding: 10px 0; }
+  .maint-card > .fs-sys { margin-top: 0; }
+  .maint-card > .fs-sys > .stat { border-top: 1px solid var(--line-soft); }
+  .maint-card.mfold.folded > .cl-block:not(.cl-keep) { display: none; } .maint-card.mfold.folded > .cl-block { border-top: 0; padding-top: 12px; } }
 /* The Overview's updates pill (scripts.js pill) and its drawer */
 .scripts-pill { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .scripts-pill .up-more { font-weight: 700; padding-left: 8px; margin-left: 2px; border-left: 1px solid color-mix(in srgb, currentColor 45%, transparent); }
