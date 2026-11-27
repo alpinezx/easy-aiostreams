@@ -1143,15 +1143,17 @@ function vpnCard(el, st, avail) {
   const details = iconize(h("a", { href: "#vpn", class: "dim card-link card-detail" + (corner ? " ph-hide" : ""), text: "Details" }));
   // The tunnel's state, open or folded: Connected or Disconnected
   const shortWord = word;
+  // Off reads grey, folded or open, like something switched off (tn stays "" so no note is shown)
+  const wordTone = tn || (mode === "off" ? "dim" : "");
   // Open, the tunnel's state sits beside the title, which leaves the card's middle to gluetun's
   // status, where AIOStreams' card has its own
   const card = h("section", { class: "panel vpnc" + (folded ? " folded" : "") }, h("div", { class: "card-head" },
     h("h3", {}, foldTitle("vpn", "VPN")),
     folded ? null : h("span", { class: "vpnc-tunnel" }, h("span", { class: "ver-label", text: "Tunnel" }),
-      h("span", { class: "vpnc-word" + (tn ? " " + tn : ""), text: shortWord })),
+      h("span", { class: "vpnc-word" + (wordTone ? " " + wordTone : ""), text: shortWord })),
     // Folded, gluetun's version and whether a newer one is out, as the version cards show theirs
     // (one item, so the two stay together; on a phone it's a line of its own)
-    folded ? foldSum([[shortWord, tn], [where], running ? [h("span", { class: "gl-sum" }, h("span", {}, h("span", { class: "gl-name", text: "Gluetun" }), ` ${running}`),
+    folded ? foldSum([[shortWord, wordTone], [where], running ? [h("span", { class: "gl-sum" }, h("span", {}, h("span", { class: "gl-name", text: "Gluetun" }), ` ${running}`),
       top ? h("span", { class: "warn" }, stIcon("up"), `${top.tag} available`)
         : list ? h("span", { class: "ok", text: "Up to date" }) : null)] : [""]]) : null,
     folded && top && updBtn ? foldAct(updBtn) : details, corner));
@@ -1198,7 +1200,7 @@ function vpnCard(el, st, avail) {
   }
   card.append(why || "", h("div", { class: "stat-grid" },
     exit ? exit
-      : mode === "off" ? cls(stat("Exit location", "This server", "A direct connection"), "vs-exit") : null,
+      : mode === "off" ? cls(stat("Exit location", "This server", "A direct connection", "dim"), "vs-exit") : null,
     server, ver, status));
   // Turning it on with no config saved asks for one, which only the VPN page does
   const btns = h("div", { class: "card-foot vpnc-foot" });

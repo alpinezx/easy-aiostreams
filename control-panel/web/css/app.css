@@ -649,7 +649,9 @@ button.chip:hover { text-decoration: underline; }
      The same padding open and folded, so the title doesn't move (and the page with it) when tapped */
   #view-overview .panel.warnc { padding-top: 16px; padding-bottom: 16px; }
   .warnc .card-head { align-items: flex-start; min-height: 0; }
-  .warnc .card-acts { gap: 2px; margin: -8px -8px -8px auto; }
+  /* the head is top-aligned (the folded summary wraps under the title), so the icons come 3.5px down to sit
+     on the title's middle like the other cards' corner icons */
+  .warnc .card-acts { gap: 2px; margin: -4.5px -8px -8px auto; }
   .warnc .card-acts > .card-cog, .warnc .card-acts > .warn-logs, .warnc .card-acts > .warn-clear { padding: 8px; margin: 0; }
   .warnc .card-acts > .card-cog svg { width: 16px; height: 16px; }
   /* Empty, its line sits where the folded summary does (12px gap + 2px, the summary's line height),
@@ -696,7 +698,7 @@ h2.sec { margin: 0 0 12px; font-size: 1.1rem; font-weight: 650; letter-spacing: 
 .state-word[data-s="running"]::before, .row .name[data-s="running"]::before { background: var(--ok); }
 .state-word[data-s="running"] { color: var(--ok); }
 /* Services: a running service's words in grey, only its dot green (less green in the list) */
-.row .state-word[data-s="running"] { color: var(--dim); }
+.row .state-word[data-s="running"], .row .state-word[data-s="off"] { color: var(--dim); }   /* "VPN off" too */
 .state-word[data-s="resuming"], .state-word[data-s="planned"] { color: var(--dim); }
 .state-word[data-s="resuming"]::before, .state-word[data-s="planned"]::before,
 .row .name[data-s="resuming"]::before, .row .name[data-s="planned"]::before { background: var(--dim); }
@@ -991,6 +993,8 @@ select.input:focus, select.input[aria-expanded="true"] { border-color: var(--lin
 }
 .wd-mini { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-soft); display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 16px; }
 .wd-mini-main { display: grid; gap: 6px; margin-right: auto; }
+/* Phones: the strip spans the card like the Phone alerts page's (its buttons are on a line of their own anyway) */
+@media (max-width: 720px) { .wd-mini-main { flex-basis: 100%; margin-right: 0; } }
 .wd-mini .card-foot { padding-top: 0; margin-left: auto; }
 /* a button in a stat grid's last row, at its right */
 .stat-grid .grid-btn { grid-column: -2 / -1; justify-self: end; align-self: end; display: flex; gap: 8px; }
