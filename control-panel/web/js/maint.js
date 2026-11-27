@@ -64,12 +64,18 @@ function space(m) {
     stat("Old images", fmtBytes(s.images), s.image_count ? `${s.image_count} nothing uses any more` : "None left over"),
     stat("Build leftovers", fmtBytes(s.build), "Panel rebuilds"),
     stat("System logs", fmtBytes(s.journal), "Over the 100 MB kept"),
-  ], worth ? [`About ${fmtBytes(total)} can go.`, "Settings, backups and what's in use stay."] : "Nothing worth freeing right now.",
+  // Short, so it fits beside the button on one line on a phone too
+  ], worth ? `${fmtBytes(total)} can go.` : "Nothing to clear.",
   button("maint.space", worth));
   el.classList.add("fs-spread");   // desktop: three figures spread across the card, the last at its right edge
-  // Phones: Container logs under the card's foot; a computer: above it, so Free up space ends the card
-  // like Scheduled server reboot's note beside it
-  if (PHONE_Q.matches) el.append(logsBlock(m)); else el.insertBefore(logsBlock(m), el.querySelector(".card-foot"));
+  // Phones: Container logs between Build leftovers and System logs (System logs moves into a grid of
+  // its own under it); a computer: above the foot, so Free up space ends the card like Scheduled
+  // server reboot's note beside it
+  if (PHONE_Q.matches) {
+    const grid = el.querySelector(".stat-grid");
+    const sys = h("div", { class: "stat-grid fs-sys" }, grid.lastElementChild);
+    grid.after(logsBlock(m), sys);
+  } else el.insertBefore(logsBlock(m), el.querySelector(".card-foot"));
   return phoneFold(el, "space", "Free up space", worth ? [fmtBytes(total), ""] : ["Nothing to clear", "dim"]);
 }
 
@@ -200,9 +206,9 @@ function updPeek(u, pk, j) {
 // uses and Set limits under it. Not set stays in view on a folded phone card (amber).
 function logsBlock(m) {
   const l = m.logs;
-  const word = l.limited ? ["Limit set", "ok"] : ["Not set", "warn"];
-  const what = !l.limited ? `Using ${fmtBytes(l.size)}, with no size limit.`
-    : l.pending ? `Using ${fmtBytes(l.size)}. 10 MB per container; some take it when next recreated.` : `Using ${fmtBytes(l.size)}, at most 10 MB per container.`;
+  const word = l.limited ? ["Limit set", "ok"] : ["No size limit", "warn"];
+  const what = !l.limited ? `Using ${fmtBytes(l.size)}.`
+    : l.pending ? `Using ${fmtBytes(l.size)}. 10 MB per container; some take it when next recreated.` : "Capped at 10 MB per container.";
   const blk = h("div", { class: "cl-block" + (l.limited ? "" : " cl-keep") },
     h("div", { class: "cl-line" }, h("span", { class: "ver-label", text: "Container logs" }), h("span", { class: "cl-word " + word[1], text: word[0] })),
     h("div", { class: "maint-foot" }, h("span", { class: "dim", text: what }), l.limited ? null : button("maint.logs", true)));

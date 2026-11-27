@@ -439,7 +439,7 @@ function chev() {
 }
 
 // The "Backups" title. A computer shows it as a plain heading over the open list; on a phone the whole
-// list is one card that folds to this title and a count, folded until opened and remembered per browser.
+// list is one card that folds to this title, remembered per browser.
 let backupsOpen = true;   // open by default; folding it is remembered
 try { backupsOpen = localStorage.getItem("aios.backupsOpen") !== "0"; } catch (_) {}
 let backupsCount = 0;
@@ -457,14 +457,12 @@ function backupsHead(n) {
     card.classList.toggle("folded", !backupsOpen);
     tog.setAttribute("aria-expanded", String(backupsOpen));
   } }, "Backups", chev());
-  const count = h("span", { class: "bk-count", text: String(n) });
   // Back up now moves from the page heading onto the Backups title row (saves a phone the heading's extra
-  // line) and the count sits beside the title; with no backups yet (no title row) it stays in the heading.
+  // line); with no backups yet (no title row) it stays in the heading. No count beside the title.
   if (n > 0) {
-    tog.insertBefore(count, tog.lastChild);
     head.append(tog, now);
   } else {
-    head.append(tog, count);
+    head.append(tog);
     $("#view-backups .view-head").append(now);
   }
   now.hidden = false;

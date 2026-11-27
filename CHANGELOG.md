@@ -2,6 +2,12 @@
 
 Notable changes to easy-aiostreams, newest first. Control panel versions are in brackets. Each entry links to its pull request for the full detail.
 
+## 27 November 2026
+
+- Overview: Recent log alerts now starts folded on a computer too, and Edit's Reset to default folds it again. (Panel 1.70.5, [#234](https://github.com/alpinezx/easy-aiostreams/pull/234))
+- Backups: the Backups title no longer shows a count. (Panel 1.70.5, [#234](https://github.com/alpinezx/easy-aiostreams/pull/234))
+- Maintenance: Free up space reads shorter, so each line fits beside its button on a phone: "No size limit", "Capped at 10 MB per container.", "836 MB can go." or "Nothing to clear.". On a phone Container logs now comes before System logs. (Panel 1.70.5, [#234](https://github.com/alpinezx/easy-aiostreams/pull/234))
+
 ## 26 November 2026
 
 - Logs and Activity on a phone: Clear is now the bin alone, ending just inside the cards' edge. On Logs, on a phone and a computer, the streaming line moves up beside the page title, saving a line. (Panel 1.70.4, [#233](https://github.com/alpinezx/easy-aiostreams/pull/233))

@@ -140,9 +140,9 @@ export function record(st) {
 // Every card folds to one line holding what matters most, and anything that needs a look
 // stays on that line. Remembered per browser, so a phone can keep cards folded and a
 // desktop open. On a phone every card starts folded (the folded line says enough there); on
-// a desktop only the request flow and the lists inside This server do.
+// a desktop only the request flow, Recent log alerts and the lists inside This server do.
 const FOLD_KEYS = { flow: "aios.flowFolded" };
-const DEFAULT_FOLDED = new Set(["flow", "certs"]);
+const DEFAULT_FOLDED = new Set(["flow", "warn", "certs"]);
 const PHONE_FOLDED = window.matchMedia("(max-width: 720px)").matches;
 const foldKey = (id) => FOLD_KEYS[id] || `aios.fold.${id}`;
 const folds = {};
